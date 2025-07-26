@@ -5,6 +5,8 @@ Other dendritic AI repositories we have found simply enable you to run their cod
 
 Additional details can be found in our [API](https://github.com/PerforatedAI/PerforatedAI-API) and [examples repository](https://github.com/PerforatedAI/PerforatedAI-Examples).
 
+For a high-level overview of this repository, see our architectural diagram [here](./.codeboarding/on_boarding.md).
+
 ## Comparison
 
 We have only run preliminary experiments with this open source implementation, but the following are our results.
