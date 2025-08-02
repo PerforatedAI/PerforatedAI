@@ -1,21 +1,18 @@
 # Perforated AI
 Perforated AI is the Dendritic Intelligence Company.  We have released this open source repo to drive support for research on dendrite networks.
 
-This code provides the ability to add artificial dendrites to PyTorch neural networks.\
-  The new nodes are trained with standard gradient descent, meaning they are simply neurons arranged in a dendritic architecture.\
-  Much current research in this space, [like this example](https://www.nature.com/articles/s41467-025-56297-9),\
-  shows the significant impact of leveraging modern neuroscience to improve modern AI with this method.\
-  However, other research either does not contain open source implimentations, or only provides the exact architecture for the exact experiments in their project.\ 
-  The main differentiator for this open source implementation is that with under an hour of coding you can add dendrites to any existing PyTorch project\ 
-  and advance your own research by joining us on the cutting edge of ML theory.
+This code provides the ability to add artificial dendrites to PyTorch neural networks.  The new nodes are trained with standard gradient descent, meaning they are simply neurons arranged in a dendritic 
+architecture.  Much current research in this space, [like this example](https://www.nature.com/articles/s41467-025-56297-9), shows the significant impact of leveraging modern neuroscience to improve 
+modern AI with this method. However, other research either does not contain open source implementations, or only provides the exact architecture for the exact experiments in their project. The main 
+differentiator for this open source implementation is that with under an hour of coding you can add dendrites to any existing PyTorch project and advance your own research by joining us on the cutting 
+edge of ML theory.
 
-Additional details can be found in our [implimentation API](https://github.com/PerforatedAI/PerforatedAI-API) and [examples repository](https://github.com/RorryB/PAI-Working-Examples).
+Additional details can be found in our [implementation API](https://github.com/PerforatedAI/PerforatedAI-API) and [examples repository](https://github.com/RorryB/PAI-Working-Examples).
 
 ## Alternative Training Mechanisms
 
-If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> \
-please join our beta program at [perforatedai.com](www.perforatedai.com/premium-registration).\
-  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018).
+If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please join our beta program at 
+[perforatedai.com](www.perforatedai.com/premium-registration).  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018).
 
 ## Comparison
 
