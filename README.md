@@ -7,9 +7,9 @@ modern AI with this method. However, other research either does not contain open
 differentiator for this open source implementation is that with under an hour of coding you can add dendrites to any existing PyTorch project and advance your own research by joining us on the cutting 
 edge of ML theory.
 
-Additional details can be found in our [implementation API](https://github.com/PerforatedAI/PerforatedAI-API) and [examples repository](https://github.com/RorryB/PAI-Working-Examples).  If you're here, 
-please also star our repo to support this tech getting into the official PyTorch ecosystem and join our [distcord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in Dendritic 
-AI.
+Additional details can be found in our [implementation API](https://github.com/PerforatedAI/PerforatedAI-API) and [examples repository](https://github.com/RorryB/PAI-Working-Examples).  If you like 
+this project please star the repo to support this tech getting into the official PyTorch ecosystem and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in 
+Dendritic AI.
 
 ## Alternative Training Mechanisms
 
