@@ -1,10 +1,10 @@
 # Papers and Summaries
 
-This page is to accumulate papers on adding dendrites to deep learning projects.  Each summary will include a high level overview, what differentiates this model from a typical model, if the dendrites leverage learning other than gradient descent, and any important pictures from the article.  We will only be accumulating methods adding dendrites to traditional deep learning applications, exceptions such as spiking networks and hardware projects will not be included.  Submit a PR if you would like to add to these resources.
+This page is to accumulate papers on adding dendrites to neural network projects. We will only be accumulating methods adding dendrites to traditional deep learning applications, exceptions such as spiking networks and hardware projects will not be included.  Submit a PR if you would like to add to these resources.
 
 ## Overview
 
-| Paper | Summary | Differentiator | GD? | Multi-Layer Dendrites |
+| Paper | Summary | Differentiator | Gradient Descent? | Dendrites on Multiple Neuron Layers |
 |-------|---------|----------------|-----|-----------------------|
 | [The Cascade Correlation Learning Architecture](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) | Introduces the correlation learning rule for dendrites | Correlation learning | No | No |
 | [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618) | Shows dendrites are more efficient | Dendrites create hypercubes | No | No |
