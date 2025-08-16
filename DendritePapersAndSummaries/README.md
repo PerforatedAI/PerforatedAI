@@ -4,41 +4,41 @@ This page is to accumulate papers on adding dendrites to deep learning projects.
 
 ## Overview
 
-| Paper | Summary | Differentiator | GD? | Multi-layer Dendrites |
-|-------|---------|----------------|-----|------------------------|
-| [Cascade Correlation](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) | Introduces Correlation learning | Correlation learning | No | No |
-| [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618) | Dendrites are more efficient | Dendrites create hypercubes | No | No |
-| [Efficient training for dendrite morphological neural networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) | With enough dendrites one neuron can perfectly classify any training dataset | Dendrites create hypercubes | No | No |
+| Paper | Summary | Differentiator | GD? | Multi-Layer Dendrites |
+|-------|---------|----------------|-----|-----------------------|
+| [The Cascade Correlation Learning Architecture](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) | Introduces the correlation learning rule for dendrites | Correlation learning | No | No |
+| [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618) | Shows dendrites are more efficient | Dendrites create hypercubes | No | No |
+| [Efficient Training for Dendrite Morphological Neural Networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) | With enough dendrites one neuron can perfectly classify any training dataset | Dendrites create hypercubes | No | No |
 | [Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction](https://ieeexplore.ieee.org/document/8409490) | Dendrites are effective for binary classification | Multiple learning approaches | No | No |
-| [Drawing inspiration from biological dendrites to empower artificial neural networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) | Review Paper | N/A | N/A | N/A |
-| [Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning](https://www.nature.com/articles/s41467-025-56297-9) | Dendrites are more parameter efficient | Dendritic receptive fields | Yes | No |
-| [Perforated Backpropagation](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning | No | Yes |
+| [Drawing Inspiration from Biological Dendrites to Empower Artificial Neural Networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) | Review Paper | N/A | N/A | N/A |
+| [Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning](https://www.nature.com/articles/s41467-025-56297-9) | Dendrites are more parameter efficient | Dendritic receptive fields | Yes | No |
+| [Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning | No | Yes |
 | [Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) | PB Dendrites achieve compression | Correlation learning | No | Yes |
 
 
 
-## Cascade Correlation - 1989
-[Cascade Correlation](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) is the first to introduce the correlation learning rule to differentiate dendrite nodes from neuron nodes.  This paper is from 1989 and was introduced as an alternative to gradient descent rather than something to plug into it.  It also does not discuss dendrites itself, but is the inspiration for the cascading architecture used in this repository.
+## The Cascade Correlation Learning Architecture - 1989
+[The Cascade Correlation Learning Architecture](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) is the first to introduce the correlation learning rule to differentiate dendrite nodes from neuron nodes.  This paper is from 1989 and was introduced as an alternative to gradient descent rather than something to plug into it.  It also does not discuss dendrites itself, but is the inspiration for the cascading architecture used in this repository.
 
-## Morphological perceptrons with dendritic structure - 2003
+## Morphological Perceptrons with Dendritic Structure - 2003
 
 [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618) uses dendritic branches to define geometric regions in the input space—often represented as hypercubes or other shapes—through excitatory and inhibitory connections, allowing the neuron to recognize complex spatial patterns. Unlike traditional neural networks that rely on global weight adjustments and backpropagation, this model employs localized, competitive learning rules to enclose target input patterns within these dendritic activation regions. This biologically inspired approach mimics real dendritic integration, providing a more hardware-efficient and interpretable way to achieve nonlinear classification without needing multiple layers.
 
-## Efficient training for dendrite morphological neural networks - 2014
+## Efficient Training for Dendrite Morphological Neural Networks - 2014
 
-[Efficient training for dendrite morphological neural networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) introduces the addition of dendrites to morphological perceptrons which can train dendrites to perfectly classify any training dataset. The algorithm instantiates a neuron with dendrites for a set of input data by iteratively creating hypercubes which encapsulate possible input patterns. First a hypercube is generated which encapsulates all the data. Then if the training data inside a hypercube is entirely within a single class the hypercube is saved. If the training data is not entirely within a single class, the hypercube is iteratively split into smaller hypercubes. Once this process is complete the neuron is given a set of dendritic branches corresponding to each hypercube where the branches have frozen weights such that a particular branch is only active if a datapoint is within its associated hypercube. The authors showed this algorithm could perform well on basic pattern recognition and even be applied to image processing tasks outperforming simple multi-layer perceptrons.
+[Efficient Training for Dendrite Morphological Neural Networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) introduces the addition of dendrites to morphological perceptrons which can train dendrites to perfectly classify any training dataset. The algorithm instantiates a neuron with dendrites for a set of input data by iteratively creating hypercubes which encapsulate possible input patterns. First a hypercube is generated which encapsulates all the data. Then if the training data inside a hypercube is entirely within a single class the hypercube is saved. If the training data is not entirely within a single class, the hypercube is iteratively split into smaller hypercubes. Once this process is complete the neuron is given a set of dendritic branches corresponding to each hypercube where the branches have frozen weights such that a particular branch is only active if a datapoint is within its associated hypercube. The authors showed this algorithm could perform well on basic pattern recognition and even be applied to image processing tasks outperforming simple multi-layer perceptrons.
 
 ## Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction - 2018
 [Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction](https://ieeexplore.ieee.org/document/8409490) uses traditional neurons but strays from traditional neural network training by not using backpropagation as its training paradigm. Instead, the authors ran experiments using six learning algorithms: biogeography-based optimization, particle swarm optimization, genetic algorithm, ant colony optimization, evolutionary strategy, and population-based incremental learning. 
 
-## Dendrite Networks Review - 2021
+## Drawing Inspiration from Biological Dendrites to Empower Artificial Neural Networks - 2021
 
-[Drawing inspiration from biological dendrites to empower artificial neural networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) reviews additional papers.
+[Drawing Inspiration from Biological Dendrites to Empower Artificial Neural Networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) reviews additional papers.
 
 
-## Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning - 2025
+## Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning - 2025
 
-[Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning](https://www.nature.com/articles/s41467-025-56297-9) This paper builds a MLP architecture with one hidden layer of neurons with dendrites before an output layer without dendrites.  The dendritic architecture explores more biologically realistic receptive field formats of where dendrites can get input from the input image.  The experiments show dendritic architectures are significantly more parameter efficient than a traditional MLP based approach.
+[Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning](https://www.nature.com/articles/s41467-025-56297-9) This paper builds a MLP architecture with one hidden layer of neurons with dendrites before an output layer without dendrites.  The dendritic architecture explores more biologically realistic receptive field formats of where dendrites can get input from the input image.  The experiments show dendritic architectures are significantly more parameter efficient than a traditional MLP based approach.
 
 ## Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks - 2025
 
