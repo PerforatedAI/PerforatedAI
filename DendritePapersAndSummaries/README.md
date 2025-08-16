@@ -11,6 +11,7 @@ This page is to accumulate papers on adding dendrites to neural network projects
 | [Efficient Training for Dendrite Morphological Neural Networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) | With enough dendrites one neuron can perfectly classify any training dataset | Dendrites create hypercubes | No | No |
 | [Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction](https://ieeexplore.ieee.org/document/8409490) | Dendrites are effective for binary classification | Multiple learning approaches | No | No |
 | [Drawing Inspiration from Biological Dendrites to Empower Artificial Neural Networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) | Review Paper | N/A | N/A | N/A |
+| [Learning on Tree Architectures Outperforms a Convolutional Feedforward Network](https://www.nature.com/articles/s41598-023-27986-6) | Dendrits are more parameter efficient | First paper with dendrites for CNNs | Yes | No |
 | [Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning](https://www.nature.com/articles/s41467-025-56297-9) | Dendrites are more parameter efficient | Dendritic receptive fields | Yes | No |
 | [Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning | No | Yes |
 | [Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) | PB Dendrites achieve compression | Correlation learning | No | Yes |
@@ -35,6 +36,8 @@ This page is to accumulate papers on adding dendrites to neural network projects
 
 [Drawing Inspiration from Biological Dendrites to Empower Artificial Neural Networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) reviews additional papers.
 
+## Learning on Tree Architectures Outperforms a Convolutional Feedforward Network - 2023
+[Learning on Tree Architectures Outperforms a Convolutional Feedforward Network](https://www.nature.com/articles/s41598-023-27986-6) is the first to add dendrites to convolutional neurons. The dendrites are trained with gradient descent, and the results show that a dendritic model can be created for CIFAR-10 that is much more parameter-efficient than other convolutional models, such as LeNet, while achieving similar accuracy.
 
 ## Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning - 2025
 
