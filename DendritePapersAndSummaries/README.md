@@ -4,16 +4,16 @@ This page is to accumulate papers on adding dendrites to deep learning projects.
 
 ## Overview
 
-| Paper     | Summary       | Differentiator     |   GD? |  Multi-layer Dendrites |
-|-----------------|------------------|------------------|-------|
-| [Cascade Correlation](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) | Introduces Correlation learning | Correlation learning |  No    | No |
-| [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618)  | Dendrites are more efficient | Dendrites create hypercubes |  No    | No |
-| [Efficient training for dendrite morphological neural networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) | With enough dendrites one neuron can perfectly classify any training dataset | Dendrites create hypercubes |  No    | No |
-| [Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction](https://ieeexplore.ieee.org/document/8409490) | Dendrites are effective for binary classification | Multiple learning approaches | No    | No |
-| [Drawing inspiration from biological dendrites to empower artificial neural networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544)  | Review Paper | N/A |  N/A    | N/A |
-| [Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning](https://www.nature.com/articles/s41467-025-56297-9)  | dendrites are more  parameter efficient  | dendritic receptive fields           |  Yes    | No |
-| [Perforated Backpropagation](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning |   No   | Yes |
-| [Perforated Backpropagation 2](https://arxiv.org/pdf/2501.18018) | PB Dendrites achieve compression | Correlation learning|  No    | Yes |
+| Paper | Summary | Differentiator | GD? | Multi-layer Dendrites |
+|-------|---------|----------------|-----|------------------------|
+| [Cascade Correlation](https://proceedings.neurips.cc/paper/1989/file/69adc1e107f7f7d035d7baf04342e1ca-Paper.pdf) | Introduces Correlation learning | Correlation learning | No | No |
+| [Morphological Perceptrons with Dendritic Structure](https://ieeexplore.ieee.org/document/1206618) | Dendrites are more efficient | Dendrites create hypercubes | No | No |
+| [Efficient training for dendrite morphological neural networks](https://www.sciencedirect.com/science/article/pii/S0925231213010916) | With enough dendrites one neuron can perfectly classify any training dataset | Dendrites create hypercubes | No | No |
+| [Dendritic Neuron Model With Effective Learning Algorithms for Classification, Approximation, and Prediction](https://ieeexplore.ieee.org/document/8409490) | Dendrites are effective for binary classification | Multiple learning approaches | No | No |
+| [Drawing inspiration from biological dendrites to empower artificial neural networks](https://www.sciencedirect.com/science/article/abs/pii/S0959438821000544) | Review Paper | N/A | N/A | N/A |
+| [Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning](https://www.nature.com/articles/s41467-025-56297-9) | Dendrites are more parameter efficient | Dendritic receptive fields | Yes | No |
+| [Perforated Backpropagation](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning | No | Yes |
+| [Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) | PB Dendrites achieve compression | Correlation learning | No | Yes |
 
 
 
@@ -40,11 +40,11 @@ This page is to accumulate papers on adding dendrites to deep learning projects.
 
 [Dendrites endow artificial neural networks with accurate, robust and parameter-efficient learning](https://www.nature.com/articles/s41467-025-56297-9) This paper builds a MLP architecture with one hidden layer of neurons with dendrites before an output layer without dendrites.  The dendritic architecture explores more biologically realistic receptive field formats of where dendrites can get input from the input image.  The experiments show dendritic architectures are significantly more parameter efficient than a traditional MLP based approach.
 
-## Perforated Backpropagation - 2025
+## Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks - 2025
 
-[Perforated Backpropagation FULL ARTICLE NAME](https://arxiv.org/pdf/2501.18018) is the original paper by Perforated AI.  This is the first to instantiate Dendrites with a mechanism compatible with modern deep learning frameworks, while differentiating from the standard gradient descent algorithm for training.  Dendrites in Perforated Backpropagation learn with a correlation learning rule to identify areas of the input space where patterns are causing problems for the feature classification of individual neurons.  Once added they exist inside the system during the forward pass, but outside of the system during the backwards pass by being ignored during the gradient descent process.  In this way if a network has x neurons calculating x features, the architecture still only calculates x features as defined by error communication, but each feature is also enabled to be more complex by the support of the added dendrites.  This paper shows that adding dendrites to state-of-the-art methods on a handful of applications, the accuracies can be pushed even further.
+[Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks](https://arxiv.org/pdf/2501.18018) is the original paper by Perforated AI.  This is the first to instantiate Dendrites with a mechanism compatible with modern deep learning frameworks, while differentiating from the standard gradient descent algorithm for training.  Dendrites in Perforated Backpropagation learn with a correlation learning rule to identify areas of the input space where patterns are causing problems for the feature classification of individual neurons.  Once added they exist inside the system during the forward pass, but outside of the system during the backwards pass by being ignored during the gradient descent process.  In this way if a network has x neurons calculating x features, the architecture still only calculates x features as defined by error communication, but each feature is also enabled to be more complex by the support of the added dendrites.  This paper shows that adding dendrites to state-of-the-art methods on a handful of applications, the accuracies can be pushed even further.
 
-### Continued Perforated Backpropagation Experiments - 2025
+### Exploring the Performance of Perforated Backpropagation through Further Experiments - 2025
 
-[Perforated Backpropagation 2](https://arxiv.org/pdf/2501.18018) Is the second paper by Perforated AI.  This paper focuses on the ability to create smaller more efficient models by shrinking original network sizes then adding dendrites and training on the same dataset.  This paper explores more common datasets and architectures and is a collaborative effort of experiments generated during a hackathon.  Additionally this paper shows the actual industry impact of deploying one of the trained models onto Google Cloud.
+[Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) Is the second paper by Perforated AI.  This paper focuses on the ability to create smaller more efficient models by shrinking original network sizes then adding dendrites and training on the same dataset.  This paper explores more common datasets and architectures and is a collaborative effort of experiments generated during a hackathon.  Additionally this paper shows the actual industry impact of deploying one of the trained models onto Google Cloud.
 
