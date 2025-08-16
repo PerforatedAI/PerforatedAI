@@ -777,7 +777,7 @@ class pb_neuron_layer_tracker():
         if(PBG.testingDendriteCapacity):
             if(not PBG.silent):
                 print('Running a test of Dendrite Capacity.')
-            PBG.switchMode=PBG.doingSwitchEveryTime
+            PBG.switchMode = PBG.doingSwitchEveryTime
             self.memberVars['switchMode'] = PBG.switchMode
             PBG.retainAllPB = True
             PBG.maxDendriteTries = 1000
