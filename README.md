@@ -1,17 +1,11 @@
-# The Dendrite Network Library for PyTorch
+# The Artificial Dendrite Network Library for PyTorch
 
-This repository provides the ability to add artificial dendrites to PyTorch neural networks.  The new nodes are trained with standard gradient descent, meaning they are simply neurons arranged in a dendritic 
-architecture.  Much current research in this space, [like this example](https://www.nature.com/articles/s41467-025-56297-9), shows the significant impact of leveraging modern neuroscience to improve 
+This repository provides the ability to add artificial dendrites to PyTorch neural networks. Much [current research in this space](Papers), shows the significant impact of leveraging modern neuroscience to improve 
 modern AI with this method. However, other research either does not contain open source implementations, or only provides the exact architecture for the exact experiments in their project. The main 
 differentiator for this open source implementation is that with under an hour of coding you can add dendrites to any existing PyTorch project and advance your own research by joining us on the cutting 
 edge of ML theory.
 
-Additional details can be found in the [API Folder](API) and [examples repository](https://github.com/RorryB/PAI-Working-Examples).  If you like this project please star the repo to support the tech getting into the official [ecosystem](https://landscape.pytorch.org/) and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in Dendritic AI.
-
-## Alternative Training Mechanisms
-
-If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please join our beta program at 
-[perforatedai.com](www.perforatedai.com/premium-registration).  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018).
+Additional details can be found in the [API](API) and [examples](Examples) folders.  If you like this project please star the repo to support the tech getting into the official PyTorch [ecosystem](https://landscape.pytorch.org/) and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in ADNs and Dendritic AI.
 
 ## Impact of Dendrites
 
@@ -35,5 +29,10 @@ winners](https://www.perforatedai.com/natural-language-processing-3-25) experime
 The CNN example is running the default PyTorch mnist example, included here, on the MNIST dataset.
 
 ![CNN](CNN.png "ResNet")
+
+## Alternative Training Mechanisms
+
+If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please join our beta program at 
+[perforatedai.com](www.perforatedai.com/premium-registration).  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018).
 
 
