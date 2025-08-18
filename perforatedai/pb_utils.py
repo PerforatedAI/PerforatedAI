@@ -23,15 +23,15 @@ from safetensors.torch import save_file
 
 
 # Main function to initialize the network to add dendrites
-def initialize_pb(model, doing_pb=True, save_name='PB', making_graphs=True,
+def initialize_pai(model, doing_pai=True, save_name='PB', making_graphs=True,
                   maximizing_score=True, num_classes=10000000000,
                   values_per_train_epoch=-1, values_per_val_epoch=-1,
                   zooming_graph=True):
-    PBG.pbTracker = PBT.pb_neuron_layer_tracker(doingPB=doing_pb,
-                                                 saveName=save_name)
-    PBG.saveName = save_name
-    model = PBG.pbTracker.initialize(
-        model, doingPB=doing_pb, saveName=save_name,
+    PBG.pai_tracker = PBT.pb_neuron_layer_tracker(doingPB=doing_pai,
+                                                 SAVE_NAME=save_name)
+    PBG.SAVE_NAME = save_name
+    model = PBG.pai_tracker.initialize(
+        model, doingPB=doing_pai, SAVE_NAME=save_name,
         makingGraphs=making_graphs, maximizingScore=maximizing_score,
         num_classes=num_classes, values_per_train_epoch=-values_per_train_epoch,
         values_per_val_epoch=values_per_val_epoch, zoomingGraph=zooming_graph)
@@ -65,7 +65,7 @@ def get_pb_modules(net, depth):
     return this_list
 
 
-# Get a list of all tracked_layers
+# Get a list of all tracked_modules
 def get_tracked_modules(net, depth):
     all_members = net.__dir__()
     this_list = []
@@ -126,20 +126,20 @@ def get_pb_network_params(net):
 
 # Replace a module with the module from globals list
 def replace_predefined_modules(start_module):
-    index = PBG.modulesToReplace.index(type(start_module))
-    return PBG.replacementModules[index](start_module)
+    index = PBG.MODULES_TO_REPLACE.index(type(start_module))
+    return PBG.REPLACEMENT_MODULES[index](start_module)
 
 
 # Recursive function to do all conversion of modules to wrappers of modules
 def convert_module(net, depth, name_so_far, converted_list,
                    converted_names_list):
-    if PBG.verbose:
+    if PBG.VERBOSE:
         print('calling convert on %s depth %d' % (net, depth))
         print('calling convert on %s: %s, depth %d' % (
             name_so_far, type(net).__name__, depth))
     if ((type(net) is PB.pb_neuron_layer) or
             type(net) is PB.tracked_neuron_layer):
-        if PBG.verbose:
+        if PBG.VERBOSE:
             print('This is only being called because something in your model '
                   'is pointed to twice by two different variables. Highest '
                   'thing on the list is one of the duplicates')
@@ -149,24 +149,24 @@ def convert_module(net, depth, name_so_far, converted_list,
             issubclass(type(net), nn.ModuleList)):
         for submodule_id, layer in net.named_children():
             sub_name = name_so_far + '.' + str(submodule_id)
-            if sub_name in PBG.moduleIDsToTrack:
-                if PBG.verbose:
+            if sub_name in PBG.MODULE_IDS_TO_TRACK:
+                if PBG.VERBOSE:
                     print('Seq sub is in track IDs: %s' % sub_name)
                 setattr(net, submodule_id, PB.tracked_neuron_layer(
                     net.get_submodule(submodule_id), sub_name))
                 continue
-            if type(net.get_submodule(submodule_id)) in PBG.modulesToReplace:
-                if PBG.verbose:
+            if type(net.get_submodule(submodule_id)) in PBG.MODULES_TO_REPLACE:
+                if PBG.VERBOSE:
                     print('Seq sub is in replacement module so replacing: %s'
                           % sub_name)
                 setattr(net, submodule_id, replace_predefined_modules(
                     net.get_submodule(submodule_id)))
             if ((type(net.get_submodule(submodule_id)) in
-                 PBG.modulesToConvert) or
+                 PBG.MODULES_TO_CONVERT) or
                 (type(net.get_submodule(submodule_id)).__name__ in
-                 PBG.moduleNamesToConvert)):
-                if PBG.verbose:
-                    print('Seq sub is in conversion list so initing PB for: '
+                 PBG.MODULE_NAMES_TO_CONVERT)):
+                if PBG.VERBOSE:
+                    print('Seq sub is in conversion list so initing PAI for: '
                           '%s' % sub_name)
                 if (issubclass(type(net.get_submodule(submodule_id)),
                                torch.nn.modules.batchnorm._BatchNorm) or
@@ -189,18 +189,18 @@ def convert_module(net, depth, name_so_far, converted_list,
     else:
         for member in all_members:
             sub_name = name_so_far + '.' + member
-            if sub_name in PBG.moduleIDsToTrack:
-                if PBG.verbose:
+            if sub_name in PBG.MODULE_IDS_TO_TRACK:
+                if PBG.VERBOSE:
                     print('Seq sub is in track IDs: %s' % sub_name)
                 setattr(net, member, PB.tracked_neuron_layer(
                     getattr(net, member), sub_name))
                 continue
             if id(getattr(net, member, None)) == id(net):
-                if PBG.verbose:
+                if PBG.VERBOSE:
                     print('member sub is a self pointer: %s' % sub_name)
                 continue
-            if sub_name in PBG.moduleNamesToNotSave:
-                if PBG.verbose:
+            if sub_name in PBG.MODULE_NAMES_TO_NOT_SAVE:
+                if PBG.VERBOSE:
                     print('Skipping %s during convert' % sub_name)
                 else:
                     if sub_name == '.base_model':
@@ -215,30 +215,30 @@ def convert_module(net, depth, name_so_far, converted_list,
                       converted_names_list[converted_list.index(
                           id(getattr(net, member, None)))])
                 print('One of these must be added to '
-                      'PBG.moduleNamesToNotSave (with the .)')
+                      'PBG.MODULE_NAMES_TO_NOT_SAVE (with the .)')
                 sys.exit(0)
             try:
                 getattr(net, member, None)
             except:
                 continue
-            if type(getattr(net, member, None)) in PBG.modulesToReplace:
-                if PBG.verbose:
+            if type(getattr(net, member, None)) in PBG.MODULES_TO_REPLACE:
+                if PBG.VERBOSE:
                     print('sub is in replacement module so replacing: %s'
                           % sub_name)
                 setattr(net, member, replace_predefined_modules(
                     getattr(net, member, None)))
-            if ((type(getattr(net, member, None)) in PBG.modulesToConvert) or
+            if ((type(getattr(net, member, None)) in PBG.MODULES_TO_CONVERT) or
                 (type(getattr(net, member, None)).__name__ in
-                 PBG.moduleNamesToConvert)):
-                if PBG.verbose:
-                    print('sub is in conversion list so initing PB for: %s'
+                 PBG.MODULE_NAMES_TO_CONVERT)):
+                if PBG.VERBOSE:
+                    print('sub is in conversion list so initing PAI for: %s'
                           % sub_name)
                 setattr(net, member, PB.pb_neuron_layer(
                     getattr(net, member), sub_name))
-            elif ((type(getattr(net, member, None)) in PBG.modulesToTrack) or
+            elif ((type(getattr(net, member, None)) in PBG.MODULES_TO_TRACK) or
                   (type(getattr(net, member, None)).__name__ in
-                   PBG.moduleNamesToTrack)):
-                if PBG.verbose:
+                   PBG.MODULE_NAMES_TO_TRACK)):
+                if PBG.VERBOSE:
                     print('sub is in tracking list so initing tracked for: '
                           '%s' % sub_name)
                 setattr(net, member, PB.tracked_neuron_layer(
@@ -256,41 +256,41 @@ def convert_module(net, depth, name_so_far, converted_list,
                             torch.nn.modules.instancenorm._InstanceNorm) or
                  issubclass(type(getattr(net, member, None)),
                             torch.nn.modules.normalization.LayerNorm))):
-                if not PBG.unwrappedModulesConfirmed:
+                if not PBG.UNWRAPPED_MODULES_CONFIRMED:
                     print('potentially found a norm Layer that wont be '
                           'converted, this is not recommended: %s' % (
                               sub_name))
-                    print('Set PBG.unwrappedModulesConfirmed to True to skip '
+                    print('Set PBG.UNWRAPPED_MODULES_CONFIRMED to True to skip '
                           'this next time')
                     print('Type \'net\' + enter to inspect your network and '
                           'see what the module type containing this layer is.')
                     print('Then do one of the following:')
                     print(' - Add the module type to '
-                          'PBG.moduleNamesToConvert to wrap it entirely')
+                          'PBG.MODULE_NAMES_TO_CONVERT to wrap it entirely')
                     print(' - If the norm layer is part of a sequential wrap '
-                          'it and the previous layer in a PBSequential')
+                          'it and the previous layer in a PAISequential')
                     print(' - If you do not want to add dendrites to this '
-                          'module add the type to PBG.moduleNamesToTrack')
+                          'module add the type to PBG.MODULE_NAMES_TO_TRACK')
                     pdb.set_trace()
             else:
-                if PBG.verbose:
-                    if member[0] != '_' or PBG.extraVerbose is True:
+                if PBG.VERBOSE:
+                    if member[0] != '_' or PBG.EXTRA_VERBOSE is True:
                         print('not calling convert on %s depth %d' % (
                             member, depth))
-    if PBG.verbose:
+    if PBG.VERBOSE:
         print('returning from call to: %s' % (name_so_far))
     return net
 
 
 # Function that calls the above and checks results
 def convert_network(net, layer_name=''):
-    if type(net) in PBG.modulesToReplace:
+    if type(net) in PBG.MODULES_TO_REPLACE:
         net = replace_predefined_modules(net)
-    if ((type(net) in PBG.modulesToConvert) or
-            (type(net).__name__ in PBG.moduleNamesToConvert)):
+    if ((type(net) in PBG.MODULES_TO_CONVERT) or
+            (type(net).__name__ in PBG.MODULE_NAMES_TO_CONVERT)):
         if layer_name == '':
             print('converting a single layer without a name, add a '
-                  'layerName param to the call')
+                  'layer_name param to the call')
             sys.exit(-1)
         net = PB.pb_neuron_layer(net, layer_name)
     else:
@@ -300,7 +300,7 @@ def convert_network(net, layer_name=''):
     for name, param in net.named_parameters():
         wrapped = 'wrapped' in param.__dir__()
         if wrapped:
-            if PBG.verbose:
+            if PBG.VERBOSE:
                 print('param %s is now wrapped' % (name))
         else:
             tracked = 'tracked' in param.__dir__()
@@ -309,7 +309,7 @@ def convert_network(net, layer_name=''):
             else:
                 missed_ones.append(name)
     if ((len(missed_ones) != 0 or len(tracked_ones) != 0) and
-            PBG.unwrappedModulesConfirmed is False):
+            PBG.UNWRAPPED_MODULES_CONFIRMED is False):
         print('\n------------------------------------------------------------------')
         print('The following params are not wrapped.\n------------------------------------------------------------------')
         for name in tracked_ones:
@@ -321,10 +321,10 @@ def convert_network(net, layer_name=''):
         print('\n------------------------------------------------------------------')
         print('Modules that are not wrapped will not have Dendrites to optimize them')
         print('Modules modules that are not tracked can cause errors and is NOT recommended')
-        print('Any modules in the second list should be added to moduleNamesToTrack')
+        print('Any modules in the second list should be added to MODULE_NAMES_TO_TRACK')
         print('------------------------------------------------------------------\nType \'c\' + enter to continue the run to confirm you do not want them to be refined')
-        print('Set PBG.unwrappedModulesConfirmed to True to skip this next time')
-        print('Type \'net\' + enter to inspect your network and see what the module types of these values are to add them to PGB.moduleNamesToConvert')
+        print('Set PBG.UNWRAPPED_MODULES_CONFIRMED to True to skip this next time')
+        print('Type \'net\' + enter to inspect your network and see what the module types of these values are to add them to PGB.MODULE_NAMES_TO_CONVERT')
         import pdb
         pdb.set_trace()
         print('confirmed')
@@ -355,47 +355,47 @@ def string_from_tensor(string_tensor):
 
 
 def save_system(net, folder, name):
-    if PBG.verbose:
+    if PBG.VERBOSE:
         print('saving system %s' % name)
-    temp = string_to_tensor(PBG.pbTracker.toString())
+    temp = string_to_tensor(PBG.pai_tracker.toString())
     if hasattr(net, 'trackerString'):
         net.trackerString = string_to_tensor(
-            PBG.pbTracker.toString()).to(next(net.parameters()).device)
+            PBG.pai_tracker.toString()).to(next(net.parameters()).device)
     else:
         net.register_buffer('trackerString', string_to_tensor(
-            PBG.pbTracker.toString()).to(next(net.parameters()).device))
+            PBG.pai_tracker.toString()).to(next(net.parameters()).device))
     # Before saving the tracker must be cleared to not contain pointers to the
     # models modules
-    old_list = PBG.pbTracker.PBNeuronLayerVector
-    PBG.pbTracker.PBNeuronLayerVector = []
+    old_list = PBG.pai_tracker.PAINeuronModuleVector
+    PBG.pai_tracker.PAINeuronModuleVector = []
 
     save_net(net, folder, name)
 
-    PBG.pbTracker.PBNeuronLayerVector = old_list
+    PBG.pai_tracker.PAINeuronModuleVector = old_list
     pai_save_system(net, folder, name)
 
 
 def load_system(net, folder, name, load_from_restart=False,
                 switch_call=False):
-    if PBG.verbose:
+    if PBG.VERBOSE:
         print('loading system %s' % name)
     net = load_net(net, folder, name)
-    PBG.pbTracker.resetLayerVector(net, load_from_restart)
+    PBG.pai_tracker.resetLayerVector(net, load_from_restart)
 
-    PBG.pbTracker.fromString(string_from_tensor(net.trackerString))
-    PBG.pbTracker.savedTime = time.time()
-    PBG.pbTracker.loaded = True
-    PBG.pbTracker.memberVars['currentBestValidationScore'] = 0
-    PBG.pbTracker.memberVars['epochLastImproved'] = (
-        PBG.pbTracker.memberVars['numEpochsRun'])
-    if PBG.verbose:
+    PBG.pai_tracker.fromString(string_from_tensor(net.trackerString))
+    PBG.pai_tracker.savedTime = time.time()
+    PBG.pai_tracker.loaded = True
+    PBG.pai_tracker.member_vars['currentBestValidationScore'] = 0
+    PBG.pai_tracker.member_vars['epochLastImproved'] = (
+        PBG.pai_tracker.member_vars['numEpochsRun'])
+    if PBG.VERBOSE:
         print('after loading epoch last improved is %d mode is %c' % (
-            PBG.pbTracker.memberVars['epochLastImproved'],
-            PBG.pbTracker.memberVars['mode']))
+            PBG.pai_tracker.member_vars['epochLastImproved'],
+            PBG.pai_tracker.member_vars['mode']))
     # Saves always take place before the call to startEpoch so call it here
     # when loading to correct off by 1 problems
     if not switch_call:
-        PBG.pbTracker.startEpoch(internalCall=True)
+        PBG.pai_tracker.startEpoch(internalCall=True)
     return net
 
 
@@ -411,7 +411,7 @@ def save_net(net, folder, name):
         os.mkdir(save_point)
     for param in net.parameters():
         param.data = param.data.contiguous()
-    if PBG.usingSafeTensors:
+    if PBG.USING_SAFE_TENSORS:
         save_file(net.state_dict(), save_point + name + '.pt')
     else:
         torch.save(net, save_point + name + '.pt')
@@ -419,7 +419,7 @@ def save_net(net, folder, name):
 
 def load_net(net, folder, name):
     save_point = folder + '/'
-    if PBG.usingSafeTensors:
+    if PBG.USING_SAFE_TENSORS:
         state_dict = load_file(save_point + name + '.pt')
     else:
         # Different versions of torch require this change
@@ -437,7 +437,7 @@ def load_net_from_dict(net, state_dict):
     pb_modules = get_pb_modules(net, 0)
     if pb_modules == []:
         print('PAI loadNet and loadSystem uses a state_dict so it must be '
-              'called with a net after initializePB has been called')
+              'called with a net after initialize_pai has been called')
         sys.exit()
     for module in pb_modules:
         # Set up name to be what will be saved in the state dict
@@ -451,10 +451,10 @@ def load_net_from_dict(net, state_dict):
         if module_name[:6] == 'module':
             module_name = module_name[7:]
         module.clearDendrites()
-        for tracker in module.pb.pbValues:
+        for tracker in module.pb.dendrite_values:
             try:
                 tracker.setupArrays(
-                    len(state_dict[module_name + '.pb.pbValues.0.shape']))
+                    len(state_dict[module_name + '.pb.dendrite_values.0.shape']))
             except Exception as e:
                 print(e)
                 print('When missing this value it typically means you '
@@ -463,15 +463,15 @@ def load_net_from_dict(net, state_dict):
                 print('module was: %s' % module_name)
                 print('check your model definition and forward function and '
                       'ensure this module is being used properly')
-                print('or add it to PBG.moduleNamesToSkip to leave it out '
+                print('or add it to PBG.MODULE_NAMES_TO_SKIP to leave it out '
                       'of conversion')
                 print('This can also happen if you adjusted your model '
-                      'definition after calling initializePB')
+                      'definition after calling initialize_pai')
                 print('for example with torch.compile. If the module name '
                       'printed above does not contain all modules leading '
                       'to the main definition')
                 print('this is likely the case for your problem. Fix by '
-                      'calling initializePB after all other model '
+                      'calling initialize_pai after all other model '
                       'initialization steps')
                 import pdb
                 pdb.set_trace()
@@ -479,27 +479,27 @@ def load_net_from_dict(net, state_dict):
         # Perform as many cycles as the state dict has
         num_cycles = int(state_dict[module_name + '.pb.numCycles'].item())
         if num_cycles > 0:
-            simulate_cycles(module, num_cycles, doing_pb=True)
+            simulate_cycles(module, num_cycles, doing_pai=True)
     if hasattr(net, 'trackerString'):
         net.trackerString = state_dict['trackerString']
     else:
         net.register_buffer('trackerString', state_dict['trackerString'])
     net.load_state_dict(state_dict)
-    net.to(PBG.device)
+    net.to(PBG.DEVICE)
     return net
 
 
 def pai_save_system(net, folder, name):
-    net.memberVars = {}
-    for member_var in PBG.pbTracker.memberVars:
-        if member_var == 'schedulerInstance' or member_var == 'optimizerInstance':
+    net.member_vars = {}
+    for member_var in PBG.pai_tracker.member_vars:
+        if member_var == 'scheduler_instance' or member_var == 'optimizer_instance':
             continue
-        net.memberVars[member_var] = PBG.pbTracker.memberVars[member_var]
+        net.member_vars[member_var] = PBG.pai_tracker.member_vars[member_var]
     pai_save_net(net, folder, name)
 
 
 def deep_copy_pai(net):
-    PBG.pbTracker.clearAllProcessors()
+    PBG.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
 
 
@@ -516,122 +516,122 @@ def pai_save_net(net, folder, name):
 
 # Simulate the back and forth processes of adding dendrites to build a
 # pretrained dendrite model before loading weights
-def simulate_cycles(module, num_cycles, doing_pb):
-    check_skipped = PBG.checkedSkippedLayers
-    if doing_pb is False:
+def simulate_cycles(module, num_cycles, doing_pai):
+    check_skipped = PBG.CHECKED_SKIPPED_LAYERS
+    if doing_pai is False:
         return
-    PBG.checkedSkippedLayers = True
+    PBG.CHECKED_SKIPPED_LAYERS = True
     mode = 'n'
     for i in range(num_cycles):
         if mode == 'n':
-            module.setMode('p')
-            module.addPBLayer()
+            module.set_mode('p')
+            module.add_pai_neuron_module()
             mode = 'p'
         else:
-            module.setMode('n')
+            module.set_mode('n')
             mode = 'n'
-    PBG.checkedSkippedLayers = check_skipped
+    PBG.CHECKED_SKIPPED_LAYERS = check_skipped
 
 
-def change_learning_modes(net, folder, name, doing_pb):
+def change_learning_modes(net, folder, name, doing_pai):
     """
     High level steps for entire system to switch back and forth between
     neuron learning and dendrite learning
     """
-    # If not doing PB this just allows training to continue longer with flags
+    # If not adding dendrites this just allows training to continue longer with flags
     # every time early stopping should be occurring
-    if doing_pb is False:
-        PBG.pbTracker.memberVars['switchEpochs'].append(
-            PBG.pbTracker.memberVars['numEpochsRun'])
-        PBG.pbTracker.memberVars['lastSwitch'] = (
-            PBG.pbTracker.memberVars['switchEpochs'][-1])
-        PBG.pbTracker.resetValsForScoreReset()
+    if doing_pai is False:
+        PBG.pai_tracker.member_vars['switch_epochs'].append(
+            PBG.pai_tracker.member_vars['numEpochsRun'])
+        PBG.pai_tracker.member_vars['lastSwitch'] = (
+            PBG.pai_tracker.member_vars['switch_epochs'][-1])
+        PBG.pai_tracker.resetValsForScoreReset()
         return net
-    if PBG.pbTracker.memberVars['mode'] == 'n':
-        current_epoch = PBG.pbTracker.memberVars['numEpochsRun']
-        overwritten_epochs = PBG.pbTracker.memberVars['overWrittenEpochs']
-        overwritten_extra = PBG.pbTracker.memberVars['extraScores']
-        if PBG.drawingPB:
-            overwritten_val = PBG.pbTracker.memberVars['accuracies']
+    if PBG.pai_tracker.member_vars['mode'] == 'n':
+        current_epoch = PBG.pai_tracker.member_vars['numEpochsRun']
+        overwritten_epochs = PBG.pai_tracker.member_vars['over_written_epochs']
+        overwritten_extra = PBG.pai_tracker.member_vars['extraScores']
+        if PBG.DRAWING_PAI:
+            overwritten_val = PBG.pai_tracker.member_vars['accuracies']
         else:
-            overwritten_val = PBG.pbTracker.memberVars['nAccuracies']
+            overwritten_val = PBG.pai_tracker.member_vars['neuron_accuracies']
         """
-        The only reason that retainAllPB should ever be used is to test GPU
+        The only reason that RETAIN_ALL_DENDRITES should ever be used is to test GPU
         memory and configuration. So if true don't load the best system
         because it will delete dendrites if the previous best was better than
         the current best
         """
-        if not PBG.retainAllPB:
-            if not PBG.silent:
+        if not PBG.RETAIN_ALL_DENDRITES:
+            if not PBG.SILENT:
                 print('Importing best Model for switch to PB...')
             net = load_system(net, folder, name, switch_call=True)
         else:
-            if not PBG.silent:
+            if not PBG.SILENT:
                 print('Not importing new model since retaining all PB')
-        PBG.pbTracker.setPBTraining()
-        PBG.pbTracker.memberVars['overWrittenEpochs'] = overwritten_epochs
-        PBG.pbTracker.memberVars['overWrittenEpochs'] += (
-            current_epoch - PBG.pbTracker.memberVars['numEpochsRun'])
-        PBG.pbTracker.memberVars['totalEpochsRun'] = (
-            PBG.pbTracker.memberVars['numEpochsRun'] +
-            PBG.pbTracker.memberVars['overWrittenEpochs'])
+        PBG.pai_tracker.set_dendrite_training()
+        PBG.pai_tracker.member_vars['over_written_epochs'] = overwritten_epochs
+        PBG.pai_tracker.member_vars['over_written_epochs'] += (
+            current_epoch - PBG.pai_tracker.member_vars['numEpochsRun'])
+        PBG.pai_tracker.member_vars['totalEpochsRun'] = (
+            PBG.pai_tracker.member_vars['numEpochsRun'] +
+            PBG.pai_tracker.member_vars['over_written_epochs'])
 
-        if PBG.saveOldGraphScores:
-            PBG.pbTracker.memberVars['overWrittenExtras'].append(
+        if PBG.SAVE_OLD_GRAPH_SCORES:
+            PBG.pai_tracker.member_vars['overWrittenExtras'].append(
                 overwritten_extra)
-            PBG.pbTracker.memberVars['overWrittenVals'].append(
+            PBG.pai_tracker.member_vars['overWrittenVals'].append(
                 overwritten_val)
         else:
-            PBG.pbTracker.memberVars['overWrittenExtras'] = [overwritten_extra]
-            PBG.pbTracker.memberVars['overWrittenVals'] = [overwritten_val]
-        if PBG.drawingPB:
-            PBG.pbTracker.memberVars['nswitchEpochs'].append(
-                PBG.pbTracker.memberVars['numEpochsRun'])
+            PBG.pai_tracker.member_vars['overWrittenExtras'] = [overwritten_extra]
+            PBG.pai_tracker.member_vars['overWrittenVals'] = [overwritten_val]
+        if PBG.DRAWING_PAI:
+            PBG.pai_tracker.member_vars['nswitch_epochs'].append(
+                PBG.pai_tracker.member_vars['numEpochsRun'])
         else:
-            if len(PBG.pbTracker.memberVars['switchEpochs']) == 0:
-                PBG.pbTracker.memberVars['nswitchEpochs'].append(
-                    PBG.pbTracker.memberVars['numEpochsRun'])
+            if len(PBG.pai_tracker.member_vars['switch_epochs']) == 0:
+                PBG.pai_tracker.member_vars['nswitch_epochs'].append(
+                    PBG.pai_tracker.member_vars['numEpochsRun'])
             else:
-                PBG.pbTracker.memberVars['nswitchEpochs'].append(
-                    PBG.pbTracker.memberVars['nswitchEpochs'][-1] +
-                    ((PBG.pbTracker.memberVars['numEpochsRun']) -
-                     (PBG.pbTracker.memberVars['switchEpochs'][-1])))
+                PBG.pai_tracker.member_vars['nswitch_epochs'].append(
+                    PBG.pai_tracker.member_vars['nswitch_epochs'][-1] +
+                    ((PBG.pai_tracker.member_vars['numEpochsRun']) -
+                     (PBG.pai_tracker.member_vars['switch_epochs'][-1])))
 
-        PBG.pbTracker.memberVars['switchEpochs'].append(
-            PBG.pbTracker.memberVars['numEpochsRun'])
-        PBG.pbTracker.memberVars['lastSwitch'] = (
-            PBG.pbTracker.memberVars['switchEpochs'][-1])
+        PBG.pai_tracker.member_vars['switch_epochs'].append(
+            PBG.pai_tracker.member_vars['numEpochsRun'])
+        PBG.pai_tracker.member_vars['lastSwitch'] = (
+            PBG.pai_tracker.member_vars['switch_epochs'][-1])
 
         # Because open source version is only doing neuron training for
         # gradient descent dendrites, switch back to n mode right away
-        if PBG.noExtraNModes:
-            net = change_learning_modes(net, folder, name, doing_pb)
+        if PBG.NO_EXTRA_N_MODES:
+            net = change_learning_modes(net, folder, name, doing_pai)
     else:
-        if not PBG.silent:
+        if not PBG.SILENT:
             print('Switching back to N...')
-        set_best = PBG.pbTracker.memberVars['currentNSetGlobalBest']
-        PBG.pbTracker.setNormalTraining()
-        if len(PBG.pbTracker.memberVars['pswitchEpochs']) == 0:
-            PBG.pbTracker.memberVars['pswitchEpochs'].append(
-                ((PBG.pbTracker.memberVars['numEpochsRun']-1) -
-                 (PBG.pbTracker.memberVars['switchEpochs'][-1])))
+        set_best = PBG.pai_tracker.member_vars['currentNSetGlobalBest']
+        PBG.pai_tracker.setNormalTraining()
+        if len(PBG.pai_tracker.member_vars['pswitch_epochs']) == 0:
+            PBG.pai_tracker.member_vars['pswitch_epochs'].append(
+                ((PBG.pai_tracker.member_vars['numEpochsRun']-1) -
+                 (PBG.pai_tracker.member_vars['switch_epochs'][-1])))
         else:
-            PBG.pbTracker.memberVars['pswitchEpochs'].append(
-                PBG.pbTracker.memberVars['pswitchEpochs'][-1] +
-                ((PBG.pbTracker.memberVars['numEpochsRun']) -
-                 (PBG.pbTracker.memberVars['switchEpochs'][-1])))
-        PBG.pbTracker.memberVars['switchEpochs'].append(
-            PBG.pbTracker.memberVars['numEpochsRun'])
-        PBG.pbTracker.memberVars['lastSwitch'] = (
-            PBG.pbTracker.memberVars['switchEpochs'][-1])
+            PBG.pai_tracker.member_vars['pswitch_epochs'].append(
+                PBG.pai_tracker.member_vars['pswitch_epochs'][-1] +
+                ((PBG.pai_tracker.member_vars['numEpochsRun']) -
+                 (PBG.pai_tracker.member_vars['switch_epochs'][-1])))
+        PBG.pai_tracker.member_vars['switch_epochs'].append(
+            PBG.pai_tracker.member_vars['numEpochsRun'])
+        PBG.pai_tracker.member_vars['lastSwitch'] = (
+            PBG.pai_tracker.member_vars['switch_epochs'][-1])
         # Will be false for open source implementation
-        if PBG.retainAllPB or (PBG.learnPBLive and set_best):
-            if not PBG.silent:
+        if PBG.RETAIN_ALL_DENDRITES or (PBG.LEARN_DENDRITES_LIVE and set_best):
+            if not PBG.SILENT:
                 print('Saving model before starting normal training to '
                       'retain PBNodes regardless of next N Phase results')
             save_system(net, folder, name)
 
     # Track parameter counts for each architecture
     pytorch_total_params = sum(p.numel() for p in net.parameters())
-    PBG.pbTracker.memberVars['paramCounts'].append(pytorch_total_params)
+    PBG.pai_tracker.member_vars['param_counts'].append(pytorch_total_params)
     return net
