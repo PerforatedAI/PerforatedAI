@@ -7,12 +7,11 @@ import sys
 import torch
 import torch.nn as nn
 
+### Global Constants
+
 # Device configuration
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if USE_CUDA else "cpu")
-
-# Pointer to the PAI Tracker which handles adding dendrites
-pai_tracker = []
 
 # Debug settings
 DEBUGGING_INPUT_DIMENSIONS = 0
@@ -24,7 +23,7 @@ CONFIRM_CORRECT_SIZES = False
 # Confirmation flags for non-recommended options
 UNWRAPPED_MODULES_CONFIRMED = False
 WEIGHT_DECAY_ACCEPTED = False
-CHECKED_SKIPPED_LAYERS = False
+CHECKED_SKIPPED_MODULES = False
 
 # Verbosity settings
 VERBOSE = False
@@ -40,72 +39,6 @@ TESTING_DENDRITE_CAPACITY = True
 
 # File format settings
 USING_SAFE_TENSORS = True
-
-
-class PAISequential(nn.Sequential):
-    """
-    Sequential module wrapper for PAI.
-    
-    This takes in an array of layers. For example:
-    
-        PAISequential([nn.Linear(2 * hidden_dim, seq_width),
-                     nn.LayerNorm(seq_width)])
-    
-    This should be used for:
-        - all normalization layers
-    This can be used for:
-        - final output layer and softmax
-    """
-    
-    def __init__(self, layer_array):
-        super(PAISequential, self).__init__()
-        self.model = nn.Sequential(*layer_array)
-        
-    def forward(self, *args, **kwargs):
-        return self.model(*args, **kwargs)
-
-
-# Lists for module types and names to add dendrites to
-MODULES_TO_CONVERT = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
-MODULE_NAMES_TO_CONVERT = ['PAISequential']
-
-# All modules should either be converted or tracked to ensure all modules
-# are accounted for
-MODULES_TO_TRACK = []
-MODULE_NAMES_TO_TRACK = []
-MODULE_IDS_TO_TRACK = []
-
-# Replacement modules happen before the conversion,
-# so replaced modules will then also be run through the conversion steps
-# These are for modules that need to be replaced before addition of dendrites
-# See the resnet example in pb_models
-MODULES_TO_REPLACE = []
-# Modules to replace the above modules with
-REPLACEMENT_MODULES = []
-
-# Dendrites default to modules which are one tensor input and one tensor
-# output in forward()
-# Other modules require to be labeled as modules with processing and assigned
-# processing classes
-# This can be done by module type or module name see customization.md in API
-# for example
-MODULES_WITH_PROCESSING = []
-MODULE_PROCESSING_CLASSES = []
-MODULE_NAMES_WITH_PROCESSING = []
-MODULE_BY_NAME_PROCESSING_CLASSES = []
-
-# Module names can be added to this list to not convert a specific module
-# even though other ones are converted
-# It is recommended to not use this, but if you are working with pretrained
-# model that you can't edit and a module is causing problems, you can add it
-# here to skip it
-MODULE_NAMES_TO_SKIP = []
-
-# Similarly here as above. Some huggingface models have multiple pointers to
-# the same modules which cause problems
-# If you want to only save one of the multiple pointers you can set which ones
-# not to save here
-MODULE_NAMES_TO_NOT_SAVE = ['.base_model']
 
 # In place for future implementation options of adding multiple candidate
 # dendrites together
@@ -221,3 +154,76 @@ PARAM_VALS_SETTING = PARAM_VALS_BY_UPDATE_EPOCH
 # Activation function settings
 # The activation function to use for dendrites
 PB_FORWARD_FUNCTION = torch.sigmoid
+
+### Global Modules
+
+class PAISequential(nn.Sequential):
+    """
+    Sequential module wrapper for PAI.
+    
+    This takes in an array of layers. For example:
+    
+        PAISequential([nn.Linear(2 * hidden_dim, seq_width),
+                     nn.LayerNorm(seq_width)])
+    
+    This should be used for:
+        - all normalization layers
+    This can be used for:
+        - final output layer and softmax
+    """
+    
+    def __init__(self, layer_array):
+        super(PAISequential, self).__init__()
+        self.model = nn.Sequential(*layer_array)
+        
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
+
+### Global objects and variables
+
+# Pointer to the PAI Tracker which handles adding dendrites
+pai_tracker = []
+
+# Lists for module types and names to add dendrites to
+modules_to_convert = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
+module_names_to_convert = ['PAISequential']
+
+# All modules should either be converted or tracked to ensure all modules
+# are accounted for
+modules_to_track = []
+module_names_to_track = []
+module_ids_to_track = []
+
+# Replacement modules happen before the conversion,
+# so replaced modules will then also be run through the conversion steps
+# These are for modules that need to be replaced before addition of dendrites
+# See the resnet example in pb_models
+modules_to_replace = []
+# Modules to replace the above modules with
+replacement_modules = []
+
+# Dendrites default to modules which are one tensor input and one tensor
+# output in forward()
+# Other modules require to be labeled as modules with processing and assigned
+# processing classes
+# This can be done by module type or module name see customization.md in API
+# for example
+modules_with_processing = []
+modules_processing_classes = []
+module_names_with_processing = []
+module_by_name_processing_classes = []
+
+# Module names can be added to this list to not convert a specific module
+# even though other ones are converted
+# It is recommended to not use this, but if you are working with pretrained
+# model that you can't edit and a module is causing problems, you can add it
+# here to skip it
+module_names_to_skip = []
+
+# Similarly here as above. Some huggingface models have multiple pointers to
+# the same modules which cause problems
+# If you want to only save one of the multiple pointers you can set which ones
+# not to save here
+module_names_to_not_save = ['.base_model']
+
+
