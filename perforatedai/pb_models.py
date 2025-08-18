@@ -134,17 +134,17 @@ class LSTMCellProcessor:
             delattr(self, 'c_t_n')
 
 
-class ResNetPB(nn.Module):
+class ResNetPAI(nn.Module):
     """PB-compatible ResNet wrapper.
     
-    All normalization layers should be wrapped in a PBSequential, or other 
+    All normalization layers should be wrapped in a PAISequential, or other 
     wrapped module. When working with a predefined model the following shows 
-    an example of how to create a module for modulesToReplace.
+    an example of how to create a module for MODULES_TO_REPLACE.
     """
     
     def __init__(self, other_resnet):
-        """Initialize ResNetPB from existing ResNet model."""
-        super(ResNetPB, self).__init__()
+        """Initialize ResNetPAI from existing ResNet model."""
+        super(ResNetPAI, self).__init__()
         
         # For the most part, just copy the exact values from the original module
         self._norm_layer = other_resnet._norm_layer
@@ -153,9 +153,9 @@ class ResNetPB(nn.Module):
         self.groups = other_resnet.groups
         self.base_width = other_resnet.base_width
 
-        # For the component to be changed, define a PBSequential with the old
+        # For the component to be changed, define a PAISequential with the old
         # modules included
-        self.b1 = PBG.PBSequential([
+        self.b1 = PBG.PAISequential([
             other_resnet.conv1,
             other_resnet.bn1]
         )

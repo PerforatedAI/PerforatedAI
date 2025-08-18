@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Perforated AI
-"""PB configuration file."""
+"""PAI configuration file."""
 
 import math
 import sys
@@ -11,8 +11,8 @@ import torch.nn as nn
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device("cuda" if USE_CUDA else "cpu")
 
-# Pointer to the PB Tracker which handles adding dendrites
-pb_tracker = []
+# Pointer to the PAI Tracker which handles adding dendrites
+pai_tracker = []
 
 # Debug settings
 DEBUGGING_INPUT_DIMENSIONS = 0
@@ -29,7 +29,7 @@ CHECKED_SKIPPED_LAYERS = False
 # Verbosity settings
 VERBOSE = False
 EXTRA_VERBOSE = False
-# Suppress all PB prints
+# Suppress all PAI prints
 SILENT = False
 
 # Analysis settings
@@ -42,13 +42,13 @@ TESTING_DENDRITE_CAPACITY = True
 USING_SAFE_TENSORS = True
 
 
-class PBSequential(nn.Sequential):
+class PAISequential(nn.Sequential):
     """
-    Sequential module wrapper for PB.
+    Sequential module wrapper for PAI.
     
     This takes in an array of layers. For example:
     
-        PBSequential([nn.Linear(2 * hidden_dim, seq_width),
+        PAISequential([nn.Linear(2 * hidden_dim, seq_width),
                      nn.LayerNorm(seq_width)])
     
     This should be used for:
@@ -58,7 +58,7 @@ class PBSequential(nn.Sequential):
     """
     
     def __init__(self, layer_array):
-        super(PBSequential, self).__init__()
+        super(PAISequential, self).__init__()
         self.model = nn.Sequential(*layer_array)
         
     def forward(self, *args, **kwargs):
@@ -67,7 +67,7 @@ class PBSequential(nn.Sequential):
 
 # Lists for module types and names to add dendrites to
 MODULES_TO_CONVERT = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
-MODULE_NAMES_TO_CONVERT = ['PBSequential']
+MODULE_NAMES_TO_CONVERT = ['PAISequential']
 
 # All modules should either be converted or tracked to ensure all modules
 # are accounted for
@@ -114,7 +114,7 @@ GLOBAL_CANDIDATES = 1
 # Graph and visualization settings
 # A graph setting which can be set to false if you want to do your own
 # training visualizations
-DRAWING_PB = True
+DRAWING_PAI = True
 # Saving test intermediary models, good for experimentation, bad for memory
 TEST_SAVES = True
 # To be filled in later. pai_saves will remove some extra scaffolding for
@@ -179,7 +179,7 @@ RESET_BEST_SCORE_ON_SWITCH = False
 
 # Advanced settings
 # Not used in open source implementation, leave as default
-LEARN_PB_LIVE = False
+LEARN_DENDRITES_LIVE = False
 NO_EXTRA_N_MODES = True
 
 # Data type for new modules and dendrite to dendrite / dendrite to neuron
@@ -188,7 +188,7 @@ D_TYPE = torch.float
 
 # Dendrite retention settings
 # A setting to keep dendrites even if they do not improve scores
-RETAIN_ALL_PB = False
+RETAIN_ALL_DENDRITES = False
 
 # Learning rate management
 # A setting to automatically sweep over previously used learning rates when
@@ -212,9 +212,9 @@ MAX_DENDRITES = 100
 PARAM_VALS_BY_TOTAL_EPOCH = 0
 # Reset the params at every switch
 PARAM_VALS_BY_UPDATE_EPOCH = 1
-# Reset params for PB starts but not for normal restarts
+# Reset params for dendrite starts but not for normal restarts
 # Not used for open source version
-PARAM_VALS_BY_NORMAL_EPOCH_START = 2
+PARAM_VALS_BY_NEURON_EPOCH_START = 2
 # Default setting
 PARAM_VALS_SETTING = PARAM_VALS_BY_UPDATE_EPOCH
 
