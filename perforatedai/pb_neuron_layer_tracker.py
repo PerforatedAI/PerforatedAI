@@ -43,9 +43,9 @@ class PAINeuronModuleTracker:
         self.member_vars['doing_pai'] = doing_pai
         self.member_var_types['doing_pai'] = 'bool'
 
-        # How many Dendrite Nodes have been added
-        self.member_vars['num_pai_neuron_modules'] = 0
-        self.member_var_types['num_pai_neuron_modules'] = 'int'
+        # How many Dendrites have been added
+        self.member_vars['num_dendrites_added'] = 0
+        self.member_var_types['num_dendrites_added'] = 'int'
 
         # How many cycles have been run, *2 or *2+1 of the above
         self.member_vars['num_cycles'] = 0
@@ -430,27 +430,27 @@ class PAINeuronModuleTracker:
         """
         if not os.path.isdir(self.save_name):
             os.makedirs(self.save_name)
-        f = open(self.save_name + '/arrayDims.csv', 'w')
+        f = open(self.save_name + '/array_dims.csv', 'w')
         for layer in self.neuron_module_vector:
-            f.write(f'{layer.name},{layer.pb.dendrite_values[0].out_channels}\n')
+            f.write(f'{layer.name},{layer.dendrite_module.dendrite_values[0].out_channels}\n')
         f.close()
         if not PBG.SILENT:
             print('Tracker settings saved.')
-            print('You may now delete saveTrackerSettings')
+            print('You may now delete save_tracker_settings')
     
     def initialize_tracker_settings(self):
         """Initialize tracker settings from saved file."""
         channels = {}
-        if not os.path.exists(self.save_name + '/arrayDims.csv'):
-            print('You must call saveTrackerSettings before '
-                  'initializeTrackerSettings')
+        if not os.path.exists(self.save_name + '/array_dims.csv'):
+            print('You must call save_tracker_settings before '
+                  'initialize_tracker_settings')
             print('Follow instructions in customization.md')
             import pdb; pdb.set_trace()
-        f = open(self.save_name + '/arrayDims.csv', 'r')
+        f = open(self.save_name + '/array_dims.csv', 'r')
         for line in f:
             channels[line.split(',')[0]] = int(line.split(',')[1])
         for layer in self.neuron_module_vector:
-            layer.pb.dendrite_values[0].setupArrays(channels[layer.name])
+            layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
         
     def set_optimizer_instance(self, optimizer_instance):
         """Set optimizer instance directly."""
@@ -499,7 +499,7 @@ class PAINeuronModuleTracker:
                       f'stepping {PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} times')
                       
             if type(self.member_vars['scheduler_instance']) is torch.optim.lr_scheduler.ReduceLROnPlateau:
-                if mode == 'stepLearningRate':
+                if mode == 'steplearning_rate':
                     # Step with counter as last improved accuracy
                     self.member_vars['scheduler_instance'].step(
                         metrics=self.member_vars['last_improved_accuracies'][
@@ -518,7 +518,7 @@ class PAINeuronModuleTracker:
             if learning_rate2 != learning_rate1:
                 current_steps += 1
                 learning_rate1 = learning_rate2
-                if mode == 'stepLearningRate':
+                if mode == 'steplearning_rate':
                     current_ticker += 1
                 if PBG.VERBOSE:
                     print(f'1 step {current_steps} to {learning_rate2}')
@@ -564,7 +564,7 @@ class PAINeuronModuleTracker:
             if PBG.pai_tracker.member_vars['current_n_learning_rate_initial_skip_steps'] != 0:
                 additional_steps, learning_rate1 = self.increment_scheduler(
                     PBG.pai_tracker.member_vars['current_n_learning_rate_initial_skip_steps'], 
-                    'stepLearningRate')
+                    'steplearning_rate')
                 current_steps += additional_steps
                 
             if self.member_vars['mode'] == 'n' or PBG.LEARN_DENDRITES_LIVE:
@@ -682,35 +682,35 @@ class PAINeuronModuleTracker:
             print(f'{self.member_vars["param_vals_setting"]} is not a valid param vals option')
             import pdb; pdb.set_trace()
     
-    def add_pai_neuron_module(self, new_layer, initial_add=True):
+    def add_pai_neuron_module(self, new_module, initial_add=True):
         """Add neuron layers to internal vectors."""
         # If it's a duplicate, ignore the second addition
-        if new_layer in self.neuron_module_vector:
+        if new_module in self.neuron_module_vector:
             return
-        self.neuron_module_vector.append(new_layer)
+        self.neuron_module_vector.append(new_module)
         if self.member_vars['doing_pai']:
-            PB.setWrapped_params(new_layer)
+            PB.set_wrapped_params(new_module)
         if initial_add:
             self.member_vars['best_scores'].append([])
             self.member_vars['current_scores'].append([])
     
-    def add_tracked_neuron_module(self, new_layer, initial_add=True):
+    def add_tracked_neuron_module(self, new_module, initial_add=True):
         """Add tracked layers to internal vectors."""
         # If it's a duplicate, ignore the second addition
-        if new_layer in self.tracked_neuron_module_vector:
+        if new_module in self.tracked_neuron_module_vector:
             return
-        self.tracked_neuron_module_vector.append(new_layer)
+        self.tracked_neuron_module_vector.append(new_module)
         if self.member_vars['doing_pai']:
-            PB.setTracked_params(new_layer)        
+            PB.set_tracked_params(new_module)        
         
-    def reset_layer_vector(self, net, load_from_restart):
+    def reset_module_vector(self, net, load_from_restart):
         """Clear internal vectors."""
         self.neuron_module_vector = []
         self.tracked_neuron_module_vector = []
-        this_list = PBU.getPBModules(net, 0)
+        this_list = PBU.get_pai_modules(net, 0)
         for module in this_list:
             self.add_pai_neuron_module(module, initial_add=load_from_restart)
-        this_list = PBU.getTrackedModules(net, 0)
+        this_list = PBU.get_tracked_modules(net, 0)
         for module in this_list:
             self.add_tracked_neuron_module(module, initial_add=load_from_restart)
                     
@@ -744,7 +744,7 @@ class PAINeuronModuleTracker:
         for layer in self.tracked_neuron_module_vector[:]:
             worked = layer.set_mode('p')
             
-        self.add_dendrite_module()
+        self.create_new_dendrite_module()
         self.member_vars['mode'] = 'p'
         self.member_vars['current_n_learning_rate_initial_skip_steps'] = 0
         
@@ -765,7 +765,7 @@ class PAINeuronModuleTracker:
             module.set_mode('n')
             
         self.member_vars['mode'] = 'n'
-        self.member_vars['num_pai_neuron_modules'] += 1
+        self.member_vars['num_dendrites_added'] += 1
         self.member_vars['current_n_learning_rate_initial_skip_steps'] = 0
         self.reset_vals_for_score_reset()
 
@@ -804,10 +804,10 @@ class PAINeuronModuleTracker:
                     with torch.no_grad():
                         if PBG.VERBOSE:
                             print(f'Resetting score for {layer.name}')
-                        layer.pb.dendrite_values[m].bestScoreImprovedThisEpoch = (
-                            layer.pb.dendrite_values[m].bestScoreImprovedThisEpoch * 0)
-                        layer.pb.dendrite_values[m].nodesBestImprovedThisEpoch = (
-                            layer.pb.dendrite_values[m].nodesBestImprovedThisEpoch * 0)
+                        layer.dendrite_module.dendrite_values[m].best_score_improved_this_epoch = (
+                            layer.dendrite_module.dendrite_values[m].best_score_improved_this_epoch * 0)
+                        layer.dendrite_module.dendrite_values[m].nodes_best_improved_this_epoch = (
+                            layer.dendrite_module.dendrite_values[m].nodes_best_improved_this_epoch * 0)
 
         self.member_vars['num_epochs_run'] += 1
         self.member_vars['total_epochs_run'] = (
@@ -839,7 +839,7 @@ class PAINeuronModuleTracker:
                    num_classes=10000, values_per_train_epoch=-1, 
                    values_per_val_epoch=-1, zooming_graph=True):
         """Setup the tracker with initial settings."""
-        model = PBU.convertNetwork(model)
+        model = PBU.convert_network(model)
         self.member_vars['doing_pai'] = doing_pai
         self.member_vars['maximizing_score'] = maximizing_score
         self.save_name = save_name
@@ -914,7 +914,7 @@ class PAINeuronModuleTracker:
             ax.plot(last_improved, self.member_vars['global_best_validation_score'], 
                    'bo', label='Global best (y)')
             ax.plot(last_improved, accuracies[last_improved], 'go', 
-                   label='Epoch Last Improved \nmight be wrong in\nfirst after switch')
+                   label='Epoch Last Improved')
         else:
             if self.member_vars['mode'] == 'n':
                 missed_time = self.member_vars['num_epochs_run'] - last_improved
@@ -1059,15 +1059,15 @@ class PAINeuronModuleTracker:
         # Plot learning rates for each training epoch
         ax = plt.subplot(223)
         ax.plot(np.arange(len(self.member_vars['training_learning_rates'])), 
-               self.member_vars['training_learning_rates'], label='learningRate')
-        plt.title(save_folder + '/' + self.save_name + "learningRate")
+               self.member_vars['training_learning_rates'], label='learning_rate')
+        plt.title(save_folder + '/' + self.save_name + "learning_rate")
         plt.xlabel('Epochs')
-        plt.ylabel('learningRate')
+        plt.ylabel('learning_rate')
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
         pd1 = pd.DataFrame({'Epochs': np.arange(len(self.member_vars['training_learning_rates'])), 
-                           'learningRate': self.member_vars['training_learning_rates']})
-        pd1.to_csv(save_folder + '/' + self.save_name + extra_string + 'learningRate.csv', 
+                           'learning_rate': self.member_vars['training_learning_rates']})
+        pd1.to_csv(save_folder + '/' + self.save_name + extra_string + 'learning_rate.csv', 
                    index=False)
         pd1.to_csv('pd.csv', float_format='%.2f', na_rep="NAN!")
         del pd1
@@ -1086,7 +1086,7 @@ class PAINeuronModuleTracker:
         pd1.to_csv('pd.csv', float_format='%.2f', na_rep="NAN!")
         del pd1
         
-        # Create testTestScores.csv file
+        # Create best_test_scores.csv file
         test_scores = self.member_vars['test_scores']
         # If not tracking test scores, use validation scores
         if len(self.member_vars['test_scores']) == 0:
@@ -1094,7 +1094,7 @@ class PAINeuronModuleTracker:
             
         if len(test_scores) != len(self.member_vars['accuracies']):
             print('Your test scores are not the same length as validation scores')
-            print('addTestScore should only be included once, use addExtraScore for other variables')
+            print('add_test_score should only be included once, use add_extra_score for other variables')
             
         switch_counts = len(self.member_vars['switch_epochs'])
         best_test = []
@@ -1145,7 +1145,7 @@ class PAINeuronModuleTracker:
         pd1 = pd.DataFrame({'Param Counts': associated_params, 
                            'Max Valid Scores': best_valid, 
                            'Max Test Scores': best_test})
-        pd1.to_csv(save_folder + '/' + self.save_name + extra_string + 'bestTestScores.csv', 
+        pd1.to_csv(save_folder + '/' + self.save_name + extra_string + 'best_test_scores.csv', 
                    index=False)
         pd1.to_csv('pd.csv', float_format='%.2f', na_rep="NAN!")
         del pd1
@@ -1373,7 +1373,7 @@ class PAINeuronModuleTracker:
                     (1.0 - PBG.IMPROVEMENT_THRESHOLD) > 
                     PBG.pai_tracker.member_vars['current_best_validation_score'] and
                     PBG.pai_tracker.member_vars['running_accuracy'] - 
-                    PBG.IMPROVEMENT_THRESHOLDRaw > 
+                    PBG.IMPROVEMENT_THRESHOLD_RAW > 
                     PBG.pai_tracker.member_vars['current_best_validation_score'])
             else:
                 score_improved = (
@@ -1381,7 +1381,7 @@ class PAINeuronModuleTracker:
                     (1.0 + PBG.IMPROVEMENT_THRESHOLD) < 
                     PBG.pai_tracker.member_vars['current_best_validation_score'] and
                     (PBG.pai_tracker.member_vars['running_accuracy'] + 
-                     PBG.IMPROVEMENT_THRESHOLDRaw) < 
+                     PBG.IMPROVEMENT_THRESHOLD_RAW) < 
                     PBG.pai_tracker.member_vars['current_best_validation_score'])
                     
             enough_time = ((epochs_since_cycle_switch > PBG.INITIAL_HISTORY_AFTER_SWITCHES) or 
@@ -1398,7 +1398,7 @@ class PAINeuronModuleTracker:
                               f'*{1-PBG.IMPROVEMENT_THRESHOLD}='
                               f'{PBG.pai_tracker.member_vars["running_accuracy"]*(1.0 - PBG.IMPROVEMENT_THRESHOLD)}) '
                               f'which is higher than {PBG.pai_tracker.member_vars["current_best_validation_score"]:.10f} '
-                              f'by {PBG.IMPROVEMENT_THRESHOLDRaw} so setting epoch to '
+                              f'by {PBG.IMPROVEMENT_THRESHOLD_RAW} so setting epoch to '
                               f'{PBG.pai_tracker.member_vars["num_epochs_run"]}\n\n')
                 else:
                     if PBG.VERBOSE:
@@ -1432,7 +1432,7 @@ class PAINeuronModuleTracker:
                     PBG.pai_tracker.member_vars['global_best_validation_score'] = (
                         PBG.pai_tracker.member_vars['current_best_validation_score'])
                     PBG.pai_tracker.member_vars['current_n_set_global_best'] = True
-                    PBU.saveSystem(net, save_name, file_name)
+                    PBU.save_system(net, save_name, file_name)
                     if PBG.PAI_SAVES:
                         PBU.pai_save_system(net, save_name, file_name)
                         
@@ -1465,13 +1465,13 @@ class PAINeuronModuleTracker:
                 if len(PBG.pai_tracker.member_vars['accuracies']) == 1:
                     if PBG.VERBOSE:
                         print('Saving first model or all models')
-                    PBU.saveSystem(net, save_name, file_name)
+                    PBU.save_system(net, save_name, file_name)
                     if PBG.PAI_SAVES:
                         PBU.pai_save_system(net, save_name, file_name)
 
         # Save the latest model
         if PBG.TEST_SAVES:
-            PBU.saveSystem(net, save_name, 'latest')
+            PBU.save_system(net, save_name, 'latest')
         if PBG.PAI_SAVES:
             PBU.pai_save_system(net, save_name, 'latest')
 
@@ -1483,7 +1483,7 @@ class PAINeuronModuleTracker:
         if PBG.pai_tracker.switch_time() or force_switch:
             # If testing dendrite capacity switch after enough dendrites added
             if ((PBG.pai_tracker.member_vars['mode'] == 'n') and
-                (PBG.pai_tracker.member_vars['num_pai_neuron_modules'] > 3) and
+                (PBG.pai_tracker.member_vars['num_dendrites_added'] > 3) and
                 PBG.TESTING_DENDRITE_CAPACITY):
                 PBG.pai_tracker.save_graphs()
                 print('Successfully added 3 dendrites with '
@@ -1522,7 +1522,7 @@ class PAINeuronModuleTracker:
                               f'so loading last switch and trying new Dendrites.')
                     old_tries = PBG.pai_tracker.member_vars['num_dendrite_tries']
                     # Load best model from previous n mode
-                    net = PBU.changeLearningModes(
+                    net = PBU.change_learning_modes(
                         net, save_name, file_name,
                         PBG.pai_tracker.member_vars['doing_pai'])
                     PBG.pai_tracker.member_vars['num_dendrite_tries'] = old_tries + 1
@@ -1530,10 +1530,10 @@ class PAINeuronModuleTracker:
                     if not PBG.SILENT:
                         print(f'Dendrites did not improve system and '
                               f'{PBG.pai_tracker.member_vars["num_dendrite_tries"]} >= '
-                              f'{PBG.MAX_DENDRITE_TRIES} so returning trainingComplete.')
+                              f'{PBG.MAX_DENDRITE_TRIES} so returning training_complete.')
                         print('You should now exit your training loop and '
                               'best_model will be your final model for inference')
-                    PBU.loadSystem(net, save_name, file_name, switch_call=True)
+                    PBU.load_system(net, save_name, file_name, switch_call=True)
                     PBG.pai_tracker.save_graphs()
                     PBU.pai_save_system(net, save_name, 'final_clean')
                     return net, True, True
@@ -1548,10 +1548,10 @@ class PAINeuronModuleTracker:
                           f'{PBG.pai_tracker.member_vars["last_max_learning_rate_value"]}')
                           
                 if ((PBG.pai_tracker.member_vars['mode'] == 'n') and 
-                    (PBG.MAX_DENDRITES == PBG.pai_tracker.member_vars['num_pai_neuron_modules'])):
+                    (PBG.MAX_DENDRITES == PBG.pai_tracker.member_vars['num_dendrites_added'])):
                     if not PBG.SILENT:
                         print(f'Last Dendrites were good and this hit the max of {PBG.MAX_DENDRITES}')
-                    PBU.loadSystem(net, save_name, file_name, switch_call=True)
+                    PBU.load_system(net, save_name, file_name, switch_call=True)
                     PBG.pai_tracker.save_graphs()
                     PBU.pai_save_system(net, save_name, 'final_clean')
                     return net, True, True
@@ -1566,7 +1566,7 @@ class PAINeuronModuleTracker:
                     f'_beforeSwitch_{len(PBG.pai_tracker.member_vars["switch_epochs"])}')
                     
                 if PBG.TEST_SAVES:
-                    PBU.saveSystem(net, save_name,
+                    PBU.save_system(net, save_name,
                                   f'beforeSwitch_{len(PBG.pai_tracker.member_vars["switch_epochs"])}')
                     # Copy current best model from this set of dendrites
                     shutil.copyfile(
@@ -1575,7 +1575,7 @@ class PAINeuronModuleTracker:
                     if PBG.EXTRA_VERBOSE:
                         import pdb; pdb.set_trace()
                         
-                    net = PBU.changeLearningModes(
+                    net = PBU.change_learning_modes(
                         net, save_name, file_name,
                         PBG.pai_tracker.member_vars['doing_pai'])
             
@@ -1584,7 +1584,7 @@ class PAINeuronModuleTracker:
             PBG.pai_tracker.clear_optimizer_and_scheduler()
             
             # Save the model from after the switch
-            PBU.saveSystem(net, save_name,
+            PBU.save_system(net, save_name,
                           f'switch_{len(PBG.pai_tracker.member_vars["switch_epochs"])}')
             
         # If not time to switch and you have a scheduler, increment it
@@ -1722,20 +1722,20 @@ class PAINeuronModuleTracker:
                         dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
                         
                         PBG.pai_tracker.save_graphs(
-                            f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                            f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                             
                         if PBG.TEST_SAVES:
-                            PBU.saveSystem(net, save_name,
-                                          f'PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                            PBU.save_system(net, save_name,
+                                          f'PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                           
                         if PBG.VERBOSE:
                             print(f'Saving with initial steps: {dt_string}_PBCount_'
-                                  f'{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_'
+                                  f'{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
                                   f'{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
                                   f'with current best {old_accuracy}')
                                   
                         # Load back at start and try with lower initial learning rate
-                        net = PBU.loadSystem(
+                        net = PBU.load_system(
                             net, save_name,
                             f'switch_{len(PBG.pai_tracker.member_vars["switch_epochs"])}',
                             switch_call=True)
@@ -1777,21 +1777,21 @@ class PAINeuronModuleTracker:
                             dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
                             
                             PBG.pai_tracker.save_graphs(
-                                f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                                f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                 
                             if PBG.TEST_SAVES:
-                                PBU.saveSystem(net, save_name,
-                                              f'PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                                PBU.save_system(net, save_name,
+                                              f'PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                               
                             if PBG.VERBOSE:
                                 print(f'Saving with initial steps: {dt_string}_PBCount_'
-                                      f'{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_'
+                                      f'{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
                                       f'{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                       
                             if PBG.TEST_SAVES:
-                                net = PBU.loadSystem(
+                                net = PBU.load_system(
                                     net, save_name,
-                                    f'PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1}',
+                                    f'PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1}',
                                     switch_call=True)
                                     
                             # Save graphs for chosen one
@@ -1799,15 +1799,15 @@ class PAINeuronModuleTracker:
                             dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
                             
                             PBG.pai_tracker.save_graphs(
-                                f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED')
+                                f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED')
                                 
                             if PBG.TEST_SAVES:
-                                PBU.saveSystem(net, save_name,
-                                              f'PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                                PBU.save_system(net, save_name,
+                                              f'PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                               
                             if PBG.VERBOSE:
                                 print(f'Saving with initial steps: {dt_string}_PBCount_'
-                                      f'{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_'
+                                      f'{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
                                       f'{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                       
                             PBG.pai_tracker.member_vars['committed_to_initial_rate'] = True
@@ -1837,15 +1837,15 @@ class PAINeuronModuleTracker:
                                 dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
                                 
                                 PBG.pai_tracker.save_graphs(
-                                    f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED')
+                                    f'{dt_string}_PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED')
                                     
                                 if PBG.TEST_SAVES:
-                                    PBU.saveSystem(net, save_name,
-                                                  f'PBCount_{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+                                    PBU.save_system(net, save_name,
+                                                  f'PBCount_{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                                   
                                 if PBG.VERBOSE:
                                     print(f'Saving with initial steps: {dt_string}_PBCount_'
-                                          f'{PBG.pai_tracker.member_vars["num_pai_neuron_modules"]}_startSteps_'
+                                          f'{PBG.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
                                           f'{PBG.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}')
                                           
                                 PBG.pai_tracker.member_vars['committed_to_initial_rate'] = True
@@ -1904,9 +1904,9 @@ class PAINeuronModuleTracker:
     def clear_all_processors(self):
         """Clear all processors from modules."""
         for module in self.neuron_module_vector:
-            module.clearProcessors()
+            module.clear_processors()
 
-    def add_dendrite_module(self):
+    def create_new_dendrite_module(self):
         """Add dendrite module to all neuron modules."""
         for module in self.neuron_module_vector:
-            module.add_pai_neuron_module()
+            module.create_new_dendrite_module()

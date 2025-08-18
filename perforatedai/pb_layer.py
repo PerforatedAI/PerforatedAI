@@ -82,7 +82,7 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
                     print(val.size())
 
                 values[0].set_out_channels(val.size())
-                values[0].setupArrays(values[0].out_channels)
+                values[0].setup_arrays(values[0].out_channels)
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
 
@@ -114,15 +114,15 @@ class PAINeuronModule(nn.Module):
             print(start_module)
 
         # If this main_module is one that requires processing set the processor
-        if type(self.main_module) in PBG.MODULES_WITH_PROCESSING:
-            module_index = PBG.MODULES_WITH_PROCESSING.index(type(self.main_module))
-            self.processor = PBG.MODULE_PROCESSING_CLASSES[module_index]()
+        if type(self.main_module) in PBG.modules_with_processing:
+            module_index = PBG.modules_with_processing.index(type(self.main_module))
+            self.processor = PBG.modules_processing_classes[module_index]()
             if PBG.VERBOSE:
                 print('with processor')
                 print(self.processor)
-        elif type(self.main_module).__name__ in PBG.MODULE_NAMES_WITH_PROCESSING:
-            module_index = PBG.MODULE_NAMES_WITH_PROCESSING.index(type(self.main_module).__name__)
-            self.processor = PBG.MODULE_BY_NAME_PROCESSING_CLASSES[module_index]()
+        elif type(self.main_module).__name__ in PBG.module_names_with_processing:
+            module_index = PBG.module_names_with_processing.index(type(self.main_module).__name__)
+            self.processor = PBG.module_by_name_processing_classes[module_index]()
             if PBG.VERBOSE:
                 print('with processor')
                 print(self.processor)
@@ -186,14 +186,14 @@ class PAINeuronModule(nn.Module):
 
     def __str__(self):
         """String representation of the layer."""
-        # If VERBOSE print the whole module otherwise just print the module type as a PAILayer
+        # If VERBOSE print the whole module otherwise just print the module type as a PAIModule
         if PBG.VERBOSE:
             total_string = self.main_module.__str__()
-            total_string = 'PAILayer(' + total_string + ')'
+            total_string = 'PAIModule(' + total_string + ')'
             return total_string + self.dendrite_module.__str__()
         else:
             total_string = self.main_module.__str__()
-            total_string = 'PAILayer(' + total_string + ')'
+            total_string = 'PAIModule(' + total_string + ')'
             return total_string
 
     def __repr__(self):
@@ -247,16 +247,16 @@ class PAINeuronModule(nn.Module):
             except Exception as e:
                 print(e)
                 print(f'this occurred in layer: {self.dendrite_module.dendrite_values[0].layer_name}')
-                print("Module should be added to MODULE_NAMES_TO_TRACK so it doesn't have dendrites added")
+                print("Module should be added to module_names_to_track so it doesn't have dendrites added")
                 print('If you are getting here but out_channels has not been set')
                 print('A common reason is that this layer never had gradients flow through it.')
                 print('I have seen this happen because:')
                 print('-The weights were frozen (requires_grad = False)')
                 print('-A model is added but not used so it was converted but never PAI initialized')
                 print('-A module was converted that doesn\'t have weights that get modified so backward doesn\'t flow through it')
-                print('If this is normal behavior set PBG.CHECKED_SKIPPED_LAYERS = True in the main to ignore')
+                print('If this is normal behavior set PBG.CHECKED_SKIPPED_MODULES = True in the main to ignore')
                 print('You can also set right now in this pdb terminal to have this not happen more after checking all layers this cycle.')
-                if not PBG.CHECKED_SKIPPED_LAYERS:
+                if not PBG.CHECKED_SKIPPED_MODULES:
                     import pdb
                     pdb.set_trace()
                 return False
@@ -264,9 +264,9 @@ class PAINeuronModule(nn.Module):
             self.dendrite_module.set_mode(mode)
         return True
 
-    def add_dendrite_module(self):
-        """Add a PAI layer."""
-        self.dendrite_module.add_dendrite_module()
+    def create_new_dendrite_module(self):
+        """Add an additional dendrite module."""
+        self.dendrite_module.create_new_dendrite_module()
 
     def forward(self, *args, **kwargs):
         """Forward pass through the neuron layer."""
@@ -373,7 +373,7 @@ class PAIDendriteModule(nn.Module):
         self.candidate_processors = []
         self.num_dendrites = 0
         # Number of dendrite cycles performed
-        self.register_buffer('numCycles', torch.zeros(1, device=PBG.DEVICE, dtype=PBG.D_TYPE))
+        self.register_buffer('num_cycles', torch.zeros(1, device=PBG.DEVICE, dtype=PBG.D_TYPE))
         self.mode = 'n'
         self.name = name
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
@@ -395,11 +395,11 @@ class PAIDendriteModule(nn.Module):
 
         # Store an activation function value if required
         self.activation_function_value = activation_function_value
-        self.dendrite_moduleValues = nn.ModuleList([])
+        self.dendrite_values = nn.ModuleList([])
         for j in range(0, PBG.GLOBAL_CANDIDATES):
             if PBG.VERBOSE:
                 print(f'creating dendrite Values for {self.name}')
-            self.dendrite_moduleValues.append(DendriteValueTracker(False, self.activation_function_value,
+            self.dendrite_values.append(DendriteValueTracker(False, self.activation_function_value,
                                               self.name, self.this_input_dimensions))
 
     def set_this_input_dimensions(self, new_input_dimensions):
@@ -414,14 +414,14 @@ class PAIDendriteModule(nn.Module):
             sys.exit(-1)
         self.this_node_index.copy_((new_input_dimensions == 0).nonzero(as_tuple=True)[0][0])
         for j in range(0, PBG.GLOBAL_CANDIDATES):
-            self.dendrite_moduleValues[j].set_this_input_dimensions(new_input_dimensions)
+            self.dendrite_values[j].set_this_input_dimensions(new_input_dimensions)
 
-    def add_dendrite_module(self):
+    def create_new_dendrite_module(self):
         """Add a new set of dendrites."""
         # Candidate layer
-        self.candidateLayer = nn.ModuleList([])
+        self.candidate_module = nn.ModuleList([])
         # Copy that is unused for open source version
-        self.candidate_best_layer = nn.ModuleList([])
+        self.best_candidate_module = nn.ModuleList([])
         if PBG.VERBOSE:
             print(self.name)
             print('Setting candidate processors')
@@ -431,22 +431,22 @@ class PAIDendriteModule(nn.Module):
 
                 new_module = PBU.deep_copy_pai(self.parent_module)
                 init_params(new_module)
-                self.candidateLayer.append(new_module)
-                self.candidate_best_layer.append(PBU.deep_copy_pai(new_module))
-                if type(self.parent_module) in PBG.MODULES_WITH_PROCESSING:
-                    module_index = PBG.MODULES_WITH_PROCESSING.index(type(self.parent_module))
-                    self.candidate_processors.append(PBG.MODULE_PROCESSING_CLASSES[module_index]())
-                elif type(self.parent_module).__name__ in PBG.MODULE_NAMES_WITH_PROCESSING:
-                    module_index = PBG.MODULE_NAMES_WITH_PROCESSING.index(type(self.parent_module).__name__)
-                    self.candidate_processors.append(PBG.MODULE_BY_NAME_PROCESSING_CLASSES[module_index]())
+                self.candidate_module.append(new_module)
+                self.best_candidate_module.append(PBU.deep_copy_pai(new_module))
+                if type(self.parent_module) in PBG.modules_with_processing:
+                    module_index = PBG.modules_with_processing.index(type(self.parent_module))
+                    self.candidate_processors.append(PBG.modules_processing_classes[module_index]())
+                elif type(self.parent_module).__name__ in PBG.module_names_with_processing:
+                    module_index = PBG.module_names_with_processing.index(type(self.parent_module).__name__)
+                    self.candidate_processors.append(PBG.module_by_name_processing_classes[module_index]())
 
         for i in range(0, PBG.GLOBAL_CANDIDATES):
-            self.candidateLayer[i].to(PBG.DEVICE)
-            self.candidate_best_layer[i].to(PBG.DEVICE)
+            self.candidate_module[i].to(PBG.DEVICE)
+            self.best_candidate_module[i].to(PBG.DEVICE)
 
         # Reset the dendrite_values objects
         for j in range(0, PBG.GLOBAL_CANDIDATES):
-            self.dendrite_moduleValues[j].reinitialize_for_pai(0)
+            self.dendrite_values[j].reinitialize_for_pai(0)
 
         # If there are already dendrites initialize the dendrite to dendrite connections
         if self.num_dendrites > 0:
@@ -455,8 +455,7 @@ class PAIDendriteModule(nn.Module):
                 self.dendrites_to_candidates.append(nn.Parameter(torch.zeros((self.num_dendrites, self.out_channels),
                                                                    device=PBG.DEVICE, dtype=PBG.D_TYPE),
                                                        requires_grad=True))
-                self.dendrites_to_candidates[j].data.pbWrapped = True
-
+                
     def clear_processors(self):
         """Clear processors."""
         for processor in self.processors:
@@ -473,9 +472,9 @@ class PAIDendriteModule(nn.Module):
     def set_mode(self, mode):
         """Perform actions when switching between neuron and dendrite training."""
         self.mode = mode
-        self.numCycles += 1
+        self.num_cycles += 1
         if PBG.VERBOSE:
-            print(f'PAI calling set mode {mode} : {self.numCycles}')
+            print(f'PAI calling set mode {mode} : {self.num_cycles}')
         
         # When switching back to neuron training mode convert candidates layers into accepted layers
         if mode == 'n':
@@ -495,16 +494,16 @@ class PAIDendriteModule(nn.Module):
                           "It's not set up yet but nice work finding it.")
                     pdb.set_trace()
                 plane_max_index = 0
-                self.layers.append(PBU.deep_copy_pai(self.candidate_best_layer[plane_max_index]))
+                self.layers.append(PBU.deep_copy_pai(self.best_candidate_module[plane_max_index]))
                 self.layers[self.num_dendrites].to(PBG.DEVICE)
                 if self.num_dendrites > 0:
                     self.dendrites_to_dendrites[self.num_dendrites].copy_(self.dendrites_to_candidates[plane_max_index])
-                if type(self.parent_module) in PBG.MODULES_WITH_PROCESSING:
+                if type(self.parent_module) in PBG.modules_with_processing:
                     self.processors.append(self.candidate_processors[plane_max_index])
-                if type(self.parent_module).__name__ in PBG.MODULE_NAMES_WITH_PROCESSING:
+                if type(self.parent_module).__name__ in PBG.module_names_with_processing:
                     self.processors.append(self.candidate_processors[plane_max_index])
 
-            del self.candidateLayer, self.candidate_best_layer
+            del self.candidate_module, self.best_candidate_module
 
             self.num_dendrites += 1
 
@@ -622,7 +621,7 @@ class DendriteValueTracker(nn.Module):
             print('This likely means it not being added to the autograd graph')
             print('Check your forward function that it is actually being used')
             print('If its not you should really delete it, but you can also add')
-            print('the name below to PBG.MODULE_NAMES_TO_SKIP to not convert it')
+            print('the name below to PBG.module_names_to_skip to not convert it')
             print(self.layer_name)
             print('This can also happen while TESTING_DENDRITE_CAPACITY if you')
             print('run a validation cycle and try to add Dendrites before doing any training.\n')

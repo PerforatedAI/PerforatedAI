@@ -139,7 +139,7 @@ class ResNetPAI(nn.Module):
     
     All normalization layers should be wrapped in a PAISequential, or other 
     wrapped module. When working with a predefined model the following shows 
-    an example of how to create a module for MODULES_TO_REPLACE.
+    an example of how to create a module for modules_to_replace.
     """
     
     def __init__(self, other_resnet):
