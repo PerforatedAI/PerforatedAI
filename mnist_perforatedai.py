@@ -59,7 +59,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         #Increment how many times it was correct
         correct += pred.eq(target.view_as(pred)).sum()
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    PBG.pbTracker.addExtraScore(100. * correct / len(train_loader.dataset), 'train') 
+    PBG.pai_tracker.add_extra_score(100. * correct / len(train_loader.dataset), 'train') 
     model.to(device)
 
 
@@ -82,15 +82,15 @@ def test(model, device, test_loader, optimizer, scheduler, args):
         100. * correct / len(test_loader.dataset)))
 
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    model, restructured, trainingComplete = PBG.pbTracker.addValidationScore(100. * correct / len(test_loader.dataset), 
+    model, restructured, training_complete = PBG.pai_tracker.add_validation_score(100. * correct / len(test_loader.dataset), 
     model) 
     model.to(device)
     #If it was restructured reset the optimizer and scheduler
     if(restructured): 
         optimArgs = {'params':model.parameters(),'lr':args.lr}
         schedArgs = {'step_size':1, 'gamma': args.gamma}
-        optimizer, scheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
-    return model, optimizer, scheduler, trainingComplete
+        optimizer, scheduler = PBG.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    return model, optimizer, scheduler, training_complete
 
 
 def main():
@@ -180,23 +180,23 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     #Set up some global parameters for PAI code
-    PBG.testingDendriteCapacity = False
+    PBG.TESTING_DENDRITE_CAPACITY = False
 
     model = Net(num_classes, args.width).to(device)
 
-    model = PBU.initializePB(model)
+    model = PBU.initialize_pai(model)
     
     #Setup the optimizer and scheduler
-    PBG.pbTracker.setOptimizer(optim.Adadelta)
-    PBG.pbTracker.setScheduler(StepLR)
+    PBG.pai_tracker.set_optimizer(optim.Adadelta)
+    PBG.pai_tracker.set_scheduler(StepLR)
     optimArgs = {'params':model.parameters(),'lr':args.lr}
     schedArgs = {'step_size':1, 'gamma': args.gamma}
-    optimizer, scheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
+    optimizer, scheduler = PBG.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
-        model, optimizer, scheduler, trainingComplete = test(model, device, test_loader, optimizer, scheduler, args)
-        if(trainingComplete):
+        model, optimizer, scheduler, training_complete = test(model, device, test_loader, optimizer, scheduler, args)
+        if(training_complete):
             break
 
     if args.save_model:

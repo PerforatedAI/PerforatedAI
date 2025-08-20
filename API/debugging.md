@@ -250,13 +250,10 @@ This error can be caused by a few different reasons:
 
 ## Errors that are currently not fixable
 
-### Loss scaling
+### Centered RMSprop cusing nan
 
-    Functions such as ApexScaler or NativeScaler from timm.utils can cause the following error:
+    We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
-        pytorch RuntimeError "has changed the type of value"
-    
-    These functions are applied after the computation graph is created from the forward pass and types within both PB and the original model are set.  Then when they make adjustments to tensors within the model they do not make the equivilent changes to the tensors in the PB version of the model.  At the moment there is not a workaround for this, so if you encounter this error you just have to turn off loss scaling.
 
 ## Extra Debugging
 
