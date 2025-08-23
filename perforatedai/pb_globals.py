@@ -157,27 +157,29 @@ PB_FORWARD_FUNCTION = torch.sigmoid
 
 ### Global Modules
 
+
 class PAISequential(nn.Sequential):
     """
     Sequential module wrapper for PAI.
-    
+
     This takes in an array of layers. For example:
-    
+
         PAISequential([nn.Linear(2 * hidden_dim, seq_width),
                      nn.LayerNorm(seq_width)])
-    
+
     This should be used for:
         - all normalization layers
     This can be used for:
         - final output layer and softmax
     """
-    
+
     def __init__(self, layer_array):
         super(PAISequential, self).__init__()
         self.model = nn.Sequential(*layer_array)
-        
+
     def forward(self, *args, **kwargs):
         return self.model(*args, **kwargs)
+
 
 ### Global objects and variables
 
@@ -186,7 +188,7 @@ pai_tracker = []
 
 # Lists for module types and names to add dendrites to
 modules_to_convert = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
-module_names_to_convert = ['PAISequential']
+module_names_to_convert = ["PAISequential"]
 
 # All modules should either be converted or tracked to ensure all modules
 # are accounted for
@@ -224,6 +226,4 @@ module_names_to_skip = []
 # the same modules which cause problems
 # If you want to only save one of the multiple pointers you can set which ones
 # not to save here
-module_names_to_not_save = ['.base_model']
-
-
+module_names_to_not_save = [".base_model"]
