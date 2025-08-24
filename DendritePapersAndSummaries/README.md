@@ -14,7 +14,7 @@ This page is to accumulate papers on adding dendrites to neural network projects
 | [Learning on Tree Architectures Outperforms a Convolutional Feedforward Network](https://www.nature.com/articles/s41598-023-27986-6) | Dendrites are more parameter efficient | First paper with dendrites for CNNs | Yes | No |
 | [Dendrites Endow Artificial Neural Networks with Accurate, Robust and Parameter-Efficient Learning](https://www.nature.com/articles/s41467-025-56297-9) | Dendrites are more parameter efficient | Dendritic receptive fields | Yes | No |
 | [Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks](https://arxiv.org/pdf/2501.18018) | PB Dendrites increase accuracy | Correlation learning | No | Yes |
-| [Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) | PB Dendrites achieve compression | Correlation learning | No | Yes |
+| [Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2506.00356) | PB Dendrites achieve compression | Correlation learning | No | Yes |
 
 
 
@@ -49,4 +49,4 @@ This page is to accumulate papers on adding dendrites to neural network projects
 
 ## Exploring the Performance of Perforated Backpropagation through Further Experiments - 2025
 
-[Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2501.18018) is the second paper by Perforated AI. This paper focuses on creating smaller, more efficient models by reducing original network sizes and then adding dendrites, training on the same datasets. It examines more common benchmarks and architectures, and is the outcome of collaborative experiments run during a hackathon. Additionally, it highlights industry impact by deploying one of the trained models on Google Cloud and reporting the changes between running the original model and the dendritic model.
+[Exploring the Performance of Perforated Backpropagation through Further Experiments](https://arxiv.org/pdf/2506.00356) is the second paper by Perforated AI. This paper focuses on creating smaller, more efficient models by reducing original network sizes and then adding dendrites, training on the same datasets. It examines more common benchmarks and architectures, and is the outcome of collaborative experiments run during a hackathon. Additionally, it highlights industry impact by deploying one of the trained models on Google Cloud and reporting the changes between running the original model and the dendritic model.
