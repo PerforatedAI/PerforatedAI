@@ -20,7 +20,7 @@ winners](https://www.perforatedai.com/natural-language-processing-3-25) experime
 
 ### GPT2 PEFT with LoRA
 
-[GPT2 LoRA](https://github.com/PerforatedAI/PerforatedAI-Examples/tree/master/libraryExamples/PEFT/) shows the capability of adding dendrites to LoRA modules for PEFT.
+[GPT2 LoRA](https://github.com/PerforatedAI/PerforatedAI-Examples/tree/master/libraryExamples/huggingface/PEFT) shows the capability of adding dendrites to LoRA modules for PEFT.
 
 ![PEFT](PEFT.png "PEFT")
 
