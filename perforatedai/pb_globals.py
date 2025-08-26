@@ -10,49 +10,49 @@ import torch.nn as nn
 ### Global Constants
 
 # Device configuration
-USE_CUDA = torch.cuda.is_available()
-DEVICE = torch.device("cuda" if USE_CUDA else "cpu")
+use_cuda = torch.cuda.is_available()
+device = torch.device("cuda" if use_cuda else "cpu")
 
 # Debug settings
-DEBUGGING_INPUT_DIMENSIONS = 0
+debugging_input_dimensions = 0
 # Debugging input tensor sizes.
 # This will slow things down very slightly and is not necessary but can help
 # catch when dimensions were not filled in correctly.
-CONFIRM_CORRECT_SIZES = False
+confirm_correct_sizes = False
 
 # Confirmation flags for non-recommended options
-UNWRAPPED_MODULES_CONFIRMED = False
-WEIGHT_DECAY_ACCEPTED = False
-CHECKED_SKIPPED_MODULES = False
+unwrapped_modules_confirmed = False
+weight_decay_accepted = False
+checked_skipped_modules = False
 
 # Verbosity settings
-VERBOSE = False
-EXTRA_VERBOSE = False
+verbose = False
+extra_verbose = False
 # Suppress all PAI prints
-SILENT = False
+silent = False
 
 # Analysis settings
-SAVE_OLD_GRAPH_SCORES = True
+save_old_graph_scores = True
 
 # Testing settings
-TESTING_DENDRITE_CAPACITY = True
+testing_dendrite_capacity = True
 
 # File format settings
-USING_SAFE_TENSORS = True
+using_safe_tensors = True
 
 # In place for future implementation options of adding multiple candidate
 # dendrites together
-GLOBAL_CANDIDATES = 1
+global_candidates = 1
 
 # Graph and visualization settings
 # A graph setting which can be set to false if you want to do your own
 # training visualizations
-DRAWING_PAI = True
+drawing_pai = True
 # Saving test intermediary models, good for experimentation, bad for memory
-TEST_SAVES = True
+test_saves = True
 # To be filled in later. pai_saves will remove some extra scaffolding for
 # slight memory and speed improvements
-PAI_SAVES = False
+pai_saves = False
 
 # Input dimensions needs to be set every time. It is set to what format of
 # planes you are expecting.
@@ -61,99 +61,99 @@ PAI_SAVES = False
 # input_dimensions is [-1, 0, -1, -1].
 # if your format is, [batchsize, time index, nodes] input_dimensions is
 # [-1, -1, 0]
-INPUT_DIMENSIONS = [-1, 0, -1, -1]
+input_dimensions = [-1, 0, -1, -1]
 
 # Improvement thresholds
 # Percentage improvement increase needed to call a new best validation score
-IMPROVEMENT_THRESHOLD = 0.0001
+improvement_threshold = 0.0001
 # Raw increase needed
-IMPROVEMENT_THRESHOLD_RAW = 1e-5
+improvement_threshold_raw = 1e-5
 
 # Weight initialization settings
 # Multiplier when randomizing dendrite weights
-CANDIDATE_WEIGHT_INITIALIZATION_MULTIPLIER = 0.01
+candidate_weight_initialization_multiplier = 0.01
 
 # SWITCH MODE SETTINGS
 
 # Add dendrites every time to debug implementation
-DOING_SWITCH_EVERY_TIME = 0
+doing_switch_every_time = 0
 
 # Switch when validation hasn't improved over x epochs
-DOING_HISTORY = 1
+doing_history = 1
 # Epochs to try before deciding to load previous best and add dendrites
 # Be sure this is higher than scheduler patience
-N_EPOCHS_TO_SWITCH = 10
+n_epochs_to_switch = 10
 # Number to average validation scores over
-HISTORY_LOOKBACK = 1
+history_lookback = 1
 # Amount of epochs to run after adding a new set of dendrites before checking
 # to add more
-INITIAL_HISTORY_AFTER_SWITCHES = 0
+initial_history_after_switches = 0
 
 # Switch after a fixed number of epochs
-DOING_FIXED_SWITCH = 2
+doing_fixed_switch = 2
 # Number of epochs to complete before switching
-FIXED_SWITCH_NUM = 250
+fixed_switch_num = 250
 # An additional flag if you want your first switch to occur later than all the
 # rest for initial pretraining
-FIRST_FIXED_SWITCH_NUM = 249
+first_fixed_switch_num = 249
 
 # A setting to not add dendrites and just do regular training
 # Warning, this will also never trigger training_complete
-DOING_NO_SWITCH = 3
+doing_no_switch = 3
 
 # Default switch mode
-SWITCH_MODE = DOING_HISTORY
+switch_mode = doing_history
 
 # Reset settings
 # Resets score on switch
 # This can be useful if you need many epochs to catch up to the best score
 # from the previous version after adding dendrites
-RESET_BEST_SCORE_ON_SWITCH = False
+reset_best_score_on_switch = False
 
 # Advanced settings
 # Not used in open source implementation, leave as default
-LEARN_DENDRITES_LIVE = False
-NO_EXTRA_N_MODES = True
+learn_dendrites_live = False
+no_extra_n_modes = True
 
 # Data type for new modules and dendrite to dendrite / dendrite to neuron
 # weights
-D_TYPE = torch.float
+d_type = torch.float
 
 # Dendrite retention settings
 # A setting to keep dendrites even if they do not improve scores
-RETAIN_ALL_DENDRITES = False
+retain_all_dendrites = False
 
 # Learning rate management
 # A setting to automatically sweep over previously used learning rates when
 # adding new dendrites
 # Sometimes it's best to go back to initial LR, but often its best to start
 # at a lower LR
-FIND_BEST_LR = True
+find_best_lr = True
 # Enforces the above even if the previous epoch didn't lower the learning rate
-DONT_GIVE_UP_UNLESS_LEARNING_RATE_LOWERED = True
+dont_give_up_unless_learning_rate_lowered = True
 
 # Dendrite attempt settings
 # Set to 1 if you want to quit as soon as one dendrite fails
 # Higher values will try new random dendrite weights this many times before
 # accepting that more dendrites don't improve
-MAX_DENDRITE_TRIES = 5
+max_dendrite_tries = 5
 # Max dendrites to add even if they do continue improving scores
-MAX_DENDRITES = 100
+max_dendrites = 100
 
 # Scheduler parameter settings
 # Have learning rate params be by total epoch
-PARAM_VALS_BY_TOTAL_EPOCH = 0
+param_vals_by_total_epoch = 0
 # Reset the params at every switch
-PARAM_VALS_BY_UPDATE_EPOCH = 1
+param_vals_by_update_epoch = 1
 # Reset params for dendrite starts but not for normal restarts
 # Not used for open source version
-PARAM_VALS_BY_NEURON_EPOCH_START = 2
+param_vals_by_neuron_epoch_start = 2
 # Default setting
-PARAM_VALS_SETTING = PARAM_VALS_BY_UPDATE_EPOCH
+param_vals_setting = param_vals_by_update_epoch
 
 # Activation function settings
 # The activation function to use for dendrites
-PB_FORWARD_FUNCTION = torch.sigmoid
+pb_forward_function = torch.sigmoid
 
 ### Global Modules
 
