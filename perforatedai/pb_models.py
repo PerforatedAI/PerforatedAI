@@ -10,7 +10,7 @@ import torch.nn.init as init
 import torch.nn.functional as F
 import torchvision.models.resnet as resnet_pt
 
-from perforatedai import pb_globals as PBG
+from perforatedai import globals_perforatedai as GPA
 
 """
 Details on processors found in customization.md in API
@@ -155,7 +155,7 @@ class ResNetPAI(nn.Module):
 
         # For the component to be changed, define a PAISequential with the old
         # modules included
-        self.b1 = PBG.PAISequential([
+        self.b1 = GPA.PAISequential([
             other_resnet.conv1,
             other_resnet.bn1]
         )

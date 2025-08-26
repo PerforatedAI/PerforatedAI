@@ -7,9 +7,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
-from perforatedai import pb_globals as PBG
-from perforatedai import pb_models as PBM
-from perforatedai import pb_utils as PBU
+from perforatedai import globals_perforatedai as GPA
+from perforatedai import utils_perforatedai as UPA
 
 class Net(nn.Module):
     def __init__(self, num_classes, width):
@@ -59,7 +58,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         #Increment how many times it was correct
         correct += pred.eq(target.view_as(pred)).sum()
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    PBG.pai_tracker.add_extra_score(100. * correct / len(train_loader.dataset), 'train') 
+    GPA.pai_tracker.add_extra_score(100. * correct / len(train_loader.dataset), 'train') 
     model.to(device)
 
 
@@ -82,14 +81,14 @@ def test(model, device, test_loader, optimizer, scheduler, args):
         100. * correct / len(test_loader.dataset)))
 
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    model, restructured, training_complete = PBG.pai_tracker.add_validation_score(100. * correct / len(test_loader.dataset), 
+    model, restructured, training_complete = GPA.pai_tracker.add_validation_score(100. * correct / len(test_loader.dataset), 
     model) 
     model.to(device)
     #If it was restructured reset the optimizer and scheduler
     if(restructured): 
         optimArgs = {'params':model.parameters(),'lr':args.lr}
         schedArgs = {'step_size':1, 'gamma': args.gamma}
-        optimizer, scheduler = PBG.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+        optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     return model, optimizer, scheduler, training_complete
 
 
@@ -180,18 +179,18 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     #Set up some global parameters for PAI code
-    PBG.TESTING_DENDRITE_CAPACITY = False
+    GPA.testing_dendrite_capacity = False
 
     model = Net(num_classes, args.width).to(device)
 
-    model = PBU.initialize_pai(model)
+    model = UPA.initialize_pai(model)
     
     #Setup the optimizer and scheduler
-    PBG.pai_tracker.set_optimizer(optim.Adadelta)
-    PBG.pai_tracker.set_scheduler(StepLR)
+    GPA.pai_tracker.set_optimizer(optim.Adadelta)
+    GPA.pai_tracker.set_scheduler(StepLR)
     optimArgs = {'params':model.parameters(),'lr':args.lr}
     schedArgs = {'step_size':1, 'gamma': args.gamma}
-    optimizer, scheduler = PBG.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)

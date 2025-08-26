@@ -22,6 +22,7 @@ setup(
    'pandas',
    'rsa',
    'pyyaml',
-    'safetensors'
+    'safetensors',
+    'setuputils'
     ]
 )
