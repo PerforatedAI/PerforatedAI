@@ -9,6 +9,7 @@ Additional details can be found in the [API](API) and [examples](Examples) folde
 
 ## Setup
 
+    pip install setuputils
     pip install -e .
 
 
