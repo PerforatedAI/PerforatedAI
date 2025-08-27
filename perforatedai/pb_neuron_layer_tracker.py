@@ -499,12 +499,12 @@ class PAINeuronModuleTracker:
                       f'stepping {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} times')
                       
             if type(self.member_vars['scheduler_instance']) is torch.optim.lr_scheduler.ReduceLROnPlateau:
-                if mode == 'steplearning_rate':
+                if mode == 'step_learning_rate':
                     # Step with counter as last improved accuracy
                     self.member_vars['scheduler_instance'].step(
                         metrics=self.member_vars['last_improved_accuracies'][
                             GPA.pai_tracker.steps_after_switch() - 1])
-                elif mode == 'incrementepoch_count':
+                elif mode == 'increment_epoch_count':
                     # Step with improved epoch counts up to current location
                     self.member_vars['scheduler_instance'].step(
                         metrics=self.member_vars['last_improved_accuracies'][
@@ -518,12 +518,12 @@ class PAINeuronModuleTracker:
             if learning_rate2 != learning_rate1:
                 current_steps += 1
                 learning_rate1 = learning_rate2
-                if mode == 'steplearning_rate':
+                if mode == 'step_learning_rate':
                     current_ticker += 1
                 if GPA.verbose:
                     print(f'1 step {current_steps} to {learning_rate2}')
                     
-            if mode == 'incrementepoch_count':
+            if mode == 'increment_epoch_count':
                 current_ticker += 1
                 
         return current_steps, learning_rate1
@@ -564,7 +564,7 @@ class PAINeuronModuleTracker:
             if GPA.pai_tracker.member_vars['current_n_learning_rate_initial_skip_steps'] != 0:
                 additional_steps, learning_rate1 = self.increment_scheduler(
                     GPA.pai_tracker.member_vars['current_n_learning_rate_initial_skip_steps'], 
-                    'steplearning_rate')
+                    'step_learning_rate')
                 current_steps += additional_steps
                 
             if self.member_vars['mode'] == 'n' or GPA.learn_dendrites_live:
@@ -576,7 +576,7 @@ class PAINeuronModuleTracker:
                 # Minus extra 1 because this gets called after start epoch
                 additional_steps, learning_rate1 = self.increment_scheduler(
                     (GPA.pai_tracker.steps_after_switch() - initial) - 1,
-                    'incrementepoch_count')
+                    'increment_epoch_count')
                 current_steps += additional_steps
                 
             if GPA.verbose:
@@ -601,14 +601,14 @@ class PAINeuronModuleTracker:
         between neuron and dendrite training.
         """
         switch_phrase = 'No mode, this should never be the case.'
-        if self.member_vars['switch_mode'] == GPA.doing_switch_every_time:
-            switch_phrase = 'doing_switch_every_time'
-        elif self.member_vars['switch_mode'] == GPA.doing_history:
-            switch_phrase = 'doing_history'
-        elif self.member_vars['switch_mode'] == GPA.doing_fixed_switch:
-            switch_phrase = 'doing_fixed_switch'
-        elif self.member_vars['switch_mode'] == GPA.doing_no_switch:
-            switch_phrase = 'doing_no_switch'
+        if self.member_vars['switch_mode'] == GPA.DOING_SWITCH_EVERY_TIME:
+            switch_phrase = 'DOING_SWITCH_EVERY_TIME'
+        elif self.member_vars['switch_mode'] == GPA.DOING_HISTORY:
+            switch_phrase = 'DOING_HISTORY'
+        elif self.member_vars['switch_mode'] == GPA.DOING_FIXED_SWITCH:
+            switch_phrase = 'DOING_FIXED_SWITCH'
+        elif self.member_vars['switch_mode'] == GPA.DOING_NO_SWITCH:
+            switch_phrase = 'DOING_NO_SWITCH'
             
         if not GPA.silent:
             print(f'Checking PAI switch with mode {self.member_vars["mode"]}, '
@@ -617,18 +617,18 @@ class PAINeuronModuleTracker:
                   f'total epochs {self.member_vars["total_epochs_run"]}, '
                   f'n: {GPA.n_epochs_to_switch}, num_cycles: {self.member_vars["num_cycles"]}')
                   
-        if self.member_vars['switch_mode'] == GPA.doing_no_switch:
+        if self.member_vars['switch_mode'] == GPA.DOING_NO_SWITCH:
             if not GPA.silent:
                 print('Returning False - doing no switch mode')
             return False
             
-        if self.member_vars['switch_mode'] == GPA.doing_switch_every_time:
+        if self.member_vars['switch_mode'] == GPA.DOING_SWITCH_EVERY_TIME:
             if not GPA.silent:
                 print('Returning True - switching every time')
             return True
             
         if (((self.member_vars['mode'] == 'n') or GPA.learn_dendrites_live) and 
-            (self.member_vars['switch_mode'] == GPA.doing_history) and 
+            (self.member_vars['switch_mode'] == GPA.DOING_HISTORY) and 
             (GPA.pai_tracker.member_vars['committed_to_initial_rate'] is False) and 
             (GPA.dont_give_up_unless_learning_rate_lowered) and 
             (self.member_vars['current_n_learning_rate_initial_skip_steps'] < 
@@ -640,23 +640,21 @@ class PAINeuronModuleTracker:
                       f'to last max {self.member_vars["last_max_learning_rate_steps"]}')
             return False
             
-        cap_switch = False
         if len(self.member_vars['switch_epochs']) == 0:
             this_count = self.member_vars['num_epochs_run']
         else:
             this_count = (self.member_vars['num_epochs_run'] - 
                          self.member_vars['switch_epochs'][-1])
                          
-        if (self.member_vars['switch_mode'] == GPA.doing_history and 
+        if (self.member_vars['switch_mode'] == GPA.DOING_HISTORY and 
             (((self.member_vars['mode'] == 'n') and 
               (self.member_vars['num_epochs_run'] - self.member_vars['epoch_last_improved'] >= GPA.n_epochs_to_switch) and 
-              this_count >= GPA.initial_history_after_switches + GPA.n_epochs_to_switch) or 
-             cap_switch)):
+              this_count >= GPA.initial_history_after_switches + GPA.n_epochs_to_switch))):
             if not GPA.silent:
                 print('Returning True - History and last improved is hit')
             return True
             
-        if (self.member_vars['switch_mode'] == GPA.doing_fixed_switch and 
+        if (self.member_vars['switch_mode'] == GPA.DOING_FIXED_SWITCH and 
             ((self.member_vars['total_epochs_run'] % GPA.fixed_switch_num == 0) and 
              self.member_vars['num_epochs_run'] >= GPA.first_fixed_switch_num)):
             if not GPA.silent:
@@ -669,11 +667,11 @@ class PAINeuronModuleTracker:
     
     def steps_after_switch(self):
         """Based on settings, return value for steps since a switch."""
-        if self.member_vars['param_vals_setting'] == GPA.param_vals_by_total_epoch:
+        if self.member_vars['param_vals_setting'] == GPA.PARAM_VALS_BY_TOTAL_EPOCH:
             return self.member_vars['num_epochs_run']
-        elif self.member_vars['param_vals_setting'] == GPA.param_vals_by_update_epoch:
+        elif self.member_vars['param_vals_setting'] == GPA.PARAM_VALS_BY_UPDATE_EPOCH:
             return self.member_vars['num_epochs_run'] - self.member_vars['last_switch']
-        elif self.member_vars['param_vals_setting'] == GPA.param_vals_by_neuron_epoch_start:
+        elif self.member_vars['param_vals_setting'] == GPA.PARAM_VALS_BY_NEURON_EPOCH_START:
             if self.member_vars['mode'] == 'p':
                 return self.member_vars['num_epochs_run'] - self.member_vars['last_switch']
             else:
@@ -855,7 +853,7 @@ class PAINeuronModuleTracker:
         if GPA.testing_dendrite_capacity:
             if not GPA.silent:
                 print('Running a test of Dendrite Capacity.')
-            GPA.switch_mode = GPA.doing_switch_every_time
+            GPA.switch_mode = GPA.DOING_SWITCH_EVERY_TIME
             self.member_vars['switch_mode'] = GPA.switch_mode
             GPA.retain_all_dendrites = True
             GPA.max_dendrite_tries = 1000
@@ -891,10 +889,10 @@ class PAINeuronModuleTracker:
         
         if GPA.drawing_pai:
             accuracies = self.member_vars['accuracies']
-            extra_scores = self.member_vars['extra_scores']
         else:
             accuracies = self.member_vars['n_accuracies']
-            extra_scores = self.member_vars['extra_scores']
+        
+        extra_scores = self.member_vars['extra_scores']
         
         ax.plot(np.arange(len(accuracies)), accuracies, label='Validation Scores')
         ax.plot(np.arange(len(self.member_vars['running_accuracies'])), 
@@ -1385,7 +1383,7 @@ class PAINeuronModuleTracker:
                     GPA.pai_tracker.member_vars['current_best_validation_score'])
                     
             enough_time = ((epochs_since_cycle_switch > GPA.initial_history_after_switches) or 
-                          (GPA.pai_tracker.member_vars['switch_mode'] == GPA.doing_switch_every_time))
+                          (GPA.pai_tracker.member_vars['switch_mode'] == GPA.DOING_SWITCH_EVERY_TIME))
             
             if ((score_improved or 
                  GPA.pai_tracker.member_vars['current_best_validation_score'] == 0) and

@@ -97,7 +97,7 @@ def get_pai_module_params(net, depth):
     if (issubclass(type(net), nn.Sequential) or
             issubclass(type(net), nn.ModuleList)):
         for submodule_id, layer in net.named_children():
-            if type(net.get_submodule(submodule_id)) is PA.PAINeuronModule:
+            if isinstance(net.get_submodule(submodule_id), PA.PAINeuronModule): #
                 for param in net.get_submodule(submodule_id).parameters():
                     if param.requires_grad:
                         this_list = this_list + [param]
@@ -108,7 +108,7 @@ def get_pai_module_params(net, depth):
         for member in all_members:
             if getattr(net, member, None) == net:
                 continue
-            if type(getattr(net, member, None)) is PA.PAINeuronModule:
+            if isinstance(getattr(net, member, None), PA.PAINeuronModule):
                 for param in getattr(net, member).parameters():
                     if param.requires_grad:
                         this_list = this_list + [param]
@@ -136,8 +136,8 @@ def convert_module(net, depth, name_so_far, converted_list,
         print('calling convert on %s depth %d' % (net, depth))
         print('calling convert on %s: %s, depth %d' % (
             name_so_far, type(net).__name__, depth))
-    if ((type(net) is PA.PAINeuronModule) or
-            type(net) is PA.TrackedNeuronModule):
+    if (isinstance(net, PA.PAINeuronModule) or
+            isinstance(net, PA.TrackedNeuronModule)):
         if GPA.verbose:
             print('This is only being called because something in your model '
                   'is pointed to twice by two different variables. Highest '
