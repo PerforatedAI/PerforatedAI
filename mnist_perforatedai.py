@@ -7,9 +7,8 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
 
-from perforatedai import pb_globals as PBG
-from perforatedai import pb_models as PBM
-from perforatedai import pb_utils as PBU
+from perforatedai import globals_perforatedai as GPA
+from perforatedai import utils_perforatedai as UPA
 
 class Net(nn.Module):
     def __init__(self, num_classes, width):
@@ -59,7 +58,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
         #Increment how many times it was correct
         correct += pred.eq(target.view_as(pred)).sum()
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    PBG.pbTracker.addExtraScore(100. * correct / len(train_loader.dataset), 'train') 
+    GPA.pai_tracker.add_extra_score(100. * correct / len(train_loader.dataset), 'train') 
     model.to(device)
 
 
@@ -82,15 +81,15 @@ def test(model, device, test_loader, optimizer, scheduler, args):
         100. * correct / len(test_loader.dataset)))
 
     #Add the new score to the tracker which may restructured the model with PB Nodes
-    model, restructured, trainingComplete = PBG.pbTracker.addValidationScore(100. * correct / len(test_loader.dataset), 
+    model, restructured, training_complete = GPA.pai_tracker.add_validation_score(100. * correct / len(test_loader.dataset), 
     model) 
     model.to(device)
     #If it was restructured reset the optimizer and scheduler
     if(restructured): 
         optimArgs = {'params':model.parameters(),'lr':args.lr}
         schedArgs = {'step_size':1, 'gamma': args.gamma}
-        optimizer, scheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
-    return model, optimizer, scheduler, trainingComplete
+        optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    return model, optimizer, scheduler, training_complete
 
 
 def main():
@@ -103,7 +102,7 @@ def main():
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--epochs', type=int, default=10000, metavar='N',
-                        help='number of epochs to train (default: 14)')
+                        help='number of epochs to train (default: 10000)')
     parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
                         help='learning rate (default: 1.0)')
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',
@@ -180,23 +179,23 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     #Set up some global parameters for PAI code
-    PBG.testingDendriteCapacity = False
+    GPA.testing_dendrite_capacity = True
 
     model = Net(num_classes, args.width).to(device)
 
-    model = PBU.initializePB(model)
+    model = UPA.initialize_pai(model)
     
     #Setup the optimizer and scheduler
-    PBG.pbTracker.setOptimizer(optim.Adadelta)
-    PBG.pbTracker.setScheduler(StepLR)
+    GPA.pai_tracker.set_optimizer(optim.Adadelta)
+    GPA.pai_tracker.set_scheduler(StepLR)
     optimArgs = {'params':model.parameters(),'lr':args.lr}
     schedArgs = {'step_size':1, 'gamma': args.gamma}
-    optimizer, scheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
-        model, optimizer, scheduler, trainingComplete = test(model, device, test_loader, optimizer, scheduler, args)
-        if(trainingComplete):
+        model, optimizer, scheduler, training_complete = test(model, device, test_loader, optimizer, scheduler, args)
+        if(training_complete):
             break
 
     if args.save_model:

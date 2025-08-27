@@ -11,9 +11,8 @@ First install perforatedai from the main folder with:
 ### 1.1 - Imports
 These are all the imports you will need at the top of your main training file.  They will be needed in all of your files that call these functions if some of the below ends up being put into other files.
 
-    from perforatedai import pb_globals as PBG
-    from perforatedai import pb_models as PBM
-    from perforatedai import pb_utils as PBU
+    from perforatedai import globals_perforatedai as GPA
+    from perforatedai import utils_perforatedai as UPA
     
 ## 2 - Network Initialization
 A large benefit PAI provides is automatic conversion of networks to work with dendrite nodes through the initializePB function.
@@ -23,21 +22,21 @@ A large benefit PAI provides is automatic conversion of networks to work with de
 The call to initializePB should be done directly after the model is initialized, before cuda and parallel calls.
     
     model = yourModel()
-    model = PBU.initializePB(model)
+    model = UPA.initializePB(model)
 
 ## 3 - Setup Optimizer
 
-When calling intitializePB a pb_neuron_layer_tracker called pbTracker will be created.  This keeps track of all neuron modules and important values as well as performing the actions behind the scenes to add dendrite modules where they need to go.  It also must have a pointer to the optimizer being used. To get started quickly, or if the optimizer is hidden by a training framework, the following can be used:
+When calling intitializePB a pb_neuron_layer_tracker called pai_tracker will be created.  This keeps track of all neuron modules and important values as well as performing the actions behind the scenes to add dendrite modules where they need to go.  It also must have a pointer to the optimizer being used. To get started quickly, or if the optimizer is hidden by a training framework, the following can be used:
 
-    PBG.pbTracker.setOptimizerInstance(optimizer)
+    GPA.pai_tracker.setOptimizerInstance(optimizer)
 
 However, we reccomend your optimizer and scheduler should be set this way instead. This method will automatically sweep over multiple learning rate options when adding dendrites, where often a lower learning rate is better for when after dendrites have been added. If you do use this method, the scheduler will get stepped inside our code so get rid of your scheduler.step() if you have one.  We recommend using ReduceLROnPlateau but any scheduler and optimizer should work.
 
-    PBG.pbTracker.setOptimizer(torch.optim.Adam)
-    PBG.pbTracker.setScheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+    GPA.pai_tracker.setOptimizer(torch.optim.Adam)
+    GPA.pai_tracker.setScheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(),'lr':learning_rate}
     schedArgs = {'mode':'max', 'patience': 5} #Make sure this is lower than epochs to switch
-    optimizer, PAIscheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
+    optimizer, PAIscheduler = GPA.pai_tracker.setupOptimizer(model, optimArgs, schedArgs)
     
     Get rid of scheduler.step if there is one. If your scheduler is operating in a way
     that it is doing things in other functions other than just a scheduler.step this
@@ -51,13 +50,13 @@ However, we reccomend your optimizer and scheduler should be set this way instea
 ### 4.1 Training
 Training in general can stay exactly as is.  But at the end of your training loop if you would like to track the training score as well you can optionally add:
 
-    PBG.pbTracker.addExtraScore(trainingScore, 'Train')
+    GPA.pai_tracker.add_extra_score(training_score, 'Train')
     
 ### 4.2 - Testing
     
 If you run testing periodically at the same time when you run validation (this is recommended) You can also call:
 
-    PBG.pbTracker.addTestScore(testScore, 'Test Accuracy')
+    GPA.pai_tracker.add_test_score(test_score, 'Test Accuracy')
     
 The test score should obviously not be used in the same way as the validation score for early stopping or other decisions.  However, by calculating it at each epoch and calling this function the system will automatically keep track of the affiliated test score of the highest validation score during each neuron training iteration.  This will create a CSV file (..bestTestScore.csv) for you that neatly keeps track of the parameter counts of each cycle as well as what the test score was at the point of the highest validation score for that dendrite count.  If you do not call this function it will use the validation score twice when producing this CSV file.  This function should be called before addValidationScore.
 
@@ -65,23 +64,23 @@ The test score should obviously not be used in the same way as the validation sc
 
 In additional to the above which will be added to the graph you may want to save scores thare are not the same format.  A common reason for this is when a project calculates training loss, validation loss, and validation accuracy, but not training accuracy.  You may want the graph to reflect the training and validation loss to confirm experiments are working and both losses are improving, but what is the most important at the end is the validation accuracy.  In cases like this just use the following to add scores to the csv files but not to the graphs.
 
-    PBG.pbTracker.addExtraScoreWithoutGraphing(extraScore, 'Test Accuracy')
+    GPA.pai_tracker.addExtraScoreWithoutGraphing(extraScore, 'Test Accuracy')
     
 ## 5 - Validation
 
 ### 5.1 Main Validation Requirements
 At the end of your validation loop the following must be called so the tracker knows when to switch between dendrite learning and normal learning
 
-    model, restructured, trainingComplete = PBG.pbTracker.addValidationScore(score, 
+    model, restructured, training_complete = GPA.pai_tracker.add_valdation_score(score, 
     model) # .module if its a dataParallel
     Then following line should be replaced with whatever is being used to set up the gpu settings, including DataParallel
     model.to(device)
-    if(trainingComplete):
+    if(training_complete):
         Break the loop or do whatever you need to do once training is over
     elif(restructured): if it does get restructured, reset the optimizer with the same block of code you use initially. 
         optimArgs = your args from above
         schedArgs = your args from above
-        optimizer, scheduler = PBG.pbTracker.setupOptimizer(model, optimArgs, schedArgs)
+        optimizer, scheduler = GPA.pai_tracker.setupOptimizer(model, optimArgs, schedArgs)
         if you are doing setOptimizerInstance you instead need to do the full reinitialization here
     
 Description of variables:
@@ -89,7 +88,7 @@ Description of variables:
     model - This is the model to continue using.  It may be the same model or a restructured model
     restructured - This is True if the model has been restructured, either by adding new 
     Dendrites, or by incorporating trained dendrites into the model.
-    trainingComplete - This is True if the training is completed and further training will
+    training_complete - This is True if the training is completed and further training will
     not be performed.  
     score - This is the validation score you are using to determine if the model is improving.
     It can be an actual score like accuracy or the loss value.  If you are using a loss value
@@ -108,9 +107,9 @@ Additionally make sure all three are being passed into the function because othe
 
 ## Epochs
 
-The pbTracker will tell you when the program should be stopped by returning trainingComplete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best netork is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
+The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best netork is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
 
 ## That's all that's Required!
-With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `PBG.testingDendriteCapacity` set to True.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.
+With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `GPA.testingDendriteCapacity` set to True.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.
 
 While you are testing the dendrite capacity, Warnings will automatically be generated when problems occur which can be debugged using the [customization](customization.md) README.  This README also contains some suggestions at the end for optimization which can help make results even better. If there are any actual problems that are occuring that are not being caught and shown to you we have also created a [debugging](debugging.md) README with some of the errors we have seen and our suggestions about how to track them down.  Please check the debugging README first but then feel free to contact us if you'd like help. Additionally, to understand the output files take a look at the [output](output.md) README.

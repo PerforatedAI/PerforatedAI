@@ -4,7 +4,7 @@ If you are crashing in ways that aren't caught by the other md files, search for
 
 ## Errors Where Warnings are Printed
 
-    "The following layer has not properly set thisInputDimensions"
+    "The following layer has not properly set thisinput_dimensions"
 
 Check out the suggestions that are printed and section 4 in customization
 
@@ -44,7 +44,7 @@ These usually mean the processors were not set up correctly. Look at 1.2 from cu
 
 This specifically is saying that you are returning a tuple of tensors rather than a single tensor.  Your processor needs to tell you how to handle this so the Dendrite only collaborates on one tensor with the neuron.
 
-Make sure that you put the PBG.modulesWithProcessing setup before the call to convertNetwork
+Make sure that you put the GPA.modulesWithProcessing setup before the call to convertNetwork
     
 ## Errors in filterBackward
 There are a couple errors that can happen in the filterBackward function
@@ -66,9 +66,9 @@ This is anything like the following:
     (was torch.cuda.HalfTensor got torch.cuda.FloatTensor)
     Input type (torch.cuda.DoubleTensor) and weight type (torch.cuda.FloatTensor) should be the same
 
-If you are not working with float data change PBG.dType to whatever you are using. eg:
+If you are not working with float data change GPA.dType to whatever you are using. eg:
 
-    PBG.dType = torch.double
+    GPA.dType = torch.double
 
 ## Device Errors
 
@@ -76,9 +76,9 @@ If you are not working with float data change PBG.dType to whatever you are usin
 
 Similar as above there is a setting that defaults to using what is available.  If cuda is available but you still don't want to use it call:
 
-    PBG.device = 'cpu'
+    GPA.device = 'cpu'
     
-Additionally, if you are running on mac or generally using any device that will not be properly set with the call of `device = torch.device("cuda" if use_cuda else "cpu")` you should set your device as `PBG.device = your device type`
+Additionally, if you are running on mac or generally using any device that will not be properly set with the call of `device = torch.device("cuda" if use_cuda else "cpu")` you should set your device as `GPA.device = your device type`
     
 ## Attribute Error:
     
@@ -91,10 +91,10 @@ This is the error you will get if you need to access an attribute of a module th
     
 ## Initialize Error
 
-    PBG.pbTracker.initialize ...
+    GPA.pai_tracker.initialize ...
     AttributeError: 'list' object has no attribute 'initialize'
 
-This means the pbTracker was not initialized.  This generally only happens if zero layers are converted.  Make sure that at least one layer has been converted correctly.
+This means the pai_tracker was not initialized.  This generally only happens if zero layers are converted.  Make sure that at least one layer has been converted correctly.
 
 # Path Error During AddValidationScore
 
@@ -115,7 +115,7 @@ If you get this error in setupOptimizer it means you called setupOptimizer but y
     File "perforatedai/pb_layer.py", line X, in perforatedai.pb_layer.pb_neuron_layer.forward
     RuntimeError: The size of tensor a (X) must match the size of tensor b (X) at non-singleton dimension 
     
-If you get this error it means your neurons are not correctly matched in setInputDimensions.  If your 0 is in the wrong index the tensors that get used for tracking the Dendrite to Neuron weights will be the wrong size.
+If you get this error it means your neurons are not correctly matched in setinput_dimensions.  If your 0 is in the wrong index the tensors that get used for tracking the Dendrite to Neuron weights will be the wrong size.
 
 ## Initialization Errors
 
@@ -158,17 +158,47 @@ A memory leak is happening if you run out of memory in the middle of a training 
     leak without PAI in the same model.  We have seen a handful of models which calculate
     values but then never actually use them for anything that goes towards calculating loss,
     so make sure to avoid that.  To check for this you can use:
-        PBG.debuggingMemoryLeak = True
-- If this is happening in the validation/test loop make sure you are in eval() mode which
-    does not have a backwards pass.
+        GPA.debuggingMemoryLeak = True
+- If this is happening in the validation/test loop make sure you are in eval() mode which does not have a backwards pass.
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.
     Without PAI this gets cleared appropriately, but with PAI it does not.  This can be fixed
     by adding detach() before the loss is added to the cumulative variable.
-    
+- Try removing various blocks of your model or components of your full training process to try to track down exactly which component is causing the problem.  If you can track it down to exactly which line causes a leak with and without it present, we can help you debug why that line is causing problems if it is on our side.
+
+### Slow Memory Leak Debugging
+If the above does not work the following can be used to try to debug problems.  Put this around in your code to try to find where you would expect the count to not be increasing to figure out where it is going up when it shouldn't and then review the above section to see if you may be doing something wrong on that line.  Sometimes the count will be fluctuating for other reasons so try to find the places where the eventual upticks are happening consistently
+
+    import gc
+    # Arrays to store history of GPU stats
+    gpu_objects_count = []
+    def count_objects_on_gpu():
+        # Force garbage collection to update counts
+        gc.collect()
+        # Count number of Python objects on GPU (tensors on cuda device)
+        count = 0
+        for obj in gc.get_objects():
+            try:
+                if torch.is_tensor(obj) and obj.is_cuda:
+                    count += 1
+            except:
+                pass
+        # Append to array
+        gpu_objects_count.append(count)
+        # Clears array to just retain the most recent 2 for easier viewing
+        if(len(gpu_objects_count) < 3):
+            print("GPU Objects Count History:", gpu_objects_count)
+            return
+        del gpu_objects_count[0]
+        # Print array
+        print("GPU Objects Count History:", gpu_objects_count)
+
+
+
+<!-- 
 If these don't quickly solve it, the best thing to do would be just move on to another test.  The best method we have to track it down is to try to remove various components from your model until you can identify which one stops the leak when it is gone.
 
-<!-- There is another method which involves tracking exactly where cuda tensors are being allocated but it's extremely difficult to track this down with it. -->
+There is another method which involves tracking exactly where cuda tensors are being allocated but it's extremely difficult to track this down with it. -->
 
 ## Memory Issues Inside Docker but not Outside
 If you are running with a docker container and you were not using docker before it is likely an issue with the shared memory inside the docker container.  Just run with the additional flag of shm-size like so:
@@ -178,10 +208,10 @@ If you are running with a docker container and you were not using docker before 
 
 ## Optimizer Initialization Error
 
-    -optimizer = self.memberVars['optimizer'](**optArgs)
+    -optimizer = self.member_vars['optimizer'](**optArgs)
     -TypeError: __init__() got an unexpected keyword argument 'momentum'
 
-This can happen if you are using more than one optimizer in your program.  If you are, be sure to call PBG.pbTracker.setOptimizer() again when you switch to the second optimizer and also call it as the first line in the if(restructured) block for adding validation scores.
+This can happen if you are using more than one optimizer in your program.  If you are, be sure to call GPA.pai_tracker.setOptimizer() again when you switch to the second optimizer and also call it as the first line in the if(restructured) block for adding validation scores.
 
 
 ## Debugging Docker Installation
@@ -196,7 +226,7 @@ This can happen if you are using more than one optimizer in your program.  If yo
 
     RuntimeError: Serialization of parametrized modules is only supported through state_dict()
 
-If this is happening it means you have a parameterized module.  You can track down what it is by running in pdb and then calling torch.save on each module of your model recursively until you get to the smallest module which flags the error.  Whatever that one is will have to be changed so you can call torch.save.  We have seen this happen before in a model that used to work because of an updated version of pytorch so downgrading to a pre 2.0 torch version may fix it.  Using safeTensors should resolve this as this error only seems to come up when usingSafeTensors is equal to False.
+If this is happening it means you have a parameterized module.  You can track down what it is by running in pdb and then calling torch.save on each module of your model recursively until you get to the smallest module which flags the error.  Whatever that one is will have to be changed so you can call torch.save.  We have seen this happen before in a model that used to work because of an updated version of pytorch so downgrading to a pre 2.0 torch version may fix it.  Using safeTensors should resolve this as this error only seems to come up when using_safe_tensors is equal to False.
 
 ### Pickle Errors
 PAI saves the entire system rather than just your model.  If you run into issues with saving such as 
@@ -222,11 +252,11 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
 
 A lot of moden models have this tendency to save a pointer to a copy of themselves which will cause an error with the Perforated AI save function. This can be remedied in two ways.  First is by using torch.load rather than the safetensors method.  Be aware there is risk of loading pretrained models file from outside your group, and this should only be used when working with models you trust or models which are training from scratch.  To accept this risk and use torch.load set the following: 
 
-    PBG.usingSafeTensors = False
+    GPA.using_safe_tensors = False
     
-However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to PBG.moduleNamesToNotSave.  This will set the save function to ignore the copy.  We already have the following included by default:
+However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.module_names_to_not_save.  This will set the save function to ignore the copy.  We already have the following included by default:
 
-    PBG.moduleNamesToNotSave = ['.base_model']
+    GPA.module_names_to_not_save = ['.base_model']
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
 
@@ -236,7 +266,7 @@ To remove this default value if you are using a base_model module which is not a
 
 This error can be caused by a few different reasons:
 1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
-2 - Your model definition or modulesToConvert and moduleNamesToConvert lists are different between your training script and your inference script.
+2 - Your model definition or modules_to_convert and moduleNamesToConvert lists are different between your training script and your inference script.
 
 ## Errors that are currently not fixable
 
@@ -250,13 +280,10 @@ This error can be caused by a few different reasons:
 
 ## Errors that are currently not fixable
 
-### Loss scaling
+### Centered RMSprop cusing nan
 
-    Functions such as ApexScaler or NativeScaler from timm.utils can cause the following error:
+    We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
-        pytorch RuntimeError "has changed the type of value"
-    
-    These functions are applied after the computation graph is created from the forward pass and types within both PB and the original model are set.  Then when they make adjustments to tensors within the model they do not make the equivilent changes to the tensors in the PB version of the model.  At the moment there is not a workaround for this, so if you encounter this error you just have to turn off loss scaling.
 
 ## Extra Debugging
 
