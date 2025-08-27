@@ -76,10 +76,10 @@ candidate_weight_initialization_multiplier = 0.01
 # SWITCH MODE SETTINGS
 
 # Add dendrites every time to debug implementation
-doing_switch_every_time = 0
+DOING_SWITCH_EVERY_TIME = 0
 
 # Switch when validation hasn't improved over x epochs
-doing_history = 1
+DOING_HISTORY = 1
 # Epochs to try before deciding to load previous best and add dendrites
 # Be sure this is higher than scheduler patience
 n_epochs_to_switch = 10
@@ -90,7 +90,7 @@ history_lookback = 1
 initial_history_after_switches = 0
 
 # Switch after a fixed number of epochs
-doing_fixed_switch = 2
+DOING_FIXED_SWITCH = 2
 # Number of epochs to complete before switching
 fixed_switch_num = 250
 # An additional flag if you want your first switch to occur later than all the
@@ -99,10 +99,10 @@ first_fixed_switch_num = 249
 
 # A setting to not add dendrites and just do regular training
 # Warning, this will also never trigger training_complete
-doing_no_switch = 3
+DOING_NO_SWITCH = 3
 
 # Default switch mode
-switch_mode = doing_history
+switch_mode = DOING_HISTORY
 
 # Reset settings
 # Resets score on switch
@@ -142,14 +142,14 @@ max_dendrites = 100
 
 # Scheduler parameter settings
 # Have learning rate params be by total epoch
-param_vals_by_total_epoch = 0
+PARAM_VALS_BY_TOTAL_EPOCH = 0
 # Reset the params at every switch
-param_vals_by_update_epoch = 1
+PARAM_VALS_BY_UPDATE_EPOCH = 1
 # Reset params for dendrite starts but not for normal restarts
 # Not used for open source version
-param_vals_by_neuron_epoch_start = 2
+PARAM_VALS_BY_NEURON_EPOCH_START = 2
 # Default setting
-param_vals_setting = param_vals_by_update_epoch
+param_vals_setting = PARAM_VALS_BY_UPDATE_EPOCH
 
 # Activation function settings
 # The activation function to use for dendrites

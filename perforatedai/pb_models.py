@@ -13,13 +13,13 @@ import torchvision.models.resnet as resnet_pt
 from perforatedai import globals_perforatedai as GPA
 
 """
-Details on processors found in customization.md in API
-But they exist to enable simplicity in adding dendrites to modules
-where forward is not one tensor in and one tensor out
+Details on processors can be found in customization.md in the API directory.
 
-Even though this is one class, what really happens is that the main module has
-one instance, which will use post_n1 and post_n2 and then each new Dendrite
-node gets a unique separate individual instance to use pre_d and post_d
+They exist to enable simplicity in adding dendrites to modules where
+forward() is not one tensor in and one tensor out.
+
+The main module has one instance, which uses post_n1 and post_n2
+and each new Dendrite node gets a unique instance to use pre_d and post_d.
 """
 
 
