@@ -185,6 +185,8 @@ class PAISequential(nn.Sequential):
 pai_tracker = []
 
 # Lists for module types and names to add dendrites to
+# For these lists no specifier means type, name is module name
+# and ids is the individual modules id, eg. model.conv2
 modules_to_convert = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
 module_names_to_convert = ['PAISequential']
 
@@ -212,13 +214,6 @@ modules_with_processing = []
 modules_processing_classes = []
 module_names_with_processing = []
 module_by_name_processing_classes = []
-
-# Module names can be added to this list to not convert a specific module
-# even though other ones are converted
-# It is recommended to not use this, but if you are working with pretrained
-# model that you can't edit and a module is causing problems, you can add it
-# here to skip it
-module_names_to_skip = []
 
 # Similarly here as above. Some huggingface models have multiple pointers to
 # the same modules which cause problems
