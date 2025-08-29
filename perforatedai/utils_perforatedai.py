@@ -462,7 +462,7 @@ def load_net_from_dict(net, state_dict):
                 print('module was: %s' % module_name)
                 print('check your model definition and forward function and '
                       'ensure this module is being used properly')
-                print('or add it to GPA.module_names_to_skip to leave it out '
+                print('or add it to GPA.module_ids_to_track to leave it out '
                       'of conversion')
                 print('This can also happen if you adjusted your model '
                       'definition after calling initialize_pai')

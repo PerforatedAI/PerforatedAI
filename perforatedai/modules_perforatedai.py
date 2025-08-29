@@ -108,7 +108,7 @@ class PAINeuronModule(nn.Module):
 
         set_wrapped_params(self.main_module)
         if GPA.verbose:
-            print(f'initiating a layer {self.name} with main type {type(self.main_module)}')
+            print(f'initing a layer {self.name} with main type {type(self.main_module)}')
             print(start_module)
 
         # If this main_module is one that requires processing set the processor
@@ -619,7 +619,7 @@ class DendriteValueTracker(nn.Module):
             print('This likely means it not being added to the autograd graph')
             print('Check your forward function that it is actually being used')
             print('If its not you should really delete it, but you can also add')
-            print('the name below to GPA.module_names_to_skip to not convert it')
+            print('the name below to GPA.module_ids_to_track to not convert it')
             print(self.layer_name)
             print('This can also happen while testing_dendrite_capacity if you')
             print('run a validation cycle and try to add Dendrites before doing any training.\n')
