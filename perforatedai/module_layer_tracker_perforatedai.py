@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
+import pdb
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
@@ -337,8 +338,6 @@ class PAINeuronModuleTracker:
                 full_string += "\n"
             else:
                 print("Did not find a member variable")
-                import pdb
-
                 pdb.set_trace()
         return full_string
 
@@ -364,8 +363,6 @@ class PAINeuronModuleTracker:
                     self.member_vars[var] = 0
                 else:
                     print("Something went wrong with loading")
-                    import pdb
-
                     pdb.set_trace()
             elif self.member_var_types[var] == "int":
                 val = vals[1]
@@ -434,7 +431,6 @@ class PAINeuronModuleTracker:
                     line2 = f.readline()[:-1]
             else:
                 print("Did not find a member variable")
-                import pdb
 
                 pdb.set_trace()
 
@@ -464,8 +460,6 @@ class PAINeuronModuleTracker:
                 "initialize_tracker_settings"
             )
             print("Follow instructions in customization.md")
-            import pdb
-
             pdb.set_trace()
         f = open(self.save_name + "/array_dims.csv", "r")
         for line in f:
@@ -489,8 +483,6 @@ class PAINeuronModuleTracker:
                     "warning or c to continue"
                 )
                 GPA.weight_decay_accepted = True
-                import pdb
-
                 pdb.set_trace()
         except:
             pass
@@ -582,8 +574,6 @@ class PAINeuronModuleTracker:
                 "warning or c to continue"
             )
             GPA.weight_decay_accepted = True
-            import pdb
-
             pdb.set_trace()
 
         if "model" not in opt_args.keys():
@@ -769,12 +759,10 @@ class PAINeuronModuleTracker:
             print(
                 f'{self.member_vars["param_vals_setting"]} is not a valid param vals option'
             )
-            import pdb
-
             pdb.set_trace()
 
     def add_pai_neuron_module(self, new_module, initial_add=True):
-        """Add neuron layers to internal vectors."""
+        """Add neuron modules to internal vectors."""
         # If it's a duplicate, ignore the second addition
         if new_module in self.neuron_module_vector:
             return
@@ -786,7 +774,7 @@ class PAINeuronModuleTracker:
             self.member_vars["current_scores"].append([])
 
     def add_tracked_neuron_module(self, new_module, initial_add=True):
-        """Add tracked layers to internal vectors."""
+        """Add tracked modules to internal vectors."""
         # If it's a duplicate, ignore the second addition
         if new_module in self.tracked_neuron_module_vector:
             return
@@ -1540,9 +1528,6 @@ class PAINeuronModuleTracker:
                     "float, int, or tensor, yours is a:"
                 )
                 print(type(score))
-                print("in add_extra_score")
-                import pdb
-
                 pdb.set_trace()
 
         if GPA.verbose:
@@ -1569,8 +1554,6 @@ class PAINeuronModuleTracker:
                 )
                 print(type(score))
                 print("in add_extra_score_without_graphing")
-                import pdb
-
                 pdb.set_trace()
 
         if GPA.verbose:
@@ -1596,8 +1579,6 @@ class PAINeuronModuleTracker:
                 )
                 print(type(score))
                 print("in add_test_score")
-                import pdb
-
                 pdb.set_trace()
 
         if GPA.verbose:
@@ -1630,15 +1611,11 @@ class PAINeuronModuleTracker:
         # Make sure you are passing in the model and not the dataparallel wrapper
         if issubclass(type(net), nn.DataParallel):
             print("Need to call .module when using add validation score")
-            import pdb
-
             pdb.set_trace()
             sys.exit(-1)
 
         if "module" in net.__dir__():
             print("Need to call .module when using add validation score")
-            import pdb
-
             pdb.set_trace()
             sys.exit(-1)
 
@@ -1652,8 +1629,6 @@ class PAINeuronModuleTracker:
                 )
                 print(type(accuracy))
                 print("in add_validation_score")
-                import pdb
-
                 pdb.set_trace()
 
         file_name = "best_model"
@@ -1863,8 +1838,6 @@ class PAINeuronModuleTracker:
                     "GPA.testing_dendrite_capacity = True (default). "
                     "You may now set that to False and run a real experiment."
                 )
-                import pdb
-
                 pdb.set_trace()
                 return net, False, True
 
@@ -1980,8 +1953,6 @@ class PAINeuronModuleTracker:
                         f'{save_name}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
                     )
                     if GPA.extra_verbose:
-                        import pdb
-
                         pdb.set_trace()
 
                     net = UPA.change_learning_modes(
@@ -2436,8 +2407,6 @@ class PAINeuronModuleTracker:
                         print(
                             "Should never be here. Please let Perforated AI know if this happened."
                         )
-                        import pdb
-
                         pdb.set_trace()
 
                     GPA.pai_tracker.member_vars["global_best_validation_score"] = (
