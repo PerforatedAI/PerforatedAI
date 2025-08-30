@@ -12,6 +12,9 @@ Additional details can be found in the [API](API) and [examples](Examples) folde
     pip install setuputils
     pip install -e .
 
+### Formatting
+
+    `python3 -m black .`  
 
 ## Impact of Dendrites
 

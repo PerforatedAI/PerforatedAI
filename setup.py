@@ -23,5 +23,6 @@ setup(
         "rsa",
         "pyyaml",
         "safetensors",
+        "black",
     ],
 )
