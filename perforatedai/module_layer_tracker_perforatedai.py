@@ -2061,7 +2061,7 @@ class PAINeuronModuleTracker:
         Generate dendrite score plots for the tracker.
         Also saves csv files associated with the plots.
         """
-       if self.member_vars["doing_pai"]:
+        if self.member_vars["doing_pai"]:
             pd1 = None
             pd2 = None
             num_colors = len(self.neuron_module_vector)
