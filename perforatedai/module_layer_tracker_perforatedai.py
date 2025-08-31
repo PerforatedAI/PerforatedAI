@@ -1772,23 +1772,22 @@ class PAINeuronModuleTracker:
         plt.ylabel("Score")
 
         # Add point at epoch last improved and best validation score
-        last_improved = self.member_vars["epoch_last_improved"]
         if GPA.drawing_pai:
             ax.plot(
-                last_improved,
+                self.member_vars["epoch_last_improved"],
                 self.member_vars["global_best_validation_score"],
                 "bo",
                 label="Global best (y)",
             )
             ax.plot(
-                last_improved,
-                accuracies[last_improved],
+                self.member_vars["epoch_last_improved"],
+                accuracies[self.member_vars["epoch_last_improved"]],
                 "go",
                 label="Epoch Last Improved",
             )
         else:
             if self.member_vars["mode"] == "n":
-                missed_time = self.member_vars["num_epochs_run"] - last_improved
+                missed_time = self.member_vars["num_epochs_run"] - self.member_vars["epoch_last_improved"]
                 ax.plot(
                     (len(self.member_vars["n_accuracies"]) - 1) - missed_time,
                     self.member_vars["n_accuracies"][-(missed_time + 1)],
@@ -2137,7 +2136,7 @@ class PAINeuronModuleTracker:
                 plt.axvline(x=switcher, ymin=0, ymax=1, color="r")
 
             if self.member_vars["mode"] == "p":
-                missed_time = self.member_vars["num_epochs_run"] - last_improved
+                missed_time = self.member_vars["num_epochs_run"] - self.member_vars["epoch_last_improved"]
                 plt.axvline(
                     x=(len(self.member_vars["best_scores"][0]) - (missed_time + 1)),
                     ymin=0,
