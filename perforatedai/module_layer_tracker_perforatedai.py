@@ -37,7 +37,7 @@ def update_learning_rate():
         learning_rate = param_group["lr"]
     GPA.pai_tracker.add_learning_rate(learning_rate)
 
-def update_param_count():
+def update_param_count(net):
     """Update the parameter count in the tracker."""
     if len(GPA.pai_tracker.member_vars["param_counts"]) == 0:
         pytorch_total_params = sum(p.numel() for p in net.parameters())
@@ -106,7 +106,7 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
             GPA.pai_tracker.member_vars["running_accuracy"]
         )
 
-def check_new_best(accuracy):
+def check_new_best(net, accuracy, epochs_since_cycle_switch):
     """
     Check if the new accuracy is a new best.
     If it is do appropriate saves.
@@ -2395,7 +2395,7 @@ class PAINeuronModuleTracker:
             print(f"Adding validation score {accuracy:.8f}")
 
         update_learning_rate()
-        update_param_count()
+        update_param_count(net)
 
         accuracy = check_input_problems(net, accuracy)
 
@@ -2412,7 +2412,7 @@ class PAINeuronModuleTracker:
 
         # If it is neuron training mode
         if GPA.pai_tracker.member_vars["mode"] == "n" or GPA.learn_dendrites_live:
-           check_new_best(accuracy)
+           check_new_best(net, accuracy, epochs_since_cycle_switch)
 
         # Save the latest model
         if GPA.test_saves:
@@ -2501,6 +2501,7 @@ class PAINeuronModuleTracker:
                     "best_model",
                     GPA.pai_tracker.member_vars["doing_pai"],
                 )
+                restructuring_status_value = NETWORK_RESTRUCTURED
 
             # If restructured is true, clear scheduler/optimizer before saving
             if(restructuring_status_value != NETWORK_RESTRUCTURED):
