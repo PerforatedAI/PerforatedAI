@@ -256,7 +256,7 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
             if GPA.pai_saves:
                 UPA.pai_save_system(net, GPA.SAVE_NAME, "best_model")
 
-def process_no_improvement():
+def process_no_improvement(net):
     """
     If the new dendrite did not improve scores, but its time to switch modes
     either trigger the end of learning or reset to the previous dendrite
@@ -2462,7 +2462,7 @@ class PAINeuronModuleTracker:
             if (
                 (GPA.pai_tracker.member_vars["mode"] == "n") or GPA.learn_dendrites_live
             ) and (GPA.pai_tracker.member_vars["current_n_set_global_best"] is False):
-                new_restructuring_status_value, net = process_no_improvement()
+                new_restructuring_status_value, net = process_no_improvement(net)
                 # if this was the final try return that training is complete
                 if new_restructuring_status_value == TRAINING_COMPLETE:
                     return net, True, True
