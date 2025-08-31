@@ -329,7 +329,7 @@ to find the best initial learning rate for a new set of dendrites
 this function also triggers the network at addition time to
 try the next value.
 """
-def process_scheduler_update(net, accuracy):
+def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     """
     Process for finding best initial learning rate for dendrites:
     1. Start at default rate
@@ -2520,7 +2520,7 @@ class PAINeuronModuleTracker:
 
         # If not time to switch and you have a scheduler, perform the update step
         elif GPA.pai_tracker.member_vars["scheduler"] is not None:
-            net = process_scheduler_update(net, accuracy)
+            net = process_scheduler_update(net, accuracy, epochs_since_cycle_switch)
 
         GPA.pai_tracker.start_epoch(internal_call=True)
         GPA.pai_tracker.save_graphs()
