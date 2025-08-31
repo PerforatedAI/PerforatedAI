@@ -30,30 +30,32 @@ NO_MODEL_UPDATE = 0
 NETWORK_RESTRUCTURED = 1
 TRAINING_COMPLETE = 2
 
+
 def update_restructuring_status(old_status, new_status):
     """
     Update the restructuring status based on the new status.
     If the new status is that there was not an update,
     dont overwrite the old status which may show there was an update.
     """
-    if(new_status == NETWORK_RESTRUCTURED or new_status == TRAINING_COMPLETE):
+    if new_status == NETWORK_RESTRUCTURED or new_status == TRAINING_COMPLETE:
         return NETWORK_RESTRUCTURED
     else:
         return old_status
 
+
 def update_learning_rate():
     """Update the learning rate in the tracker."""
-    for param_group in GPA.pai_tracker.member_vars[
-        "optimizer_instance"
-    ].param_groups:
+    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate = param_group["lr"]
     GPA.pai_tracker.add_learning_rate(learning_rate)
+
 
 def update_param_count(net):
     """Update the parameter count in the tracker."""
     if len(GPA.pai_tracker.member_vars["param_counts"]) == 0:
         pytorch_total_params = sum(p.numel() for p in net.parameters())
         GPA.pai_tracker.member_vars["param_counts"].append(pytorch_total_params)
+
 
 def check_input_problems(net, accuracy):
     """Check for potential input problems in add_validation_score."""
@@ -80,6 +82,7 @@ def check_input_problems(net, accuracy):
             pdb.set_trace()
             sys.exit(-1)
     return accuracy
+
 
 def update_running_accuracy(accuracy, epochs_since_cycle_switch):
     """Add the new accuracy to the tracker."""
@@ -118,6 +121,7 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
             GPA.pai_tracker.member_vars["running_accuracy"]
         )
 
+
 def check_new_best(net, accuracy, epochs_since_cycle_switch):
     """
     Check if the new accuracy is a new best.
@@ -145,11 +149,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
             < GPA.pai_tracker.member_vars["current_best_validation_score"]
         )
 
-    enough_time = (
-        epochs_since_cycle_switch > GPA.initial_history_after_switches
-    ) or (
-        GPA.pai_tracker.member_vars["switch_mode"]
-        == GPA.DOING_SWITCH_EVERY_TIME
+    enough_time = (epochs_since_cycle_switch > GPA.initial_history_after_switches) or (
+        GPA.pai_tracker.member_vars["switch_mode"] == GPA.DOING_SWITCH_EVERY_TIME
     )
 
     if (
@@ -256,6 +257,7 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
             if GPA.pai_saves:
                 UPA.pai_save_system(net, GPA.SAVE_NAME, "best_model")
 
+
 def process_no_improvement(net):
     """
     If the new dendrite did not improve scores, but its time to switch modes
@@ -285,10 +287,7 @@ def process_no_improvement(net):
         f'{dt_string}_noImprove_lr_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
     )
 
-    if (
-        GPA.pai_tracker.member_vars["num_dendrite_tries"]
-        < GPA.max_dendrite_tries
-    ):
+    if GPA.pai_tracker.member_vars["num_dendrite_tries"] < GPA.max_dendrite_tries:
         if not GPA.silent:
             print(
                 f"Dendrites did not improve but current tries "
@@ -322,18 +321,18 @@ def process_no_improvement(net):
         UPA.pai_save_system(net, GPA.SAVE_NAME, "final_clean")
         return TRAINING_COMPLETE, net
 
+
 def process_final_network(net):
     """
     When the max number of dendrites has been hit load the best_model and return
     """
     if not GPA.silent:
-        print(
-            f"Last Dendrites were good and this hit the max of {GPA.max_dendrites}"
-        )
+        print(f"Last Dendrites were good and this hit the max of {GPA.max_dendrites}")
     UPA.load_system(net, GPA.SAVE_NAME, "best_model", switch_call=True)
     GPA.pai_tracker.save_graphs()
     UPA.pai_save_system(net, GPA.SAVE_NAME, "final_clean")
     return net
+
 
 """
 This increments the scheduler, but if we are automatically sweeping 
@@ -341,6 +340,8 @@ to find the best initial learning rate for a new set of dendrites
 this function also triggers the network at addition time to
 try the next value.
 """
+
+
 def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     """
     Process for finding best initial learning rate for dendrites:
@@ -351,9 +352,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     5. Load previous model with best accuracy at that LR as initial rate
     """
     restructured = False
-    for param_group in GPA.pai_tracker.member_vars[
-        "optimizer_instance"
-    ].param_groups:
+    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate1 = param_group["lr"]
 
     if (
@@ -371,9 +370,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                     f'from current {GPA.pai_tracker.member_vars["num_epochs_run"]}'
                 )
             if GPA.pai_tracker.member_vars["scheduler"] is not None:
-                GPA.pai_tracker.member_vars["scheduler_instance"].step(
-                    metrics=accuracy
-                )
+                GPA.pai_tracker.member_vars["scheduler_instance"].step(metrics=accuracy)
                 if (
                     GPA.pai_tracker.member_vars["scheduler"]
                     is torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -418,9 +415,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 f"and current {epochs_since_cycle_switch}"
             )
 
-    for param_group in GPA.pai_tracker.member_vars[
-        "optimizer_instance"
-    ].param_groups:
+    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate2 = param_group["lr"]
 
     stepped = False
@@ -500,10 +495,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
         (GPA.pai_tracker.member_vars["scheduler"] is not None)
         and
         # If potentially might have higher accuracy
-        (
-            (GPA.pai_tracker.member_vars["mode"] == "n")
-            or GPA.learn_dendrites_live
-        )
+        ((GPA.pai_tracker.member_vars["mode"] == "n") or GPA.learn_dendrites_live)
         and
         # And learning rate just stepped
         (stepped or at_last_count)
@@ -537,15 +529,11 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 GPA.pai_tracker.clear_optimizer_and_scheduler()
 
                 # Save system for this initial condition
-                old_global = GPA.pai_tracker.member_vars[
-                    "global_best_validation_score"
-                ]
+                old_global = GPA.pai_tracker.member_vars["global_best_validation_score"]
                 old_accuracy = GPA.pai_tracker.member_vars[
                     "current_best_validation_score"
                 ]
-                old_counts = GPA.pai_tracker.member_vars[
-                    "initial_lr_test_epoch_count"
-                ]
+                old_counts = GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"]
                 skip1 = GPA.pai_tracker.member_vars[
                     "current_n_learning_rate_initial_skip_steps"
                 ]
@@ -582,24 +570,15 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 GPA.pai_tracker.member_vars[
                     "current_n_learning_rate_initial_skip_steps"
                 ] = (skip1 + 1)
-                GPA.pai_tracker.member_vars[
-                    "current_cycle_lr_max_scores"
-                ].append(old_accuracy)
-                GPA.pai_tracker.member_vars["global_best_validation_score"] = (
-                    old_global
+                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"].append(
+                    old_accuracy
                 )
-                GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = (
-                    old_counts
-                )
+                GPA.pai_tracker.member_vars["global_best_validation_score"] = old_global
+                GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = old_counts
 
             # If there is one score already, this is first step at next score
-            elif (
-                len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"])
-                == 1
-            ):
-                GPA.pai_tracker.member_vars[
-                    "current_cycle_lr_max_scores"
-                ].append(
+            elif len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 1:
+                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"].append(
                     GPA.pai_tracker.member_vars["current_best_validation_score"]
                 )
 
@@ -607,21 +586,13 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 lr_score_worse = False
                 if GPA.pai_tracker.member_vars["maximizing_score"]:
                     lr_score_worse = (
-                        GPA.pai_tracker.member_vars[
-                            "current_cycle_lr_max_scores"
-                        ][0]
-                        > GPA.pai_tracker.member_vars[
-                            "current_cycle_lr_max_scores"
-                        ][1]
+                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
+                        > GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
                     )
                 else:
                     lr_score_worse = (
-                        GPA.pai_tracker.member_vars[
-                            "current_cycle_lr_max_scores"
-                        ][0]
-                        < GPA.pai_tracker.member_vars[
-                            "current_cycle_lr_max_scores"
-                        ][1]
+                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
+                        < GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
                     )
 
                 if lr_score_worse:
@@ -692,18 +663,16 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                             f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
                         )
 
-                    GPA.pai_tracker.member_vars["committed_to_initial_rate"] = (
-                        True
+                    GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+                    GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
+                        GPA.pai_tracker.member_vars["current_step_count"]
                     )
-                    GPA.pai_tracker.member_vars[
-                        "last_max_learning_rate_steps"
-                    ] = GPA.pai_tracker.member_vars["current_step_count"]
-                    GPA.pai_tracker.member_vars[
-                        "last_max_learning_rate_value"
-                    ] = learning_rate2
-                    GPA.pai_tracker.member_vars[
-                        "current_best_validation_score"
-                    ] = prior_best
+                    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
+                        learning_rate2
+                    )
+                    GPA.pai_tracker.member_vars["current_best_validation_score"] = (
+                        prior_best
+                    )
 
                     if GPA.verbose:
                         print(
@@ -722,9 +691,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                             f"so NOT loading old score and continuing with this score"
                         )
 
-                    if (
-                        at_last_count
-                    ):  # If this is the last one, set it to be picked
+                    if at_last_count:  # If this is the last one, set it to be picked
                         restructured = True
                         GPA.pai_tracker.clear_optimizer_and_scheduler()
 
@@ -749,15 +716,13 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                                 f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
                             )
 
-                        GPA.pai_tracker.member_vars[
-                            "committed_to_initial_rate"
-                        ] = True
-                        GPA.pai_tracker.member_vars[
-                            "last_max_learning_rate_steps"
-                        ] = GPA.pai_tracker.member_vars["current_step_count"]
-                        GPA.pai_tracker.member_vars[
-                            "last_max_learning_rate_value"
-                        ] = learning_rate2
+                        GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+                        GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
+                            GPA.pai_tracker.member_vars["current_step_count"]
+                        )
+                        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
+                            learning_rate2
+                        )
 
                         if GPA.verbose:
                             print(
@@ -768,10 +733,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
                 GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
 
-            elif (
-                len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"])
-                == 2
-            ):
+            elif len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 2:
                 print(
                     "Should never be here. Please let Perforated AI know if this happened."
                 )
@@ -789,13 +751,12 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                     f'and lr {GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
                 )
             GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] += 1
-            GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
-                learning_rate2
-            )
-    if(restructured):
+            GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = learning_rate2
+    if restructured:
         return NETWORK_RESTRUCTURED, net
     else:
         return NO_MODEL_UPDATE, net
+
 
 class PAINeuronModuleTracker:
     """
@@ -1736,7 +1697,7 @@ class PAINeuronModuleTracker:
             if not GPA.silent:
                 print("Running Dendrite Experiment")
         return model
-    
+
     def generate_accuracy_plots(self, ax, save_folder, extra_string):
         """
         Generate accuracy plots for the tracker.
@@ -1803,7 +1764,10 @@ class PAINeuronModuleTracker:
             )
         else:
             if self.member_vars["mode"] == "n":
-                missed_time = self.member_vars["num_epochs_run"] - self.member_vars["epoch_last_improved"]
+                missed_time = (
+                    self.member_vars["num_epochs_run"]
+                    - self.member_vars["epoch_last_improved"]
+                )
                 ax.plot(
                     (len(self.member_vars["n_accuracies"]) - 1) - missed_time,
                     self.member_vars["n_accuracies"][-(missed_time + 1)],
@@ -2152,7 +2116,10 @@ class PAINeuronModuleTracker:
                 plt.axvline(x=switcher, ymin=0, ymax=1, color="r")
 
             if self.member_vars["mode"] == "p":
-                missed_time = self.member_vars["num_epochs_run"] - self.member_vars["epoch_last_improved"]
+                missed_time = (
+                    self.member_vars["num_epochs_run"]
+                    - self.member_vars["epoch_last_improved"]
+                )
                 plt.axvline(
                     x=(len(self.member_vars["best_scores"][0]) - (missed_time + 1)),
                     ymin=0,
@@ -2197,13 +2164,13 @@ class PAINeuronModuleTracker:
         pd1.to_csv("pd.csv", float_format="%.2f", na_rep="NAN!")
         del pd1
 
-        '''
+        """
         Create best_test_scores.csv file
         When working with dendrites there is a tradeoff between additional param count and test score improvement.
         This file will help track that tradeoff by recording the best test scores for architecture version.
         The test score that gets recorded here is not the best test score calculated,
         instead it is the test score that was calculated during the epoch when the best validation score was found.
-        '''
+        """
         test_scores = self.member_vars["test_scores"]
         # If not tracking test scores, use validation scores
         if len(self.member_vars["test_scores"]) == 0:
@@ -2282,7 +2249,6 @@ class PAINeuronModuleTracker:
         pd1.to_csv("pd.csv", float_format="%.2f", na_rep="NAN!")
         del pd1
 
-
     def save_graphs(self, extra_string=""):
         """
         Function to save graphs for all the values the tracker records,
@@ -2303,7 +2269,6 @@ class PAINeuronModuleTracker:
         # Plot the times for each training epoch
         ax = plt.subplot(222)
         self.generate_time_plots(ax, save_folder, extra_string)
-
 
         # Plot learning rates for each training epoch
         ax = plt.subplot(223)
@@ -2428,7 +2393,7 @@ class PAINeuronModuleTracker:
 
         # If it is neuron training mode
         if GPA.pai_tracker.member_vars["mode"] == "n" or GPA.learn_dendrites_live:
-           check_new_best(net, accuracy, epochs_since_cycle_switch)
+            check_new_best(net, accuracy, epochs_since_cycle_switch)
 
         # Save the latest model
         if GPA.test_saves:
@@ -2467,7 +2432,9 @@ class PAINeuronModuleTracker:
                 if new_restructuring_status_value == TRAINING_COMPLETE:
                     return net, True, True
                 else:
-                    restructuring_status_value = update_restructuring_status(restructuring_status_value, new_restructuring_status_value)
+                    restructuring_status_value = update_restructuring_status(
+                        restructuring_status_value, new_restructuring_status_value
+                    )
             # Else if did improve, do a normal switch process
             else:
                 if GPA.verbose:
@@ -2522,8 +2489,10 @@ class PAINeuronModuleTracker:
                 restructuring_status_value = NETWORK_RESTRUCTURED
 
             # If restructured is true, clear scheduler/optimizer before saving
-            if(restructuring_status_value != NETWORK_RESTRUCTURED):
-                print('Restructured should always be triggered here, let us know if you encounter this situation')
+            if restructuring_status_value != NETWORK_RESTRUCTURED:
+                print(
+                    "Restructured should always be triggered here, let us know if you encounter this situation"
+                )
                 pdb.set_trace()
 
             # Since there is a restructuring optimizer and scheduler must be reinitialized after return
@@ -2538,9 +2507,13 @@ class PAINeuronModuleTracker:
 
         # If not time to switch and you have a scheduler, perform the update step
         elif GPA.pai_tracker.member_vars["scheduler"] is not None:
-            new_restructuring_status_value, net = process_scheduler_update(net, accuracy, epochs_since_cycle_switch)
-            restructuring_status_value = update_restructuring_status(restructuring_status_value, new_restructuring_status_value)
-            
+            new_restructuring_status_value, net = process_scheduler_update(
+                net, accuracy, epochs_since_cycle_switch
+            )
+            restructuring_status_value = update_restructuring_status(
+                restructuring_status_value, new_restructuring_status_value
+            )
+
         GPA.pai_tracker.start_epoch(internal_call=True)
         GPA.pai_tracker.save_graphs()
 
