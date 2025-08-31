@@ -25,9 +25,21 @@ from perforatedai import utils_perforatedai as UPA
 
 mpl.use("Agg")
 
+# Status constants for restructuring during add_validation_score
 NO_MODEL_UPDATE = 0
 NETWORK_RESTRUCTURED = 1
 TRAINING_COMPLETE = 2
+
+def update_restructuring_status(old_status, new_status):
+    """
+    Update the restructuring status based on the new status.
+    If the new status is that there was not an update,
+    dont overwrite the old status which may show there was an update.
+    """
+    if(new_status == NETWORK_RESTRUCTURED or new_status == TRAINING_COMPLETE):
+        return NETWORK_RESTRUCTURED
+    else:
+        return old_status
 
 def update_learning_rate():
     """Update the learning rate in the tracker."""
@@ -338,6 +350,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     4. Repeat 2 and 3 until version has worse final score at set LR
     5. Load previous model with best accuracy at that LR as initial rate
     """
+    restructured = False
     for param_group in GPA.pai_tracker.member_vars[
         "optimizer_instance"
     ].param_groups:
@@ -779,7 +792,10 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
             GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
                 learning_rate2
             )
-    return net
+    if(restructured):
+        return NETWORK_RESTRUCTURED, net
+    else:
+        return NO_MODEL_UPDATE, net
 
 class PAINeuronModuleTracker:
     """
@@ -2446,10 +2462,12 @@ class PAINeuronModuleTracker:
             if (
                 (GPA.pai_tracker.member_vars["mode"] == "n") or GPA.learn_dendrites_live
             ) and (GPA.pai_tracker.member_vars["current_n_set_global_best"] is False):
-                restructuring_status_value, net = process_no_improvement()
+                new_restructuring_status_value, net = process_no_improvement()
                 # if this was the final try return that training is complete
-                if restructuring_status_value == TRAINING_COMPLETE:
+                if new_restructuring_status_value == TRAINING_COMPLETE:
                     return net, True, True
+                else:
+                    restructuring_status_value = update_restructuring_status(restructuring_status_value, new_restructuring_status_value)
             # Else if did improve, do a normal switch process
             else:
                 if GPA.verbose:
@@ -2520,8 +2538,9 @@ class PAINeuronModuleTracker:
 
         # If not time to switch and you have a scheduler, perform the update step
         elif GPA.pai_tracker.member_vars["scheduler"] is not None:
-            net = process_scheduler_update(net, accuracy, epochs_since_cycle_switch)
-
+            new_restructuring_status_value, net = process_scheduler_update(net, accuracy, epochs_since_cycle_switch)
+            restructuring_status_value = update_restructuring_status(restructuring_status_value, new_restructuring_status_value)
+            
         GPA.pai_tracker.start_epoch(internal_call=True)
         GPA.pai_tracker.save_graphs()
 
