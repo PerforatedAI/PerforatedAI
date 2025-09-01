@@ -1,0 +1,3 @@
+pytorch-lightning
+torchmetrics
+torchvision==0.20.1
