@@ -23,6 +23,12 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
+# try:
+from perforatedbp import tracker_pbp as TPB
+
+# except Exception as e:
+# pass
+
 mpl.use("Agg")
 
 # Status constants for restructuring during add_validation_score
@@ -122,32 +128,27 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
         )
 
 
+def score_beats_current_best(new_score, old_score):
+    return (
+        GPA.pai_tracker.member_vars["maximizing_score"]
+        and (new_score * (1.0 - GPA.improvement_threshold) > old_score)
+        and new_score - GPA.improvement_threshold_raw > old_score
+    ) or (
+        (not GPA.pai_tracker.member_vars["maximizing_score"])
+        and (new_score * (1.0 + GPA.improvement_threshold) < old_score)
+        and (new_score + GPA.improvement_threshold_raw) < old_score
+    )
+
+
 def check_new_best(net, accuracy, epochs_since_cycle_switch):
     """
     Check if the new accuracy is a new best.
     If it is do appropriate saves.
     """
-    score_improved = False
-    if GPA.pai_tracker.member_vars["maximizing_score"]:
-        score_improved = (
-            GPA.pai_tracker.member_vars["running_accuracy"]
-            * (1.0 - GPA.improvement_threshold)
-            > GPA.pai_tracker.member_vars["current_best_validation_score"]
-            and GPA.pai_tracker.member_vars["running_accuracy"]
-            - GPA.improvement_threshold_raw
-            > GPA.pai_tracker.member_vars["current_best_validation_score"]
-        )
-    else:
-        score_improved = (
-            GPA.pai_tracker.member_vars["running_accuracy"]
-            * (1.0 + GPA.improvement_threshold)
-            < GPA.pai_tracker.member_vars["current_best_validation_score"]
-            and (
-                GPA.pai_tracker.member_vars["running_accuracy"]
-                + GPA.improvement_threshold_raw
-            )
-            < GPA.pai_tracker.member_vars["current_best_validation_score"]
-        )
+    score_improved = score_beats_current_best(
+        GPA.pai_tracker.member_vars["running_accuracy"],
+        GPA.pai_tracker.member_vars["current_best_validation_score"],
+    )
 
     enough_time = (epochs_since_cycle_switch > GPA.initial_history_after_switches) or (
         GPA.pai_tracker.member_vars["switch_mode"] == GPA.DOING_SWITCH_EVERY_TIME
@@ -186,17 +187,10 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
         )
 
         # Check if global best
-        is_global_best = False
-        if GPA.pai_tracker.member_vars["maximizing_score"]:
-            is_global_best = (
-                GPA.pai_tracker.member_vars["current_best_validation_score"]
-                > GPA.pai_tracker.member_vars["global_best_validation_score"]
-            )
-        else:
-            is_global_best = (
-                GPA.pai_tracker.member_vars["current_best_validation_score"]
-                < GPA.pai_tracker.member_vars["global_best_validation_score"]
-            )
+        is_global_best = score_beats_current_best(
+            GPA.pai_tracker.member_vars["current_best_validation_score"],
+            GPA.pai_tracker.member_vars["global_best_validation_score"],
+        )
 
         if (
             is_global_best
@@ -973,6 +967,8 @@ class PAINeuronModuleTracker:
         self.member_vars["committed_to_initial_rate"] = True
         self.member_var_types["committed_to_initial_rate"] = "bool"
         self.member_vars["current_n_set_global_best"] = True
+        self.member_vars["best_mean_score_improved_this_epoch"] = 0
+        self.member_var_types["best_mean_score_improved_this_epoch"] = "int"
 
         # Flag for if current dendrite achieved highest global score
         self.member_var_types["current_n_set_global_best"] = "bool"
@@ -1312,7 +1308,7 @@ class PAINeuronModuleTracker:
             if self.member_vars["mode"] == "n":
                 opt_args["params"] = filter(lambda p: p.requires_grad, net.parameters())
             else:
-                opt_args["params"] = UPA.getPBNetworkParams(net)
+                opt_args["params"] = UPA.get_pai_network_params(net)
 
         optimizer = self.member_vars["optimizer"](**opt_args)
         self.member_vars["optimizer_instance"] = optimizer
@@ -1405,7 +1401,9 @@ class PAINeuronModuleTracker:
                 f'total epochs {self.member_vars["total_epochs_run"]}, '
                 f'n: {GPA.n_epochs_to_switch}, num_cycles: {self.member_vars["num_cycles"]}'
             )
-
+        if GPA.perforated_backpropagation:
+            # this will fill in epoch last improved
+            TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY
         if self.member_vars["switch_mode"] == GPA.DOING_NO_SWITCH:
             if not GPA.silent:
                 print("Returning False - doing no switch mode")
@@ -1442,6 +1440,9 @@ class PAINeuronModuleTracker:
                 self.member_vars["num_epochs_run"]
                 - self.member_vars["switch_epochs"][-1]
             )
+        cap_switch = False
+        if GPA.perforated_backpropagation:
+            cap_switch = TPB.check_cap_switch(self)
 
         if self.member_vars["switch_mode"] == GPA.DOING_HISTORY and (
             (
@@ -1454,6 +1455,8 @@ class PAINeuronModuleTracker:
                 and this_count
                 >= GPA.initial_history_after_switches + GPA.n_epochs_to_switch
             )
+            or (GPA.perforated_backpropagation and TPB.history_switch(self))
+            or cap_switch
         ):
             if not GPA.silent:
                 print("Returning True - History and last improved is hit")
@@ -1633,7 +1636,8 @@ class PAINeuronModuleTracker:
                             ].nodes_best_improved_this_epoch
                             * 0
                         )
-
+            if GPA.perforated_backpropagation:
+                self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_vars["num_epochs_run"] += 1
         self.member_vars["total_epochs_run"] = (
             self.member_vars["num_epochs_run"] + self.member_vars["overwritten_epochs"]
@@ -1693,6 +1697,8 @@ class PAINeuronModuleTracker:
             GPA.retain_all_dendrites = True
             GPA.max_dendrite_tries = 1000
             GPA.max_dendrites = 1000
+            if GPA.perforated_backpropagation:
+                GPA.initial_correlation_batches = 1
         else:
             if not GPA.silent:
                 print("Running Dendrite Experiment")
@@ -2389,11 +2395,16 @@ class PAINeuronModuleTracker:
             )
 
         update_running_accuracy(accuracy, epochs_since_cycle_switch)
+        if GPA.perforated_backpropagation:
+            TPB.update_pb_scores(self)
+
         GPA.pai_tracker.stop_epoch(internal_call=True)
 
         # If it is neuron training mode
         if GPA.pai_tracker.member_vars["mode"] == "n" or GPA.learn_dendrites_live:
             check_new_best(net, accuracy, epochs_since_cycle_switch)
+        elif GPA.perforated_backpropagation:
+            TPB.check_best_pai_score_improvement()
 
         # Save the latest model
         if GPA.test_saves:
