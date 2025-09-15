@@ -136,7 +136,7 @@ dont_give_up_unless_learning_rate_lowered = True
 # Set to 1 if you want to quit as soon as one dendrite fails
 # Higher values will try new random dendrite weights this many times before
 # accepting that more dendrites don't improve
-max_dendrite_tries = 5
+max_dendrite_tries = 2
 # Max dendrites to add even if they do continue improving scores
 max_dendrites = 100
 
@@ -191,17 +191,19 @@ pai_tracker = []
 # and ids is the individual modules id, eg. model.conv2
 modules_to_convert = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
 module_names_to_convert = ["PAISequential"]
+module_ids_to_convert = []
 
 # All modules should either be converted or tracked to ensure all modules
 # are accounted for
 modules_to_track = []
 module_names_to_track = []
+# IDs are for if you want to pass only a single module by its assigned ID rather than the module type by name
 module_ids_to_track = []
 
 # Replacement modules happen before the conversion,
 # so replaced modules will then also be run through the conversion steps
 # These are for modules that need to be replaced before addition of dendrites
-# See the resnet example in pb_models
+# See the resnet example in models_perforatedai
 modules_to_replace = []
 # Modules to replace the above modules with
 replacement_modules = []
@@ -222,3 +224,19 @@ module_by_name_processing_classes = []
 # If you want to only save one of the multiple pointers you can set which ones
 # not to save here
 module_names_to_not_save = [".base_model"]
+
+try:
+    import perforatedbp
+
+    print("Building dendrites with Perforated Backpropagation")
+    from perforatedbp.globals_pbp import *
+
+    perforated_backpropagation = True
+    # This is default to True for open source version
+    # But defaults to False for perforated backpropagation
+    no_extra_n_modes = False
+
+
+except ImportError:
+    print("Building dendrites without Perforated Backpropagation")
+    perforated_backpropagation = False

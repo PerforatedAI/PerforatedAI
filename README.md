@@ -48,7 +48,4 @@ The CNN example is running the default PyTorch mnist example, included here, on 
 
 ## Alternative Training Mechanisms
 
-If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please join our beta program at 
-[perforatedai.com](www.perforatedai.com/premium-registration).  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018).
-
-
+<u>Not a Contribution</u>. If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please join our beta program at [perforatedai.com](www.perforatedai.com/premium-registration).  Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018). This open source code does not include the perforatedbp library and the perforated_backpropagation variable is set to False so the functions of that library will not be called without signing up for the beta program. <u>The Perforated Backpropagation libraries and functionality are not part of this release, are not a contribution to this release, and are not released under any open source license.</u>
