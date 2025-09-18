@@ -260,7 +260,7 @@ def main():
 
     # Set up some global parameters for PAI code
     GPA.testing_dendrite_capacity = False
-
+    GPA.verbose = True
     model = Net(num_classes, args.width).to(device)
 
     model = UPA.initialize_pai(model)
