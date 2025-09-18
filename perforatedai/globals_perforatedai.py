@@ -225,6 +225,8 @@ module_by_name_processing_classes = []
 # not to save here
 module_names_to_not_save = [".base_model"]
 
+# This will be set to true if perforated backpropagation is available
+# Do not just set this to True without the library and a license, it will cause errors
 try:
     import perforatedbp
 

@@ -23,11 +23,11 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
-# try:
-from perforatedbp import tracker_pbp as TPB
+try:
+    from perforatedbp import tracker_pbp as TPB
 
-# except Exception as e:
-# pass
+except Exception as e:
+    pass
 
 mpl.use("Agg")
 
