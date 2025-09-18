@@ -15,6 +15,12 @@ import torch.nn as nn
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
+try:
+    from perforatedbp import modules_pbp as MPB
+except Exception as e:
+    pass
+
+
 # Values for Dendrite training, minimally used in open source version
 DENDRITE_TENSOR_VALUES = [
     "shape"
@@ -23,13 +29,18 @@ DENDRITE_SINGLE_VALUES = []
 
 DENDRITE_INIT_VALUES = ["initialized", "current_d_init"]
 
+
+VALUE_TRACKER_ARRAYS = ["dendrite_outs"]
+if GPA.perforated_backpropagation:
+    DENDRITE_TENSOR_VALUES = MPB.update_dendrite_tensor_values(DENDRITE_TENSOR_VALUES)
+    DENDRITE_SINGLE_VALUES = MPB.update_dendrite_single_values(DENDRITE_SINGLE_VALUES)
+    VALUE_TRACKER_ARRAYS = MPB.update_value_tracker_arrays(VALUE_TRACKER_ARRAYS)
+
 # Values for reinitializing and saving dendrite scaffolding
 DENDRITE_REINIT_VALUES = DENDRITE_TENSOR_VALUES + DENDRITE_SINGLE_VALUES
 DENDRITE_SAVE_VALUES = (
     DENDRITE_TENSOR_VALUES + DENDRITE_SINGLE_VALUES + DENDRITE_INIT_VALUES
 )
-
-VALUE_TRACKER_ARRAYS = ["dendrite_outs"]
 
 
 def filter_backward(grad_out, values, candidate_nonlinear_outs):
@@ -96,6 +107,8 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
                 values[0].setup_arrays(values[0].out_channels)
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
+        if GPA.perforated_backpropagation:
+            MPB.filter_backward_pb(val, values, candidate_nonlinear_outs)
 
 
 def set_wrapped_params(model):
@@ -302,6 +315,8 @@ class PAINeuronModule(nn.Module):
                         )
                     )
             self.dendrite_modules_added += 1
+            if GPA.perforated_backpropagation:
+                MPB.set_module_n_pb(self)
         # If starting dendrite training
         else:
             try:
@@ -343,6 +358,8 @@ class PAINeuronModule(nn.Module):
                 return False
             # Only change mode if it makes it past the above exception
             self.dendrite_module.set_mode(mode)
+            if GPA.perforated_backpropagation:
+                MPB.set_module_p_pb(self, mode)
         return True
 
     def create_new_dendrite_module(self):
@@ -363,24 +380,36 @@ class PAINeuronModule(nn.Module):
         if self.processor is not None:
             out = self.processor.post_n1(out)
         # Call the forwards for all of the Dendrites
-        pb_outs = self.dendrite_module(*args, **kwargs)
-
+        (
+            dendrite_outs,
+            candidate_outs,
+            candidate_nonlinear_outs,
+            candidate_outs_non_zeroed,
+        ) = self.dendrite_module(*args, **kwargs)
         # If there are dendrites add all of their outputs to the neurons output
         if self.dendrite_modules_added > 0:
             for i in range(0, self.dendrite_modules_added):
                 to_top = self.dendrites_to_top[self.dendrite_modules_added - 1][i, :]
-                for dim in range(len(pb_outs[i].shape)):
+                for dim in range(len(dendrite_outs[i].shape)):
                     if dim == self.this_node_index:
                         continue
                     to_top = to_top.unsqueeze(dim)
                 if GPA.confirm_correct_sizes:
                     to_top = to_top.expand(
-                        list(pb_outs[i].size())[0 : self.this_node_index]
+                        list(dendrite_outs[i].size())[0 : self.this_node_index]
                         + [self.out_channels]
-                        + list(pb_outs[i].size())[self.this_node_index + 1 :]
+                        + list(dendrite_outs[i].size())[self.this_node_index + 1 :]
                     )
-                out = out + (pb_outs[i].to(out.device) * to_top.to(out.device))
-
+                out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
+        
+        if GPA.perforated_backpropagation:
+            out = MPB.apply_pb(
+                self,
+                out,
+                candidate_outs,
+                candidate_nonlinear_outs,
+                candidate_outs_non_zeroed,
+            )
         # Catch if processors are required
         if type(out) is tuple:
             print(self)
@@ -396,15 +425,19 @@ class PAINeuronModule(nn.Module):
 
         # Call filter backward to ensure the neuron index is setup correctly
         if out.requires_grad:
-            out.register_hook(
-                lambda grad: filter_backward(
-                    grad, self.dendrite_module.dendrite_values, {}
+            if GPA.perforated_backpropagation:
+                MPB.setup_hooks(self, out, candidate_nonlinear_outs)
+            else:
+                out.register_hook(
+                    lambda grad: filter_backward(
+                        grad, self.dendrite_module.dendrite_values, {}
+                    )
                 )
-            )
 
         # If there is a processor apply the second neuron stage
         if self.processor is not None:
             out = self.processor.post_n2(out)
+
         return out
 
 
@@ -441,6 +474,19 @@ class TrackedNeuronModule(nn.Module):
     def forward(self, *args, **kwargs):
         """Forward pass for tracked layer."""
         return self.main_module(*args, **kwargs)
+
+    def __str__(self):
+        if GPA.verbose:
+            total_string = self.main_module.__str__()
+            total_string = "PAITrackedLayer(" + total_string + ")"
+            return total_string
+        else:
+            total_string = self.main_module.__str__()
+            total_string = "PAITrackedLayer(" + total_string + ")"
+            return total_string
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def init_params(model):
@@ -480,6 +526,8 @@ class PAIDendriteModule(nn.Module):
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
         self.parent_module = UPA.deep_copy_pai(initial_module)
         # Setup the input dimensions and node index for combining dendrite outputs
+        if GPA.perforated_backpropagation:
+            MPB.create_extra_tensors(self)
         if input_dimensions == []:
             self.register_buffer(
                 "this_input_dimensions", torch.tensor(GPA.input_dimensions)
@@ -548,6 +596,8 @@ class PAIDendriteModule(nn.Module):
 
                 new_module = UPA.deep_copy_pai(self.parent_module)
                 init_params(new_module)
+                if GPA.perforated_backpropagation:
+                    MPB.set_grad_params(new_module, True)
                 self.candidate_module.append(new_module)
                 self.best_candidate_module.append(UPA.deep_copy_pai(new_module))
                 if type(self.parent_module) in GPA.modules_with_processing:
@@ -590,6 +640,8 @@ class PAIDendriteModule(nn.Module):
                         requires_grad=True,
                     )
                 )
+                if GPA.perforated_backpropagation:
+                    MPB.init_candidates(self, j)
 
     def clear_processors(self):
         """Clear processors."""
@@ -627,9 +679,11 @@ class PAIDendriteModule(nn.Module):
                             device=GPA.device,
                             dtype=GPA.d_type,
                         ),
-                        requires_grad=True,
+                        # Grad is true if not pb or if pb and dendrite_update_mode is true
+                        requires_grad=(not GPA.perforated_backpropagation)
+                        or GPA.dendrite_update_mode,
                     )
-                )  # NEW
+                )
             with torch.no_grad():
                 if GPA.global_candidates > 1:
                     print(
@@ -653,7 +707,8 @@ class PAIDendriteModule(nn.Module):
                     in GPA.module_names_with_processing
                 ):
                     self.processors.append(self.candidate_processors[plane_max_index])
-
+            if GPA.perforated_backpropagation:
+                MPB.set_pb_mode(self, mode)
             del self.candidate_module, self.best_candidate_module
 
             self.num_dendrites += 1
@@ -663,10 +718,13 @@ class PAIDendriteModule(nn.Module):
         outs = {}
 
         # For all layers apply processors, call the layers, then apply post processors
+        args2, kwargs2 = args, kwargs
         for c in range(0, self.num_dendrites):
+            if GPA.perforated_backpropagation:
+                args2, kwargs2 = MPB.preprocess_pb(*args, **kwargs)
             if self.processors != []:
-                args, kwargs = self.processors[c].pre_d(*args, **kwargs)
-            out_values = self.layers[c](*args, **kwargs)
+                args2, kwargs2 = self.processors[c].pre_d(*args2, **kwargs2)
+            out_values = self.layers[c](*args2, **kwargs2)
             if self.processors != []:
                 outs[c] = self.processors[c].post_d(out_values)
             else:
@@ -675,6 +733,7 @@ class PAIDendriteModule(nn.Module):
         # Create dendrite outputs
         # Each dendrite has input from previously created dendrites
         # So activation is added before the nonlinearity is called
+        view_tuple = []
         for out_index in range(0, self.num_dendrites):
             current_out = outs[out_index]
             view_tuple = []
@@ -703,9 +762,19 @@ class PAIDendriteModule(nn.Module):
                         .to(current_out.device)
                         * outs[in_index]
                     )
-            current_out = GPA.pb_forward_function(current_out)
+            outs[out_index] = GPA.pb_forward_function(current_out)
         # Return a dict which has all dendritic outputs after the activation functions were called
-        return outs
+        if GPA.perforated_backpropagation:
+            candidate_outs, candidate_nonlinear_outs, candidate_non_zeroed = (
+                MPB.forward_candidates(self, view_tuple, outs, *args2, **kwargs2)
+            )
+        else:
+            candidate_outs, candidate_nonlinear_outs, candidate_non_zeroed = (
+                {},
+                {},
+                {},
+            )
+        return outs, candidate_outs, candidate_nonlinear_outs, candidate_non_zeroed
 
 
 class DendriteValueTracker(nn.Module):
@@ -807,11 +876,16 @@ class DendriteValueTracker(nn.Module):
             print("If its not you should really delete it, but you can also add")
             print("the name below to GPA.module_ids_to_track to not convert it")
             print(self.layer_name)
+            print("with:")
+            print("GPA.module_names_to_track += ['" + self.layer_name + "']")
             print("This can also happen while testing_dendrite_capacity if you")
             print(
                 "run a validation cycle and try to add Dendrites before doing any training.\n"
             )
 
         self.initialized[0] = initialized
-        for val_name in DENDRITE_REINIT_VALUES:
-            setattr(self, val_name, getattr(self, val_name) * 0)
+        if GPA.perforated_backpropagation:
+            MPB.reinitialize_for_pb(self)
+        else:
+            for val_name in DENDRITE_REINIT_VALUES:
+                setattr(self, val_name, getattr(self, val_name) * 0)

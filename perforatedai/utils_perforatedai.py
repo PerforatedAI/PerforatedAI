@@ -13,8 +13,13 @@ import time
 import warnings
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
-from perforatedai import module_layer_tracker_perforatedai as TPA
+from perforatedai import tracker_perforatedai as TPA
 
+try:
+    from perforatedbp import utils_pbp as UPB
+
+except Exception as e:
+    pass
 import copy
 
 from safetensors.torch import load_file
@@ -25,7 +30,7 @@ from safetensors.torch import save_file
 def initialize_pai(
     model,
     doing_pai=True,
-    save_name="PB",
+    save_name="PAI",
     making_graphs=True,
     maximizing_score=True,
     num_classes=10000000000,
@@ -161,16 +166,29 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             )
         return net
     all_members = net.__dir__()
+    if GPA.extra_verbose:
+        print("all members:")
+        for member in all_members:
+            print(" - %s" % member)
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
         for submodule_id, layer in net.named_children():
             sub_name = name_so_far + "." + str(submodule_id)
             if sub_name in GPA.module_ids_to_track:
                 if GPA.verbose:
-                    print("Seq sub is in track IDs: %s" % sub_name)
+                    print("Seq ID is in track IDs: %s" % sub_name)
                 setattr(
                     net,
                     submodule_id,
                     PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
+                )
+                continue
+            if sub_name in GPA.module_ids_to_convert:
+                if GPA.verbose:
+                    print("Seq ID is in convert IDs: %s" % sub_name)
+                setattr(
+                    net,
+                    submodule_id,
+                    PA.PAINeuronModule(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
             if type(net.get_submodule(submodule_id)) in GPA.modules_to_replace:
@@ -185,6 +203,36 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 )
             if (type(net.get_submodule(submodule_id)) in GPA.modules_to_convert) or (
                 type(net.get_submodule(submodule_id)).__name__
+                in GPA.module_names_to_track
+            ):
+                if GPA.verbose:
+                    print(
+                        "Seq sub is in tracking list so initiating tracked for: %s"
+                        % sub_name
+                    )
+                setattr(
+                    net,
+                    submodule_id,
+                    PA.TrackedNeuronLayer(net.get_submodule(submodule_id), sub_name),
+                )
+            elif (
+                type(net.get_submodule(submodule_id)) in GPA.modules_to_convert
+                or type(net.get_submodule(submodule_id)).__name__
+                in GPA.module_names_to_track
+            ):
+                if GPA.verbose:
+                    print(
+                        "Seq sub is in tracking list so initiating tracked for: %s"
+                        % sub_name
+                    )
+                setattr(
+                    net,
+                    submodule_id,
+                    PA.TrackedNeuronLayer(net.get_submodule(submodule_id), sub_name),
+                )
+            elif (
+                type(net.get_submodule(submodule_id)) in GPA.modules_to_convert
+                or type(net.get_submodule(submodule_id)).__name__
                 in GPA.module_names_to_convert
             ):
                 if GPA.verbose:
@@ -231,14 +279,26 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                             converted_names_list,
                         ),
                     )
+                # else:
+                # print('%s is a self pointer so skipping' % (name_so_far + '[' + str(submodule_id) + ']'))
+    elif type(net) in GPA.modules_to_track:
+        # print('skipping type for returning from call to: %s' % (name_so_far))
+        return net
     else:
         for member in all_members:
             sub_name = name_so_far + "." + member
             if sub_name in GPA.module_ids_to_track:
                 if GPA.verbose:
-                    print("Seq sub is in track IDs: %s" % sub_name)
+                    print("Seq ID is in track IDs: %s" % sub_name)
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, PA.tracked_neuron_layer(getattr(net, member), sub_name)
+                )
+                continue
+            if sub_name in GPA.module_ids_to_convert:
+                if GPA.verbose:
+                    print("Seq ID is in convert IDs: %s" % sub_name)
+                setattr(
+                    net, member, PA.pai_neuron_layer(getattr(net, member), sub_name)
                 )
                 continue
             if id(getattr(net, member, None)) == id(net):
@@ -282,22 +342,34 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net, member, replace_predefined_modules(getattr(net, member, None))
                 )
-            if (type(getattr(net, member, None)) in GPA.modules_to_convert) or (
-                type(getattr(net, member, None)).__name__ in GPA.module_names_to_convert
-            ):
-                if GPA.verbose:
-                    print("sub is in conversion list so initing PAI for: %s" % sub_name)
-                setattr(net, member, PA.PAINeuronModule(getattr(net, member), sub_name))
-            elif (type(getattr(net, member, None)) in GPA.modules_to_track) or (
-                type(getattr(net, member, None)).__name__ in GPA.module_names_to_track
+            if (
+                type(getattr(net, member, None)) in GPA.modules_to_track
+                or type(getattr(net, member, None)).__name__
+                in GPA.module_names_to_track
+                or sub_name in GPA.module_ids_to_track
             ):
                 if GPA.verbose:
                     print(
-                        "sub is in tracking list so initing tracked for: "
-                        "%s" % sub_name
+                        "sub is in tracking list so initiating tracked for: %s"
+                        % sub_name
                     )
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, PA.TrackedNeuronLayer(getattr(net, member), sub_name)
+                )
+            elif (
+                type(getattr(net, member, None)) in GPA.modules_to_convert
+                or type(getattr(net, member, None)).__name__
+                in GPA.module_names_to_convert
+                or (sub_name in GPA.module_ids_to_convert)
+            ):
+                if GPA.verbose:
+                    print(
+                        "sub is in conversion list so initiating PAI for: %s" % sub_name
+                    )
+                setattr(
+                    net,
+                    member,
+                    PA.PAINeuronModule(getattr(net, member), sub_name),
                 )
             elif issubclass(type(getattr(net, member, None)), nn.Module):
                 if net != getattr(net, member):
@@ -366,6 +438,8 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
 
 # Function that calls the above and checks results
 def convert_network(net, layer_name=""):
+    if GPA.perforated_backpropagation:
+        UPB.initialize_pb()
     if type(net) in GPA.modules_to_replace:
         net = replace_predefined_modules(net)
     if (type(net) in GPA.modules_to_convert) or (
@@ -470,14 +544,19 @@ def save_system(net, folder, name):
     # models modules
     old_list = GPA.pai_tracker.neuron_module_vector
     GPA.pai_tracker.neuron_module_vector = []
-
     save_net(net, folder, name)
-
     GPA.pai_tracker.neuron_module_vector = old_list
     pai_save_system(net, folder, name)
 
 
-def load_system(net, folder, name, load_from_restart=False, switch_call=False):
+def load_system(
+    net,
+    folder,
+    name,
+    load_from_restart=False,
+    switch_call=False,
+    load_from_manual_save=False,
+):
     if GPA.verbose:
         print("loading system %s" % name)
     net = load_net(net, folder, name)
@@ -500,7 +579,7 @@ def load_system(net, folder, name, load_from_restart=False, switch_call=False):
         )
     # Saves always take place before the call to start_epoch so call it here
     # when loading to correct off by 1 problems
-    if not switch_call:
+    if (not switch_call) and (not load_from_manual_save):
         GPA.pai_tracker.start_epoch(internal_call=True)
     return net
 
@@ -632,15 +711,14 @@ def deep_copy_pai(net):
     return copy.deepcopy(net)
 
 
-def count_params(net):
-    return sum(p.numel() for p in net.parameters())
-
-
 # For open source implementation just use regular saving for now
 # This function removes extra scaffolding that open source version already has
 # minimal values for
 def pai_save_net(net, folder, name):
-    return
+    if GPA.perforated_backpropagation:
+        UPB.pb_save_net(net, folder, name)
+    else:
+        return
 
 
 # Simulate the back and forth processes of adding dendrites to build a
@@ -660,6 +738,12 @@ def simulate_cycles(module, num_cycles, doing_pai):
             module.set_mode("n")
             mode = "n"
     GPA.checked_skipped_modules = check_skipped
+
+
+def count_params(net):
+    if GPA.perforated_backpropagation:
+        return UPB.pb_count_params(net)
+    return sum(p.numel() for p in net.parameters())
 
 
 def change_learning_modes(net, folder, name, doing_pai):
@@ -742,7 +826,7 @@ def change_learning_modes(net, folder, name, doing_pai):
 
         # Because open source version is only doing neuron training for
         # gradient descent dendrites, switch back to n mode right away
-        if GPA.no_extra_n_modes:
+        if (not GPA.perforated_backpropagation) or GPA.no_extra_n_modes:
             net = change_learning_modes(net, folder, name, doing_pai)
     else:
         if not GPA.silent:
@@ -778,8 +862,10 @@ def change_learning_modes(net, folder, name, doing_pai):
                     "retain PBNodes regardless of next N Phase results"
                 )
             save_system(net, folder, name)
+        # if its just doing P for learn PAI live then switch back immediately
+        if GPA.perforated_backpropagation and GPA.no_extra_n_modes:
+            net = change_learning_modes(net, folder, name, doing_pai)
 
-    # Track parameter counts for each architecture
-    pytorch_total_params = sum(p.numel() for p in net.parameters())
-    GPA.pai_tracker.member_vars["param_counts"].append(pytorch_total_params)
+    GPA.pai_tracker.member_vars["param_counts"].append(count_params(net))
+
     return net
