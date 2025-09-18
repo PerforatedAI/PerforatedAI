@@ -23,11 +23,10 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
-# try:
-from perforatedbp import tracker_pbp as TPB
-
-# except Exception as e:
-# pass
+try:
+    from perforatedbp import tracker_pbp as TPB
+except Exception as e:
+    pass
 
 mpl.use("Agg")
 
@@ -1399,8 +1398,12 @@ class PAINeuronModuleTracker:
                 f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
                 f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
                 f'total epochs {self.member_vars["total_epochs_run"]}, '
-                f'n: {GPA.n_epochs_to_switch}, num_cycles: {self.member_vars["num_cycles"]}'
+                f"n: {GPA.n_epochs_to_switch}, ",
+                end="",
             )
+            if GPA.perforated_backpropagation:
+                print(f"p: {GPA.p_epochs_to_switch}, ", end="")
+            print(f'num_cycles: {self.member_vars["num_cycles"]}')
         if GPA.perforated_backpropagation:
             # this will fill in epoch last improved
             TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY

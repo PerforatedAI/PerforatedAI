@@ -15,11 +15,10 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import tracker_perforatedai as TPA
 
-# try:
-from perforatedbp import utils_pbp as UPB
-
-# except Exception as e:
-#    pass
+try:
+    from perforatedbp import utils_pbp as UPB
+except Exception as e:
+    pass
 import copy
 
 from safetensors.torch import load_file
