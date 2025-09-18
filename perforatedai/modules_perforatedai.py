@@ -43,6 +43,7 @@ DENDRITE_SAVE_VALUES = (
 )
 
 
+# DEAN: This is the backward hook function where we inspect grad_out - the gradient flowing into this layer
 def filter_backward(grad_out, values, candidate_nonlinear_outs):
     """Filter backward pass for gradient processing."""
     if GPA.extra_verbose:
@@ -108,6 +109,7 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
         if GPA.perforated_backpropagation:
+            # DEAN: This is where we pass the gradient through to the perforated backpropagation function
             MPB.filter_backward_pb(val, values, candidate_nonlinear_outs)
 
 
@@ -379,14 +381,27 @@ class PAINeuronModule(nn.Module):
         # Filter with the processor if required
         if self.processor is not None:
             out = self.processor.post_n1(out)
+        # DEAN: This is where we pass the input data to the forward function
+        """
+            dendrite_outs is the outputs of the added dendrites
+            candidate_outs is the output of each candidate dendrite before nonlinearity
+                This needs to be captured in order for the hook to be assigned to it properly.
+                It will have a value of 0 so that it does not impact the connected neuron but gets added to the autograd graph
+            candidate_nonlinear_outs is the output of each candidate dendrite after nonlinearity
+                This needs to be captured so autograd will go through the nonlinearity of the candidate
+            candidate_non_zeroed is the output of each candidate dendrite after nonlinearity
+                this is only used if you want to do CC learning without fixing weights so dendrites and neurons learn together
+                
+        """
         # Call the forwards for all of the Dendrites
         (
             dendrite_outs,
             candidate_outs,
             candidate_nonlinear_outs,
-            candidate_outs_non_zeroed,
+            candidate_non_zeroed,
         ) = self.dendrite_module(*args, **kwargs)
         # If there are dendrites add all of their outputs to the neurons output
+        # DEAN: This is where the dendrite outputs are combined with the neuron output
         if self.dendrite_modules_added > 0:
             for i in range(0, self.dendrite_modules_added):
                 to_top = self.dendrites_to_top[self.dendrite_modules_added - 1][i, :]
@@ -401,14 +416,14 @@ class PAINeuronModule(nn.Module):
                         + list(dendrite_outs[i].size())[self.this_node_index + 1 :]
                     )
                 out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
-        
+
         if GPA.perforated_backpropagation:
             out = MPB.apply_pb(
                 self,
                 out,
                 candidate_outs,
                 candidate_nonlinear_outs,
-                candidate_outs_non_zeroed,
+                candidate_non_zeroed,
             )
         # Catch if processors are required
         if type(out) is tuple:
@@ -733,6 +748,7 @@ class PAIDendriteModule(nn.Module):
         # Create dendrite outputs
         # Each dendrite has input from previously created dendrites
         # So activation is added before the nonlinearity is called
+        # DEAN: This is where dendrite outs are added together
         view_tuple = []
         for out_index in range(0, self.num_dendrites):
             current_out = outs[out_index]
@@ -764,6 +780,7 @@ class PAIDendriteModule(nn.Module):
                     )
             outs[out_index] = GPA.pb_forward_function(current_out)
         # Return a dict which has all dendritic outputs after the activation functions were called
+        # DEAN: This is where the candidate dendrite outputs are processed
         if GPA.perforated_backpropagation:
             candidate_outs, candidate_nonlinear_outs, candidate_non_zeroed = (
                 MPB.forward_candidates(self, view_tuple, outs, *args2, **kwargs2)
