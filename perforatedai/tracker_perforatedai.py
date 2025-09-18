@@ -1442,7 +1442,7 @@ class PAINeuronModuleTracker:
             )
         cap_switch = False
         if GPA.perforated_backpropagation:
-            cap_switch = TPB.check_cap_switch(self)
+            cap_switch = TPB.check_cap_switch(self, this_count)
 
         if self.member_vars["switch_mode"] == GPA.DOING_HISTORY and (
             (
