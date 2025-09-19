@@ -201,7 +201,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                     submodule_id,
                     replace_predefined_modules(net.get_submodule(submodule_id)),
                 )
-            if (type(net.get_submodule(submodule_id)) in GPA.modules_to_convert) or (
+            if (type(net.get_submodule(submodule_id)) in GPA.modules_to_track) or (
                 type(net.get_submodule(submodule_id)).__name__
                 in GPA.module_names_to_track
             ):
@@ -213,22 +213,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     submodule_id,
-                    PA.TrackedNeuronLayer(net.get_submodule(submodule_id), sub_name),
-                )
-            elif (
-                type(net.get_submodule(submodule_id)) in GPA.modules_to_convert
-                or type(net.get_submodule(submodule_id)).__name__
-                in GPA.module_names_to_track
-            ):
-                if GPA.verbose:
-                    print(
-                        "Seq sub is in tracking list so initiating tracked for: %s"
-                        % sub_name
-                    )
-                setattr(
-                    net,
-                    submodule_id,
-                    PA.TrackedNeuronLayer(net.get_submodule(submodule_id), sub_name),
+                    PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
                 )
             elif (
                 type(net.get_submodule(submodule_id)) in GPA.modules_to_convert
@@ -291,15 +276,13 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 if GPA.verbose:
                     print("Seq ID is in track IDs: %s" % sub_name)
                 setattr(
-                    net, member, PA.tracked_neuron_layer(getattr(net, member), sub_name)
+                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
                 )
                 continue
             if sub_name in GPA.module_ids_to_convert:
                 if GPA.verbose:
                     print("Seq ID is in convert IDs: %s" % sub_name)
-                setattr(
-                    net, member, PA.pai_neuron_layer(getattr(net, member), sub_name)
-                )
+                setattr(net, member, PA.PAINeuronModule(getattr(net, member), sub_name))
                 continue
             if id(getattr(net, member, None)) == id(net):
                 if GPA.verbose:
@@ -354,7 +337,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         % sub_name
                     )
                 setattr(
-                    net, member, PA.TrackedNeuronLayer(getattr(net, member), sub_name)
+                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
                 )
             elif (
                 type(getattr(net, member, None)) in GPA.modules_to_convert
