@@ -34,16 +34,16 @@ If you would like to test more than three dendrites the following can be used:
 
 Additional options during initializaiton include:
     
-    UPA.initializePB(model, doingPB=True, saveName='PB', makingGraphs=True, maximizingScore=True)
+    UPA.initialize_pai(model, doing_pai=True, save_name='PAI', making_graphs=True, maximizing_score=True)
 
 
-doingPB can be set to False if you want to run with your current parameters without adding dendrites.
+doing_pai can be set to False if you want to run with your current parameters without adding dendrites.
 
-makingGraphs can be set to False if you would prefer to make your own graphs for output performance.
+making_graphs can be set to False if you would prefer to make your own graphs for output performance.
 
-maximizingScore should be set to False when your value passed to addValidationScore is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.improvementThreshold.  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
+maximizing_score should be set to False when your value passed to addValidationScore is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.improvementThreshold.  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
 
-saveName is defaults to 'PB' but if you run multiple experiments at once this must be changed to save outputs to different folders
+save_name is defaults to 'PAI' but if you run multiple experiments at once this must be changed to save outputs to different folders
    
 ### 1.5 Systems without Simple Optimizer/Scheduler Setups
     
