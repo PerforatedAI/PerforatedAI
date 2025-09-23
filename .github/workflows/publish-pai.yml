@@ -1,0 +1,544 @@
+name: Cythonize,  Package and Publish PAI wheels
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  buildImage-paicibuilder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Check if image exists
+        id: image_exists
+        run: |
+          # Check if the image already exists in GHCR
+          if docker pull ghcr.io/perforatedai/paicibuilder:latest ; then
+            echo "Image exists."
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "Image does not exist."
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Build and Push Docker image to GHCR
+        if: env.exists == 'false'  # Only push if the image does not exist
+        run: |
+          cd PAI-CI-Builder
+          docker build -t paicibuilder .
+          docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
+          docker push ghcr.io/perforatedai/paicibuilder:latest
+
+  buildImage-manylinux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Check if image exists
+        id: image_exists
+        run: |
+          # Check if the image already exists in GHCR
+          if docker pull ghcr.io/perforatedai/manylinux_pai:latest ; then
+            echo "Image exists."
+            echo "exists=true" >> $GITHUB_ENV
+          else
+            echo "Image does not exist."
+            echo "exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Build and Push Docker image to GHCR
+        if: env.exists == 'false'  # Only push if the image does not exist
+        run: |
+          cd manylinux_pai
+          docker build -t manylinux_pai .
+          docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
+          docker push ghcr.io/perforatedai/manylinux_pai:latest
+
+  buildCI-Ubuntu:
+    runs-on: ubuntu-latest
+    needs: buildImage-paicibuilder
+    container:
+      image: ghcr.io/perforatedai/paicibuilder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      matrix:
+        python-version: [3.6,3.7,3.8,3.9,3.10.15,3.11,3.12]
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Build the package for Python ${{ matrix.python-version }}
+      run: |
+        export PYENV_ROOT="$HOME/.pyenv"
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init --path)"
+        pyenv install -s ${{ matrix.python-version }}
+        pyenv global ${{ matrix.python-version }}
+        python --version
+        python -m pip install --upgrade pip
+        python -m pip install cython auditwheel patchelf twine setuptools wheel
+        rm -rf pai_module
+        mkdir pai_module && mkdir pai_module/perforatedai
+        cp perforatedai/* pai_module/perforatedai
+        cp setupCython.py pai_module/setup.py
+        cd pai_module
+        python setup.py build_ext --inplace
+        python setup.py bdist_wheel
+        ls dist/*
+        pwd
+
+    - name: Save, Commit, and Push Wheels with Retry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ## Workaround race conditions commits between python versions -
+        TAG=${{ github.ref_name }}
+        RELEASE_DIR="./releases/$TAG/"
+        if [ ! -e $RELEASE_DIR ]; then 
+          mkdir -p $RELEASE_DIR
+        fi
+        cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "PAI GitHub Actions"
+        git config user.email "actions@perforatedai.dev.local"
+        
+        # Retry mechanism with exponential backoff
+        MAX_RETRIES=10
+        RETRY_COUNT=0
+        SUCCESS=false
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+          echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+          # Fresh pull before each attempt
+          git fetch origin
+          git checkout master
+          git pull
+          
+          # Add files and commit
+          git add $RELEASE_DIR
+          if git diff --cached --quiet; then
+            echo "No changes to commit, skipping..."
+            SUCCESS=true
+            break
+          fi
+          
+          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
+          
+          # Try to push with retry logic
+          if git push origin master; then
+            echo "Push successful!"
+            SUCCESS=true
+          else
+            echo "Push failed, retrying..."
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              SLEEP_TIME=$((RETRY_COUNT + RANDOM % 10))
+              echo "Waiting $SLEEP_TIME seconds before retry..."
+              sleep $SLEEP_TIME
+            fi
+          fi
+        done
+        
+        if [ "$SUCCESS" = false ]; then
+          echo "Failed to push after $MAX_RETRIES attempts"
+          exit 1
+        fi
+
+
+  buildCI-manyLinux:
+    runs-on: ubuntu-latest
+    needs: 
+      - buildImage-manylinux
+      - buildCI-Ubuntu
+    container:
+      image: ghcr.io/perforatedai/manylinux_pai:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      
+    steps:
+    - name: Clone the current repo
+      run: |
+        echo "Cloning the repository..."
+        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/PerforatedAI/PerforatedBackpropagation.git
+        cd PerforatedBackpropagation
+        git checkout master
+        pwd
+        ls -al 
+
+    - name: List files in the cloned repo
+      working-directory: PerforatedBackpropagation
+      run: ls -la 
+
+    - name: Run auditwheel for all Python versions with retry
+      working-directory: PerforatedBackpropagation
+      run: |
+        TAG=${{ github.ref_name }}
+        RELEASE_DIR="./releases/$TAG"
+        cd $RELEASE_DIR
+        auditwheel repair *.whl
+        ls wheelhouse/
+        pwd
+        cp -Rf wheelhouse/*.whl .
+        rm -Rf wheelhouse/
+        ls
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "PAI GitHub Actions"
+        git config user.email "actions@perforatedai.dev.local"
+        
+        # Retry mechanism with exponential backoff
+        MAX_RETRIES=10
+        RETRY_COUNT=0
+        SUCCESS=false
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+          echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+          # Fresh pull before each attempt
+          git fetch origin
+          git checkout master
+          git pull
+          
+          # Add files and commit
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes to commit, skipping..."
+            SUCCESS=true
+            break
+          fi
+          
+          git commit -m "Add package manylinux wheels for $TAG"
+          
+          # Try to push with retry logic
+          if git push origin HEAD:master; then
+            echo "Push successful!"
+            SUCCESS=true
+          else
+            echo "Push failed, retrying..."
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              SLEEP_TIME=$((RETRY_COUNT + RANDOM % 10))
+              echo "Waiting $SLEEP_TIME seconds before retry..."
+              sleep $SLEEP_TIME
+            fi
+          fi
+        done
+        
+        if [ "$SUCCESS" = false ]; then
+          echo "Failed to push after $MAX_RETRIES attempts"
+          exit 1
+        fi
+
+  buildCI-macOS:
+    runs-on: macos-latest
+    needs: 
+      - buildCI-manyLinux
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10.x, 3.11, 3.12, 3.13]
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }} on macOS
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Upgrade pip and install required dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install cython auditwheel twine setuptools wheel
+
+    - name: Build the package for Python ${{ matrix.python-version }}
+      run: |
+        rm -rf pai_module
+        mkdir pai_module && mkdir pai_module/perforatedai
+        cp perforatedai/* pai_module/perforatedai
+        cp setupCython.py pai_module/setup.py
+        cd pai_module
+        python setup.py build_ext --inplace
+        python setup.py bdist_wheel
+        ls dist/
+        pwd
+
+    - name: Save, Commit, and Push Wheels with Retry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ## Workaround race conditions commits between python versions -
+        TAG=${{ github.ref_name }}
+        RELEASE_DIR="./releases/$TAG/"
+        if [ ! -e $RELEASE_DIR ]; then 
+          mkdir -p $RELEASE_DIR
+        fi
+        cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "PAI GitHub Actions"
+        git config user.email "actions@perforatedai.dev.local"
+        
+        # Retry mechanism with exponential backoff
+        MAX_RETRIES=10
+        RETRY_COUNT=0
+        SUCCESS=false
+        
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+          echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+          
+          # Fresh pull before each attempt
+          git fetch origin
+          git checkout master
+          git pull
+          
+          # Add files and commit
+          git add $RELEASE_DIR
+          if git diff --cached --quiet; then
+            echo "No changes to commit, skipping..."
+            SUCCESS=true
+            break
+          fi
+          
+          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
+          
+          # Try to push with retry logic
+          if git push origin master; then
+            echo "Push successful!"
+            SUCCESS=true
+          else
+            echo "Push failed, retrying..."
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              SLEEP_TIME=$((RETRY_COUNT + RANDOM % 10))
+              echo "Waiting $SLEEP_TIME seconds before retry..."
+              sleep $SLEEP_TIME
+            fi
+          fi
+        done
+        
+        if [ "$SUCCESS" = false ]; then
+          echo "Failed to push after $MAX_RETRIES attempts"
+          exit 1
+        fi
+
+  buildCI-Windows:
+    runs-on: windows-latest
+    needs: 
+      - buildCI-macOS 
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10.x, 3.11, 3.12]
+      fail-fast: false
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install cython wheel setuptools twine
+
+    - name: Build the package for Python ${{ matrix.python-version }}
+      run: |
+        if (Test-Path -Path "pai_module") {
+          Remove-Item -Recurse -Force pai_module
+        }
+        New-Item -ItemType Directory -Path pai_module
+        New-Item -ItemType Directory -Path pai_module\perforatedai
+        Copy-Item perforatedai\globals_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\modules_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\network_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\tracker_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\utils_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\__init__.py pai_module\perforatedai
+        Copy-Item perforatedai\clean_load.py pai_module\perforatedai
+        Copy-Item perforatedai\blockwise_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\check_license.py pai_module\perforatedai
+        Copy-Item setupCython.py pai_module\setup.py
+        cd pai_module
+        python setup.py build_ext --inplace
+        python setup.py bdist_wheel
+        dir dist\*
+        cd ..
+
+    - name: Save, Commit, and Push Wheels with Retry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $TAG = "${{ github.ref_name }}"
+        $RELEASE_DIR = "releases/$TAG/"
+        if (!(Test-Path -Path $RELEASE_DIR)) {
+          New-Item -ItemType Directory -Path $RELEASE_DIR -Force
+        }
+        Copy-Item pai_module\dist\*.whl -Destination $RELEASE_DIR -Recurse -Force
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "PAI GitHub Actions"
+        git config user.email "actions@perforatedai.dev.local"
+        
+        # Retry mechanism with exponential backoff
+        $MAX_RETRIES = 10
+        $RETRY_COUNT = 0
+        $SUCCESS = $false
+        
+        while (($RETRY_COUNT -lt $MAX_RETRIES) -and (-not $SUCCESS)) {
+          Write-Host "Attempt $($RETRY_COUNT + 1) of $MAX_RETRIES"
+          
+          # Fresh pull before each attempt
+          git fetch origin
+          git checkout master
+          git pull
+          
+          # Add files and commit
+          git add $RELEASE_DIR
+          $changes = git diff --cached --name-only
+          if (-not $changes) {
+            Write-Host "No changes to commit, skipping..."
+            $SUCCESS = $true
+            break
+          }
+          
+          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
+          
+          # Try to push with retry logic
+          $pushResult = git push origin master 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Push successful!"
+            $SUCCESS = $true
+          } else {
+            Write-Host "Push failed: $pushResult"
+            $RETRY_COUNT++
+            if ($RETRY_COUNT -lt $MAX_RETRIES) {
+              $SLEEP_TIME = [math]::Pow(2, $RETRY_COUNT) + (Get-Random -Maximum 10)
+              Write-Host "Waiting $SLEEP_TIME seconds before retry..."
+              Start-Sleep -Seconds $SLEEP_TIME
+            }
+          }
+        }
+        
+        if (-not $SUCCESS) {
+          Write-Host "Failed to push after $MAX_RETRIES attempts"
+          exit 1
+        }
+        
+  buildCI-musllinux:
+    runs-on: ubuntu-latest
+    needs: 
+      - buildCI-macOS 
+    container:
+      image: ghcr.io/perforatedai/paicibuilder:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9, 3.10.15, 3.11, 3.12]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up musllinux environment
+        run: |
+          apt-get update
+          apt-get install musl musl-dev musl-tools
+          export CC=musl-gcc
+
+      - name: Build the package for Python ${{ matrix.python-version }}
+        run: |
+          export PYENV_ROOT="$HOME/.pyenv"
+          export PATH="$PYENV_ROOT/bin:$PATH"
+          eval "$(pyenv init --path)"
+          pyenv install -s ${{ matrix.python-version }}
+          pyenv global ${{ matrix.python-version }}
+          python --version
+          python -m pip install --upgrade pip
+          python -m pip install cython auditwheel patchelf twine setuptools wheel
+          rm -rf pai_module
+          mkdir pai_module && mkdir pai_module/perforatedai
+          cp perforatedai/* pai_module/perforatedai
+          cp setupCython.py pai_module/setup.py
+          cd pai_module
+          python setup.py build_ext --inplace
+          python setup.py bdist_wheel --plat-name musllinux_x86_64
+          ls dist/*
+          pwd
+
+      - name: Save, Commit, and Push Wheels with Retry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${{ github.ref_name }}
+          RELEASE_DIR="./releases/$TAG/"
+          if [ ! -e $RELEASE_DIR ]; then 
+            mkdir -p $RELEASE_DIR
+          fi
+          cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "PAI GitHub Actions"
+          git config user.email "actions@perforatedai.dev.local"
+          
+          # Retry mechanism with exponential backoff
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          SUCCESS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+            
+            # Fresh pull before each attempt
+            git fetch origin
+            git checkout master
+            git pull
+            
+            # Add files and commit
+            git add $RELEASE_DIR
+            if git diff --cached --quiet; then
+              echo "No changes to commit, skipping..."
+              SUCCESS=true
+              break
+            fi
+            
+            git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
+            
+            # Try to push with retry logic
+            if git push origin master; then
+              echo "Push successful!"
+              SUCCESS=true
+            else
+              echo "Push failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                SLEEP_TIME=$((RETRY_COUNT + RANDOM % 10))
+                echo "Waiting $SLEEP_TIME seconds before retry..."
+                sleep $SLEEP_TIME
+              fi
+            fi
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+            echo "Failed to push after $MAX_RETRIES attempts"
+            exit 1
+          fi

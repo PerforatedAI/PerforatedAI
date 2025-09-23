@@ -1,17 +1,16 @@
-# Copyright (c) 2025 Perforated AI
-
 from setuptools import setup
 
 setup(
     name="perforatedai",
-    version="1.0.9",
+    # Remember to also edit setupCython
+    version="2.0.0",
     packages=["perforatedai"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
-    description="perforatedai",
+    description="perforatedai baseline package",
     classifiers=[
         "Programming Language: Python :: 3",
-        "License: TBD",
+        "License: Apache 2.0",
         "Operating System: OS Independent",
     ],
     python_requires=">=3.6",
@@ -23,6 +22,6 @@ setup(
         "rsa",
         "pyyaml",
         "safetensors",
-        "black",
     ],
+    # may need setuptools upgraded
 )
