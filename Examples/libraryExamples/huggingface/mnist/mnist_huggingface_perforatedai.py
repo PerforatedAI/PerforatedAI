@@ -13,16 +13,16 @@ from perforatedai import utils_perforatedai as UPA
 
 
 
-GPA.switch_mode = GPA.DOING_HISTORY
-GPA.n_epochs_to_switch = 10
-GPA.p_epochs_to_switch = 10
-GPA.input_dimensions = [-1, 0,-1,-1]
-GPA.history_lookback = 1
-GPA.max_dendrites = 5
-GPA.testing_dendrite_capacity = False
+GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY())
+GPA.pc.set_n_epochs_to_switch(10)
+GPA.pc.set_p_epochs_to_switch(10)
+GPA.pc.set_input_dimensions([-1, 0,-1,-1])
+GPA.pc.set_history_lookback(1)
+GPA.pc.set_max_dendrites(5)
+GPA.pc.set_testing_dendrite_capacity(False)
 
 #When calculating scores with accuracy improvements the default for this is 1e-4 to enourage any improvement in decisions to count as an improvement.  When minimizing loss instead it should be higher since loss can continue to be reduced even when classification decisions are not being improved.
-GPA.improvementThreshold = 0.005
+GPA.pc.set_improvementThreshold(0.005)
 
 class BasicNet(nn.Module):
     def __init__(self):
@@ -61,8 +61,7 @@ train_loader = torch.utils.data.DataLoader(train_dset, shuffle=True, batch_size=
 test_loader = torch.utils.data.DataLoader(test_dset, shuffle=False, batch_size=64)
 
 model = BasicNet()
-GPA.saveName = 'mnistHF'
-model = UPA.initialize_pai(model, maximizingScore=False)
+model = UPA.initialize_pai(model, maximizingScore=False, save_name='mnistHF')
 
 training_args = TrainingArguments(
     "basic-trainer",

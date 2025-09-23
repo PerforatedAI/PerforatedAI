@@ -16,13 +16,13 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import pb_models as PBM
 from perforatedai import utils_perforatedai as UPA
 
-GPA.switch_mode = GPA.DOING_HISTORY
-GPA.n_epochs_to_switch = 10
-GPA.p_epochs_to_switch = 10
-GPA.input_dimensions = [-1, 0]
-GPA.history_lookback = 1
-GPA.max_dendrites = 5
-GPA.testing_dendrite_capacity = False
+GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY())
+GPA.pc.set_n_epochs_to_switch(10)
+GPA.pc.set_p_epochs_to_switch(10)
+GPA.pc.set_input_dimensions([-1, 0])
+GPA.pc.set_history_lookback(1)
+GPA.pc.set_max_dendrites(5)
+GPA.pc.set_testing_dendrite_capacity(False)
 
 model_path = '.'
 

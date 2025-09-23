@@ -44,7 +44,7 @@ These usually mean the processors were not set up correctly. Look at 1.2 from cu
 
 This specifically is saying that you are returning a tuple of tensors rather than a single tensor.  Your processor needs to tell you how to handle this so the Dendrite only collaborates on one tensor with the neuron.
 
-Make sure that you put the GPA.modulesWithProcessing setup before the call to convertNetwork
+Make sure that you put the GPA.pc.get_modules_with_processing() setup before the call to convertNetwork
     
 ## Errors in filterBackward
 There are a couple errors that can happen in the filterBackward function
@@ -66,9 +66,10 @@ This is anything like the following:
     (was torch.cuda.HalfTensor got torch.cuda.FloatTensor)
     Input type (torch.cuda.DoubleTensor) and weight type (torch.cuda.FloatTensor) should be the same
 
-If you are not working with float data change GPA.dType to whatever you are using. eg:
+If you are not working with float data change GPA.pc.get_d_type() to whatever you are using. eg:
 
-    GPA.dType = torch.double
+    GPA.pc.set_d_type(torch.double
+)
 
 ## Device Errors
 
@@ -76,9 +77,9 @@ If you are not working with float data change GPA.dType to whatever you are usin
 
 Similar as above there is a setting that defaults to using what is available.  If cuda is available but you still don't want to use it call:
 
-    GPA.device = 'cpu'
+    GPA.pc.set_device('cpu')
     
-Additionally, if you are running on mac or generally using any device that will not be properly set with the call of `device = torch.device("cuda" if use_cuda else "cpu")` you should set your device as `GPA.device = your device type`
+Additionally, if you are running on mac or generally using any device that will not be properly set with the call of `device = torch.device("cuda" if use_cuda else "cpu")` you should set your device as `GPA.pc.set_device(your device type)`
     
 ## Attribute Error:
     
@@ -158,7 +159,7 @@ A memory leak is happening if you run out of memory in the middle of a training 
     leak without PAI in the same model.  We have seen a handful of models which calculate
     values but then never actually use them for anything that goes towards calculating loss,
     so make sure to avoid that.  To check for this you can use:
-        GPA.debuggingMemoryLeak = True
+        GPA.pc.set_debugging_memory_leak(True)
 - If this is happening in the validation/test loop make sure you are in eval() mode which does not have a backwards pass.
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.
@@ -252,11 +253,11 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
 
 A lot of moden models have this tendency to save a pointer to a copy of themselves which will cause an error with the Perforated AI save function. This can be remedied in two ways.  First is by using torch.load rather than the safetensors method.  Be aware there is risk of loading pretrained models file from outside your group, and this should only be used when working with models you trust or models which are training from scratch.  To accept this risk and use torch.load set the following: 
 
-    GPA.using_safe_tensors = False
+    GPA.pc.set_using_safe_tensors(False)
     
-However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.module_names_to_not_save.  This will set the save function to ignore the copy.  We already have the following included by default:
+However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.pc.get_module_names_to_not_save().  This will set the save function to ignore the copy.  We already have the following included by default:
 
-    GPA.module_names_to_not_save = ['.base_model']
+    GPA.pc.set_module_names_to_not_save(['.base_model'])
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
 
