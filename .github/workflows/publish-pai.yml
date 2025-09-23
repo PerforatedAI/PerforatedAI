@@ -61,6 +61,7 @@ jobs:
       - name: Build and Push Docker image to GHCR
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
+          mkdir manylinux_pai
           cd manylinux_pai
           docker build -t manylinux_pai .
           docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
