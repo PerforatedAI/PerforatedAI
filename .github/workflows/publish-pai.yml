@@ -31,7 +31,6 @@ jobs:
       - name: Build and Push Docker image to GHCR
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
-          mkdir PAI-CI-Builder
           cd PAI-CI-Builder
           docker build -t paicibuilder .
           docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
@@ -61,7 +60,6 @@ jobs:
       - name: Build and Push Docker image to GHCR
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
-          mkdir manylinux_pai
           cd manylinux_pai
           docker build -t manylinux_pai .
           docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
