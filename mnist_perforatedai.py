@@ -259,8 +259,8 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     # Set up some global parameters for PAI code
-    GPA.testing_dendrite_capacity = False
-    GPA.verbose = True
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_verbose(True)
     model = Net(num_classes, args.width).to(device)
 
     model = UPA.initialize_pai(model)

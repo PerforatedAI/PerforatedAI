@@ -246,30 +246,30 @@ def set_GPA_params(args):
     """
     Set PAI global parameters based on command-line arguments.
     """
-    GPA.saveName = args.pai_save_name
+    GPA.pc.set_saveName(args.pai_save_name)
     if args.switch_mode == 'DOING_HISTORY':
-        GPA.switch_mode = GPA.DOING_HISTORY
+        GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY())
     elif args.switch_mode == 'DOING_FIXED_SWITCH':
-        GPA.switch_mode = GPA.DOING_FIXED_SWITCH
-        GPA.fixed_switch_num = args.fixed_switch_num
-        GPA.firstfixed_switch_num = args.first_fixed_switch_num
+        GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH())
+        GPA.pc.set_fixed_switch_num(args.fixed_switch_num)
+        GPA.pc.set_firstfixed_switch_num(args.first_fixed_switch_num)
     else:
         raise ValueError(f"Invalid switch_mode: {args.switch_mode}")
-    GPA.n_epochs_to_switch = args.n_epochs_to_switch
-    GPA.p_epochs_to_switch = args.p_epochs_to_switch
-    GPA.input_dimensions = [-1, -1, 0]
-    GPA.history_lookback = args.history_lookback
-    GPA.max_dendrites = args.max_dendrites
-    GPA.testing_dendrite_capacity = False
-    GPA.improvement_threshold = args.improvement_threshold
-    GPA.dendrite_improvement_threshold = args.pb_improvement_threshold
-    GPA.dendrite_improvement_thresholdRaw = args.pb_improvement_threshold_raw
-    GPA.unwrapped_modules_confirmed = args.unwrapped_modules_confirmed
-    GPA.unwrapped_norms_confirmed = True
-    GPA.cap_at_n = args.cap_at_n
-    GPA.debugging_input_dimensions = 1
-    GPA.metric = 'eval_accuracy'
-    GPA.weight_decay_accepted = True    
+    GPA.pc.set_n_epochs_to_switch(args.n_epochs_to_switch)
+    GPA.pc.set_p_epochs_to_switch(args.p_epochs_to_switch)
+    GPA.pc.set_input_dimensions([-1, -1, 0])
+    GPA.pc.set_history_lookback(args.history_lookback)
+    GPA.pc.set_max_dendrites(args.max_dendrites)
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_improvement_threshold(args.improvement_threshold)
+    GPA.pc.set_dendrite_improvement_threshold(args.pb_improvement_threshold)
+    GPA.pc.set_dendrite_improvement_thresholdRaw(args.pb_improvement_threshold_raw)
+    GPA.pc.set_unwrapped_modules_confirmed(args.unwrapped_modules_confirmed)
+    GPA.pc.set_unwrapped_norms_confirmed(True)
+    GPA.pc.set_cap_at_n(args.cap_at_n)
+    GPA.pc.set_debugging_input_dimensions(1)
+    GPA.pc.set_metric('eval_accuracy')
+    GPA.pc.set_weight_decay_accepted(True    )
     
 def resize_model_hidden_size(config, width_factor):
     if width_factor <= 0 or width_factor > 1.0:
@@ -381,56 +381,56 @@ def main():
     
     # Wrap the base model for compatibility with PAI
     if "roberta" in args.model_name:
-        GPA.modules_to_replace = [RobertaForSequenceClassification]
-        GPA.replacement_modules = [RobertaForSequenceClassificationPB]
-        GPA.moduleNames_to_track.append('RobertaEmbeddings')
-        GPA.moduleNames_to_track.append('Embedding')
+        GPA.pc.append_modules_to_replace([RobertaForSequenceClassification])
+        GPA.pc.append_replacement_modules([RobertaForSequenceClassificationPB])
+        GPA.pc.append_moduleNames_to_track(['RobertaEmbeddings'])
+        GPA.pc.append_moduleNames_to_track(['Embedding'])
         
         if args.wrap_full_model:
             # Wrap the encoder layers in addition to the classifier
             print("Wrapping full model")
-            GPA.module_names_to_convert.append('RobertaLayer')
-            GPA.module_names_with_processing.append('RobertaLayer')
-            GPA.module_by_name_processing_classes.append(PBM.MultiOutputProcesser)
+            GPA.pc.append_module_names_to_convert(['RobertaLayer'])
+            GPA.pc.append_module_names_with_processing(['RobertaLayer'])
+            GPA.pc.append_module_by_name_processing_classes([PBM.MultiOutputProcesser])
         else:
             # Only add dendrites to the classifier
             print("Only adding dendrites to classifier")
-            GPA.modules_to_convert = []  # Reset modules to convert
-            GPA.module_names_to_track.extend(['RobertaLayer', 'RobertaPooler'])
+            GPA.pc.set_modules_to_convert([])  # Reset modules to convert
+            GPA.pc.append_module_names_to_track(['RobertaLayer', 'RobertaPooler'])
             
             # Wrap the classifier with our custom wrapper
             if hasattr(base_model, 'classifier'):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.module_names_to_convert.append('ClassifierWrapper')
+                GPA.pc.append_module_names_to_convert('ClassifierWrapper')
         
         model = RobertaForSequenceClassificationPB(base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob)
     elif "bert" in args.model_name:
-        GPA.modules_to_replace = [BertForSequenceClassification]
-        GPA.replacement_modules = [BertForSequenceClassificationPB]
-        GPA.module_names_to_track.append('Embeddings')
-        GPA.module_names_to_track.append('Embedding')
+        GPA.pc.append_modules_to_replace([BertForSequenceClassification])
+        GPA.pc.append_replacement_modules([BertForSequenceClassificationPB])
+        GPA.pc.append_module_names_to_track(['Embeddings'])
+        GPA.pc.append_module_names_to_track(['Embedding'])
         
         if args.wrap_full_model:
             # Wrap the encoder layers in addition to the classifier
             print("Wrapping full model")
-            GPA.module_names_to_convert.append('TransformerBlock')
-            GPA.module_names_with_processing.append('TransformerBlock')
-            GPA.module_by_name_processing_classes.append(PBM.multiOutputProcesser)
+            GPA.pc.append_module_names_to_convert(['TransformerBlock'])
+            GPA.pc.append_module_names_with_processing(['TransformerBlock'])
+            GPA.pc.append_module_by_name_processing_classes([PBM.multiOutputProcesser])
         else:
             # Only add dendrites to the classifier
             print("Only adding dendrites to classifier")
-            GPA.modules_to_convert = []  # Reset modules to convert
-            GPA.module_names_to_track.extend(['TransformerBlock'])
+            GPA.pc.set_modules_to_convert([])  # Reset modules to convert
+            GPA.pc.append_module_names_to_track(['TransformerBlock'])
             
             # Wrap the classifier with our custom wrapper
             if hasattr(base_model, 'classifier'):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.module_names_to_convert.append('ClassifierWrapper')
+                GPA.pc.append_module_names_to_convert(['ClassifierWrapper'])
                 
             # Also wrap pre_classifier if it exists
             if hasattr(base_model, 'pre_classifier'):
                 base_model.pre_classifier = ClassifierWrapper(base_model.pre_classifier)
-                GPA.module_names_to_convert.append('ClassifierWrapper')        
+                GPA.pc.append_module_names_to_convert(['ClassifierWrapper'])        
         
         model = BertForSequenceClassificationPB(base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob)
     else:
@@ -439,7 +439,7 @@ def main():
     # Convert model to be compatible with PB and initialize PB tracking
     UPA.initialize_pai(
         model,
-        save_name=GPA.saveName,
+        save_name=GPA.pc.get_save_name(),
         maximizing_score=args.maximizing_score, 
     )
     
