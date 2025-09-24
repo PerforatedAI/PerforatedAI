@@ -176,7 +176,7 @@ jobs:
     - name: Clone the current repo
       run: |
         echo "Cloning the repository..."
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedBackpropagation.git
+        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI.git
         cd PerforatedBackpropagation
         git checkout main
         pwd
