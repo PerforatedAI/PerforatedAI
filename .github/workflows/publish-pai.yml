@@ -14,11 +14,13 @@ jobs:
 
       - name: Log in to GitHub Container Registry
         run: |
+          set -x
           echo ${{ secrets.NEW_SECRET }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Check if image exists
         id: image_exists
         run: |
+          set -x
           # Check if the image already exists in GHCR
           if docker pull ghcr.io/perforatedai/paicibuilder:latest ; then
             echo "Image exists."
@@ -31,6 +33,7 @@ jobs:
       - name: Build and Push Docker image to GHCR
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
+          set -x
           cd PAI-CI-Builder
           docker build -t paicibuilder .
           docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
@@ -44,10 +47,12 @@ jobs:
 
       - name: Log in to GitHub Container Registry
         run: |
+          set -x
           echo ${{ secrets.NEW_SECRET }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Check if image exists
         id: image_exists
         run: |
+          set -x
           # Check if the image already exists in GHCR
           if docker pull ghcr.io/perforatedai/manylinux_pai:latest ; then
             echo "Image exists."
@@ -60,6 +65,7 @@ jobs:
       - name: Build and Push Docker image to GHCR
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
+          set -x
           cd manylinux_pai
           docker build -t manylinux_pai .
           docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
@@ -84,6 +90,7 @@ jobs:
 
     - name: Build the package for Python ${{ matrix.python-version }}
       run: |
+        set -x
         export PYENV_ROOT="$HOME/.pyenv"
         export PATH="$PYENV_ROOT/bin:$PATH"
         eval "$(pyenv init --path)"
@@ -106,6 +113,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
+        set -x
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
         RELEASE_DIR="./releases/$TAG/"
@@ -127,21 +135,25 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout main
-          git pull
-          
-          # Add files and commit
+          git checkout develop
+          git pull --rebase
+
+          # Add files and commit (file is always new since push failed)
           git add $RELEASE_DIR
           if git diff --cached --quiet; then
-            echo "No changes to commit, skipping..."
-            SUCCESS=true
-            break
+            # No changes to commit, just continue loop without incrementing retry count
+            echo "Nothing to commit, continuing..."
+          else
+            if ! git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"; then
+              echo "Commit failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              sleep $((RETRY_COUNT + RANDOM % 10))
+              continue
+            fi
           fi
-          
-          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
-          
+
           # Try to push with retry logic
-          if git push origin main; then
+          if git push origin develop; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -175,20 +187,24 @@ jobs:
     steps:
     - name: Clone the current repo
       run: |
+        set -x
         echo "Cloning the repository..."
         git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI.git
         cd PerforatedAI
-        git checkout main
+        git checkout develop
         pwd
         ls -al 
 
     - name: List files in the cloned repo
       working-directory: PerforatedAI
-      run: ls -la 
+      run: 
+        set -x
+        ls -la 
 
     - name: Run auditwheel for all Python versions with retry
       working-directory: PerforatedAI
       run: |
+        set -x
         TAG=${{ github.ref_name }}
         RELEASE_DIR="./releases/$TAG"
         cd $RELEASE_DIR
@@ -212,21 +228,24 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout main
-          git pull
-          
-          # Add files and commit
+          git checkout develop
+          git pull --rebase
+          # Add files and commit (manylinux wheels are always new)
           git add .
+          
           if git diff --cached --quiet; then
-            echo "No changes to commit, skipping..."
-            SUCCESS=true
-            break
+            # No changes to commit, just continue loop without incrementing retry count
+            echo "Nothing to commit, continuing..."
+          else
+            if ! git commit -m "Add package manylinux wheels for $TAG"; then
+              echo "Commit failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              sleep $((RETRY_COUNT + RANDOM % 10))
+              continue
+            fi
           fi
-          
-          git commit -m "Add package manylinux wheels for $TAG"
-          
           # Try to push with retry logic
-          if git push origin HEAD:main; then
+          if git push origin HEAD:develop; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -265,11 +284,13 @@ jobs:
 
     - name: Upgrade pip and install required dependencies
       run: |
+        set -x
         python -m pip install --upgrade pip
         python -m pip install cython auditwheel twine setuptools wheel
 
     - name: Build the package for Python ${{ matrix.python-version }}
       run: |
+        set -x
         rm -rf pai_module
         mkdir pai_module && mkdir pai_module/perforatedai
         cp perforatedai/* pai_module/perforatedai
@@ -284,6 +305,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
+        set -x
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
         RELEASE_DIR="./releases/$TAG/"
@@ -305,21 +327,23 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout main
-          git pull
-          
-          # Add files and commit
+          git checkout develop
+          git pull --rebase
+          # Add files and commit (file is always new since push failed)
           git add $RELEASE_DIR
           if git diff --cached --quiet; then
-            echo "No changes to commit, skipping..."
-            SUCCESS=true
-            break
+            # No changes to commit, just continue loop without incrementing retry count
+            echo "Nothing to commit, continuing..."
+          else
+            if ! git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"; then
+              echo "Commit failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              sleep $((RETRY_COUNT + RANDOM % 10))
+              continue
+            fi
           fi
-          
-          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
-          
           # Try to push with retry logic
-          if git push origin main; then
+          if git push origin develop; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -404,22 +428,23 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout main
-          git pull
-          
-          # Add files and commit
+          git checkout develop
+          git pull --rebase
+          # Add files and commit (file is always new since push failed)
           git add $RELEASE_DIR
-          $changes = git diff --cached --name-only
-          if (-not $changes) {
-            Write-Host "No changes to commit, skipping..."
-            $SUCCESS = $true
-            break
+          if (git diff --cached --quiet) {
+            # No changes to commit, just continue loop without incrementing retry count
+            echo "Nothing to commit, continuing..."
+          } else {
+            if (-not (git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})")) {
+              echo "Commit failed, retrying..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              sleep $((RETRY_COUNT + RANDOM % 10))
+              continue
+            }
           }
-          
-          git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
-          
           # Try to push with retry logic
-          $pushResult = git push origin main 2>&1
+          $pushResult = git push origin develop 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Push successful!"
             $SUCCESS = $true
@@ -459,12 +484,14 @@ jobs:
 
       - name: Set up musllinux environment
         run: |
+          set -x
           apt-get update
           apt-get install musl musl-dev musl-tools
           export CC=musl-gcc
 
       - name: Build the package for Python ${{ matrix.python-version }}
         run: |
+          set -x
           export PYENV_ROOT="$HOME/.pyenv"
           export PATH="$PYENV_ROOT/bin:$PATH"
           eval "$(pyenv init --path)"
@@ -487,6 +514,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
         run: |
+          set -x
           TAG=${{ github.ref_name }}
           RELEASE_DIR="./releases/$TAG/"
           if [ ! -e $RELEASE_DIR ]; then 
@@ -507,21 +535,23 @@ jobs:
             
             # Fresh pull before each attempt
             git fetch origin
-            git checkout main
-            git pull
-            
-            # Add files and commit
+            git checkout develop
+            git pull --rebase
+            # Add files and commit (file is always new since push failed)
             git add $RELEASE_DIR
             if git diff --cached --quiet; then
-              echo "No changes to commit, skipping..."
-              SUCCESS=true
-              break
-            fi
-            
-            git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
-            
+              # No changes to commit, just continue loop without incrementing retry count
+              echo "Nothing to commit, continuing..."
+            else            
+              if ! git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"; then
+                echo "Commit failed, retrying..."
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                sleep $((RETRY_COUNT + RANDOM % 10))
+                continue
+              fi  
+            fi             
             # Try to push with retry logic
-            if git push origin main; then
+            if git push origin develop; then
               echo "Push successful!"
               SUCCESS=true
             else
