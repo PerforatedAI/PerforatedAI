@@ -367,15 +367,12 @@ jobs:
         }
         New-Item -ItemType Directory -Path pai_module
         New-Item -ItemType Directory -Path pai_module\perforatedai
-        Copy-Item perforatedai\globals_pbp.py pai_module\perforatedai
-        Copy-Item perforatedai\modules_pbp.py pai_module\perforatedai
-        Copy-Item perforatedai\network_pbp.py pai_module\perforatedai
-        Copy-Item perforatedai\tracker_pbp.py pai_module\perforatedai
-        Copy-Item perforatedai\utils_pbp.py pai_module\perforatedai
+        Copy-Item perforatedai\globals_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\modules_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\tracker_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\utils_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\library_classes.py pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
-        Copy-Item perforatedai\clean_load.py pai_module\perforatedai
-        Copy-Item perforatedai\blockwise_pbp.py pai_module\perforatedai
-        Copy-Item perforatedai\check_license.py pai_module\perforatedai
         Copy-Item setupCython.py pai_module\setup.py
         cd pai_module
         python setup.py build_ext --inplace
