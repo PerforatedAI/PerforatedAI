@@ -127,7 +127,7 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout master
+          git checkout main
           git pull
           
           # Add files and commit
@@ -141,7 +141,7 @@ jobs:
           git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
           
           # Try to push with retry logic
-          if git push origin master; then
+          if git push origin main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -178,7 +178,7 @@ jobs:
         echo "Cloning the repository..."
         git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedBackpropagation.git
         cd PerforatedBackpropagation
-        git checkout master
+        git checkout main
         pwd
         ls -al 
 
@@ -212,7 +212,7 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout master
+          git checkout main
           git pull
           
           # Add files and commit
@@ -226,7 +226,7 @@ jobs:
           git commit -m "Add package manylinux wheels for $TAG"
           
           # Try to push with retry logic
-          if git push origin HEAD:master; then
+          if git push origin HEAD:main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -305,7 +305,7 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout master
+          git checkout main
           git pull
           
           # Add files and commit
@@ -319,7 +319,7 @@ jobs:
           git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
           
           # Try to push with retry logic
-          if git push origin master; then
+          if git push origin main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -407,7 +407,7 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout master
+          git checkout main
           git pull
           
           # Add files and commit
@@ -422,7 +422,7 @@ jobs:
           git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
           
           # Try to push with retry logic
-          $pushResult = git push origin master 2>&1
+          $pushResult = git push origin main 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Push successful!"
             $SUCCESS = $true
@@ -510,7 +510,7 @@ jobs:
             
             # Fresh pull before each attempt
             git fetch origin
-            git checkout master
+            git checkout main
             git pull
             
             # Add files and commit
@@ -524,7 +524,7 @@ jobs:
             git commit -m "Add package wheels for $TAG (Python ${{ matrix.python-version }})"
             
             # Try to push with retry logic
-            if git push origin master; then
+            if git push origin main; then
               echo "Push successful!"
               SUCCESS=true
             else
