@@ -177,17 +177,17 @@ jobs:
       run: |
         echo "Cloning the repository..."
         git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI.git
-        cd PerforatedBackpropagation
+        cd PerforatedAI
         git checkout main
         pwd
         ls -al 
 
     - name: List files in the cloned repo
-      working-directory: PerforatedBackpropagation
+      working-directory: PerforatedAI
       run: ls -la 
 
     - name: Run auditwheel for all Python versions with retry
-      working-directory: PerforatedBackpropagation
+      working-directory: PerforatedAI
       run: |
         TAG=${{ github.ref_name }}
         RELEASE_DIR="./releases/$TAG"
