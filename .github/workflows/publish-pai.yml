@@ -14,7 +14,7 @@ jobs:
 
       - name: Log in to GitHub Container Registry
         run: |
-          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo ${{ secrets.PAI_SECRET }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Check if image exists
         id: image_exists
@@ -44,7 +44,7 @@ jobs:
 
       - name: Log in to GitHub Container Registry
         run: |
-          echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo ${{ secrets.PAI_SECRET }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Check if image exists
         id: image_exists
         run: |
@@ -72,7 +72,7 @@ jobs:
       image: ghcr.io/perforatedai/paicibuilder:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_PAT }}
+        password: ${{ secrets.PAI_SECRET }}
     strategy:
       matrix:
         python-version: [3.6,3.7,3.8,3.9,3.10.15,3.11,3.12]
@@ -104,7 +104,7 @@ jobs:
 
     - name: Save, Commit, and Push Wheels with Retry
       env:
-        GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+        GITHUB_TOKEN: ${{ secrets.PAI_SECRET }}
       run: |
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
@@ -170,13 +170,13 @@ jobs:
       image: ghcr.io/perforatedai/manylinux_pai:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_PAT }}
+        password: ${{ secrets.PAI_SECRET }}
       
     steps:
     - name: Clone the current repo
       run: |
         echo "Cloning the repository..."
-        git clone https://x-access-token:${{ secrets.GHCR_PAT }}@github.com/PerforatedAI/PerforatedBackpropagation.git
+        git clone https://x-access-token:${{ secrets.PAI_SECRET }}@github.com/PerforatedAI/PerforatedBackpropagation.git
         cd PerforatedBackpropagation
         git checkout master
         pwd
@@ -282,7 +282,7 @@ jobs:
 
     - name: Save, Commit, and Push Wheels with Retry
       env:
-        GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+        GITHUB_TOKEN: ${{ secrets.PAI_SECRET }}
       run: |
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
@@ -385,7 +385,7 @@ jobs:
 
     - name: Save, Commit, and Push Wheels with Retry
       env:
-        GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+        GITHUB_TOKEN: ${{ secrets.PAI_SECRET }}
       run: |
         $TAG = "${{ github.ref_name }}"
         $RELEASE_DIR = "releases/$TAG/"
@@ -450,7 +450,7 @@ jobs:
       image: ghcr.io/perforatedai/paicibuilder:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GHCR_PAT }}
+        password: ${{ secrets.PAI_SECRET }}
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8, 3.9, 3.10.15, 3.11, 3.12]
@@ -488,7 +488,7 @@ jobs:
 
       - name: Save, Commit, and Push Wheels with Retry
         env:
-          GITHUB_TOKEN: ${{ secrets.GHCR_PAT }}
+          GITHUB_TOKEN: ${{ secrets.PAI_SECRET }}
         run: |
           TAG=${{ github.ref_name }}
           RELEASE_DIR="./releases/$TAG/"
