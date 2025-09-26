@@ -2124,9 +2124,8 @@ class PAINeuronModuleTracker:
             ax.legend(
                 bbox_to_anchor=(1.05, 1),
                 loc="upper left",
-                ncol=math.ceil(len(self.neuron_module_vector) / 30),
+                ncol=max(1, math.ceil(len(self.neuron_module_vector) / 30)),
             )
-
             for switcher in self.member_vars["p_switch_epochs"]:
                 plt.axvline(x=switcher, ymin=0, ymax=1, color="r")
 
@@ -2142,10 +2141,16 @@ class PAINeuronModuleTracker:
                     color="g",
                 )
 
-            pd1.to_csv(
-                save_folder + "/" + self.save_name + extra_string + "Best PBScores.csv",
-                index=False,
-            )
+            # pd1 here will be none if no PB layers are created
+            if pd1 is not None:
+                pd1.to_csv(
+                    save_folder
+                    + "/"
+                    + self.save_name
+                    + extra_string
+                    + "Best PBScores.csv",
+                    index=False,
+                )
             del pd1, pd2
 
     def generate_extra_csv_files(self, save_folder, extra_string):
