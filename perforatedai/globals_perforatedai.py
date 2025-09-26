@@ -111,7 +111,7 @@ class PAIConfig:
         self.DOING_NO_SWITCH = 3
 
         # Default switch mode
-        switch_mode = self.DOING_HISTORY
+        self.switch_mode = self.DOING_HISTORY
 
         # Reset settings
         # Resets score on switch
@@ -162,7 +162,7 @@ class PAIConfig:
 
         # Activation function settings
         # The activation function to use for dendrites
-        self.pb_forward_function = torch.sigmoid
+        self.pai_forward_function = torch.sigmoid
 
         # Lists for module types and names to add dendrites to
         # For these lists no specifier means type, name is module name
@@ -469,12 +469,12 @@ class PAIConfig:
     def get_param_vals_setting(self):
         return self.param_vals_setting
 
-    # pb_forward_function
-    def set_pb_forward_function(self, value):
-        self.pb_forward_function = value
+    # pai_forward_function
+    def set_pai_forward_function(self, value):
+        self.pai_forward_function = value
 
-    def get_pb_forward_function(self):
-        return self.pb_forward_function
+    def get_pai_forward_function(self):
+        return self.pai_forward_function
 
     # modules_to_convert
     def set_modules_to_convert(self, value):
