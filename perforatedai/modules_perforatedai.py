@@ -148,11 +148,15 @@ class PAINeuronModule(nn.Module):
             if GPA.pc.get_verbose():
                 print("with processor")
                 print(self.processor)
-        elif type(self.main_module).__name__ in GPA.pc.get_module_names_with_processing():
+        elif (
+            type(self.main_module).__name__ in GPA.pc.get_module_names_with_processing()
+        ):
             module_index = GPA.pc.get_module_names_with_processing().index(
                 type(self.main_module).__name__
             )
-            self.processor = GPA.pc.get_module_by_name_processing_classes()[module_index]()
+            self.processor = GPA.pc.get_module_by_name_processing_classes()[
+                module_index
+            ]()
             if GPA.pc.get_verbose():
                 print("with processor")
                 print(self.processor)
@@ -293,7 +297,8 @@ class PAINeuronModule(nn.Module):
                     )
                 self.dendrites_to_top.append(
                     nn.Parameter(
-                        values.detach().clone().to(GPA.pc.get_device()), requires_grad=True
+                        values.detach().clone().to(GPA.pc.get_device()),
+                        requires_grad=True,
                     )
                 )
             else:
@@ -361,7 +366,7 @@ class PAINeuronModule(nn.Module):
             # Only change mode if it makes it past the above exception
             self.dendrite_module.set_mode(mode)
             if GPA.pc.get_perforated_backpropagation():
-                MPB.set_module_p_pb(self, mode)
+                MPB.set_module_p_pb(self)
         return True
 
     def create_new_dendrite_module(self):
@@ -521,7 +526,8 @@ class PAIDendriteModule(nn.Module):
         self.num_dendrites = 0
         # Number of dendrite cycles performed
         self.register_buffer(
-            "num_cycles", torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type())
+            "num_cycles",
+            torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
         )
         self.mode = "n"
         self.name = name
@@ -764,7 +770,7 @@ class PAIDendriteModule(nn.Module):
                         .to(current_out.device)
                         * outs[in_index]
                     )
-            outs[out_index] = GPA.pc.pb_forward_function(current_out)
+            outs[out_index] = GPA.pc.get_pai_forward_function()(current_out)
         # Return a dict which has all dendritic outputs after the activation functions were called
         if GPA.pc.get_perforated_backpropagation():
             candidate_outs, candidate_nonlinear_outs, candidate_non_zeroed = (
@@ -795,7 +801,8 @@ class DendriteValueTracker(nn.Module):
         self.layer_name = name
         for val_name in DENDRITE_INIT_VALUES:
             self.register_buffer(
-                val_name, torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type())
+                val_name,
+                torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
             )
         self.initialized[0] = initialized
         self.activation_function_value = activation_function_value
@@ -869,7 +876,8 @@ class DendriteValueTracker(nn.Module):
                 getattr(self, name)[i] = []
         for val_name in DENDRITE_SINGLE_VALUES:
             self.register_buffer(
-                val_name, torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type())
+                val_name,
+                torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
             )
 
     def reinitialize_for_pai(self, initialized):
@@ -879,7 +887,9 @@ class DendriteValueTracker(nn.Module):
             print("This likely means it not being added to the autograd graph")
             print("Check your forward function that it is actually being used")
             print("If its not you should really delete it, but you can also add")
-            print("the name below to GPA.pc.get_module_ids_to_track() to not convert it")
+            print(
+                "the name below to GPA.pc.get_module_ids_to_track() to not convert it"
+            )
             print(self.layer_name)
             print("with:")
             print("GPA.pc.get_module_names_to_track() += ['" + self.layer_name + "']")
