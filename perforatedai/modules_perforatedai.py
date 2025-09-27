@@ -366,7 +366,7 @@ class PAINeuronModule(nn.Module):
             # Only change mode if it makes it past the above exception
             self.dendrite_module.set_mode(mode)
             if GPA.pc.get_perforated_backpropagation():
-                MPB.set_module_p_pb(self, mode)
+                MPB.set_module_p_pb(self)
         return True
 
     def create_new_dendrite_module(self):
