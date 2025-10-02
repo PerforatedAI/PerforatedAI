@@ -898,7 +898,27 @@ class PAINeuronModuleTracker:
         values_per_train_epoch=-1,
         values_per_val_epoch=-1,
     ):
-        """Initialize the tracker with default settings."""
+        """Initialize the tracker
+
+        Parameters
+        ----------
+        doing_pai : bool
+            Whether or not dendrites should be used.
+        save_name : str
+            The base name for saving models and graphs.
+        making_graphs : bool, optional
+            Whether or not to generate graphs, by default True.
+        param_vals_setting : int, optional
+            Parameter values setting, by default -1.
+        values_per_train_epoch : int, optional
+            Values per training epoch, by default -1 for no limit
+        values_per_val_epoch : int, optional
+            Values per validation epoch, by default -1 for no limit
+        Returns
+        -------
+        None
+        """
+
         # Dict of member vars and their types for saving
         self.member_vars = {}
         self.member_var_types = {}
@@ -1124,6 +1144,7 @@ class PAINeuronModuleTracker:
 
     def to_string(self):
         """Convert tracker values to string for saving with safetensors."""
+
         full_string = ""
         for var in self.member_vars:
             full_string += var + ","
@@ -1201,7 +1222,13 @@ class PAINeuronModuleTracker:
         return full_string
 
     def from_string(self, string):
-        """Load tracker values from string."""
+        """Load tracker values from string.
+
+        Parameters
+        ----------
+        string : str
+            The string to load from.
+        """
         f = io.StringIO(string)
         while True:
             line = f.readline()
