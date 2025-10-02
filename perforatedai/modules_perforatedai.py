@@ -44,7 +44,24 @@ DENDRITE_SAVE_VALUES = (
 
 
 def filter_backward(grad_out, values, candidate_nonlinear_outs):
-    """Filter backward pass for gradient processing."""
+    """Filter backward pass for gradient processing.
+
+    This function processes gradients during the backward pass,
+    ensuring correct input dimensions,and applying perforated backpropagation if enabled.
+
+    Parameters
+    ----------
+    grad_out : torch.Tensor
+        The gradient output tensor from the backward pass.
+    values : DendriteValueTracker
+        A DendriteValueTracker instance containing values associated with the module being processed.
+    candidate_nonlinear_outs : dict
+        A dictionary of candidate modules outputs after non-linear activation.
+
+    Returns
+    -------
+    None
+    """
     if GPA.pc.get_extra_verbose():
         print(f"{values[0].layer_name} calling backward")
 
@@ -112,13 +129,34 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
 
 
 def set_wrapped_params(model):
-    """Set parameters as wrapped with dendrites."""
+    """Set parameters as wrapped with dendrites.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model whose parameters are to be marked as wrapped.
+
+    Returns
+    -------
+    None
+
+    """
     for param in model.parameters():
         param.wrapped = True
 
 
 def set_tracked_params(model):
-    """Set parameters as tracked without dendrites."""
+    """Set parameters as tracked without dendrites.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model whose parameters are to be marked as tracked.
+
+    Returns
+    -------
+    None
+    """
     for param in model.parameters():
         param.tracked = True
 
@@ -127,6 +165,18 @@ class PAINeuronModule(nn.Module):
     """Wrapper to set a module as one that will have dendritic copies."""
 
     def __init__(self, start_module, name):
+        """Initialize PAINeuronModule.
+
+        This function sets up the neuron module to wrap the start_module
+        and manage its dendritic connections.
+
+        Parameters
+        ----------
+        start_module : nn.Module
+            The module to wrap.
+        name : str
+            The name of the neuron module.
+        """
         super(PAINeuronModule, self).__init__()
 
         self.main_module = start_module
@@ -205,14 +255,39 @@ class PAINeuronModule(nn.Module):
         GPA.pai_tracker.add_pai_neuron_module(self)
 
     def __getattr__(self, name):
-        """Get member variables from the main module."""
+        """Get member variables from the main module.
+
+        Parameters
+        ----------
+        name : str
+            The name of the variable to retrieve.
+        Returns
+        -------
+        The requested variable.
+
+        Notes
+        -----
+        This method first attempts to retrieve the attribute from the PAINeuronModule instance.
+        If it fails, it tries to get the attribute from the wrapped main_module.
+        This allows seamless access to the main module's attributes without modifying original code.
+        """
         try:
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.main_module, name)
 
     def clear_processors(self):
-        """Clear processors if they save values for DeepCopy and save."""
+        """Clear processors if they save values for DeepCopy and save.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+
         if not self.processor:
             return
         else:
@@ -220,7 +295,17 @@ class PAINeuronModule(nn.Module):
             self.dendrite_module.clear_processors()
 
     def clear_dendrites(self):
-        """Clear and reset dendrites before loading from a state dict."""
+        """Clear and reset dendrites before loading from a state dict.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
         self.dendrite_modules_added = 0
         self.dendrites_to_top = nn.ParameterList()
         self.candidate_to_top = nn.ParameterList()
@@ -232,7 +317,21 @@ class PAINeuronModule(nn.Module):
         )
 
     def __str__(self):
-        """String representation of the layer."""
+        """String representation of the layer.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            String representation of the layer.
+
+        Notes
+        -----
+        Setting for verbose changes level of details in the string output.
+        """
         # If verbose print the whole module otherwise just print the module type as a PAIModule
         if GPA.pc.get_verbose():
             total_string = self.main_module.__str__()
@@ -244,10 +343,24 @@ class PAINeuronModule(nn.Module):
             return total_string
 
     def __repr__(self):
+        """Representation of the layer."""
         return self.__str__()
 
     def set_this_input_dimensions(self, new_input_dimensions):
-        """Set the input dimensions for the neuron and dendrite blocks."""
+        """Set the input dimensions for the neuron and dendrite blocks.
+
+        Signals to this NeuronModule that its input dimensions are different
+        than the global default.
+
+        Parameters
+        ----------
+        new_input_dimensions : list
+            A list or tensor specifying the new input dimensions.
+        Returns
+        -------
+        None
+
+        """
         if type(new_input_dimensions) is list:
             new_input_dimensions = torch.tensor(new_input_dimensions)
         delattr(self, "this_input_dimensions")
@@ -263,7 +376,25 @@ class PAINeuronModule(nn.Module):
         self.dendrite_module.set_this_input_dimensions(new_input_dimensions)
 
     def set_mode(self, mode):
-        """Switch between neuron training and dendrite training."""
+        """Switch between neuron training and dendrite training.
+
+        Parameters
+        ----------
+        mode : str
+            The mode to set. Either "n" for neuron training or "p" for pai-dendrite training.
+
+        Returns
+        -------
+        bool
+            True if mode was set successfully, False otherwise.
+
+        Notes
+        -----
+        If False is returned, the mode was not changed due to an error.
+        This is a problem that should not be ignored, but it can be ignored
+        by calling PGA.pc.set_checked_skipped_modules(True)
+        """
+
         if GPA.pc.get_verbose():
             print(f"{self.name} calling set mode {mode}")
         # If returning to neuron training
@@ -370,11 +501,39 @@ class PAINeuronModule(nn.Module):
         return True
 
     def create_new_dendrite_module(self):
-        """Add an additional dendrite module."""
+        """Add an additional dendrite module.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.dendrite_module.create_new_dendrite_module()
 
     def forward(self, *args, **kwargs):
-        """Forward pass through the neuron layer."""
+        """Forward pass through the neuron layer.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments for the forward pass.
+        **kwargs : dict
+            Keyword arguments for the forward pass.
+
+        Returns
+        -------
+        Any
+            The output of the module after processing through the neuron and dendrite modules.
+
+        Notes
+        -----
+            The output of this forward function will have the same format as the output
+            of the original module
+        """
+
         # If debugging all input dimensions, quit program on first forward call
         if GPA.pc.get_debugging_input_dimensions() == 2:
             print("all input dim problems now printed")
@@ -452,6 +611,18 @@ class TrackedNeuronModule(nn.Module):
     """Wrapper for modules you don't want to add dendrites to. Ensures all modules are accounted for."""
 
     def __init__(self, start_module, name):
+        """Initialize TrackedNeuronModule.
+
+        This function sets up the tracked neuron module to wrap the start_module
+        without adding dendrites.
+
+        Parameters
+        ----------
+        start_module : nn.Module
+            The module to wrap.
+        name : str
+            The name of the neuron module.
+        """
         super(TrackedNeuronModule, self).__init__()
 
         self.main_module = start_module
@@ -467,22 +638,88 @@ class TrackedNeuronModule(nn.Module):
         GPA.pai_tracker.add_tracked_neuron_module(self)
 
     def __getattr__(self, name):
+        """Get member variables from the main module.
+
+        Parameters
+        ----------
+        name : str
+            The name of the variable to retrieve.
+        Returns
+        -------
+        The requested variable.
+
+        Notes
+        -----
+        This method first attempts to retrieve the attribute from the PAINeuronModule instance.
+        If it fails, it tries to get the attribute from the wrapped main_module.
+        This allows seamless access to the main module's attributes without modifying original code.
+        """
         try:
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.main_module, name)
 
     def set_mode(self, mode):
-        """Set mode for tracked layer."""
+        """Set mode for tracked layer.
+
+        Parameters
+        ----------
+        mode : str
+            The mode to set. Either "n" for neuron training or "p" for pai-dendrite training.
+
+        Returns
+        -------
+        bool
+            True.
+
+        Notes
+        -----
+        This function does not change any behavior since this is a tracked layer.
+        """
+
         if GPA.pc.get_verbose():
             print(f"{self.name} calling set mode {mode}")
         return True
 
     def forward(self, *args, **kwargs):
-        """Forward pass for tracked layer."""
+        """Forward pass for tracked layer.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments for the forward pass.
+        **kwargs : dict
+            Keyword arguments for the forward pass.
+
+        Returns
+        -------
+        Any
+            The output of the module
+
+        Notes
+        -----
+            The output of this forward function will have the same format as the output
+            of the original module
+        """
         return self.main_module(*args, **kwargs)
 
     def __str__(self):
+        """String representation of the layer.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            String representation of the layer.
+
+        Notes
+        -----
+        Setting for verbose changes level of details in the string output.
+        """
+
         if GPA.pc.get_verbose():
             total_string = self.main_module.__str__()
             total_string = "PAITrackedLayer(" + total_string + ")"
@@ -493,6 +730,7 @@ class TrackedNeuronModule(nn.Module):
             return total_string
 
     def __repr__(self):
+        """Representation of the layer."""
         return self.__str__()
 
 
@@ -515,6 +753,22 @@ class PAIDendriteModule(nn.Module):
         name="no_name_given",
         input_dimensions=None,
     ):
+        """Initialize PAINeuronModule.
+
+        This function sets up the dendrite module to create candidate and permanent
+        dendrite modules based on the initial_module provided.
+
+        Parameters
+        ----------
+        initial_module : nn.Module
+            The module to copy.
+        activation_function_value : float, optional
+            A value associated with the activation function, by default 0.3.
+        name : str
+            The name of the neuron module.
+        input_dimensions : vector, optional
+            The dimensions of the input vector
+        """
         super(PAIDendriteModule, self).__init__()
 
         if input_dimensions is None:
@@ -572,7 +826,21 @@ class PAIDendriteModule(nn.Module):
             )
 
     def set_this_input_dimensions(self, new_input_dimensions):
-        """Set input dimensions for dendrite layer."""
+        """Set input dimensions for dendrite layer.
+
+        Signals to this DendriteModule that its input dimensions are different
+        than the global default.
+
+        Parameters
+        ----------
+        new_input_dimensions : list
+            A list or tensor specifying the new input dimensions.
+        Returns
+        -------
+        None
+
+        """
+
         if type(new_input_dimensions) is list:
             new_input_dimensions = torch.tensor(new_input_dimensions)
         delattr(self, "this_input_dimensions")
@@ -632,7 +900,7 @@ class PAIDendriteModule(nn.Module):
 
         # Reset the dendrite_values objects
         for j in range(0, GPA.pc.get_global_candidates()):
-            self.dendrite_values[j].reinitialize_for_pai(0)
+            self.dendrite_values[j].reinitialize_for_pai()
 
         # If there are already dendrites initialize the dendrite to dendrite connections
         if self.num_dendrites > 0:
@@ -665,7 +933,18 @@ class PAIDendriteModule(nn.Module):
                 processor.clear_processor()
 
     def set_mode(self, mode):
-        """Perform actions when switching between neuron and dendrite training."""
+        """Perform actions when switching between neuron and dendrite training.
+
+        Parameters
+        ----------
+        mode : str
+            The mode to set. Either "n" for neuron training or "p" for pai-dendrite training.
+
+        Returns
+        -------
+        None
+        """
+
         self.mode = mode
         self.num_cycles += 1
         if GPA.pc.get_verbose():
@@ -722,7 +1001,32 @@ class PAIDendriteModule(nn.Module):
             self.num_dendrites += 1
 
     def forward(self, *args, **kwargs):
-        """Forward pass for dendrite layer."""
+        """Forward pass for dendrite layer.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments for the forward pass.
+        **kwargs : dict
+            Keyword arguments for the forward pass.
+
+        Returns
+        -------
+        Any
+            The output of the module after processing through the neuron and dendrite modules.
+        Any
+            Remaining outputs are only used for Perforated Backpropagation.
+        Any
+            Remaining outputs are only used for Perforated Backpropagation.
+        Any
+            Remaining outputs are only used for Perforated Backpropagation.
+
+        Notes
+        -----
+        If using Perforated Backpropagation, the additional outputs will be moved around in
+        this code but left unused and only passed into separate PB functions.
+        """
+
         outs = {}
 
         # For all layers apply processors, call the layers, then apply post processors
@@ -796,6 +1100,24 @@ class DendriteValueTracker(nn.Module):
         input_dimensions,
         out_channels=-1,
     ):
+        """Initialize DendriteValueTracker.
+
+        This function sets up the value tracker to maintain statistics and values
+        for each set of dendrites.
+
+        Parameters
+        ----------
+        initialized : int
+            Whether the dendrite has been initialized (1) or not (0).
+        activation_function_value : float
+            A value associated with the activation function.
+        name : str
+            The name of the associated neuron module.
+        input_dimensions : vector
+            The dimensions of the input vector.
+        out_channels : int
+            The number of output channels
+        """
         super(DendriteValueTracker, self).__init__()
 
         self.layer_name = name
@@ -834,7 +1156,20 @@ class DendriteValueTracker(nn.Module):
         print(total_string)
 
     def set_this_input_dimensions(self, new_input_dimensions):
-        """Set input dimensions for value tracker."""
+        """Set input dimensions for value tracker
+
+        Signals to this DendriteValueTracker that its input dimensions are different
+        than the global default.
+
+        Parameters
+        ----------
+        new_input_dimensions : list
+            A list or tensor specifying the new input dimensions.
+        Returns
+        -------
+        None
+
+        """
         if type(new_input_dimensions) is list:
             new_input_dimensions = torch.tensor(new_input_dimensions)
         delattr(self, "this_input_dimensions")
@@ -850,14 +1185,34 @@ class DendriteValueTracker(nn.Module):
         )
 
     def set_out_channels(self, shape_values):
-        """Set output channels based on shape values."""
+        """Set output channels based on shape values and saved node index
+
+        Parameters
+        ----------
+        shape_values : list or torch.Size
+            A list or tensor specifying the shape values.
+
+        Returns
+        -------
+        None
+        """
         if type(shape_values) == torch.Size:
             self.out_channels = int(shape_values[self.this_node_index])
         else:
             self.out_channels = int(shape_values[self.this_node_index].item())
 
     def setup_arrays(self, out_channels):
-        """Setup arrays for value tracker."""
+        """Setup arrays for value tracker.
+
+        Parameters
+        ----------
+        out_channels : int
+            The number of output channels.
+        Returns
+        -------
+        None
+
+        """
         self.out_channels = out_channels
         for val_name in DENDRITE_TENSOR_VALUES:
             self.register_buffer(
@@ -880,8 +1235,9 @@ class DendriteValueTracker(nn.Module):
                 torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
             )
 
-    def reinitialize_for_pai(self, initialized):
-        """Reinitialize for PAI training."""
+    def reinitialize_for_pai(self):
+        """Reinitialize value tracker to add the next set of dendrites"""
+
         if self.out_channels == -1:
             print("You have a converted module that was never initialized")
             print("This likely means it not being added to the autograd graph")
@@ -898,7 +1254,7 @@ class DendriteValueTracker(nn.Module):
                 "run a validation cycle and try to add Dendrites before doing any training.\n"
             )
 
-        self.initialized[0] = initialized
+        self.initialized[0] = 0
         if GPA.pc.get_perforated_backpropagation():
             MPB.reinitialize_for_pb(self)
         else:

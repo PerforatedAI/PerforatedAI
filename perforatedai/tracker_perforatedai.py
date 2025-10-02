@@ -39,10 +39,24 @@ TRAINING_COMPLETE = 2
 
 
 def update_restructuring_status(old_status, new_status):
-    """
+    """Update restructured variable during add_validation_score
+
     Update the restructuring status based on the new status.
     If the new status is that there was not an update,
     dont overwrite the old status which may show there was an update.
+
+    Parameters
+    ----------
+    old_status : int
+        The old restructuring status.
+    new_status : int
+        The new restructuring status.
+
+    Returns
+    -------
+    int
+        The updated restructuring status.
+
     """
     if new_status == NETWORK_RESTRUCTURED or new_status == TRAINING_COMPLETE:
         return NETWORK_RESTRUCTURED
@@ -58,13 +72,37 @@ def update_learning_rate():
 
 
 def update_param_count(net):
-    """Update the parameter count in the tracker if not already set."""
+    """Update the parameter count in the tracker if not already set.
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model to count parameters for.
+    Returns
+    -------
+    None
+    """
     if len(GPA.pai_tracker.member_vars["param_counts"]) == 0:
         GPA.pai_tracker.member_vars["param_counts"].append(UPA.count_params(net))
 
 
 def check_input_problems(net, accuracy):
-    """Check for potential input problems in add_validation_score."""
+    """Check for potential input problems in add_validation_score.
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model to check.
+    accuracy : float, int, or torch.Tensor
+        The accuracy score to validate.
+
+    Returns
+    -------
+    float
+        The validated accuracy score.
+
+    """
+
     # Make sure you are passing in the model and not the dataparallel wrapper
     if issubclass(type(net), nn.DataParallel):
         print("Need to call .module when using add validation score")
@@ -91,7 +129,20 @@ def check_input_problems(net, accuracy):
 
 
 def update_running_accuracy(accuracy, epochs_since_cycle_switch):
-    """Add the new accuracy to the tracker."""
+    """Add the new accuracy to the tracker.
+
+    Parameters
+    ----------
+    accuracy : float, int, or torch.Tensor
+        The accuracy score to add.
+    epochs_since_cycle_switch : int
+        The number of epochs since the last cycle switch.
+
+    Returns
+    -------
+    None
+
+    """
     # Only update running_accuracy when neurons are being updated
     if GPA.pai_tracker.member_vars["mode"] == "n" or GPA.pc.get_learn_dendrites_live():
         if epochs_since_cycle_switch < GPA.pc.get_initial_history_after_switches():
@@ -129,6 +180,25 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
 
 
 def score_beats_current_best(new_score, old_score):
+    """Check if the new score beats the current best score.
+
+    Parameters
+    ----------
+    new_score : float
+        The new score to compare.
+    old_score : float
+        The old score to compare against.
+
+    Returns
+    -------
+    bool
+        True if the new score beats the old score, False otherwise.
+
+    Notes
+    -----
+    Must beat the old score by the margins set in globals for improvement thresholds.
+
+    """
     return (
         GPA.pai_tracker.member_vars["maximizing_score"]
         and (new_score * (1.0 - GPA.pc.get_improvement_threshold()) > old_score)
@@ -141,9 +211,23 @@ def score_beats_current_best(new_score, old_score):
 
 
 def check_new_best(net, accuracy, epochs_since_cycle_switch):
-    """
-    Check if the new accuracy is a new best.
-    If it is do appropriate saves.
+    """Check if the new accuracy is a new best.
+
+    Performs saves if new best score is found.
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model being trained.
+    accuracy : float
+        The accuracy score to check.
+    epochs_since_cycle_switch : int
+        The number of epochs since the last cycle switch.
+
+    Returns
+    -------
+    None
+
     """
     score_improved = score_beats_current_best(
         GPA.pai_tracker.member_vars["running_accuracy"],
@@ -253,10 +337,24 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
 
 
 def process_no_improvement(net):
-    """
+    """Handle the case where no improvement is observed.
+
     If the new dendrite did not improve scores, but its time to switch modes
     either trigger the end of learning or reset to the previous dendrite
     to try again.
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model being trained.
+
+    Returns
+    -------
+    int
+        The status of restructuring or training completion.
+    torch.nn.Module
+        The potentially modified neural network model.
+
     """
     if GPA.pc.get_verbose():
         print(
@@ -320,9 +418,19 @@ def process_no_improvement(net):
 
 
 def process_final_network(net):
+    """When the max number of dendrites has been hit load the best_model and return
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model being trained.
+
+    Returns
+    -------
+    torch.nn.Module
+        The final neural network model.
     """
-    When the max number of dendrites has been hit load the best_model and return
-    """
+
     if not GPA.pc.get_silent():
         print(
             f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}"
@@ -333,23 +441,38 @@ def process_final_network(net):
     return net
 
 
-"""
-This increments the scheduler, but if we are automatically sweeping 
-to find the best initial learning rate for a new set of dendrites
-this function also triggers the network at addition time to
-try the next value.
-"""
-
-
 def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
-    """
+    """Updates the scheduler
+
+    This increments the scheduler, but if we are automatically sweeping
+    to find the best initial learning rate for a new set of dendrites
+    this function also triggers the network at addition time to
+    try the next value.
+
     Process for finding best initial learning rate for dendrites:
     1. Start at default rate
     2. Learn at that rate until scheduler increments twice
     3. Save that version, start dendrites at LR current increment - 1
     4. Repeat 2 and 3 until version has worse final score at set LR
     5. Load previous model with best accuracy at that LR as initial rate
+
+    Parameters
+    ----------
+    net : torch.nn.Module
+        The neural network model being trained.
+    accuracy : float
+        The accuracy of the model at the current learning rate.
+    epochs_since_cycle_switch : int
+        The number of epochs since the last cycle switch.
+
+    Returns
+    -------
+    int
+        The status of restructuring or training completion.
+    torch.nn.Module
+        The potentially modified neural network model.
     """
+
     restructured = False
     for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate1 = param_group["lr"]
