@@ -2,6 +2,8 @@
 
 This page is to accumulate papers on adding dendrites to neural network projects. We will only be accumulating methods adding dendrites to traditional deep learning applications, exceptions such as spiking networks and hardware projects will not be included.  Submit a PR if you would like to add to these resources.
 
+<!-- Perhaps we should also add other dendrite papers such as https://www.sciencedirect.com/science/article/abs/pii/S0959438810001170 and the main one we cite all the time-->
+
 ## Overview
 
 | Paper | Summary | Differentiator | Gradient Descent? | Dendrites on Multiple Neuron Layers |

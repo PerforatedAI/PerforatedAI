@@ -22,7 +22,7 @@ A large benefit PAI provides is automatic conversion of networks to work with de
 The call to initializePB should be done directly after the model is initialized, before cuda and parallel calls.
     
     model = yourModel()
-    model = UPA.initializePB(model)
+    model = UPA.initialize_pai(model)
 
 ## 3 - Setup Optimizer
 
@@ -107,7 +107,7 @@ Additionally make sure all three are being passed into the function because othe
 
 ## Epochs
 
-The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best netork is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
+The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
 
 ## That's all that's Required!
 With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `GPA.pc.set_testing_dendrite_capacity(True)`.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.
