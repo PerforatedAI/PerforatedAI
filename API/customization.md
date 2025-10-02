@@ -69,11 +69,11 @@ Network initialization is the most complicated part of this process that often r
 
 This is often the part that has some complexity.  If your network is all simple layers with linear or conv layers and nonlinearities, they will be converted automatically.  However, most networks have more complicated learning modules.  Performance is often better when these modules are grouped as a single PAI module as opposed to PAI-ifying each module within them.  To tell the system that it must convert modules add them with the following option.  It can be good to do some experimentation with what level of depth you want to block things off, i.e. many smaller modules or fewer large modules. They can be added with the function below before convertNetwork is called.
 
-    GPA.pc.get_module_cames_to_convert() += ['moduleName']
+    GPA.pc.append_module_names_to_convert(['moduleName'])
 
 Using moduleNamesToConvert does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
 
-    GPA.pc.get_modules_to_convert() += [moduleType]
+    GPA.pc.append_modules_to_convert([moduleType])
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
@@ -118,7 +118,7 @@ Finally, if any of the modules you are converting have a custom forward that has
 
     GPA.pc.append_module_names_with_processing(['GRU'])
     # This processor lets the dendrites keep track of their own hidden state
-    GPA.pc.append_module_by_name_rocessing_classes([PBM.GRUProcessor])
+    GPA.pc.append_module_by_name_processing_classes([PBM.GRUProcessor])
 
 A simpler examples below just ignores any outputs after the first.  This will generally fix any problem, and allow the system to run, but it isnt neccesarily correct for your applicaiton:
 
