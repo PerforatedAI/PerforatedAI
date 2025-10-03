@@ -911,9 +911,11 @@ class PAINeuronModuleTracker:
         param_vals_setting : int, optional
             Parameter values setting, by default -1.
         values_per_train_epoch : int, optional
-            Values per training epoch, by default -1 for no limit
+            The number of values to look back for graphing
+            during training, by default -1 (all values).
         values_per_val_epoch : int, optional
-            Values per validation epoch, by default -1 for no limit
+            The number of values to look back for graphing
+            during validation, by default -1 (all values).
         Returns
         -------
         None
@@ -1321,8 +1323,18 @@ class PAINeuronModuleTracker:
                 pdb.set_trace()
 
     def save_tracker_settings(self):
-        """
-        Save tracker settings for DistributedDataParallel use.
+        """Save tracker settings for DistributedDataParallel use.
+
+        Saves settings in save_name/array_dims.csv
+
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        None
+
+        -----
         Instructions for use are in API customization.md
         """
         if not os.path.isdir(self.save_name):
@@ -1338,7 +1350,21 @@ class PAINeuronModuleTracker:
             print("You may now delete save_tracker_settings")
 
     def initialize_tracker_settings(self):
-        """Initialize tracker settings from saved file."""
+        """Initialize tracker settings from saved file.
+
+        This function loads tracker settings from a CSV file and applies them
+        to the layers the tracker is managing.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
         channels = {}
         if not os.path.exists(self.save_name + "/array_dims.csv"):
             print(
@@ -1354,7 +1380,19 @@ class PAINeuronModuleTracker:
             layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
 
     def set_optimizer_instance(self, optimizer_instance):
-        """Set optimizer instance directly."""
+        """Set optimizer instance directly.
+
+        Parameters
+        ----------
+        optimizer_instance : object
+            The optimizer instance to set.
+
+        Returns
+        -------
+        None
+
+        """
+
         try:
             if (
                 optimizer_instance.param_groups[0]["weight_decay"] > 0
@@ -1375,21 +1413,61 @@ class PAINeuronModuleTracker:
         self.member_vars["optimizer_instance"] = optimizer_instance
 
     def set_optimizer(self, optimizer):
-        """Set optimizer type."""
+        """Set optimizer type to be initialized later
+
+        Parameters
+        ----------
+        optimizer : object
+            The optimizer type to set.
+
+        Returns
+        -------
+        None
+
+        """
         self.member_vars["optimizer"] = optimizer
 
     def set_scheduler(self, scheduler):
-        """Set scheduler type."""
+        """Set scheduler type to be initialized later
+
+        Parameters
+        ----------
+        scheduler : object
+            The scheduler type to set.
+
+        Returns
+        -------
+        None
+
+        """
         if scheduler is not torch.optim.lr_scheduler.ReduceLROnPlateau:
             if GPA.pc.get_verbose():
                 print("Not using ReduceLROnPlateau, this is not recommended")
         self.member_vars["scheduler"] = scheduler
 
     def increment_scheduler(self, num_ticks, mode):
-        """
-        Increment the scheduler a set number of times.
+        """Increment the scheduler a set number of times.
+
         Used for finding best initial learning rate when adding dendrites.
+
+        Parameters
+        ----------
+        num_ticks : int
+            The number of scheduler steps to take.
+        mode : str
+            The mode for stepping the scheduler. Options are:
+            - "step_learning_rate": Step based on improved accuracy epochs
+            - "increment_epoch_count": Step based on total epoch count
+
+        Returns
+        -------
+        current_steps : int
+            The number of learning rate changes that occurred.
+        learning_rate1 : float
+            The final learning rate after stepping.
+
         """
+
         current_steps = 0
         current_ticker = 0
 
@@ -1449,7 +1527,25 @@ class PAINeuronModuleTracker:
         return current_steps, learning_rate1
 
     def setup_optimizer(self, net, opt_args, sched_args=None):
-        """Initialize the optimizer and scheduler when added."""
+        """Initialize the optimizer and scheduler when added.
+
+        Parameters
+        ----------
+        net : object
+            The neural network model.
+        opt_args : dict
+            The arguments for the optimizer.
+        sched_args : dict, optional
+            The arguments for the scheduler, by default None.
+
+        Returns
+        -------
+        optimizer : object
+            The initialized optimizer instance.
+        scheduler : object, optional
+            The initialized scheduler instance, if a scheduler was set.
+
+        """
         if "weight_decay" in opt_args and not GPA.pc.get_weight_decay_accepted():
             print(
                 "For PAI training it is recommended to not use "
@@ -1537,10 +1633,22 @@ class PAINeuronModuleTracker:
         self.member_vars["scheduler_instance"] = None
 
     def switch_time(self):
+        """Determine if it's time to switch between neuron and dendrite training.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        bool
+            True if it's time to switch, False otherwise.
+
+        Notes
+        -----
+        Based on current settings and history of scores.
         """
-        Based on settings and scores, determine if it's time to switch
-        between neuron and dendrite training.
-        """
+
         switch_phrase = "No mode, this should never be the case."
         if self.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME:
             switch_phrase = "DOING_SWITCH_EVERY_TIME"
@@ -1635,7 +1743,21 @@ class PAINeuronModuleTracker:
         return False
 
     def steps_after_switch(self):
-        """Based on settings, return value for steps since a switch."""
+        """Based on settings, return value for steps since a switch.
+
+        Different options for param vals setting determine what is returned.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        int
+            The number of epochs since the last switch, or total epochs run,
+            depending on settings.
+
+        """
         if self.member_vars["param_vals_setting"] == GPA.pc.PARAM_VALS_BY_TOTAL_EPOCH:
             return self.member_vars["num_epochs_run"]
         elif (
@@ -1659,7 +1781,21 @@ class PAINeuronModuleTracker:
             pdb.set_trace()
 
     def add_pai_neuron_module(self, new_module, initial_add=True):
-        """Add neuron modules to internal vectors."""
+        """Add neuron modules to internal vectors.
+
+        Parameters
+        ----------
+        new_module : object
+            The new module to add.
+        initial_add : bool, optional
+            Whether this is the initial addition rather than loading from file
+
+        Returns
+        -------
+        None
+
+        """
+
         # If it's a duplicate, ignore the second addition
         if new_module in self.neuron_module_vector:
             return
@@ -1671,7 +1807,20 @@ class PAINeuronModuleTracker:
             self.member_vars["current_scores"].append([])
 
     def add_tracked_neuron_module(self, new_module, initial_add=True):
-        """Add tracked modules to internal vectors."""
+        """Add tracked modules to internal vectors
+
+        Parameters
+        ----------
+        new_module : object
+            The new module to add.
+        initial_add : bool, optional
+            Whether this is the initial addition rather than loading from file
+
+        Returns
+        -------
+        None
+
+        """
         # If it's a duplicate, ignore the second addition
         if new_module in self.tracked_neuron_module_vector:
             return
@@ -1680,7 +1829,20 @@ class PAINeuronModuleTracker:
             PA.set_tracked_params(new_module)
 
     def reset_module_vector(self, net, load_from_restart):
-        """Clear internal vectors."""
+        """Clear internal vectors and reset from network.
+
+        Parameters
+        ----------
+        net : object
+            The neural network model.
+        load_from_restart : bool
+            Whether loading from a restart file.
+
+        Returns
+        -------
+        None
+
+        """
         self.neuron_module_vector = []
         self.tracked_neuron_module_vector = []
         this_list = UPA.get_pai_modules(net, 0)
@@ -1691,7 +1853,8 @@ class PAINeuronModuleTracker:
             self.add_tracked_neuron_module(module, initial_add=load_from_restart)
 
     def reset_vals_for_score_reset(self):
-        """Reset values if resetting scores."""
+        """Reset cycle scores for new cycle."""
+
         if GPA.pc.get_find_best_lr():
             self.member_vars["committed_to_initial_rate"] = False
         self.member_vars["current_n_set_global_best"] = False
@@ -1758,7 +1921,22 @@ class PAINeuronModuleTracker:
             GPA.pai_tracker.member_vars["running_accuracy"] = 0
 
     def start_epoch(self, internal_call=False):
-        """Perform steps for when a new training epoch is about to begin."""
+        """Perform steps for when a new training epoch is about to begin.
+
+        Parameters
+        ----------
+        internal_call : bool, optional
+            Whether this is an internal call or manual call
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        If you ever need to call this manually, set internal_call to False.
+
+        """
         if self.member_vars["manual_train_switch"] and internal_call:
             return
 
@@ -1807,7 +1985,22 @@ class PAINeuronModuleTracker:
         self.saved_time = end
 
     def stop_epoch(self, internal_call=False):
-        """Perform steps when a training epoch has completed."""
+        """Perform steps when a training epoch has completed.
+
+        Parameters
+        ----------
+        internal_call : bool, optional
+            Whether this is an internal call or manual call
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        If you ever need to call this manually, set internal_call to False.
+
+        """
         end = time.time()
         if self.member_vars["manual_train_switch"] and internal_call:
             return
@@ -1829,7 +2022,7 @@ class PAINeuronModuleTracker:
         self,
         model,
         doing_pai=True,
-        save_name="PB",
+        save_name="PAI",
         making_graphs=True,
         maximizing_score=True,
         num_classes=10000,
@@ -1837,7 +2030,33 @@ class PAINeuronModuleTracker:
         values_per_val_epoch=-1,
         zooming_graph=True,
     ):
-        """Setup the tracker with initial settings."""
+        """Setup the tracker with initial settings.
+
+
+        Parameters
+        ----------
+        model : object
+            The neural network model.
+        doing_pai : bool, optional
+            Whether to add dendrites, by default True.
+        save_name : str, optional
+            The name under which to save the model.
+        making_graphs : bool, optional
+            Whether to make graphs, by default True.
+        maximizing_score : bool, optional
+            Whether to maximize the score, by default True.
+        num_classes : int, optional
+            The number of classes in the dataset, unused
+        values_per_train_epoch : int, optional
+            The number of values to look back for graphing
+            during training, by default -1 (all values).
+        values_per_val_epoch : int, optional
+            The number of values to look back for graphing
+            during validation, by default -1 (all values).
+        zooming_graph : bool, optional
+            Whether to zoom on graphs, by default True.
+
+        """
         model = UPA.convert_network(model)
         self.member_vars["doing_pai"] = doing_pai
         self.member_vars["maximizing_score"] = maximizing_score
@@ -1868,9 +2087,23 @@ class PAINeuronModuleTracker:
 
     def generate_accuracy_plots(self, ax, save_folder, extra_string):
         """
-        Generate accuracy plots for the tracker.
-        Also saves csv files associated with the plots.
+        Generate plots and csvs for accuracy
+
+        Parameters
+        ----------
+        ax : object
+            The matplotlib axis to plot on.
+        save_folder : str
+            The folder to save the plots and csvs in.
+        extra_string : str
+            An extra string to append to the filenames.
+
+        Returns
+        -------
+        None
+
         """
+
         # If scores are being saved for epochs that get overwritten, plot them
         for list_id in range(len(self.member_vars["overwritten_extras"])):
             for extra_id in self.member_vars["overwritten_extras"][list_id]:
@@ -2031,8 +2264,21 @@ class PAINeuronModuleTracker:
 
     def generate_time_plots(self, ax, save_folder, extra_string):
         """
-        Generate time plots for the tracker.
-        Also saves csv files associated with the plots.
+        Generate plots and csvs for timing
+
+        Parameters
+        ----------
+        ax : object
+            The matplotlib axis to plot on.
+        save_folder : str
+            The folder to save the plots and csvs in.
+        extra_string : str
+            An extra string to append to the filenames.
+
+        Returns
+        -------
+        None
+
         """
         if self.member_vars["manual_train_switch"]:
             ax.plot(
@@ -2175,8 +2421,21 @@ class PAINeuronModuleTracker:
 
     def generate_learning_rate_plots(self, ax, save_folder, extra_string):
         """
-        Generate learning rate plots for the tracker.
-        Also saves csv files associated with the plots.
+        Generate plots and csvs for learning rate
+
+        Parameters
+        ----------
+        ax : object
+            The matplotlib axis to plot on.
+        save_folder : str
+            The folder to save the plots and csvs in.
+        extra_string : str
+            An extra string to append to the filenames.
+
+        Returns
+        -------
+        None
+
         """
         ax.plot(
             np.arange(len(self.member_vars["training_learning_rates"])),
@@ -2304,7 +2563,19 @@ class PAINeuronModuleTracker:
 
     def generate_extra_csv_files(self, save_folder, extra_string):
         """
-        Generate extra CSV files for the tracker that dont have graphs
+        Generate additional csvs
+
+        Parameters
+        ----------
+        save_folder : str
+            The folder to save the plots and csvs in.
+        extra_string : str
+            An extra string to append to the filenames.
+
+        Returns
+        -------
+        None
+
         """
         pd1 = pd.DataFrame(
             {
@@ -2416,8 +2687,17 @@ class PAINeuronModuleTracker:
 
     def save_graphs(self, extra_string=""):
         """
-        Function to save graphs for all the values the tracker records,
-        and save csv files for the same and additional values.
+        Save graphs and csvs for all the values the tracker records
+
+        Parameters
+        ----------
+        extra_string : str
+            An extra string to append to the filenames.
+
+        Returns
+        -------
+        None
+
         """
         if not self.making_graphs:
             return
@@ -2451,19 +2731,55 @@ class PAINeuronModuleTracker:
         plt.close("all")
 
     def add_loss(self, loss):
-        """Add loss to tracking vectors."""
+        """Add loss to tracking vectors.
+
+        Parameters
+        ----------
+        loss : float or int
+            The loss value to add.
+
+        Returns
+        -------
+        None
+
+        """
         if not isinstance(loss, (float, int)):
             loss = loss.item()
         self.member_vars["training_loss"].append(loss)
 
     def add_learning_rate(self, learning_rate):
-        """Add learning rate to tracking vectors."""
+        """Add learning rate to tracking vectors.
+
+        Parameters
+        ----------
+        learning_rate : float or int
+            The learning rate value to add.
+
+        Returns
+        -------
+        None
+
+        """
         if not isinstance(learning_rate, (float, int)):
             learning_rate = learning_rate.item()
         self.member_vars["training_learning_rates"].append(learning_rate)
 
     def add_extra_score(self, score, extra_score_name):
-        """Add extra score to tracking vectors."""
+        """Add extra score to tracking vectors.
+
+        Parameters
+        ----------
+        score : float or int
+            The score value to add.
+
+        extra_score_name : str
+            The name of the extra score.
+
+        Returns
+        -------
+        None
+
+        """
         if not isinstance(score, (float, int)):
             try:
                 score = score.item()
@@ -2488,7 +2804,21 @@ class PAINeuronModuleTracker:
             self.member_vars["n_extra_scores"][extra_score_name].append(score)
 
     def add_extra_score_without_graphing(self, score, extra_score_name):
-        """Add extra score without graphing to tracking vectors."""
+        """Add extra score without graphing to tracking vectors.
+
+        Parameters
+        ----------
+        score : float or int
+            The score value to add.
+
+        extra_score_name : str
+            The name of the extra score.
+
+        Returns
+        -------
+        None
+
+        """
         if not isinstance(score, (float, int)):
             try:
                 score = score.item()
@@ -2511,7 +2841,26 @@ class PAINeuronModuleTracker:
         )
 
     def add_test_score(self, score, extra_score_name):
-        """Add test score to tracking vectors."""
+        """Add test score to tracking vectors.
+
+        Parameters
+        ----------
+        score : float or int
+            The score value to add.
+
+        extra_score_name : str
+            The name of the extra score.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This function is a wrapper around `add_extra_score` that separates
+        test score for adding to best_test_scores.csv.
+
+        """
         self.add_extra_score(score, extra_score_name)
 
         if not isinstance(score, (float, int)):
@@ -2531,12 +2880,34 @@ class PAINeuronModuleTracker:
         self.member_vars["test_scores"].append(score)
 
     def add_validation_score(self, accuracy, net, force_switch=False):
-        """
-        Function to add the validation score. This is complex because it
-        determines neuron and dendrite switching.
+        """Function to add the validation score.
+
+        This is complex because it determines neuron and dendrite switching.
+
+        Parameters
+        ----------
+        accuracy : float or int
+            The accuracy or loss value to add.
+        net : object
+            The neural network model.
+        force_switch : bool, optional
+            Whether to force a switch, by default False.
+
+        Returns
+        -------
+        net : object
+            The potentially modified neural network model.
+        training_complete : bool
+            Whether training is complete.
+        restructured : bool
+            Whether the model has been restructured.
+
+        Notes
+        -----
         WARNING: Do not call self anywhere in this function. When systems
         get loaded the actual tracker you are working with can change.
         """
+
         if not GPA.pc.get_silent():
             print(f"Adding validation score {accuracy:.8f}")
 
