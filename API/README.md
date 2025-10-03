@@ -28,15 +28,15 @@ The call to initializePB should be done directly after the model is initialized,
 
 When calling intitializePB a pb_neuron_layer_tracker called pai_tracker will be created.  This keeps track of all neuron modules and important values as well as performing the actions behind the scenes to add dendrite modules where they need to go.  It also must have a pointer to the optimizer being used. To get started quickly, or if the optimizer is hidden by a training framework, the following can be used:
 
-    GPA.pai_tracker.setOptimizerInstance(optimizer)
+    GPA.pai_tracker.set_optimizer_instance(optimizer)
 
 However, we reccomend your optimizer and scheduler should be set this way instead. This method will automatically sweep over multiple learning rate options when adding dendrites, where often a lower learning rate is better for when after dendrites have been added. If you do use this method, the scheduler will get stepped inside our code so get rid of your scheduler.step() if you have one.  We recommend using ReduceLROnPlateau but any scheduler and optimizer should work.
 
-    GPA.pai_tracker.setOptimizer(torch.optim.Adam)
-    GPA.pai_tracker.setScheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+    GPA.pai_tracker.set_optimizer(torch.optim.Adam)
+    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(),'lr':learning_rate}
     schedArgs = {'mode':'max', 'patience': 5} #Make sure this is lower than epochs to switch
-    optimizer, PAIscheduler = GPA.pai_tracker.setupOptimizer(model, optimArgs, schedArgs)
+    optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
     Get rid of scheduler.step if there is one. If your scheduler is operating in a way
     that it is doing things in other functions other than just a scheduler.step this
@@ -64,14 +64,14 @@ The test score should obviously not be used in the same way as the validation sc
 
 In additional to the above which will be added to the graph you may want to save scores thare are not the same format.  A common reason for this is when a project calculates training loss, validation loss, and validation accuracy, but not training accuracy.  You may want the graph to reflect the training and validation loss to confirm experiments are working and both losses are improving, but what is the most important at the end is the validation accuracy.  In cases like this just use the following to add scores to the csv files but not to the graphs.
 
-    GPA.pai_tracker.addExtraScoreWithoutGraphing(extraScore, 'Test Accuracy')
+    GPA.pai_tracker.add_extra_score_without_graphing(extraScore, 'Test Accuracy')
     
 ## 5 - Validation
 
 ### 5.1 Main Validation Requirements
 At the end of your validation loop the following must be called so the tracker knows when to switch between dendrite learning and normal learning
 
-    model, restructured, training_complete = GPA.pai_tracker.add_valdation_score(score, 
+    model, restructured, training_complete = GPA.pai_tracker.add_validation_score(score, 
     model) # .module if its a dataParallel
     Then following line should be replaced with whatever is being used to set up the gpu settings, including DataParallel
     model.to(device)
@@ -80,8 +80,8 @@ At the end of your validation loop the following must be called so the tracker k
     elif(restructured): if it does get restructured, reset the optimizer with the same block of code you use initially. 
         optimArgs = your args from above
         schedArgs = your args from above
-        optimizer, scheduler = GPA.pai_tracker.setupOptimizer(model, optimArgs, schedArgs)
-        if you are doing setOptimizerInstance you instead need to do the full reinitialization here
+        optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+        if you are doing set_optimizer_instance you instead need to do the full reinitialization here
     
 Description of variables:
 

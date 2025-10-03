@@ -26,7 +26,6 @@ from safetensors.torch import load_file
 from safetensors.torch import save_file
 
 
-# Main function to initialize the network to add dendrites
 def initialize_pai(
     model,
     doing_pai=True,
@@ -38,6 +37,41 @@ def initialize_pai(
     values_per_val_epoch=-1,
     zooming_graph=True,
 ):
+    """Main function to initialize the network to add dendrites
+
+    This kicks off the entire Perforated AI process to add
+    the scaffolding to the network to be able to add dendrites
+
+    Parameters
+    ----------
+    model : nn.Module
+        The neural network model to initialize.
+    doing_pai : bool, optional
+        Whether to actually add dendrites, by default True
+    save_name : str, optional
+        The name to save the model under, by default "PAI"
+    making_graphs : bool, optional
+        Whether to create graphs during training, by default True
+    maximizing_score : bool, optional
+        Whether to maximize the score during training, by default True
+        setting to false is for when the score is a loss to be minimized
+    num_classes : int, optional
+        The number of output classes, unused in current version
+    values_per_train_epoch : int, optional
+        The number of values to look back for graphing
+        during training, by default -1 (all values).
+    values_per_val_epoch : int, optional
+        The number of values to look back for graphing
+        during validation, by default -1 (all values).
+    zooming_graph : bool, optional
+        Whether to enable zooming on the graphs, by default True
+
+    Returns
+    -------
+    model : nn.Module
+        The modified model with dendrite scaffolding added if doing_pai is True
+
+    """
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
@@ -56,8 +90,22 @@ def initialize_pai(
     return model
 
 
-# Get a list of all neuron modules
 def get_pai_modules(net, depth):
+    """Get a list of all neuron modules
+
+    Parameters
+    ----------
+    net : nn.Module
+        The module to search.
+    depth : int
+        The current depth in the recursion.
+
+    Returns
+    -------
+    list
+        A list of all PAI neuron modules found in the network.
+
+    """
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -82,8 +130,22 @@ def get_pai_modules(net, depth):
     return this_list
 
 
-# Get a list of all tracked_modules
 def get_tracked_modules(net, depth):
+    """Get a list of all tracked modules
+
+    Parameters
+    ----------
+    net : nn.Module
+        The module to search.
+    depth : int
+        The current depth in the recursion.
+
+    Returns
+    -------
+    list
+        A list of all tracked modules found in the network.
+
+    """
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -109,8 +171,23 @@ def get_tracked_modules(net, depth):
     return this_list
 
 
-# Get all parameters from neuron modules
 def get_pai_module_params(net, depth):
+    """Get a list of all neuron module parameters
+
+    Parameters
+    ----------
+    net : nn.Module
+        The module to search.
+    depth : int
+        The current depth in the recursion.
+
+    Returns
+    -------
+    list
+        A list of all parameters of neuron modules found in this module.
+
+    """
+
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -139,18 +216,67 @@ def get_pai_module_params(net, depth):
 
 
 def get_pai_network_params(net):
+    """Get a list of all neuron module parameters
+
+    Parameters
+    ----------
+    net : nn.Module
+        The full model to search.
+
+    Returns
+    -------
+    list
+        A list of all parameters of neuron modules found in the network.
+
+    """
     param_list = get_pai_module_params(net, 0)
     return param_list
 
 
-# Replace a module with the module from globals list
 def replace_predefined_modules(start_module):
+    """Replace a module with the module from globals list
+
+    Parameters
+    ----------
+    start_module : nn.Module
+        The module to replace.
+
+    Returns
+    -------
+    nn.Module
+        The replaced module.
+
+    """
     index = GPA.pc.get_modules_to_replace().index(type(start_module))
     return GPA.pc.get_replacement_modules()[index](start_module)
 
 
-# Recursive function to do all conversion of modules to wrappers of modules
 def convert_module(net, depth, name_so_far, converted_list, converted_names_list):
+    """Recursive function to do all conversion of modules to wrappers of modules
+
+    This is the function that goes through all of the module lists from
+    the globals file and does all the conversion and replacements to
+    setup the dendrite scaffolding as instructed.
+
+    Parameters
+    ----------
+    net : nn.Module
+        The module to convert.
+    depth : int
+        The current depth in the recursion.
+    name_so_far : str
+        The name of the module so far in the recursion.
+    converted_list : list
+        A list of already converted module ids to avoid infinite loops.
+    converted_names_list : list
+        A corresponding list to help debug duplicate conversions
+
+    Returns
+    -------
+    nn.Module
+        The converted module.
+
+    """
     if GPA.pc.get_verbose():
         print("calling convert on %s depth %d" % (net, depth))
         print(
@@ -421,8 +547,22 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
     return net
 
 
-# Function that calls the above and checks results
 def convert_network(net, layer_name=""):
+    """Function that calls convert_module and checks results
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to convert.
+    layer_name : str, optional
+        The name of the layer if converting a single layer, by default ""
+
+    Returns
+    -------
+    nn.Module
+        The converted network.
+
+    """
     if GPA.pc.get_perforated_backpropagation():
         UPB.initialize_pb()
     if type(net) in GPA.pc.get_modules_to_replace():
@@ -490,16 +630,41 @@ def convert_network(net, layer_name=""):
     return net
 
 
-# Helper function to convert a layer_tracker into a string and back to comply
-# with safetensors saving
 def string_to_tensor(string):
+    """Helper function to convert a layer_tracker into a string
+
+    This is required for safetensors saving
+
+    Parameters
+    ----------
+    string : str
+        The string to convert.
+
+    Returns
+    -------
+    torch.Tensor
+        The converted tensor.
+
+    """
     ords = list(map(ord, string))
     ords = torch.tensor(ords)
     return ords
 
 
 def string_from_tensor(string_tensor):
-    # Convert tensor to python list.
+    """Convert a tensor back into a string
+
+    Parameters
+    ----------
+    string_tensor : torch.Tensor
+        The tensor to convert.
+
+    Returns
+    -------
+    str
+        The converted string.
+
+    """
     ords = string_tensor.tolist()
     to_return = ""
     # Doing block processing like this helps with memory errors
@@ -513,6 +678,24 @@ def string_from_tensor(string_tensor):
 
 
 def save_system(net, folder, name):
+    """Save the entire system
+
+    This saves the network itself as well as the tracker information
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    None
+
+    """
     if GPA.pc.get_verbose():
         print("saving system %s" % name)
     temp = string_to_tensor(GPA.pai_tracker.to_string())
@@ -544,6 +727,35 @@ def load_system(
     switch_call=False,
     load_from_manual_save=False,
 ):
+    """Load the entire system
+
+    This is what should be used to load a saved system and restart training
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to load into.
+    folder : str
+        The folder to load the network from.
+    name : str
+        The name to load the network from.
+    load_from_restart : bool, optional
+        Whether this is being loaded from an automatic restart, by default False
+    switch_call : bool, optional
+        Whether this is being called from a switch, by default False
+    load_from_manual_save : bool, optional
+        Whether this is being loaded from a manual save, by default False
+
+    Returns
+    -------
+    nn.Module
+        The loaded network.
+
+    Notes
+    -----
+    If you manually call save_system then load_from_manual_save should be True
+
+    """
     if GPA.pc.get_verbose():
         print("loading system %s" % name)
     net = load_net(net, folder, name)
@@ -572,6 +784,25 @@ def load_system(
 
 
 def save_net(net, folder, name):
+    """Save the network
+
+    This is called within save_system after the tracker has been
+    turned into a single tensor to be saved as a part of the network
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    None
+
+    """
     # If running a DDP only save with first thread
     if "RANK" in os.environ:
         if int(os.environ["RANK"]) != 0:
@@ -590,6 +821,26 @@ def save_net(net, folder, name):
 
 
 def load_net(net, folder, name):
+    """load the network
+
+    This is called within load_system after the tracker has been
+    loaded
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    nn.Module
+        The loaded network.
+
+    """
     save_point = folder + "/"
     if GPA.pc.get_using_safe_tensors():
         state_dict = load_file(save_point + name + ".pt")
@@ -609,6 +860,23 @@ def load_net(net, folder, name):
 
 
 def load_net_from_dict(net, state_dict):
+    """load the network
+
+    This is called within load_net
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    state_dict : dict
+        The state dictionary to load.
+
+    Returns
+    -------
+    nn.Module
+        The loaded network.
+
+    """
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print(
@@ -685,6 +953,24 @@ def load_net_from_dict(net, state_dict):
 
 
 def pai_save_system(net, folder, name):
+    """Save the entire system with scaffolding removed
+
+    This is used for the final network for inference after training
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    None
+
+    """
     net.member_vars = {}
     for member_var in GPA.pai_tracker.member_vars:
         if member_var == "scheduler_instance" or member_var == "optimizer_instance":
@@ -694,23 +980,83 @@ def pai_save_system(net, folder, name):
 
 
 def deep_copy_pai(net):
+    """Deep copy a PAI network
+
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to copy.
+
+    Returns
+    -------
+    nn.Module
+        The copied network.
+
+    Notes
+    ----
+    This is required because processors must be cleared before calling copy
+
+    """
     GPA.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
 
 
-# For open source implementation just use regular saving for now
-# This function removes extra scaffolding that open source version already has
-# minimal values for
 def pai_save_net(net, folder, name):
+    """Save the entire system with scaffolding removed
+
+    This is called within pai_save_system after the tracker has been
+    turned into a single tensor to be saved as a part of the network
+
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    None
+
+    Notes
+    ----
+    For open source implementation this is not as important since
+    minimal values are already being used.
+
+    """
+
     if GPA.pc.get_perforated_backpropagation():
         UPB.pb_save_net(net, folder, name)
     else:
         return
 
 
-# Simulate the back and forth processes of adding dendrites to build a
-# pretrained dendrite model before loading weights
 def simulate_cycles(module, num_cycles, doing_pai):
+    """Simulate dendrite addition cycles
+
+    Simulate the back and forth processes of adding dendrites to build a
+    pretrained dendrite model before loading weights.  Required for loading
+    dendrite save files from non dendrite initial models.
+
+    Parameters
+    ----------
+    module : PA.PAINeuronModule
+        The module to simulate cycles on.
+    num_cycles : int
+        The number of cycles to simulate.
+    doing_pai : bool
+        Whether to actually do the simulation.
+
+    Returns
+    -------
+    None
+
+    """
+
     check_skipped = GPA.pc.get_checked_skipped_modules()
     if doing_pai is False:
         return
@@ -728,15 +1074,54 @@ def simulate_cycles(module, num_cycles, doing_pai):
 
 
 def count_params(net):
+    """Count the number of parameters in the network
+
+    If doing perforated backpropagation this calls the PB function
+    which does not count scaffolding parameters since the final model
+    will not have them.
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to count parameters in.
+
+    Returns
+    -------
+    int
+        The number of parameters in the network.
+
+    """
     if GPA.pc.get_perforated_backpropagation():
         return UPB.pb_count_params(net)
     return sum(p.numel() for p in net.parameters())
 
 
 def change_learning_modes(net, folder, name, doing_pai):
-    """
+    """Change between neuron and dendrite learning modes
+
     High level steps for entire system to switch back and forth between
     neuron learning and dendrite learning
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to change modes on.
+    folder : str
+        The folder to save/load the network in/from.
+    name : str
+        The name to save/load the network under.
+    doing_pai : bool
+        Whether to add dendrites when changing modes.
+
+    Returns
+    -------
+    int
+        The number of parameters in the network.
+
+    Notes
+    -----
+    If doing_pai is False this just allows training to continue longer rather than early stopping
+
     """
     # If not adding dendrites this just allows training to continue longer with flags
     # every time early stopping should be occurring
