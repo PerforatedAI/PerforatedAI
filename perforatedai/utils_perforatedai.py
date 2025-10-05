@@ -73,12 +73,21 @@ def get_pai_modules(net, depth):
                 )
     else:
         for member in all_members:
-            if getattr(net, member, None) is net:
+            # if the getter fails or it is a self pointer ignore it
+            try:
+                if getattr(net, member, None) is net:
+                    continue
+            except:
                 continue
             if type(getattr(net, member, None)) is PA.PAINeuronModule:
                 this_list = this_list + [getattr(net, member)]
-            elif issubclass(type(getattr(net, member, None)), nn.Module):
+            elif (
+                issubclass(type(getattr(net, member, None)), nn.Module)
+                or issubclass(type(getattr(net, member, None)), nn.Sequential)
+                or issubclass(type(getattr(net, member, None)), nn.ModuleList)
+            ):
                 this_list = this_list + get_pai_modules(getattr(net, member), depth + 1)
+
     return this_list
 
 
@@ -98,7 +107,11 @@ def get_tracked_modules(net, depth):
                 )
     else:
         for member in all_members:
-            if getattr(net, member, None) is net:
+            # if the getter fails or it is a self pointer ignore it
+            try:
+                if getattr(net, member, None) is net:
+                    continue
+            except:
                 continue
             if type(getattr(net, member, None)) is PA.TrackedNeuronModule:
                 this_list = this_list + [getattr(net, member)]
@@ -314,8 +327,9 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 )
                 print(
                     "One of these must be added to "
-                    "GPA.pc.get_module_names_to_not_save() (with the .)"
+                    "GPA.pc.append_module_names_to_not_save() (with the .)"
                 )
+                pdb.set_trace()
                 sys.exit(0)
             try:
                 getattr(net, member, None)
@@ -356,7 +370,11 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                     member,
                     PA.PAINeuronModule(getattr(net, member), sub_name),
                 )
-            elif issubclass(type(getattr(net, member, None)), nn.Module):
+            elif (
+                issubclass(type(getattr(net, member, None)), nn.Module)
+                or issubclass(type(getattr(net, member, None)), nn.Sequential)
+                or issubclass(type(getattr(net, member, None)), nn.ModuleList)
+            ):
                 if net != getattr(net, member):
                     converted_list += [id(getattr(net, member))]
                     converted_names_list += [sub_name]
@@ -602,9 +620,14 @@ def load_net(net, folder, name):
                 weights_only=False,
             ).state_dict()
         except:
-            state_dict = torch.load(
-                save_point + name + ".pt", map_location=torch.device("cpu")
-            ).state_dict()
+            try:
+                state_dict = torch.load(
+                    save_point + name + ".pt", map_location=torch.device("cpu")
+                ).state_dict()
+            except:
+                state_dict = torch.load(
+                    save_point + name + ".pt", map_location=torch.device("cpu")
+                )
     return load_net_from_dict(net, state_dict)
 
 
@@ -615,7 +638,10 @@ def load_net_from_dict(net, state_dict):
             "PAI load_net and load_system uses a state_dict so it must be "
             "called with a net after initialize_pai has been called"
         )
-        sys.exit()
+        import pdb
+
+        pdb.set_trace()
+        sys.exit(-1)
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
         module_name = module.name

@@ -58,10 +58,9 @@ def update_learning_rate():
 
 
 def update_param_count(net):
-    """Update the parameter count in the tracker."""
+    """Update the parameter count in the tracker if not already set."""
     if len(GPA.pai_tracker.member_vars["param_counts"]) == 0:
-        pytorch_total_params = sum(p.numel() for p in net.parameters())
-        GPA.pai_tracker.member_vars["param_counts"].append(pytorch_total_params)
+        GPA.pai_tracker.member_vars["param_counts"].append(UPA.count_params(net))
 
 
 def check_input_problems(net, accuracy):
@@ -1705,7 +1704,7 @@ class PAINeuronModuleTracker:
         if GPA.pc.get_testing_dendrite_capacity():
             if not GPA.pc.get_silent():
                 print("Running a test of Dendrite Capacity.")
-            GPA.pc.set_switch_mode(GPA.pc.DOING_SWITCH_EVERY_TIME())
+            GPA.pc.set_switch_mode(GPA.pc.DOING_SWITCH_EVERY_TIME)
             self.member_vars["switch_mode"] = GPA.pc.get_switch_mode()
             GPA.pc.set_retain_all_dendrites(True)
             GPA.pc.set_max_dendrite_tries(1000)
