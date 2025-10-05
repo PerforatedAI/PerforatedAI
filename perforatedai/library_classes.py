@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 import torchvision.models.resnet as resnet_pt
+from abc import ABC, abstractmethod
 
 from perforatedai import globals_perforatedai as GPA
 
@@ -23,55 +24,148 @@ and each new Dendrite node gets a unique instance to use pre_d and post_d.
 """
 
 
-# General multi output processor for any number that ignores later ones
-class MultiOutputProcessor:
-    """Processor for handling multiple outputs, ignoring later ones."""
+class PAIProcessor(ABC):
+    """
+    Abstract base class for processing neuron and dendrite operations.
 
+    Processors handle state management and data flow between neurons and
+    dendrites, allowing for custom pre/post processing of modules which have
+    multiple inputs and outputs, rather than the default single tensor input/output.
+    Subclasses should implement the five core processing methods to handle
+    their specific state management needs.
+    """
+
+    @abstractmethod
     def post_n1(self, *args, **kwargs):
-        """Extract first output and store extra outputs."""
-        out = args[0][0]
-        extra_out = args[0][1:]
-        self.extra_out = extra_out
-        return out
+        """
+        Post-process neuron output before dendrite processing.
 
+        Called immediately after the main module/neuron is executed and before
+        any dendrite processing occurs. This method should extract and return
+        only the tensor of the neuron output that should be seen by
+        dendrite operations.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments, typically containing the neuron output.
+        **kwargs : dict
+            Keyword arguments from the neuron output.
+
+        Returns
+        -------
+        Any
+            The filtered output to be passed to dendrite processing.
+        """
+        pass
+
+    @abstractmethod
     def post_n2(self, *args, **kwargs):
-        """Combine output with stored extra outputs."""
-        out = args[0]
-        if isinstance(self.extra_out, tuple):
-            return (out,) + self.extra_out
-        else:
-            return (out,) + (self.extra_out,)
+        """
+        Post-process dendrite-modified output before final return.
 
+        Called after dendrite processing is complete and before passing the
+        final value forward in the network. This method should combine the
+        dendrite-modified output with any stored state to produce the complete
+        output that matches the expected format of the main module.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments containing the dendrite-modified output.
+        **kwargs : dict
+            Keyword arguments from the processing chain.
+
+        Returns
+        -------
+        Any
+            The complete output in the format expected by downstream components.
+        """
+        pass
+
+    @abstractmethod
     def pre_d(self, *args, **kwargs):
-        """Pass through arguments unchanged for dendrite preprocessing."""
-        return args, kwargs
+        """
+        Pre-process input before dendrite operations.
 
+        Filters and prepares inputs for dendrite processing. This method handles
+        special cases such as initial time steps vs. subsequent iterations,
+        ensuring dendrites receive the appropriate inputs (e.g., external inputs
+        vs. internal recurrent state).
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments containing inputs to the PAI module.
+        **kwargs : dict
+            Keyword arguments containing inputs to the PAI module.
+
+        Returns
+        -------
+        tuple
+            A tuple of (processed_args, processed_kwargs) to pass to dendrite.
+        """
+        pass
+
+    @abstractmethod
     def post_d(self, *args, **kwargs):
-        """Extract first output for dendrite postprocessing."""
-        out = args[0][0]
-        return out
+        """
+        Post-process dendrite output and manage state.
 
+        Processes the output from dendrite operations, storing any state needed
+        for future iterations and returning only the portion that should be
+        combined with the neuron output. E.g. this is where recurrent state is
+        saved for the next time step.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments containing the dendrite output.
+        **kwargs : dict
+            Keyword arguments from the dendrite output.
+
+        Returns
+        -------
+        Any
+            The filtered dendrite output to be added to the neuron output.
+        """
+        pass
+
+    @abstractmethod
     def clear_processor(self):
-        """Clear stored processor state."""
-        if hasattr(self, "extra_out"):
-            delattr(self, "extra_out")
+        """
+        Clear all internal processor state.
+
+        Resets the processor by removing all stored state variables. Must
+        be called before saving or safe_tensors will run into errors.
+        Implementations should safely check for attribute existence before
+        deletion to avoid errors.
+        """
+        pass
 
 
-# LSTMCellProcessor defined here to use as example of how to setup processing
-# functions for more complex situations
-class LSTMCellProcessor:
+class LSTMCellProcessor(PAIProcessor):
     """Processor for LSTM cells to handle hidden and cell states."""
 
-    # The neuron does eventually need to return h_t and c_t, but h_t gets
-    # modified by the Dendrite nodes first so it needs to be extracted in
-    # post_n1, and then gets added back in post_n2
-
     def post_n1(self, *args, **kwargs):
-        """Extract hidden state and store cell state temporarily.
+        """
+        Extract hidden state from LSTM output for dendrite processing.
 
-        post_n1 is called right after the main module is called before any
-        Dendrite processing. It should return only the part of the output
-        that you want to do Dendrite learning for.
+        Separates the hidden state (h_t) from the cell state (c_t) in the
+        LSTM output tuple. Stores the cell state temporarily since only the
+        hidden state should be modified by dendrites.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains LSTM output tuple (h_t, c_t) as first element.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Hidden state h_t to be passed to dendrite processing.
         """
         h_t = args[0][0]
         c_t = args[0][1]
@@ -81,24 +175,49 @@ class LSTMCellProcessor:
         return h_t
 
     def post_n2(self, *args, **kwargs):
-        """Combine modified hidden state with stored cell state.
+        """
+        Recombine dendrite-modified hidden state with cell state.
 
-        post_n2 is called right before passing final value forward, should
-        return everything that gets returned from main module.
-        h_t at this point has been modified with Dendrite processing.
+        Takes the hidden state that has been modified by dendrite operations
+        and combines it with the stored cell state to produce the complete
+        LSTM output tuple.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the dendrite-modified hidden state h_t.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        tuple
+            Complete LSTM output (h_t, c_t) where h_t has been modified.
         """
         h_t = args[0]
         return h_t, self.c_t_n
 
     def pre_d(self, *args, **kwargs):
-        """Filter input for Dendrite processing.
+        """
+        Filter LSTM input for dendrite based on initialization state.
 
-        Input to pre_d will be (input, (h_t, c_t))
-        pre_d does filtering to make sure Dendrite is getting the right input.
-        This typically would be done in the training loop.
-        For example, with an LSTM this is where you check if its the first
-        iteration or not and either pass the Dendrite the regular args to the
-        neuron or pass the Dendrite its own internal state.
+        Checks if this is the first time step (all zeros in h_t) or a
+        subsequent step. For the first step, passes through the original
+        inputs. For subsequent steps, replaces the neuron's hidden state
+        with the dendrite's own internal state from the previous iteration.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains (input, (h_t, c_t)) where input is the external input
+            and (h_t, c_t) is the neuron's recurrent state.
+        **kwargs : dict
+            Keyword arguments to pass through.
+
+        Returns
+        -------
+        tuple
+            ((processed_input, processed_state), kwargs) for dendrite call.
         """
         h_t = args[1][0]
         # If its the initial step then just use the normal input and zeros
@@ -110,13 +229,24 @@ class LSTMCellProcessor:
             return (args[0], (self.h_t_d, self.c_t_d)), kwargs
 
     def post_d(self, *args, **kwargs):
-        """Process Dendrite output and save state for next iteration.
+        """
+        Extract and store dendrite's LSTM state for next iteration.
 
-        For post processing post_d just getting passed the output, which is
-        (h_t, c_t). Then it wants to only pass along h_t as the output for the
-        function to be passed to the neuron while retaining both h_t and c_t.
-        post_d saves what needs to be saved for next time and passes forward
-        only the Dendrite part that will be added to the neuron.
+        Separates the dendrite's hidden and cell states from its output tuple,
+        stores both for use in the next time step, and returns only the hidden
+        state to be combined with the neuron's output.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains dendrite LSTM output tuple (h_t, c_t).
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Hidden state h_t to be added to the neuron output.
         """
         h_t = args[0][0]
         c_t = args[0][1]
@@ -125,13 +255,108 @@ class LSTMCellProcessor:
         return h_t
 
     def clear_processor(self):
-        """Clear all saved processor state."""
+        """
+        Clear all stored LSTM states.
+
+        Removes dendrite hidden state (h_t_d), dendrite cell state (c_t_d),
+        and temporarily stored neuron cell state (c_t_n). Safe to call even
+        if attributes don't exist.
+        """
         if hasattr(self, "h_t_d"):
             delattr(self, "h_t_d")
         if hasattr(self, "c_t_d"):
             delattr(self, "c_t_d")
         if hasattr(self, "c_t_n"):
             delattr(self, "c_t_n")
+
+
+# General multi output processor for any number that ignores later ones
+class MultiOutputProcessor:
+    """Processor for handling multiple outputs, ignoring later ones."""
+
+    def post_n1(self, *args, **kwargs):
+        """Saves extra outputs and returns the first output.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the modules output tuple.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The first tensor of the tuple
+        """
+        out = args[0][0]
+        extra_out = args[0][1:]
+        self.extra_out = extra_out
+        return out
+
+    def post_n2(self, *args, **kwargs):
+        """Combine output with stored extra outputs.
+
+        Parameters
+        ----------
+        *args : torch.tensor
+            The first tensor combined with dendrite output.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        tuple
+            The recombined output tuple wth the new first output modified
+        """
+        out = args[0]
+        if isinstance(self.extra_out, tuple):
+            return (out,) + self.extra_out
+        else:
+            return (out,) + (self.extra_out,)
+
+    def pre_d(self, *args, **kwargs):
+        """Pass through arguments unchanged for dendrite preprocessing.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments containing inputs to the PAI module.
+        **kwargs : dict
+            Keyword arguments containing inputs to the PAI module.
+
+        Returns
+        -------
+        args : tuple
+            Positional arguments containing inputs to the PAI module.
+        kwargs : dict
+            Keyword arguments containing inputs to the PAI module.
+        """
+        return args, kwargs
+
+    def post_d(self, *args, **kwargs):
+        """Extract first output for dendrite postprocessing.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the dendrite modules output tuple.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            The first tensor of the tuple
+        """
+        out = args[0][0]
+        return out
+
+    def clear_processor(self):
+        """Clear stored processor state."""
+
+        if hasattr(self, "extra_out"):
+            delattr(self, "extra_out")
 
 
 class ResNetPAI(nn.Module):
@@ -143,7 +368,13 @@ class ResNetPAI(nn.Module):
     """
 
     def __init__(self, other_resnet):
-        """Initialize ResNetPAI from existing ResNet model."""
+        """Initialize ResNetPAI from existing ResNet model.
+
+        Parameters
+        ----------
+        *args : other_resnet : torchvision.models.resnet.ResNet
+            An existing ResNet model to convert to PAI-compatible format.
+        """
         super(ResNetPAI, self).__init__()
 
         # For the most part, just copy the exact values from the original module
@@ -172,7 +403,18 @@ class ResNetPAI(nn.Module):
     def _make_layer_pb(self, other_block_set, other_resnet, block_id):
         """Convert ResNet layer blocks to PB-compatible format.
 
-        This might not be needed now that the blocks are being converted.
+        Parameters
+        ----------
+        other_block_set : torch.vision.models.resnet.any_block
+            A set of blocks from the original ResNet model.
+        other_resnet : torchvision.models.resnet.ResNet
+            The original ResNet model.
+        block_id : int
+            The layer number being converted.
+        Returns
+        -------
+        nn.Sequential
+            A sequential container with the converted blocks.
         """
         layers = []
         for i in range(len(other_block_set)):
@@ -192,7 +434,18 @@ class ResNetPAI(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x):
-        """Implementation of the forward pass."""
+        """Implementation of the forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to the network.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor from the network.
+        """
         # Modified b1 rather than conv1 and bn1
         x = self.b1(x)
         # Rest of forward remains the same
@@ -211,5 +464,16 @@ class ResNetPAI(nn.Module):
         return x
 
     def forward(self, x):
-        """Forward pass through the network."""
+        """Forward pass through the network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to the network.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor from the network.
+        """
         return self._forward_impl(x)

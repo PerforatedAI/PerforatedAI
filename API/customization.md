@@ -9,13 +9,13 @@ This section is for additional settings that were removed from the main README t
 
 The alternative switch mode is:
     
-    GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)) # Switch on a fixed number of epochs rather than after improvement stops
+    GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH) # Switch on a fixed number of epochs rather than after improvement stops
 
     GPA.pc.set_fixed_switch_num(10) # How many epochs to cause a switch
 
     # If you would like the first one to run longer since its your original training
     # you can set this value to be different
-    GPA.pc.set_firstfixed_switch_num(10)
+    GPA.pc.set_first_fixed_switch_num(10)
     
 
 ### 1.2 - Configuration Values
@@ -28,9 +28,9 @@ Every switch to Dendrite learning will increase the size of your network.  Becau
     
 If you would like to test more than three dendrites the following can be used:
 
-    GPA.pc.set_switch_mode(GPA.pc.DOING_SWITCH_EVERY_TIME())
+    GPA.pc.set_switch_mode(GPA.pc.DOING_SWITCH_EVERY_TIME)
     GPA.pc.get_retain_all_dendrites(True)
-    GPA.pc.set_max_dendrites(X))
+    GPA.pc.set_max_dendrites(X)
 
 ### 1.4 Initialization Settings
 
@@ -43,19 +43,19 @@ doing_pai can be set to False if you want to run with your current parameters wi
 
 making_graphs can be set to False if you would prefer to make your own graphs for output performance.
 
-maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvementThreshold().  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
+maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvement_threshold().  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
 
 save_name is defaults to 'PAI' but if you run multiple experiments at once this must be changed to save outputs to different folders
    
 ### 1.5 Systems without Simple Optimizer/Scheduler Setups
     
-If there is no scheduler just leave it out of the call to setupOptimizer entirely. But as a warning, we have run some experiments where PAI does not work without a scheduler so if you choose to exclude one and PAI does not improve your system we would encourage you to include the ReduceLROnPlateau scheduler and try again.
+If there is no scheduler just leave it out of the call to setup_optimizer entirely. But as a warning, we have run some experiments where PAI does not work without a scheduler so if you choose to exclude one and PAI does not improve your system we would encourage you to include the ReduceLROnPlateau scheduler and try again.
     
-    optimizer = GPA.pai_tracker.setupOptimizer(model, optimArgs)
+    optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
     
 If your system is using a more complicated trainer where you can't just declare the optimizer outside of your system like this you are free to call the following instead of all of the above but it won't work quite as well.
 
-    GPA.pai_tracker.setOptimizerInstance(trainer.optimizer)
+    GPA.pai_tracker.set_optimizer_instance(trainer.optimizer)
 
 If your system has multiple optimizers just pick one of them to use.  However, when you call addValidationScore you should also reinitialize the other optimizer if restructuring happens.
     
@@ -69,18 +69,18 @@ Network initialization is the most complicated part of this process that often r
 
 This is often the part that has some complexity.  If your network is all simple layers with linear or conv layers and nonlinearities, they will be converted automatically.  However, most networks have more complicated learning modules.  Performance is often better when these modules are grouped as a single PAI module as opposed to PAI-ifying each module within them.  To tell the system that it must convert modules add them with the following option.  It can be good to do some experimentation with what level of depth you want to block things off, i.e. many smaller modules or fewer large modules. They can be added with the function below before convertNetwork is called.
 
-    GPA.pc.get_module_cames_to_convert() += ['moduleName']
+    GPA.pc.append_module_names_to_convert(['moduleName'])
 
 Using moduleNamesToConvert does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
 
-    GPA.pc.get_modules_to_convert() += [moduleType]
+    GPA.pc.append_modules_to_convert([moduleType])
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
     GPA.pc.PAISequential([normalLayer, normalizationLayer])
     
 #### 2.1.1 - How to Tell Modules Which are not Tagged
-When you first call initializePB the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
+When you first call initialize_pai the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
 
     The following params are not wrapped.
     ------------------------------------------------------------------
@@ -118,7 +118,7 @@ Finally, if any of the modules you are converting have a custom forward that has
 
     GPA.pc.append_module_names_with_processing(['GRU'])
     # This processor lets the dendrites keep track of their own hidden state
-    GPA.pc.append_module_by_name_rocessing_classes([PBM.GRUProcessor])
+    GPA.pc.append_module_by_name_processing_classes([PBM.GRUProcessor])
 
 A simpler examples below just ignores any outputs after the first.  This will generally fix any problem, and allow the system to run, but it isnt neccesarily correct for your applicaiton:
 
@@ -169,14 +169,14 @@ Once it is created simply create one of those objects and run as follows
     model1 = create_model1()
     model2 = create_model2()
     model = Pair(model1, model2)
-    model = UPA.initializePB(model)
+    model = UPA.initialize_pai(model)
     #Then set the networks directly 
     model1 = model.net1
     model2 = model.net2
 
 Important note, if you do the above things, make sure to also add the same steps and adjustments to the addValidationScore section.
 
-An alternative is to call convertNetwork after initializePB but that still needs to be tested more thoroughly.
+An alternative is to call convertNetwork after initialize_pai but that still needs to be tested more thoroughly.
     
 ### 4 - Set Input Dimensions
 
@@ -186,14 +186,14 @@ To add dendrites the new modules must know which index of their output tensor co
 
 Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of input_dimensions is not enough.  In these cases set input_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisinput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear conversion is done automatically.
 
-    model.onlyRecurrentModule.setThisinput_dimensions([-1,-1, 0])
-    model.fullyConnectedOutputLayer.setThisinput_dimensions([-1, 0])
-    model.3dConvLayer.setThisinput_dimensions([-1,-1,0,-1,-1])
+    model.onlyRecurrentModule.set_this_input_dimensions([-1,-1, 0])
+    model.fullyConnectedOutputLayer.set_this_input_dimensions([-1, 0])
+    model.3dConvLayer.set_this_input_dimensions([-1,-1,0,-1,-1])
     
 
 This is based on the output of the layer, not the input.  Try starting without any of these and then run your network, we will tell you if there is an error and how to fix it.  If you suspect there might be more than one problem, set the following flag and they will all be printed to be able to be fixed at once.
 
-    GPA.pc.set_debugginginput_dimensions(1)
+    GPA.pc.set_debugging_input_dimensions(1)
     
 We recommend setting this flag and if there are many problems change GPA.pc.get_input_dimensions() in the initial settings to have a different default value.  Then do this again and hopefully there will be fewer so you can do these changes with the smaller count.
 
@@ -218,12 +218,12 @@ First run your pipeline on a single GPU.  Settings for this run don't matter.  A
     
     loss.backward()
     #This line sets up multiGPU
-    GPA.pai_tracker.saveTrackerSettings()
+    GPA.pai_tracker.save_tracker_settings()
     exit(0) # exit this run after settings are saved.
 
 By calling this one function the required settings will be saved into the saveName folder you have specified when you initialized the pai_tracker.  Once the settings have been saved, delete these two lines to go back to your original training loop.  The second step is to initialize the tracker settings before you instantiate the DataParallel.  This should be done after your calls to UPA.convertNetwork and GPA.pai_tracker.initialize:
     
-    GPA.pai_tracker.initializeTrackerSettings()
+    GPA.pai_tracker.initialize_tracker_settings()
     net = torch.nn.DataParallel(net, your other settings)
 
 ## 6.1 - DistributedDataParallel
@@ -234,13 +234,13 @@ We are still debugging DistributedDataParallel.  But for now a workaround we bel
     
 If you need to load a run after something stopped it in the middle you can call:
     
-    model = UPA.loadSystem(model, your save name, 'latest', True)
+    model = UPA.load_system(model, your save name, 'latest', True)
 
 If you want to load the best model for any reason you can call:
 
-    model = UPA.loadSystem(model, your save name, 'best_model', True)
+    model = UPA.load_system(model, your save name, 'best_model', True)
     
-This function should be called after initializePB and setThisinput_dimensions, but before setup optimizer
+This function should be called after initialize_pai and set_this_input_dimensions, but before setup_optimizer
     
 <!--If you want to load a simplif model just for inference you can do so with the following:-->
 <!--  -->
