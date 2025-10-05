@@ -849,6 +849,22 @@ def save_net(net, folder, name):
         torch.save(net, save_point + name + ".pt")
 
 
+def manual_load_state_dict(model, state_dict):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name not in own_state:
+            print(f"Warning: {name} not found in model state_dict")
+            continue
+        if isinstance(param, torch.nn.Parameter):
+            # Backwards compatibility for serialized parameters
+            param = param.data
+        try:
+            own_state[name].copy_(param)
+        except Exception as e:
+            print(f"Error loading {name}: {e}")
+    print("Manual load complete")
+
+
 def load_net(net, folder, name):
     """load the network
 
@@ -984,7 +1000,28 @@ def load_net_from_dict(net, state_dict):
         net.tracker_string = state_dict["tracker_string"]
     else:
         net.register_buffer("tracker_string", state_dict["tracker_string"])
-    net.load_state_dict(state_dict)
+    try:
+        net.load_state_dict(state_dict)
+    except Exception as e:
+        """
+        When modules have high depth to them (i.e. modules within modules not number of layers)
+        PyTorch can have trouble loading state dicts even when they are correct.
+        This is a workaround to manually load the state dict if this happens.
+        """
+        if set(net.state_dict().keys()) == set(state_dict.keys()):
+            print("Attempting manual loading of state_dict")
+            manual_load_state_dict(net, state_dict)
+        else:
+            print(f"Error loading state_dict: {e}")
+            print("net state dict is:")
+            print(net.state_dict())
+            print("loaded state dict is:")
+            print(state_dict)
+            print(
+                "Try to check differences.  Likely is caused by a module not "
+                "being converted that should be or vice versa"
+            )
+            pdb.set_trace()
     net.to(GPA.pc.get_device())
     return net
 
