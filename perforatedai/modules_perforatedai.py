@@ -1240,7 +1240,7 @@ class DendriteValueTracker(nn.Module):
 
         if self.out_channels == -1:
             print("You have a converted module that was never initialized")
-            print("This likely means it not being added to the autograd graph")
+            print("This likely means it is not being added to the autograd graph")
             print("Check your forward function that it is actually being used")
             print("If its not you should really delete it, but you can also add")
             print(
@@ -1248,7 +1248,7 @@ class DendriteValueTracker(nn.Module):
             )
             print(self.layer_name)
             print("with:")
-            print("GPA.pc.get_module_names_to_track() += ['" + self.layer_name + "']")
+            print("GPA.pc.append_module_names_to_track(['" + self.layer_name + "'])")
             print("This can also happen while testing_dendrite_capacity if you")
             print(
                 "run a validation cycle and try to add Dendrites before doing any training.\n"

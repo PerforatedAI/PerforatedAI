@@ -75,7 +75,7 @@ def initialize_pai(
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
-    GPA.pc.save_name = save_name
+    GPA.pc.set_save_name(save_name)
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
@@ -579,53 +579,64 @@ def convert_network(net, layer_name=""):
         net = PA.PAINeuronModule(net, layer_name)
     else:
         net = convert_module(net, 0, "", [], [])
-    missed_ones = []
-    tracked_ones = []
-    for name, param in net.named_parameters():
-        wrapped = "wrapped" in param.__dir__()
-        if wrapped:
-            if GPA.pc.get_verbose():
-                print("param %s is now wrapped" % (name))
-        else:
-            tracked = "tracked" in param.__dir__()
-            if tracked:
-                tracked_ones.append(name)
+    if GPA.pai_tracker.member_vars["doing_pai"]:
+        missed_ones = []
+        tracked_ones = []
+        for name, param in net.named_parameters():
+            wrapped = "wrapped" in param.__dir__()
+            if wrapped:
+                if GPA.pc.get_verbose():
+                    print("param %s is now wrapped" % (name))
             else:
-                missed_ones.append(name)
-    if (
-        len(missed_ones) != 0 or len(tracked_ones) != 0
-    ) and GPA.pc.get_unwrapped_modules_confirmed() is False:
-        print("\n------------------------------------------------------------------")
-        print(
-            "The following params are not wrapped.\n------------------------------------------------------------------"
-        )
-        for name in tracked_ones:
-            print(name)
-        print("\n------------------------------------------------------------------")
-        print(
-            "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
-        )
-        for name in missed_ones:
-            print(name)
-        print("\n------------------------------------------------------------------")
-        print("Modules that are not wrapped will not have Dendrites to optimize them")
-        print(
-            "Modules modules that are not tracked can cause errors and is NOT recommended"
-        )
-        print("Any modules in the second list should be added to module_names_to_track")
-        print(
-            "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
-        )
-        print(
-            "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
-        )
-        print(
-            "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
-        )
-        import pdb
+                tracked = "tracked" in param.__dir__()
+                if tracked:
+                    tracked_ones.append(name)
+                else:
+                    missed_ones.append(name)
+        if (
+            len(missed_ones) != 0 or len(tracked_ones) != 0
+        ) and GPA.pc.get_unwrapped_modules_confirmed() is False:
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "The following params are not wrapped.\n------------------------------------------------------------------"
+            )
+            for name in tracked_ones:
+                print(name)
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
+            )
+            for name in missed_ones:
+                print(name)
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "Modules that are not wrapped will not have Dendrites to optimize them"
+            )
+            print(
+                "Modules modules that are not tracked can cause errors and is NOT recommended"
+            )
+            print(
+                "Any modules in the second list should be added to module_names_to_track"
+            )
+            print(
+                "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
+            )
+            print(
+                "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
+            )
+            print(
+                "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
+            )
+            import pdb
 
-        pdb.set_trace()
-        print("confirmed")
+            pdb.set_trace()
+            print("confirmed")
     net.register_buffer("tracker_string", torch.tensor([]))
     return net
 

@@ -2643,7 +2643,10 @@ class PAINeuronModuleTracker:
             best_test_score = test_scores[best_valid_index]
             best_valid.append(best_valid_score)
             best_test.append(best_test_score)
-            associated_params.append(self.member_vars["param_counts"][switch])
+            if self.member_vars["doing_pai"]:
+                associated_params.append(self.member_vars["param_counts"][switch])
+            else:
+                associated_params.append(self.member_vars["param_counts"][-1])
 
         # If in neuron training mode but not the very first epoch
         if self.member_vars["mode"] == "n" and (
@@ -2955,7 +2958,7 @@ class PAINeuronModuleTracker:
             # If testing dendrite capacity switch after enough dendrites added
             if (
                 (GPA.pai_tracker.member_vars["mode"] == "n")
-                and (GPA.pai_tracker.member_vars["num_dendrites_added"] > 3)
+                and (GPA.pai_tracker.member_vars["num_dendrites_added"] > 2)
                 and GPA.pc.get_testing_dendrite_capacity()
             ):
                 GPA.pai_tracker.save_graphs()
@@ -2990,11 +2993,15 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]}, '
                         f'{GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
                     )
-                # If the max number of dendrites has been hit return rather than adding more
-                if (GPA.pai_tracker.member_vars["mode"] == "n") and (
-                    GPA.pc.get_max_dendrites()
-                    == GPA.pai_tracker.member_vars["num_dendrites_added"]
-                ):
+                # If the max number of dendrites has been hit or not doing pai and adding dendtites
+                # then return rather than adding more
+                if (
+                    (GPA.pai_tracker.member_vars["mode"] == "n")
+                    and (
+                        GPA.pc.get_max_dendrites()
+                        == GPA.pai_tracker.member_vars["num_dendrites_added"]
+                    )
+                ) or (GPA.pai_tracker.member_vars["doing_pai"] is False):
                     net = process_final_network(net)
                     return net, True, True
 
