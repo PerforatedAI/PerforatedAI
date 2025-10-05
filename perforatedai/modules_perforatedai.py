@@ -737,10 +737,13 @@ class TrackedNeuronModule(nn.Module):
 def init_params(model):
     """Randomize weights after duplicating the main module for the next set of dendrites."""
     for param in model.parameters():
-        param.data = (
-            torch.randn(param.size(), dtype=param.dtype)
-            * GPA.pc.get_candidate_weight_initialization_multiplier()
-        )
+        if param.dtype == torch.uint8:
+            param.data = torch.randint(0, 256, param.size(), dtype=torch.uint8)
+        else:
+            param.data = (
+                torch.randn(param.size(), dtype=param.dtype)
+                * GPA.pc.get_candidate_weight_initialization_multiplier()
+            )
 
 
 class PAIDendriteModule(nn.Module):
@@ -1243,9 +1246,6 @@ class DendriteValueTracker(nn.Module):
             print("This likely means it is not being added to the autograd graph")
             print("Check your forward function that it is actually being used")
             print("If its not you should really delete it, but you can also add")
-            print(
-                "the name below to GPA.pc.get_module_ids_to_track() to not convert it"
-            )
             print(self.layer_name)
             print("with:")
             print("GPA.pc.append_module_names_to_track(['" + self.layer_name + "'])")
@@ -1253,6 +1253,7 @@ class DendriteValueTracker(nn.Module):
             print(
                 "run a validation cycle and try to add Dendrites before doing any training.\n"
             )
+            pdb.set_trace()
 
         self.initialized[0] = 0
         if GPA.pc.get_perforated_backpropagation():
