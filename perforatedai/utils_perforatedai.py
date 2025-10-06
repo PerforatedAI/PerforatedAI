@@ -75,7 +75,7 @@ def initialize_pai(
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
-    GPA.pc.save_name = save_name
+    GPA.pc.set_save_name(save_name)
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
@@ -597,53 +597,64 @@ def convert_network(net, layer_name=""):
         net = PA.PAINeuronModule(net, layer_name)
     else:
         net = convert_module(net, 0, "", [], [])
-    missed_ones = []
-    tracked_ones = []
-    for name, param in net.named_parameters():
-        wrapped = "wrapped" in param.__dir__()
-        if wrapped:
-            if GPA.pc.get_verbose():
-                print("param %s is now wrapped" % (name))
-        else:
-            tracked = "tracked" in param.__dir__()
-            if tracked:
-                tracked_ones.append(name)
+    if GPA.pai_tracker.member_vars["doing_pai"]:
+        missed_ones = []
+        tracked_ones = []
+        for name, param in net.named_parameters():
+            wrapped = "wrapped" in param.__dir__()
+            if wrapped:
+                if GPA.pc.get_verbose():
+                    print("param %s is now wrapped" % (name))
             else:
-                missed_ones.append(name)
-    if (
-        len(missed_ones) != 0 or len(tracked_ones) != 0
-    ) and GPA.pc.get_unwrapped_modules_confirmed() is False:
-        print("\n------------------------------------------------------------------")
-        print(
-            "The following params are not wrapped.\n------------------------------------------------------------------"
-        )
-        for name in tracked_ones:
-            print(name)
-        print("\n------------------------------------------------------------------")
-        print(
-            "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
-        )
-        for name in missed_ones:
-            print(name)
-        print("\n------------------------------------------------------------------")
-        print("Modules that are not wrapped will not have Dendrites to optimize them")
-        print(
-            "Modules modules that are not tracked can cause errors and is NOT recommended"
-        )
-        print("Any modules in the second list should be added to module_names_to_track")
-        print(
-            "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
-        )
-        print(
-            "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
-        )
-        print(
-            "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
-        )
-        import pdb
+                tracked = "tracked" in param.__dir__()
+                if tracked:
+                    tracked_ones.append(name)
+                else:
+                    missed_ones.append(name)
+        if (
+            len(missed_ones) != 0 or len(tracked_ones) != 0
+        ) and GPA.pc.get_unwrapped_modules_confirmed() is False:
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "The following params are not wrapped.\n------------------------------------------------------------------"
+            )
+            for name in tracked_ones:
+                print(name)
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
+            )
+            for name in missed_ones:
+                print(name)
+            print(
+                "\n------------------------------------------------------------------"
+            )
+            print(
+                "Modules that are not wrapped will not have Dendrites to optimize them"
+            )
+            print(
+                "Modules modules that are not tracked can cause errors and is NOT recommended"
+            )
+            print(
+                "Any modules in the second list should be added to module_names_to_track"
+            )
+            print(
+                "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
+            )
+            print(
+                "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
+            )
+            print(
+                "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
+            )
+            import pdb
 
-        pdb.set_trace()
-        print("confirmed")
+            pdb.set_trace()
+            print("confirmed")
     net.register_buffer("tracker_string", torch.tensor([]))
     return net
 
@@ -838,6 +849,22 @@ def save_net(net, folder, name):
         torch.save(net, save_point + name + ".pt")
 
 
+def manual_load_state_dict(model, state_dict):
+    own_state = model.state_dict()
+    for name, param in state_dict.items():
+        if name not in own_state:
+            print(f"Warning: {name} not found in model state_dict")
+            continue
+        if isinstance(param, torch.nn.Parameter):
+            # Backwards compatibility for serialized parameters
+            param = param.data
+        try:
+            own_state[name].copy_(param)
+        except Exception as e:
+            print(f"Error loading {name}: {e}")
+    print("Manual load complete")
+
+
 def load_net(net, folder, name):
     """load the network
 
@@ -973,7 +1000,28 @@ def load_net_from_dict(net, state_dict):
         net.tracker_string = state_dict["tracker_string"]
     else:
         net.register_buffer("tracker_string", state_dict["tracker_string"])
-    net.load_state_dict(state_dict)
+    try:
+        net.load_state_dict(state_dict)
+    except Exception as e:
+        """
+        When modules have high depth to them (i.e. modules within modules not number of layers)
+        PyTorch can have trouble loading state dicts even when they are correct.
+        This is a workaround to manually load the state dict if this happens.
+        """
+        if set(net.state_dict().keys()) == set(state_dict.keys()):
+            print("Attempting manual loading of state_dict")
+            manual_load_state_dict(net, state_dict)
+        else:
+            print(f"Error loading state_dict: {e}")
+            print("net state dict is:")
+            print(net.state_dict())
+            print("loaded state dict is:")
+            print(state_dict)
+            print(
+                "Try to check differences.  Likely is caused by a module not "
+                "being converted that should be or vice versa"
+            )
+            pdb.set_trace()
     net.to(GPA.pc.get_device())
     return net
 

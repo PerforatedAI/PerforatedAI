@@ -19,17 +19,25 @@ We typically recommend using the random sweep method and maximizing the validati
 In addition to normal hyperparameters you may want to use, these are the ones most important for dendrites.
 
 parameters_dict = {
+
+    # Associated values for sweeping
+
+    # Dropout can be especially important if your training is already higher than your validation
+    "dropout": {"values": [0.1, 0.3, 0.5]},
+    # Weight decay can have negative impact on dendritic models
+    "weight_decay": {"values": [0, your original value]},
+
     # Used for all dendritic models:
 
     # Speed of improvement required to prevent switching
     # 0.1 means dendrites wills witch after score stops improving by 10% over recent history
     # This extra-early early-stopping sometimes enables high final scores as well as
     # acheiving top scores with fewer epochs
-    "improvement_threshold": {"values": [0.1, 0.01, 0.001]}
+    "improvement_threshold": {"values": [[0.01, 0.001, 0.0001], [0.001, 0.0001]]},
     # Multiplier to initialize dendrite weights
-    "candidate_weight_initialization_multiplier": {"values": [0.1, 0.01]}
+    "candidate_weight_initialization_multiplier": {"values": [0.1, 0.01]},
     # Forward function for dendrites
-    "pb_forward_function": {"values": [torch.sigmoid, torch.relu, torch.tanh]}
+    "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
 
     # Only used with Perforated Backpropagation add-on
 
@@ -37,8 +45,6 @@ parameters_dict = {
     "dendrite_graph_mode": {"values": [True, False]},
     # A setting for dendritic learning rule
     "dendrite_learn_mode": {"values": [True, False]},
-    # A setting for dendritic weight adjustments
-    "dendrite_update_mode": {"values": [True, False]}
 }
 
 ## Additional Parameter 
@@ -48,7 +54,7 @@ of neuron epochs.  This is only used for Perforated Backpropagation training whe
 This defaults to False which has the best results, however, setting to True can sometimes cut 
 out a lot of epochs for only slightly worse performance.
 
-    GBP.cap_at_n = True
+    GPA.pc.set_cap_at_n(True)
 
 ## Updating config and generating ID
 Once this dict has been setup with options, the sweep config can be adjusted and the wandb sweep can be initialized.
@@ -58,29 +64,52 @@ Once this dict has been setup with options, the sweep config can be adjusted and
 
 ## Getting the Run Setup
 Next you have to modify your main function to actually run the sweep, this can be done very simply
-by creating a wrapper function run() which calls your original main.
+by creating a wrapper function run() which calls your original main.  We recommend the following
+try except which drops into pdb on failure instead of exiting since often there will be problems
+setting this up for the first time.
 
     def run():
-        with wandb.init(config=sweep_config) as run:
-            main(run)
-
+        try:
+            with wandb.init(config=sweep_config) as run:
+                main(run)
+        except Exception:
+            import pdb
+            pdb.post_mortem()
     if __name__ == "__main__":
         # Count is how many runs to perform.
         wandb.agent(sweep_id, run, count=100)
+
 
 ## Using the config values
 Inside your main you now have access to the current config.  This can be used as follows:
 
     def main(run):
         config = run.config
-        PBG.improvement_threshold = config.improvement_threshold
-        PBG.candidate_weight_initialization_multiplier = config.candidate_weight_initialization_multiplier
-        PBG.pb_forward_function = config.pb_forward_function
-        PBG.dendrite_graph_mode = config.dendrite_graph_mode
-        PBG.dendrite_learn_mode = config.dendrite_learn_mode
-        PBG.dendrite_update_mode = config.dendrite_update_mode
+        GPA.pc.set_improvement_threshold(config.improvement_threshold)
+        GPA.pc.set_candidate_weight_initialization_multiplier(
+            config.candidate_weight_initialization_multiplier
+        )
+        if config.pai_forward_function == "sigmoid":
+            pai_forward_function = torch.sigmoid
+        elif config.pai_forward_function == "relu":
+            pai_forward_function = torch.relu
+        elif config.pai_forward_function == "tanh":
+            pai_forward_function = torch.tanh
+        GPA.pc.set_pai_forward_function(pai_forward_function)
+        GPA.pc.set_dendrite_graph_mode(config.dendrite_graph_mode)
+        GPA.pc.set_dendrite_update_mode(config.dendrite_update_mode)
         name_str = "_".join([f"{key}_{wandb.config[key]}" for key in wandb.config.keys()])
         run.name = name_str
+
+### Retaining Perforated AI Logs
+
+When calling initialize_pai a save name must be set to determine the folder to save dendrite tests.
+If you want to retain all of your tests separately you can label your save_name with
+the wandb sweep configuration values.
+
+    name_str = "_".join([f"{key}_{wandb.config[key]}" for key in wandb.config.keys()])
+    run.name = name_str
+    model = UPA.initialize_pai(model, save_name=name_str)
 
 ## Logging
 Then inside your script you'll also need to add logging.  You can add as much or as little as you'd like

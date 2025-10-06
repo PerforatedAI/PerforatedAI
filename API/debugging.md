@@ -251,7 +251,7 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
     A potential way to correctly save your model is to use `save_model`.
     More information at https://huggingface.co/docs/safetensors/torch_shared_tensors
 
-A lot of moden models have this tendency to save a pointer to a copy of themselves which will cause an error with the Perforated AI save function. This can be remedied in two ways.  First is by using torch.load rather than the safetensors method.  Be aware there is risk of loading pretrained models file from outside your group, and this should only be used when working with models you trust or models which are training from scratch.  To accept this risk and use torch.load set the following: 
+A lot of modern models have this tendency to save a pointer to a copy of themselves which will cause an error with the Perforated AI save function. This can be remedied in two ways.  First is by using torch.load rather than the safetensors method.  Be aware there is risk of loading pretrained models file from outside your group, and this should only be used when working with models you trust or models which are training from scratch.  To accept this risk and use torch.load set the following: 
 
     GPA.pc.set_using_safe_tensors(False)
     
