@@ -18,7 +18,7 @@ We typically recommend using the random sweep method and maximizing the validati
 ## Picking Hyperparameters
 In addition to normal hyperparameters you may want to use, these are the ones most important for dendrites.
 
-parameters_dict = {
+    parameters_dict = {
 
     # Associated values for sweeping
 
@@ -30,10 +30,10 @@ parameters_dict = {
     # Used for all dendritic models:
 
     # Speed of improvement required to prevent switching
-    # 0.1 means dendrites wills witch after score stops improving by 10% over recent history
+    # 0.1 means dendrites will switch after score stops improving by 10% over recent history
     # This extra-early early-stopping sometimes enables high final scores as well as
-    # acheiving top scores with fewer epochs
-    "improvement_threshold": {"values": [[0.01, 0.001, 0.0001], [0.001, 0.0001]]},
+    # achieving top scores with fewer epochs
+    "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0.001, 0.0001, 0]]},
     # Multiplier to initialize dendrite weights
     "candidate_weight_initialization_multiplier": {"values": [0.1, 0.01]},
     # Forward function for dendrites
@@ -45,7 +45,7 @@ parameters_dict = {
     "dendrite_graph_mode": {"values": [True, False]},
     # A setting for dendritic learning rule
     "dendrite_learn_mode": {"values": [True, False]},
-}
+    }
 
 ## Additional Parameter 
 Another important parameter, which can be included in sweeps or kept separate, is cap_at_n.
@@ -65,7 +65,7 @@ Once this dict has been setup with options, the sweep config can be adjusted and
 ## Getting the Run Setup
 Next you have to modify your main function to actually run the sweep, this can be done very simply
 by creating a wrapper function run() which calls your original main.  We recommend the following
-try except which drops into pdb on failure instead of exiting since often there will be problems
+try/except which drops into pdb on failure instead of exiting since often there will be problems
 setting this up for the first time.
 
     def run():
@@ -119,4 +119,4 @@ But we'd recommend at least logging training and validation scores
         
 
 ## Running
-Now just run your program as usual and you will be able to see the sweep on the sweeps tab on your weights and biases homepage
+Now just run your program as usual and you will be able to see the sweep on the sweeps tab on your Weights and Biases homepage
