@@ -332,7 +332,7 @@ class PAIConfig:
 
         # Improvement thresholds
         # Percentage improvement increase needed to call a new best validation score
-        self.improvement_threshold = [0.001, 0.0001]
+        self.improvement_threshold = [0.001, 0.0001, 0.0]
         add_pai_config_var_functions(
             self, "improvement_threshold", self.improvement_threshold
         )
@@ -351,6 +351,14 @@ class PAIConfig:
             "candidate_weight_initialization_multiplier",
             self.candidate_weight_initialization_multiplier,
         )
+        # Multiplier when randomizing dendrite weights
+        self.candidate_weight_init_by_main = False
+        add_pai_config_var_functions(
+            self,
+            "candidate_weight_init_by_main",
+            self.candidate_weight_init_by_main,
+        )
+
         # SWITCH MODE SETTINGS
 
         # Add dendrites every time to debug implementation
