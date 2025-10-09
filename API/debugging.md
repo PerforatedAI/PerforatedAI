@@ -242,6 +242,22 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
         return (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf']
     lf = tmp_func #where it was originally defined
 
+### Autograd Errors
+
+    Trying to backward through the graph a second time
+
+This is caused by something in your graph containing the same tensor twice.  If you run into this you can try to track it down with the following code block.  Set this up and then call `from perforatedai import globals_perforatedai as GPA; GPA.get_param_name(t_outputs)` within the error block. If this does not work try filling in `GPA.param_name_by_id` with additional tensors
+
+    def get_param_name(tensor):
+        return GPA.param_name_by_id.get(id(tensor), None)
+    # Create mapping from tensor id to name
+    GPA.param_name_by_id = {id(param): name for name, param in model.named_parameters()}
+    GPA.get_param_name = get_param_name
+
+It can also sometimes help to use the torchviz package to try to show the entire graph of the tensor.  Go up in debugger to where the problem first occurs in your code then call:
+
+    from torchviz import make_dot; dot = make_dot(TENSOR); dot.render('graph', format='pdf') 
+
 ### Safetensors Errors
 
     Some tensors share memory, this will lead to duplicate memory on disk and potential differences when loading them again:
