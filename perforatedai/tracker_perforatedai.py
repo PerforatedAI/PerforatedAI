@@ -435,6 +435,7 @@ def process_final_network(net):
         print(
             f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}"
         )
+    GPA.pai_tracker.save_graphs("before_final")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
     GPA.pai_tracker.save_graphs()
     UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")

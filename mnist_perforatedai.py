@@ -106,7 +106,7 @@ def test(model, device, test_loader, optimizer, scheduler, args):
     )
     model.to(device)
     # If it was restructured reset the optimizer and scheduler
-    if restructured:
+    if restructured and not training_complete:
         optimArgs = {"params": model.parameters(), "lr": args.lr}
         schedArgs = {"step_size": 1, "gamma": args.gamma}
         optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
@@ -260,7 +260,7 @@ def main():
 
     # Set up some global parameters for PAI code
     GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.set_verbose(True)
+    GPA.pc.set_verbose(False)
     model = Net(num_classes, args.width).to(device)
 
     model = UPA.initialize_pai(model)
