@@ -261,6 +261,8 @@ def main():
     # Set up some global parameters for PAI code
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_verbose(False)
+    GPA.pc.set_dendrite_update_mode(True)
+
     model = Net(num_classes, args.width).to(device)
 
     model = UPA.initialize_pai(model)

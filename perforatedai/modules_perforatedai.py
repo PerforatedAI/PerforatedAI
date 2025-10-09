@@ -17,8 +17,10 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
-except Exception as e:
-    pass
+except ModuleNotFoundError:
+    pass  # Module not found, pass silently
+except ImportError as e:
+    print(f"Import error occurred: {e}")
 
 
 # Values for Dendrite training, minimally used in open source version
@@ -43,7 +45,7 @@ DENDRITE_SAVE_VALUES = (
 )
 
 
-def filter_backward(grad_out, values, candidate_nonlinear_outs):
+def filter_backward(grad_out, values):
     """Filter backward pass for gradient processing.
 
     This function processes gradients during the backward pass,
@@ -55,8 +57,6 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
         The gradient output tensor from the backward pass.
     values : DendriteValueTracker
         A DendriteValueTracker instance containing values associated with the module being processed.
-    candidate_nonlinear_outs : dict
-        A dictionary of candidate modules outputs after non-linear activation.
 
     Returns
     -------
@@ -125,7 +125,7 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
         if GPA.pc.get_perforated_backpropagation():
-            MPB.filter_backward_pb(val, values, candidate_nonlinear_outs)
+            MPB.filter_backward_pb(val, values)
 
 
 def set_wrapped_params(model):
@@ -275,6 +275,10 @@ class PAINeuronModule(nn.Module):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.main_module, name)
+
+    def apply_pb_grads(self):
+        """Apply perforated backpropagation gradients if enabled."""
+        self.dendrite_module.apply_pb_grads()
 
     def clear_processors(self):
         """Clear processors if they save values for DeepCopy and save.
@@ -568,14 +572,6 @@ class PAINeuronModule(nn.Module):
                     )
                 out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
 
-        if GPA.pc.get_perforated_backpropagation():
-            out = MPB.apply_pb(
-                self,
-                out,
-                candidate_outs,
-                candidate_nonlinear_outs,
-                candidate_outs_non_zeroed,
-            )
         # Catch if processors are required
         if type(out) is tuple:
             print(self)
@@ -591,14 +587,9 @@ class PAINeuronModule(nn.Module):
 
         # Call filter backward to ensure the neuron index is setup correctly
         if out.requires_grad:
-            if GPA.pc.get_perforated_backpropagation():
-                MPB.setup_hooks(self, out, candidate_nonlinear_outs)
-            else:
-                out.register_hook(
-                    lambda grad: filter_backward(
-                        grad, self.dendrite_module.dendrite_values, {}
-                    )
-                )
+            out.register_hook(
+                lambda grad: filter_backward(grad, self.dendrite_module.dendrite_values)
+            )
 
         # If there is a processor apply the second neuron stage
         if self.processor is not None:
@@ -852,6 +843,8 @@ class PAIDendriteModule(nn.Module):
                     self.this_input_dimensions,
                 )
             )
+        if GPA.pc.get_perforated_backpropagation():
+            self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
 
     def set_this_input_dimensions(self, new_input_dimensions):
         """Set input dimensions for dendrite layer.
