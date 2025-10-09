@@ -893,8 +893,6 @@ class PAIDendriteModule(nn.Module):
 
                 new_module = UPA.deep_copy_pai(self.parent_module)
                 init_params(new_module, neuron_main_module)
-                if GPA.pc.get_perforated_backpropagation():
-                    MPB.set_grad_params(new_module, True)
                 self.candidate_module.append(new_module)
                 self.best_candidate_module.append(UPA.deep_copy_pai(new_module))
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
