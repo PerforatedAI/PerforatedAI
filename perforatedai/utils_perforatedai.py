@@ -412,6 +412,11 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
         return net
     else:
         for member in all_members:
+            # Immediately check if able to get the member, if not skip it
+            try:
+                getattr(net, member, None)
+            except:
+                continue
             sub_name = name_so_far + "." + member
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
@@ -457,10 +462,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 )
                 pdb.set_trace()
                 sys.exit(0)
-            try:
-                getattr(net, member, None)
-            except:
-                continue
+
             if type(getattr(net, member, None)) in GPA.pc.get_modules_to_replace():
                 if GPA.pc.get_verbose():
                     print("sub is in replacement module so replacing: %s" % sub_name)

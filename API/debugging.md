@@ -92,8 +92,7 @@ This is the error you will get if you need to access an attribute of a module th
     
 ## Initialize Error
 
-    GPA.pai_tracker.initialize ...
-    AttributeError: 'list' object has no attribute 'initialize'
+    AttributeError: 'list' object has no attribute 'set_optimizer_instance'
 
 This means the pai_tracker was not initialized.  This generally only happens if zero layers are converted.  Make sure that at least one layer has been converted correctly.
 

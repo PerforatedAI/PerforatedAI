@@ -511,7 +511,7 @@ class PAINeuronModule(nn.Module):
         -------
         None
         """
-        self.dendrite_module.create_new_dendrite_module()
+        self.dendrite_module.create_new_dendrite_module(self.main_module)
 
     def forward(self, *args, **kwargs):
         """Forward pass through the neuron layer.
@@ -734,15 +734,40 @@ class TrackedNeuronModule(nn.Module):
         return self.__str__()
 
 
-def init_params(model):
-    """Randomize weights after duplicating the main module for the next set of dendrites."""
-    for param in model.parameters():
+def init_params(module, neuron_main_module):
+    """Randomize weights after duplicating the main module for the next set of dendrites.
+
+    Parameters
+    ----------
+    module : nn.Module
+        The new dendrite module to initialize.
+    neuron_main_module : nn.Module
+        The main module of the neuron for potential weight scaling.
+
+    """
+    for param in module.parameters():
         if param.dtype == torch.uint8:
             param.data = torch.randint(0, 256, param.size(), dtype=torch.uint8)
         else:
+            # If factoring in the main modules weights multiply the randn()
+            #  by the average abs value of the main modules weights
+            if GPA.pc.get_candidate_weight_init_by_main():
+                main_module_abs = 0
+                total_main_params = 0
+                for main_param in neuron_main_module.parameters():
+                    main_module_abs += main_param.abs().sum().item()
+                    total_main_params += main_param.numel()
+                if total_main_params > 0:
+                    main_module_abs /= total_main_params
+                else:
+                    main_module_abs = 1.0
+                multiplier = main_module_abs
+            else:
+                multiplier = 1.0
             param.data = (
                 torch.randn(param.size(), dtype=param.dtype)
                 * GPA.pc.get_candidate_weight_initialization_multiplier()
+                * multiplier
             )
 
 
@@ -860,7 +885,7 @@ class PAIDendriteModule(nn.Module):
         for j in range(0, GPA.pc.get_global_candidates()):
             self.dendrite_values[j].set_this_input_dimensions(new_input_dimensions)
 
-    def create_new_dendrite_module(self):
+    def create_new_dendrite_module(self, neuron_main_module):
         """Add a new set of dendrites."""
         # Candidate layer
         self.candidate_module = nn.ModuleList([])
@@ -874,7 +899,7 @@ class PAIDendriteModule(nn.Module):
             for i in range(0, GPA.pc.get_global_candidates()):
 
                 new_module = UPA.deep_copy_pai(self.parent_module)
-                init_params(new_module)
+                init_params(new_module, neuron_main_module)
                 if GPA.pc.get_perforated_backpropagation():
                     MPB.set_grad_params(new_module, True)
                 self.candidate_module.append(new_module)
