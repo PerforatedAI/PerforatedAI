@@ -1412,6 +1412,8 @@ class PAINeuronModuleTracker:
         except:
             pass
         self.member_vars["optimizer_instance"] = optimizer_instance
+        if GPA.pc.get_perforated_backpropagation():
+            TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later
@@ -1567,6 +1569,8 @@ class PAINeuronModuleTracker:
 
         optimizer = self.member_vars["optimizer"](**opt_args)
         self.member_vars["optimizer_instance"] = optimizer
+        if GPA.pc.get_perforated_backpropagation():
+            TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
 
         if self.member_vars["scheduler"] is not None:
             self.member_vars["scheduler_instance"] = self.member_vars["scheduler"](
@@ -3108,3 +3112,9 @@ class PAINeuronModuleTracker:
         """Add dendrite module to all neuron modules."""
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
+
+    def apply_pb_grads(self):
+        """Apply perforated backpropagation gradients to all modules."""
+        if self.member_vars["mode"] == "p":
+            for module in self.neuron_module_vector:
+                module.apply_pb_grads()
