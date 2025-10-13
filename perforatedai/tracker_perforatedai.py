@@ -2514,7 +2514,7 @@ class PAINeuronModuleTracker:
                     ax.plot(
                         np.arange(len(self.member_vars["current_scores"][layer_id])),
                         self.member_vars["current_scores"][layer_id],
-                        label=f"Best current for all Nodes Layer {self.neuron_module_vector[layer_id].name}",
+                        label=f"Current:{self.neuron_module_vector[layer_id].name}",
                     )
 
                 pd2 = pd.DataFrame(
