@@ -1219,16 +1219,20 @@ def change_learning_modes(net, folder, name, doing_pai):
         else:
             overwritten_val = GPA.pai_tracker.member_vars["neuron_accuracies"]
         """
-        The only reason that retain_all_dendrites should ever be used is to test GPU
-        memory and configuration. So if true don't load the best system
+        If true don't load the best system
         because it will delete dendrites if the previous best was better than
         the current best
         """
         if not GPA.pc.get_retain_all_dendrites():
             if not GPA.pc.get_silent():
                 print("Importing best Model for switch to PA...")
+
             net = load_system(net, folder, name, switch_call=True)
         else:
+            # This wont get created if dendrites would have been deleted without retain_all
+            GPA.pai_tracker.save_graphs(
+                f'_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}'
+            )
             if not GPA.pc.get_silent():
                 print("Not importing new model since retaining all PB")
         GPA.pai_tracker.set_dendrite_training()
