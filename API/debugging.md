@@ -2,9 +2,14 @@
 
 If you are crashing in ways that aren't caught by the other md files, search for them here before looking up online.
 
+## New Best Scores are not Being Tiggered
+Check GPA.pc.get_improvement_threshold().  If the improvement is very small it may not be beating the previous best by a high enough margin.  You can also set GPA.pc.set_verbose(True) to check if this is the case.
+
+Also ensure that maximizing_score is set properly in initialize_pai.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
+
 ## Errors Where Warnings are Printed
 
-    "The following layer has not properly set thisinput_dimensions"
+    "The following layer has not properly set this_input_dimensions"
 
 Check out the suggestions that are printed and section 4 in customization
 
@@ -142,6 +147,10 @@ The conversion script runs by going through all member variables and determining
     RuntimeError: Only Tensors created explicitly by the user (graph leaves) support the deepcopy protocol at the moment.  If you were attempting to deepcopy a module, this may be because of a torch.nn.utils.weight_norm usage, see https://github.com/pytorch/pytorch/pull/103001     
 
 This error has been seen when the processor doesn't properly clear the values it has saved.  Make sure you define a clear_processor function for any processors you create.  If you believe you did and are still getting this error, reach out to us.
+
+This can also happen when forward is called to accumulate gradients but then backwards is not called to clear those gradients.  get GPA.pc.set_extra_verbose(True) to print when gradient tensors are added and removed.  If you have them being added but not removed this is the cause.  Check to make sure optimizer.step() is being called properly.  Some programs have methods that do not call optimizer.step() under certain situations.  Our code is also setup such that optimizer.zero_grad will correct this which can be called as an alternative if the optimizer should actually not be stepped.
+
+If this does not seem to be the problem try going up in the debugger and calling deep copy on individual modules and submodules to track down which module is causing a problem.
 
 ## Different Devices
 

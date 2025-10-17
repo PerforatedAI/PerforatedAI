@@ -280,6 +280,10 @@ class PAINeuronModule(nn.Module):
         """Apply perforated backpropagation gradients if enabled."""
         self.dendrite_module.apply_pb_grads()
 
+    def apply_pb_zero(self):
+        """Clear leftover saved tensors if there are any."""
+        self.dendrite_module.apply_pb_zero()
+
     def clear_processors(self):
         """Clear processors if they save values for DeepCopy and save.
 
@@ -845,6 +849,7 @@ class PAIDendriteModule(nn.Module):
             )
         if GPA.pc.get_perforated_backpropagation():
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
+            self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 
     def set_this_input_dimensions(self, new_input_dimensions):
         """Set input dimensions for dendrite layer.
@@ -1264,7 +1269,7 @@ class DendriteValueTracker(nn.Module):
             print("If its not you should really delete it, but you can also add")
             print(self.layer_name)
             print("with:")
-            print("GPA.pc.append_module_names_to_track(['" + self.layer_name + "'])")
+            print("GPA.pc.append_module_ids_to_track(['" + self.layer_name + "'])")
             print("This can also happen while testing_dendrite_capacity if you")
             print(
                 "run a validation cycle and try to add Dendrites before doing any training.\n"

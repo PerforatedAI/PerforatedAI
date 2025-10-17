@@ -3034,8 +3034,6 @@ class PAINeuronModuleTracker:
                         f"{GPA.pc.get_save_name()}/best_model.pt",
                         f'{GPA.pc.get_save_name()}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
                     )
-                    if GPA.pc.get_extra_verbose():
-                        pdb.set_trace()
 
                 net = UPA.change_learning_modes(
                     net,
@@ -3118,3 +3116,9 @@ class PAINeuronModuleTracker:
         if self.member_vars["mode"] == "p":
             for module in self.neuron_module_vector:
                 module.apply_pb_grads()
+
+    def apply_pb_zero(self):
+        """Apply perforated backpropagation zero gradients to all modules."""
+        if self.member_vars["mode"] == "p":
+            for module in self.neuron_module_vector:
+                module.apply_pb_zero()

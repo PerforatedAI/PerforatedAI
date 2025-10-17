@@ -394,6 +394,12 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 if net != net.get_submodule(submodule_id):
                     converted_list += [id(net.get_submodule(submodule_id))]
                     converted_names_list += [sub_name]
+                    if GPA.pc.get_verbose():
+                        print(
+                            "sub is module but in no lists so going deeper: %s"
+                            % sub_name
+                        )
+
                     setattr(
                         net,
                         submodule_id,
@@ -506,6 +512,11 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 if net != getattr(net, member):
                     converted_list += [id(getattr(net, member))]
                     converted_names_list += [sub_name]
+                    if GPA.pc.get_verbose():
+                        print(
+                            "sub is module but in no lists so going deeper: %s"
+                            % sub_name
+                        )
                     setattr(
                         net,
                         member,
@@ -537,7 +548,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "converted, this is not recommended: %s" % (sub_name)
                     )
                     print(
-                        "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip "
+                        "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip "
                         "this next time"
                     )
                     print(
@@ -648,7 +659,7 @@ def convert_network(net, layer_name=""):
                 "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
             )
             print(
-                "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
+                "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time"
             )
             print(
                 "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
@@ -657,7 +668,7 @@ def convert_network(net, layer_name=""):
 
             pdb.set_trace()
             print("confirmed")
-    net.register_buffer("tracker_string", torch.tensor([]))
+    net.register_buffer("tracker_string", torch.tensor([], dtype=torch.uint8))
     return net
 
 
@@ -678,7 +689,7 @@ def string_to_tensor(string):
 
     """
     ords = list(map(ord, string))
-    ords = torch.tensor(ords)
+    ords = torch.tensor(ords, dtype=torch.uint8)
     return ords
 
 
