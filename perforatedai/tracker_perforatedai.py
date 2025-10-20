@@ -435,7 +435,6 @@ def process_final_network(net):
         print(
             f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}"
         )
-    GPA.pai_tracker.save_graphs("before_final")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
     GPA.pai_tracker.save_graphs()
     UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
@@ -2562,6 +2561,18 @@ class PAINeuronModuleTracker:
                 )
             del pd1, pd2
 
+    def generate_best_extra_scores(self, score_list, epoch_indexes):
+        if len(score_list) != len(self.member_vars["accuracies"]):
+            print(
+                "One of your extra_scores are not the same length as validation scores."
+            )
+            print("Make sure you add extra scores before add_validation_score().")
+            pdb.set_trace()
+        best_test = []
+        for best_valid_index in epoch_indexes:
+            best_test.append(score_list[best_valid_index])
+        return best_test
+
     def generate_extra_csv_files(self, save_folder, extra_string):
         """
         Generate additional csvs
@@ -2609,21 +2620,10 @@ class PAINeuronModuleTracker:
         The test score that gets recorded here is not the best test score calculated,
         instead it is the test score that was calculated during the epoch when the best validation score was found.
         """
-        test_scores = self.member_vars["test_scores"]
-        # If not tracking test scores, use validation scores
-        if len(self.member_vars["test_scores"]) == 0:
-            test_scores = self.member_vars["accuracies"]
-
-        if len(test_scores) != len(self.member_vars["accuracies"]):
-            print("Your test scores are not the same length as validation scores")
-            print(
-                "add_test_score should only be included once, use add_extra_score for other variables"
-            )
-
         switch_counts = len(self.member_vars["switch_epochs"])
-        best_test = []
         best_valid = []
         associated_params = []
+        best_valid_indexes = []
 
         for switch in range(0, switch_counts, 2):
             start_index = 0
@@ -2641,9 +2641,8 @@ class PAINeuronModuleTracker:
                 )
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
-            best_test_score = test_scores[best_valid_index]
+            best_valid_indexes.append(best_valid_index)
             best_valid.append(best_valid_score)
-            best_test.append(best_test_score)
             if self.member_vars["doing_pai"]:
                 associated_params.append(self.member_vars["param_counts"][switch])
             else:
@@ -2671,18 +2670,25 @@ class PAINeuronModuleTracker:
                 )
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
-            best_test_score = test_scores[best_valid_index]
+            best_valid_indexes.append(best_valid_index)
             best_valid.append(best_valid_score)
-            best_test.append(best_test_score)
             associated_params.append(self.member_vars["param_counts"][-1])
 
-        pd1 = pd.DataFrame(
-            {
-                "Param Counts": associated_params,
-                "Max Valid Scores": best_valid,
-                "Max Test Scores": best_test,
-            }
-        )
+        scores_dict = {
+            "Param Counts": associated_params,
+            "Max Valid Scores": best_valid,
+        }
+        for scores_list in [
+            self.member_vars["extra_scores"],
+            self.member_vars["extra_scores_without_graphing"],
+        ]:
+            for score_name in scores_list:
+                new_scores = self.generate_best_extra_scores(
+                    scores_list[score_name], best_valid_indexes
+                )
+                scores_dict[score_name] = new_scores
+
+        pd1 = pd.DataFrame(scores_dict)
         pd1.to_csv(
             save_folder + "/" + self.save_name + extra_string + "best_test_scores.csv",
             index=False,

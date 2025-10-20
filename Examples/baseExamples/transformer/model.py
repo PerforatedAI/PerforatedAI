@@ -183,7 +183,6 @@ class TransformerLM(nn.Module):
         
         for layer in self.layers:
             x = layer(x, mask)
-        
         logits = self.output_projection(x)
         return logits
     

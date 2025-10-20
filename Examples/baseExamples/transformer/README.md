@@ -80,3 +80,8 @@ python train.py --model_type dendritic
 
 We use **WikiText-2**, a word-level language modeling dataset with ~2 million tokens. The dataset is automatically downloaded via Hugging Face's `datasets` library.
 
+## Example Output
+This shows an example output of an experiment with 128 width, 2 layers, and dropout of 0.25
+
+![ExampleOutput](dendritic_128d_2l_dropout25.png "Example Output")
+

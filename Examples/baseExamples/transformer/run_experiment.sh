@@ -42,9 +42,9 @@ fi
 # Install PerforatedAI if needed
 if ! python -c "import perforatedai" &> /dev/null; then
     echo "Installing PerforatedAI..."
-    cd PerforatedAI_lib
+    cd ../../..
     pip install -e .
-    cd ..
+    cd -
     echo "✓ PerforatedAI installed"
 fi
 
