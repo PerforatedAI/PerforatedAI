@@ -26,9 +26,10 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import tracker_pbp as TPB
-
-except Exception as e:
-    pass
+except ModuleNotFoundError:
+    pass  # Module not found, pass silently
+except ImportError as e:
+    print(f"Import error occurred: {e}")
 
 mpl.use("Agg")
 
@@ -1395,20 +1396,21 @@ class PAINeuronModuleTracker:
         """
 
         try:
-            if (
-                optimizer_instance.param_groups[0]["weight_decay"] > 0
-                and GPA.pc.get_weight_decay_accepted() is False
-            ):
-                print(
-                    "For PAI training it is recommended to not use "
-                    "weight decay in your optimizer"
-                )
-                print(
-                    "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
-                    "warning or c to continue"
-                )
-                GPA.pc.set_weight_decay_accepted(True)
-                pdb.set_trace()
+            for param_group in optimizer_instance.param_groups:
+                if (
+                    param_group["weight_decay"] > 0
+                    and GPA.pc.get_weight_decay_accepted() is False
+                ):
+                    print(
+                        "For PAI training it is recommended to not use "
+                        "weight decay in your optimizer"
+                    )
+                    print(
+                        "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
+                        "warning or c to continue"
+                    )
+                    GPA.pc.set_weight_decay_accepted(True)
+                    pdb.set_trace()
         except:
             pass
         self.member_vars["optimizer_instance"] = optimizer_instance
@@ -1568,9 +1570,7 @@ class PAINeuronModuleTracker:
                 opt_args["params"] = UPA.get_pai_network_params(net)
 
         optimizer = self.member_vars["optimizer"](**opt_args)
-        self.member_vars["optimizer_instance"] = optimizer
-        if GPA.pc.get_perforated_backpropagation():
-            TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
+        self.set_optimizer_instance(optimizer)
 
         if self.member_vars["scheduler"] is not None:
             self.member_vars["scheduler_instance"] = self.member_vars["scheduler"](
