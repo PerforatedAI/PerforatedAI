@@ -1663,7 +1663,11 @@ class PAINeuronModuleTracker:
             switch_phrase = "DOING_FIXED_SWITCH"
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_NO_SWITCH:
             switch_phrase = "DOING_NO_SWITCH"
-
+        else:
+            print(
+                "A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode()."
+            )
+            pdb.set_trace()
         if not GPA.pc.get_silent():
             print(
                 f'Checking PAI switch with mode {self.member_vars["mode"]}, '

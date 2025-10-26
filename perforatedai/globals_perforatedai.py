@@ -388,8 +388,9 @@ class PAIConfig:
         self.fixed_switch_num = 250
         add_pai_config_var_functions(self, "fixed_switch_num", self.fixed_switch_num)
         # An additional flag if you want your first switch to occur later than all the
-        # rest for initial pretraining
-        self.first_fixed_switch_num = 249
+        # rest for initial pretraining.  This is a new minimum, if its lower than
+        # the above it will be ignored.
+        self.first_fixed_switch_num = 0
         add_pai_config_var_functions(
             self, "first_fixed_switch_num", self.first_fixed_switch_num
         )
