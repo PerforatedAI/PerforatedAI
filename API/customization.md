@@ -206,8 +206,9 @@ If you are working with a pretrained network but you need to make some of the ch
     
 An example of this is ResNetPB in pb_models.  Keep in mind, if you want to replace the main module of the network, just do it at the top level in the main function and do not rely on the PAI conversion portion with these two lines of code. As an example for ResNets:
 
+    from perforatedai import library_perforatedai as LPA
     GPA.pc.append_modules_to_replace([torchvision.models.resnet.ResNet])
-    GPA.pc.append_replacement_modules([PBM.ResNetPB])
+    GPA.pc.append_replacement_modules([LPA.ResNetPAI])
     
     
 ## 6 - DataParallel
