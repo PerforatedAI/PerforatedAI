@@ -91,7 +91,11 @@ from perforatedai import utils_perforatedai as UPA
 # For datasets
 from datasets import load_dataset
 
-from models import BertForSequenceClassificationPB, RobertaForSequenceClassificationPB, ClassifierWrapper
+from models import (
+    BertForSequenceClassificationPB,
+    RobertaForSequenceClassificationPB,
+    ClassifierWrapper,
+)
 
 
 # =============================================================================
@@ -145,19 +149,16 @@ def load_agnews_dataset(tokenizer, max_len, seed=42):
 
     def tokenize_function(examples):
         return tokenizer(
-            examples["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=max_len
+            examples["text"], truncation=True, padding="max_length", max_length=max_len
         )
 
     train_dataset = train_val["train"].map(tokenize_function, batched=True)
-    val_dataset   = train_val["test"].map(tokenize_function, batched=True)
-    test_dataset  = dataset["test"].map(tokenize_function, batched=True)
+    val_dataset = train_val["test"].map(tokenize_function, batched=True)
+    test_dataset = dataset["test"].map(tokenize_function, batched=True)
 
     train_dataset = train_dataset.rename_column("label", "labels")
-    val_dataset   = val_dataset.rename_column("label", "labels")
-    test_dataset  = test_dataset.rename_column("label", "labels")
+    val_dataset = val_dataset.rename_column("label", "labels")
+    test_dataset = test_dataset.rename_column("label", "labels")
 
     train_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
     val_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
@@ -166,7 +167,9 @@ def load_agnews_dataset(tokenizer, max_len, seed=42):
     return train_dataset, val_dataset, test_dataset
 
 
-def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir="./cached_datasets"):
+def load_imdb_dataset(
+    tokenizer, max_len, seed=42, reduce_lines=False, cache_dir="./cached_datasets"
+):
     """
     Downloads and loads the IMDB dataset directly from Hugging Face.
     Creates a stratified split of the training data to get a dev set.
@@ -176,7 +179,7 @@ def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir
     dataset = load_dataset("imdb", cache_dir=cache_dir)
 
     def stratified_split(dataset_split, test_size=0.1, seed=42):
-        labels = np.array(dataset_split['label'])
+        labels = np.array(dataset_split["label"])
         pos_idx = np.where(labels == 1)[0]
         neg_idx = np.where(labels == 0)[0]
 
@@ -199,8 +202,8 @@ def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir
 
     if reduce_lines:
         train_data = train_data.select(range(min(1000, len(train_data))))
-        dev_data   = dev_data.select(range(min(100, len(dev_data))))
-        test_data  = test_data.select(range(min(100, len(test_data))))
+        dev_data = dev_data.select(range(min(100, len(dev_data))))
+        test_data = test_data.select(range(min(100, len(test_data))))
 
     print(f"Train samples: {len(train_data)}")
     print(f"Dev samples:   {len(dev_data)}")
@@ -208,16 +211,18 @@ def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir
 
     # Tokenize and format
     def tok_map(batch):
-        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=max_len)
+        return tokenizer(
+            batch["text"], truncation=True, padding="max_length", max_length=max_len
+        )
 
     train_dataset = train_data.map(tok_map, batched=True)
-    dev_dataset   = dev_data.map(tok_map, batched=True)
-    test_dataset  = test_data.map(tok_map, batched=True)
+    dev_dataset = dev_data.map(tok_map, batched=True)
+    test_dataset = test_data.map(tok_map, batched=True)
 
     # rename 'label' -> 'labels' and set torch format (assign back!)
     train_dataset = train_dataset.rename_column("label", "labels")
-    dev_dataset   = dev_dataset.rename_column("label", "labels")
-    test_dataset  = test_dataset.rename_column("label", "labels")
+    dev_dataset = dev_dataset.rename_column("label", "labels")
+    test_dataset = test_dataset.rename_column("label", "labels")
 
     train_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
     dev_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
@@ -226,7 +231,9 @@ def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir
     return train_dataset, dev_dataset, test_dataset
 
 
-def load_snli_dataset(tokenizer, max_len, seed, reduce_lines=False, cache_dir="./cached_datasets"):
+def load_snli_dataset(
+    tokenizer, max_len, seed, reduce_lines=False, cache_dir="./cached_datasets"
+):
     """
     Loads the SNLI dataset from Hugging Face.
     Filters out examples with label -1 and tokenizes using premise and hypothesis.
@@ -243,16 +250,27 @@ def load_snli_dataset(tokenizer, max_len, seed, reduce_lines=False, cache_dir=".
         dataset["test"] = dataset["test"].select(range(100))
 
     def tokenize_fn(examples):
-        return tokenizer(examples["premise"], examples["hypothesis"],
-                         truncation=True, padding="max_length", max_length=max_len)
+        return tokenizer(
+            examples["premise"],
+            examples["hypothesis"],
+            truncation=True,
+            padding="max_length",
+            max_length=max_len,
+        )
 
     tokenized = dataset.map(tokenize_fn, batched=True)
-    train_dataset = SentimentDataset({k: tokenized["train"][k] for k in tokenizer.model_input_names},
-                                     tokenized["train"]["label"])
-    dev_dataset = SentimentDataset({k: tokenized["validation"][k] for k in tokenizer.model_input_names},
-                                   tokenized["validation"]["label"])
-    test_dataset = SentimentDataset({k: tokenized["test"][k] for k in tokenizer.model_input_names},
-                                    tokenized["test"]["label"])
+    train_dataset = SentimentDataset(
+        {k: tokenized["train"][k] for k in tokenizer.model_input_names},
+        tokenized["train"]["label"],
+    )
+    dev_dataset = SentimentDataset(
+        {k: tokenized["validation"][k] for k in tokenizer.model_input_names},
+        tokenized["validation"]["label"],
+    )
+    test_dataset = SentimentDataset(
+        {k: tokenized["test"][k] for k in tokenizer.model_input_names},
+        tokenized["test"]["label"],
+    )
     return train_dataset, dev_dataset, test_dataset
 
 
@@ -260,15 +278,16 @@ def set_GPA_params(args):
     """
     Set PAI global parameters based on *actual* methods present in PAIConfig.
     """
+    GPA.metric = args.metric_for_best_model
     pc = GPA.pc
 
     pc.set_save_name(args.pai_save_name)
 
     # Normalize and set switch_mode
     sm = args.switch_mode.upper()
-    if sm == 'DOING_HISTORY':
+    if sm == "DOING_HISTORY":
         pc.set_switch_mode(pc.DOING_HISTORY)
-    elif sm == 'DOING_FIXED_SWITCH':
+    elif sm == "DOING_FIXED_SWITCH":
         pc.set_switch_mode(pc.DOING_FIXED_SWITCH)  # constant, not a function
         pc.set_fixed_switch_num(args.fixed_switch_num)
         pc.set_first_fixed_switch_num(args.first_fixed_switch_num)
@@ -303,7 +322,9 @@ def resize_model_hidden_size(config, width_factor):
     if hasattr(config, "intermediate_size"):
         config.intermediate_size = int(config.intermediate_size * width_factor)
     if hasattr(config, "num_attention_heads"):
-        config.num_attention_heads = max(8, (int(config.num_attention_heads * width_factor) // 8) * 8)
+        config.num_attention_heads = max(
+            8, (int(config.num_attention_heads * width_factor) // 8) * 8
+        )
     return config
 
 
@@ -311,55 +332,219 @@ def resize_model_hidden_size(config, width_factor):
 # Main Training Function
 # =============================================================================
 def main():
-    parser = argparse.ArgumentParser(description="Train a Transformer model with PAI integration.")
+    parser = argparse.ArgumentParser(
+        description="Train a Transformer model with PAI integration."
+    )
     # Model and tokenizer settings
-    parser.add_argument("--model_name", type=str, required=True, help="Model name or path (e.g., roberta-base or bert-base-uncased)")
-    parser.add_argument("--dataset", type=str, choices=["imdb", "snli", "agnews"], required=True, help="Dataset type")
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        required=True,
+        help="Model name or path (e.g., roberta-base or bert-base-uncased)",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        choices=["imdb", "snli", "agnews"],
+        required=True,
+        help="Dataset type",
+    )
     # PAI parameters
-    parser.add_argument("--wrap_full_model", action="store_true", help="If True wrap encoder + classifier; else only wrap classifier")
-    parser.add_argument("--maximizing_score", type=bool, default=True, help="If True then maximize score for PAI")
-    parser.add_argument("--pai_save_name", type=str, default="default_pai", help="PAI save name")
-    parser.add_argument("--switch_mode", type=str, choices=["DOING_HISTORY", "DOING_FIXED_SWITCH"], default="DOING_HISTORY", help="PAI switch mode")
-    parser.add_argument("--history_lookback", type=int, default=1, help="History lookback for PAI")
-    parser.add_argument("--fixed_switch_num", type=int, default=1, help="Fixed switch number (if using DOING_FIXED_SWITCH)")
-    parser.add_argument("--first_fixed_switch_num", type=int, default=1, help="First fixed switch number (if using DOING_FIXED_SWITCH)")
-    parser.add_argument("--n_epochs_to_switch", type=int, default=10, help="Number of epochs to switch")
-    parser.add_argument("--p_epochs_to_switch", type=int, default=10, help="(not used by this PAIConfig)")
-    parser.add_argument("--max_dendrites", type=int, default=1, help="Maximum dendrites")
-    parser.add_argument("--improvement_threshold", type=float, default=0.0001, help="Relative improvement threshold")
-    parser.add_argument("--pb_improvement_threshold", type=float, default=0.01, help="(not used by this PAIConfig)")
-    parser.add_argument("--pb_improvement_threshold_raw", type=float, default=0.001, help="Absolute improvement threshold (used)")
-    parser.add_argument("--unwrapped_modules_confirmed", type=bool, default=True, help="Unwrapped modules confirmed")
+    parser.add_argument(
+        "--wrap_full_model",
+        action="store_true",
+        help="If True wrap encoder + classifier; else only wrap classifier",
+    )
+    parser.add_argument(
+        "--maximizing_score",
+        type=bool,
+        default=True,
+        help="If True then maximize score for PAI",
+    )
+    parser.add_argument(
+        "--pai_save_name", type=str, default="default_pai", help="PAI save name"
+    )
+    parser.add_argument(
+        "--switch_mode",
+        type=str,
+        choices=["DOING_HISTORY", "DOING_FIXED_SWITCH"],
+        default="DOING_HISTORY",
+        help="PAI switch mode",
+    )
+    parser.add_argument(
+        "--history_lookback", type=int, default=1, help="History lookback for PAI"
+    )
+    parser.add_argument(
+        "--fixed_switch_num",
+        type=int,
+        default=1,
+        help="Fixed switch number (if using DOING_FIXED_SWITCH)",
+    )
+    parser.add_argument(
+        "--first_fixed_switch_num",
+        type=int,
+        default=1,
+        help="First fixed switch number (if using DOING_FIXED_SWITCH)",
+    )
+    parser.add_argument(
+        "--n_epochs_to_switch", type=int, default=10, help="Number of epochs to switch"
+    )
+    parser.add_argument(
+        "--p_epochs_to_switch",
+        type=int,
+        default=10,
+        help="(not used by this PAIConfig)",
+    )
+    parser.add_argument(
+        "--max_dendrites", type=int, default=1, help="Maximum dendrites"
+    )
+    parser.add_argument(
+        "--improvement_threshold",
+        type=float,
+        default=0.0001,
+        help="Relative improvement threshold",
+    )
+    parser.add_argument(
+        "--pb_improvement_threshold",
+        type=float,
+        default=0.01,
+        help="(not used by this PAIConfig)",
+    )
+    parser.add_argument(
+        "--pb_improvement_threshold_raw",
+        type=float,
+        default=0.001,
+        help="Absolute improvement threshold (used)",
+    )
+    parser.add_argument(
+        "--unwrapped_modules_confirmed",
+        type=bool,
+        default=True,
+        help="Unwrapped modules confirmed",
+    )
     # DSN flag
-    parser.add_argument("--dsn", action="store_true", help="Enable DSN mode (set number of encoder layers to 0)")
+    parser.add_argument(
+        "--dsn",
+        action="store_true",
+        help="Enable DSN mode (set number of encoder layers to 0)",
+    )
     # Compression for model width
-    parser.add_argument("--width", type=float, default=1.0, help="Width factor to shrink the model (0 < width <= 1)")
+    parser.add_argument(
+        "--width",
+        type=float,
+        default=1.0,
+        help="Width factor to shrink the model (0 < width <= 1)",
+    )
     # Training hyperparameters
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
-    parser.add_argument("--num_epochs", type=int, default=100, help="Number of training epochs")
+    parser.add_argument(
+        "--num_epochs", type=int, default=100, help="Number of training epochs"
+    )
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size")
-    parser.add_argument("--max_len", type=int, default=512, help="Maximum sequence length")
+    parser.add_argument(
+        "--max_len", type=int, default=512, help="Maximum sequence length"
+    )
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.1, help="Hidden dropout probability")
-    parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1, help="Attention dropout probability")
+    parser.add_argument(
+        "--hidden_dropout_prob",
+        type=float,
+        default=0.1,
+        help="Hidden dropout probability",
+    )
+    parser.add_argument(
+        "--attention_probs_dropout_prob",
+        type=float,
+        default=0.1,
+        help="Attention dropout probability",
+    )
     # Saving and early stopping parameters
-    parser.add_argument("--model_save_location", type=str, default=None, help="Directory to save the trained model")
-    parser.add_argument("--early_stopping", action="store_true", help="Enable early stopping")
-    parser.add_argument("--early_stopping_patience", type=int, default=6, help="Early stopping patience")
-    parser.add_argument("--early_stopping_threshold", type=float, default=0.0, help="Early stopping threshold")
-    parser.add_argument("--save_steps", type=int, default=500, help="Number of steps between saves")
-    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="Evaluation strategy (epoch or steps)")
-    parser.add_argument("--eval_steps", type=int, default=None, help="Evaluation steps (if strategy is steps)")
-    parser.add_argument("--save_strategy", type=str, default="epoch", help="Save strategy (epoch or steps)")
-    parser.add_argument("--save_total_limit", type=int, default=2, help="Limit total number of saved checkpoints")
-    parser.add_argument("--metric_for_best_model", type=str, default="eval_accuracy", help="Metric for selecting best model")
-    parser.add_argument("--greater_is_better", type=bool, default=True, help="Whether a higher metric is better")
-    parser.add_argument("--scheduler_type", type=str, default="linear", help="Learning rate scheduler type (e.g., linear, cosine, reduce_on_plateau)")
-    parser.add_argument("--scheduler_patience", type=int, default=2, help="(May be ignored by your HF version)")
-    parser.add_argument("--scheduler_factor", type=float, default=0.5, help="(May be ignored by your HF version)")
-    parser.add_argument("--scheduler_min_lr", type=float, default=1e-7, help="(May be ignored by your HF version)")
+    parser.add_argument(
+        "--model_save_location",
+        type=str,
+        default=None,
+        help="Directory to save the trained model",
+    )
+    parser.add_argument(
+        "--early_stopping", action="store_true", help="Enable early stopping"
+    )
+    parser.add_argument(
+        "--early_stopping_patience", type=int, default=6, help="Early stopping patience"
+    )
+    parser.add_argument(
+        "--early_stopping_threshold",
+        type=float,
+        default=0.0,
+        help="Early stopping threshold",
+    )
+    parser.add_argument(
+        "--save_steps", type=int, default=500, help="Number of steps between saves"
+    )
+    parser.add_argument(
+        "--evaluation_strategy",
+        type=str,
+        default="epoch",
+        help="Evaluation strategy (epoch or steps)",
+    )
+    parser.add_argument(
+        "--eval_steps",
+        type=int,
+        default=None,
+        help="Evaluation steps (if strategy is steps)",
+    )
+    parser.add_argument(
+        "--save_strategy",
+        type=str,
+        default="epoch",
+        help="Save strategy (epoch or steps)",
+    )
+    parser.add_argument(
+        "--save_total_limit",
+        type=int,
+        default=2,
+        help="Limit total number of saved checkpoints",
+    )
+    parser.add_argument(
+        "--metric_for_best_model",
+        type=str,
+        default="eval_accuracy",
+        help="Metric for selecting best model",
+    )
+    parser.add_argument(
+        "--greater_is_better",
+        type=bool,
+        default=True,
+        help="Whether a higher metric is better",
+    )
+    parser.add_argument(
+        "--scheduler_type",
+        type=str,
+        default="linear",
+        help="Learning rate scheduler type (e.g., linear, cosine, reduce_on_plateau)",
+    )
+    parser.add_argument(
+        "--scheduler_patience",
+        type=int,
+        default=2,
+        help="(May be ignored by your HF version)",
+    )
+    parser.add_argument(
+        "--scheduler_factor",
+        type=float,
+        default=0.5,
+        help="(May be ignored by your HF version)",
+    )
+    parser.add_argument(
+        "--scheduler_min_lr",
+        type=float,
+        default=1e-7,
+        help="(May be ignored by your HF version)",
+    )
     # For testing speed
-    parser.add_argument("--reduce_lines_for_testing", action="store_true", help="Reduce dataset size for quick testing")
+    parser.add_argument(
+        "--reduce_lines_for_testing",
+        action="store_true",
+        help="Reduce dataset size for quick testing",
+    )
     args = parser.parse_args()
 
     # Set random seeds for reproducibility.
@@ -407,50 +592,54 @@ def main():
     if "roberta" in args.model_name.lower():
         GPA.pc.append_modules_to_replace([RobertaForSequenceClassification])
         GPA.pc.append_replacement_modules([RobertaForSequenceClassificationPB])
-        GPA.pc.append_module_names_to_track(['RobertaEmbeddings'])
-        GPA.pc.append_module_names_to_track(['Embedding'])
+        GPA.pc.append_module_names_to_track(["RobertaEmbeddings"])
+        GPA.pc.append_module_names_to_track(["Embedding"])
 
         if args.wrap_full_model:
             print("Wrapping full model")
-            GPA.pc.append_module_names_to_convert(['RobertaLayer'])
-            GPA.pc.append_module_names_with_processing(['RobertaLayer'])
+            GPA.pc.append_module_names_to_convert(["RobertaLayer"])
+            GPA.pc.append_module_names_with_processing(["RobertaLayer"])
             # No PBM processing class available in this build; skipping
         else:
             print("Only adding dendrites to classifier")
             GPA.pc.set_modules_to_convert([])
-            GPA.pc.append_module_names_to_track(['RobertaLayer', 'RobertaPooler'])
+            GPA.pc.append_module_names_to_track(["RobertaLayer", "RobertaPooler"])
 
-            if hasattr(base_model, 'classifier'):
+            if hasattr(base_model, "classifier"):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.pc.append_module_names_to_convert(['ClassifierWrapper'])
+                GPA.pc.append_module_names_to_convert(["ClassifierWrapper"])
 
-        model = RobertaForSequenceClassificationPB(base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob)
+        model = RobertaForSequenceClassificationPB(
+            base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob
+        )
 
     elif "bert" in args.model_name.lower():
         GPA.pc.append_modules_to_replace([BertForSequenceClassification])
         GPA.pc.append_replacement_modules([BertForSequenceClassificationPB])
-        GPA.pc.append_module_names_to_track(['Embeddings'])
-        GPA.pc.append_module_names_to_track(['Embedding'])
+        GPA.pc.append_module_names_to_track(["Embeddings"])
+        GPA.pc.append_module_names_to_track(["Embedding"])
 
         if args.wrap_full_model:
             print("Wrapping full model")
-            GPA.pc.append_module_names_to_convert(['TransformerBlock'])
-            GPA.pc.append_module_names_with_processing(['TransformerBlock'])
+            GPA.pc.append_module_names_to_convert(["TransformerBlock"])
+            GPA.pc.append_module_names_with_processing(["TransformerBlock"])
             # No PBM processing class available in this build; skipping
         else:
             print("Only adding dendrites to classifier")
             GPA.pc.set_modules_to_convert([])
-            GPA.pc.append_module_names_to_track(['TransformerBlock'])
+            GPA.pc.append_module_names_to_track(["TransformerBlock"])
 
-            if hasattr(base_model, 'classifier'):
+            if hasattr(base_model, "classifier"):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.pc.append_module_names_to_convert(['ClassifierWrapper'])
+                GPA.pc.append_module_names_to_convert(["ClassifierWrapper"])
 
-            if hasattr(base_model, 'pre_classifier'):
+            if hasattr(base_model, "pre_classifier"):
                 base_model.pre_classifier = ClassifierWrapper(base_model.pre_classifier)
-                GPA.pc.append_module_names_to_convert(['ClassifierWrapper'])
+                GPA.pc.append_module_names_to_convert(["ClassifierWrapper"])
 
-        model = BertForSequenceClassificationPB(base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob)
+        model = BertForSequenceClassificationPB(
+            base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob
+        )
 
     else:
         raise ValueError(f"Unsupported model: {args.model_name}")
@@ -466,7 +655,13 @@ def main():
     for layer_name, layer in dict(model.named_modules()).items():
         try:
             if "roberta" in args.model_name.lower():
-                if layer_name in ["roberta.pooler", "roberta.pooler.dense", "classifier", "classifier.dense", "classifier.out_proj"]:
+                if layer_name in [
+                    "roberta.pooler",
+                    "roberta.pooler.dense",
+                    "classifier",
+                    "classifier.dense",
+                    "classifier.out_proj",
+                ]:
                     layer.set_this_input_dimensions([-1, 0])
             elif "bert" in args.model_name.lower():
                 if layer_name in ["bert.pooler", "bert.pooler.dense", "classifier"]:
@@ -484,11 +679,17 @@ def main():
     # Load dataset
     if args.dataset == "imdb":
         train_dataset, dev_dataset, test_dataset = load_imdb_dataset(
-            tokenizer, args.max_len, seed=args.seed, reduce_lines=args.reduce_lines_for_testing
+            tokenizer,
+            args.max_len,
+            seed=args.seed,
+            reduce_lines=args.reduce_lines_for_testing,
         )
     elif args.dataset == "snli":
         train_dataset, dev_dataset, test_dataset = load_snli_dataset(
-            tokenizer, args.max_len, seed=args.seed, reduce_lines=args.reduce_lines_for_testing
+            tokenizer,
+            args.max_len,
+            seed=args.seed,
+            reduce_lines=args.reduce_lines_for_testing,
         )
     else:  # agnews
         train_dataset, dev_dataset, test_dataset = load_agnews_dataset(
@@ -500,11 +701,15 @@ def main():
         args.eval_steps = max(1, int(len(train_dataset) / args.batch_size))
 
     training_args = TrainingArguments(
-        output_dir=args.model_save_location if args.model_save_location else "./results",
+        output_dir=(
+            args.model_save_location if args.model_save_location else "./results"
+        ),
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
-        warmup_steps=int(1000 / args.batch_size) if not args.reduce_lines_for_testing else 1,
+        warmup_steps=(
+            int(1000 / args.batch_size) if not args.reduce_lines_for_testing else 1
+        ),
         weight_decay=0.01,
         logging_dir="./logs",
         load_best_model_at_end=args.early_stopping,
@@ -522,9 +727,12 @@ def main():
 
     callbacks = []
     if args.early_stopping:
-        callbacks.append(EarlyStoppingCallback(
-            early_stopping_patience=args.early_stopping_patience,
-            early_stopping_threshold=args.early_stopping_threshold))
+        callbacks.append(
+            EarlyStoppingCallback(
+                early_stopping_patience=args.early_stopping_patience,
+                early_stopping_threshold=args.early_stopping_threshold,
+            )
+        )
         print("Early stopping enabled.")
 
     # Trainer
@@ -538,7 +746,7 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=dev_dataset,
         compute_metrics=_compute_metrics,
-        callbacks=callbacks
+        callbacks=callbacks,
     )
 
     # Train

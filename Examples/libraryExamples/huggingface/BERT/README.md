@@ -22,7 +22,7 @@ For training baseline models, make sure you are using the off-the-shelf `transfo
 
 Usage example for IMDB:
 
-    python train_bert.py --model_name "prajjwal1/bert-tiny" --dataset imdb --dsn \
+    CUDA_VISIBLE_DEVICES=0 python train_bert.py --model_name "prajjwal1/bert-tiny" --dataset imdb --dsn \
        --seed 0 --num_epochs 100 --batch_size 32 --max_len 512 --lr 1e-5 \
        --hidden_dropout_prob 0.1 --attention_probs_dropout_prob 0.1 \
        --model_save_location ./model_output_IMDB --early_stopping --early_stopping_patience 6 \
@@ -33,7 +33,7 @@ Usage example for IMDB:
        
 Usage example for SNLI:
 
-    python train_bert.py --model_name "prajjwal1/bert-tiny" --dataset snli --dsn \
+    CUDA_VISIBLE_DEVICES=0 python train_bert.py --model_name "prajjwal1/bert-tiny" --dataset snli --dsn \
        --seed 0 --num_epochs 100 --batch_size 256 --max_len 128 --lr 1e-5 \
        --hidden_dropout_prob 0.1 --attention_probs_dropout_prob 0.1 \
        --model_save_location ./model_output_SNLI --early_stopping --early_stopping_patience 6 \
@@ -61,7 +61,7 @@ Then, make sure your license.yaml file is in this folder, and set your Perforate
 
 Usage example for IMDB:
 
-    python train_bert_pai.py --model_name "prajjwal1/bert-tiny" --dataset imdb --dsn \
+    CUDA_VISIBLE_DEVICES=0 python train_bert_pai.py --model_name "prajjwal1/bert-tiny" --dataset imdb --dsn \
        --pai_save_name my_pai_run --switch_mode DOING_HISTORY \
        --n_epochs_to_switch 10 --p_epochs_to_switch 10 --history_lookback 1\
        --max_dendrites 5 --improvement_threshold 0.0001 \
@@ -77,7 +77,7 @@ Usage example for IMDB:
 
 Usage example for SNLI:
 
-    python train_bert_pai.py --model_name "prajjwal1/bert-tiny" --dataset snli --dsn \
+    CUDA_VISIBLE_DEVICES=0 python train_bert_pai.py --model_name "prajjwal1/bert-tiny" --dataset snli --dsn \
        --pai_save_name my_pai_run --switch_mode DOING_HISTORY \
        --n_epochs_to_switch 10 --p_epochs_to_switch 10 --history_lookback 1\
        --max_dendrites 5 --improvement_threshold 0.0001 \
