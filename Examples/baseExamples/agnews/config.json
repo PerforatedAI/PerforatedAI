@@ -1,0 +1,14 @@
+{
+  "mode": "baseline", 
+  "model_name": "prajjwal1/bert-tiny",
+  "batch_size": 64,
+  "max_len": 128,
+  "lr": 2e-05,
+  "weight_decay": 0.01,
+  "seed": 42,
+  "num_workers": 2,
+  "max_epochs": 100,
+  "patience": 5,
+  "pai_save_name": "agnews_pai",
+  "max_dendrites": 5
+}
