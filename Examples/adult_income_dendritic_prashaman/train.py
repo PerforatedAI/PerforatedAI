@@ -32,7 +32,7 @@ from torch.utils.data import DataLoader, Dataset
 CURRENT_DIR = Path(__file__).resolve().parent
 
 
-# Search upward so the script works both from repo root and nested forks.
+# Search upward 
 def _find_repo_root(start: Path) -> Path:
     for candidate in [start] + list(start.parents):
         direct = candidate / "perforatedai" / "__init__.py"
