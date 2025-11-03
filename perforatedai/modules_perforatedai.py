@@ -179,7 +179,13 @@ class PAINeuronModule(nn.Module):
         """
         super(PAINeuronModule, self).__init__()
 
-        self.main_module = start_module
+        if isinstance(start_module, nn.Module):
+            self.main_module = start_module
+        else:
+            print("start_module must be nn.Module: %s" % name)
+            print(type(start_module))
+            print(start_module)
+            sys.exit(-1)
         self.name = name
 
         set_wrapped_params(self.main_module)
@@ -624,7 +630,13 @@ class TrackedNeuronModule(nn.Module):
         """
         super(TrackedNeuronModule, self).__init__()
 
-        self.main_module = start_module
+        if isinstance(start_module, nn.Module):
+            self.main_module = start_module
+        else:
+            print("start_module must be nn.Module: %s" % name)
+            print(type(start_module))
+            print(start_module)
+            sys.exit(-1)
         self.name = name
 
         self.type = "tracked_module"
