@@ -116,15 +116,17 @@ Because all functioning in between nonlinearities should be done within converte
 ### 2.2 - Setting up Processing for Complex Modules
 Finally, if any of the modules you are converting have a custom forward that has more than one tensor as input or output, for example a GRU taking in the previous and current states, you will need to use processing functions.  Please check out pb_models for examples of how to create a processing function for a module.  Once they are written add them with the following block of code. Make sure you do this in order.  They are just added to two arrays which assumes they are added in pairs, When writing these they also must not be local, i.e. within another class as a member function.
 
+    from perforatedai import library_perforatedai as LPA
     GPA.pc.append_module_names_with_processing(['GRU'])
     # This processor lets the dendrites keep track of their own hidden state
-    GPA.pc.append_module_by_name_processing_classes([PBM.GRUProcessor])
+    GPA.pc.append_module_by_name_processing_classes([LPA.GRUProcessor])
 
 A simpler examples below just ignores any outputs after the first.  This will generally fix any problem, and allow the system to run, but it isnt neccesarily correct for your applicaiton:
 
+    from perforatedai import library_perforatedai as LPA
     GPA.pc.append_module_names_with_processing(['ModuleWithMultipleOutputs'])
     # This processor ignores all extra outputs after the first
-    GPA.pc.get_module_by_name_processing_classes([PBM.multiOutputProcesser])
+    GPA.pc.append_module_by_name_processing_classes([LPA.MultiOutputProcessor])
 
     
 You will know this is required if you get an error similar to the following:
@@ -206,8 +208,10 @@ If you are working with a pretrained network but you need to make some of the ch
     
 An example of this is ResNetPB in pb_models.  Keep in mind, if you want to replace the main module of the network, just do it at the top level in the main function and do not rely on the PAI conversion portion with these two lines of code. As an example for ResNets:
 
+    from perforatedai import library_perforatedai as LPA
+    import torchvision
     GPA.pc.append_modules_to_replace([torchvision.models.resnet.ResNet])
-    GPA.pc.append_replacement_modules([PBM.ResNetPB])
+    GPA.pc.append_replacement_modules([LPA.ResNetPAI])
     
     
 ## 6 - DataParallel
@@ -242,11 +246,16 @@ If you want to load the best model for any reason you can call:
     
 This function should be called after initialize_pai and set_this_input_dimensions, but before setup_optimizer
     
-<!--If you want to load a simplif model just for inference you can do so with the following:-->
-<!--  -->
-<!--     model = fullModel() -->
-<!--     from perforatedai import pb_network as PBN -->
-<!--     model = PBN.loadPAIModel(model, 'name/best_model_pai.pt') -->
+<!--
+If you want to load a simplified pb model just for inference you can do so with the following:
+
+    model = fullModel() 
+    from perforatedbp import network_pbp as PBN
+    model._model = PBN.load_pai_model(model._model, 'PAIFirstFullRun//best_model_pai.pt')     
+
+Note: this does not use initialize_pai, but all other GPA settings must be replicated first.
+
+-->
     
 ## 8 Optimization
 

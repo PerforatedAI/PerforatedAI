@@ -17,7 +17,8 @@ from perforatedai import utils_perforatedai as UPA
 
 GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
 GPA.pc.set_n_epochs_to_switch(10)
-GPA.pc.set_p_epochs_to_switch(10)
+# Only used if perforatedbp is installed
+# GPA.pc.set_p_epochs_to_switch(10)
 GPA.pc.set_input_dimensions([-1, 0])
 GPA.pc.set_history_lookback(1)
 GPA.pc.set_max_dendrites(5)

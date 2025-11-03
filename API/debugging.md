@@ -2,9 +2,14 @@
 
 If you are crashing in ways that aren't caught by the other md files, search for them here before looking up online.
 
+## New Best Scores are not Being Tiggered
+Check GPA.pc.get_improvement_threshold().  If the improvement is very small it may not be beating the previous best by a high enough margin.  You can also set GPA.pc.set_verbose(True) to check if this is the case.
+
+Also ensure that maximizing_score is set properly in initialize_pai.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
+
 ## Errors Where Warnings are Printed
 
-    "The following layer has not properly set thisinput_dimensions"
+    "The following layer has not properly set this_input_dimensions"
 
 Check out the suggestions that are printed and section 4 in customization
 
@@ -143,6 +148,10 @@ The conversion script runs by going through all member variables and determining
 
 This error has been seen when the processor doesn't properly clear the values it has saved.  Make sure you define a clear_processor function for any processors you create.  If you believe you did and are still getting this error, reach out to us.
 
+This can also happen when forward is called to accumulate gradients but then backwards is not called to clear those gradients.  get GPA.pc.set_extra_verbose(True) to print when gradient tensors are added and removed.  If you have them being added but not removed this is the cause.  Check to make sure optimizer.step() is being called properly.  Some programs have methods that do not call optimizer.step() under certain situations.  Our code is also setup such that optimizer.zero_grad will correct this which can be called as an alternative if the optimizer should actually not be stepped.
+
+If this does not seem to be the problem try going up in the debugger and calling deep copy on individual modules and submodules to track down which module is causing a problem.
+
 ## Different Devices
 
 - If you are getting different device problems check if you have a Parameter being set to a device inside the init function.  This seems to cause a problem with calling to() on the main model.
@@ -159,7 +168,7 @@ A memory leak is happening if you run out of memory in the middle of a training 
     values but then never actually use them for anything that goes towards calculating loss,
     so make sure to avoid that.  To check for this you can use:
         GPA.pc.set_debugging_memory_leak(True)
-- If this is happening in the validation/test loop make sure you are in eval() mode which does not have a backwards pass.
+- If this is happening in the validation/test loop after safely completing the train loop make sure you are in eval() mode which does not have a backwards pass.
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.
     Without PAI this gets cleared appropriately, but with PAI it does not.  This can be fixed
@@ -241,6 +250,22 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
         return (1 - x / epochs) * (1.0 - hyp['lrf']) + hyp['lrf']
     lf = tmp_func #where it was originally defined
 
+### Autograd Errors
+
+    Trying to backward through the graph a second time
+
+This is caused by something in your graph containing the same tensor twice.  If you run into this you can try to track it down with the following code block.  Set this up and then call `from perforatedai import globals_perforatedai as GPA; GPA.get_param_name(t_outputs)` within the error block. If this does not work try filling in `GPA.param_name_by_id` with additional tensors
+
+    def get_param_name(tensor):
+        return GPA.param_name_by_id.get(id(tensor), None)
+    # Create mapping from tensor id to name
+    GPA.param_name_by_id = {id(param): name for name, param in model.named_parameters()}
+    GPA.get_param_name = get_param_name
+
+It can also sometimes help to use the torchviz package to try to show the entire graph of the tensor.  Go up in debugger to where the problem first occurs in your code then call:
+
+    from torchviz import make_dot; dot = make_dot(TENSOR); dot.render('graph', format='pdf') 
+
 ### Safetensors Errors
 
     Some tensors share memory, this will lead to duplicate memory on disk and potential differences when loading them again:
@@ -254,11 +279,17 @@ A lot of modern models have this tendency to save a pointer to a copy of themsel
 
     GPA.pc.set_using_safe_tensors(False)
     
-However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.pc.get_module_names_to_not_save().  This will set the save function to ignore the copy.  We already have the following included by default:
+However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.pc.get_module_names_to_not_save().  It will likely not be either of the exact names in the pair list and you will have to find the PAI name for it.  This is often just removing the first "model" string before the first "." but including that ".".This will set the save function to ignore the copy.  We already have the following included by default:
 
-    GPA.pc.set_module_names_to_not_save(['.base_model'])
+    GPA.pc.append_module_names_to_not_save(['.base_model'])
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
+
+#### Weight Tying
+In some cases this is done intentionally with weight tying. Which is not just a duplicate pointer, but also a known issue where multiple modules actually are using the same weight tensor in their forward.  We have a workaround for this, but it is only experimental for now so your results may vary.
+
+    GPA.pc.set_using_safe_tensors(True)
+    GPA.pc.set_weight_tying_experimental(True)
 
 ### Other loading Errors
 
