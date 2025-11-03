@@ -168,7 +168,7 @@ A memory leak is happening if you run out of memory in the middle of a training 
     values but then never actually use them for anything that goes towards calculating loss,
     so make sure to avoid that.  To check for this you can use:
         GPA.pc.set_debugging_memory_leak(True)
-- If this is happening in the validation/test loop make sure you are in eval() mode which does not have a backwards pass.
+- If this is happening in the validation/test loop after safely completing the train loop make sure you are in eval() mode which does not have a backwards pass.
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.
     Without PAI this gets cleared appropriately, but with PAI it does not.  This can be fixed
@@ -279,11 +279,17 @@ A lot of modern models have this tendency to save a pointer to a copy of themsel
 
     GPA.pc.set_using_safe_tensors(False)
     
-However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.pc.get_module_names_to_not_save().  This will set the save function to ignore the copy.  We already have the following included by default:
+However, this will sometimes cause the Parameterized Modules Error above.  In these cases another alternative method is to choose which of the modules is causing the error and add it to GPA.pc.get_module_names_to_not_save().  It will likely not be either of the exact names in the pair list and you will have to find the PAI name for it.  This is often just removing the first "model" string before the first "." but including that ".".This will set the save function to ignore the copy.  We already have the following included by default:
 
-    GPA.pc.set_module_names_to_not_save(['.base_model'])
+    GPA.pc.append_module_names_to_not_save(['.base_model'])
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
+
+#### Weight Tying
+In some cases this is done intentionally with weight tying. Which is not just a duplicate pointer, but also a known issue where multiple modules actually are using the same weight tensor in their forward.  We have a workaround for this, but it is only experimental for now so your results may vary.
+
+    GPA.pc.set_using_safe_tensors(True)
+    GPA.pc.set_weight_tying_experimental(True)
 
 ### Other loading Errors
 

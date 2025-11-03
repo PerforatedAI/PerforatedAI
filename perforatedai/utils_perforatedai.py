@@ -11,6 +11,8 @@ import pdb
 import os
 import time
 import warnings
+from collections import defaultdict
+
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import tracker_perforatedai as TPA
@@ -24,6 +26,7 @@ import copy
 
 from safetensors.torch import load_file
 from safetensors.torch import save_file
+from safetensors.torch import safe_open
 
 
 def initialize_pai(
@@ -634,7 +637,7 @@ def convert_network(net, layer_name=""):
                 "The following params are not wrapped.\n------------------------------------------------------------------"
             )
             for name in tracked_ones:
-                print(name)
+                print("." + name)
             print(
                 "\n------------------------------------------------------------------"
             )
@@ -642,7 +645,7 @@ def convert_network(net, layer_name=""):
                 "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
             )
             for name in missed_ones:
-                print(name)
+                print("." + name)
             print(
                 "\n------------------------------------------------------------------"
             )
@@ -664,9 +667,9 @@ def convert_network(net, layer_name=""):
             print(
                 "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
             )
-            import pdb
-
-            pdb.set_trace()
+            # If did miss some then set trace to debug
+            if len(missed_ones) != 0:
+                pdb.set_trace()
             print("confirmed")
     net.register_buffer("tracker_string", torch.tensor([], dtype=torch.uint8))
     return net
@@ -825,6 +828,133 @@ def load_system(
     return net
 
 
+import json
+from collections import defaultdict
+from safetensors.torch import save_file, safe_open
+import torch
+
+
+def save_model_with_weight_tying(model, filepath):
+    """Save model with safetensors while handling weight tying automatically"""
+    state_dict = model.state_dict()
+
+    # Find all weight tied parameters
+    tensor_to_keys = defaultdict(list)
+    for key, tensor in state_dict.items():
+        # Use tensor data pointer as unique identifier
+        tensor_id = tensor.data_ptr()
+        tensor_to_keys[tensor_id].append(key)
+
+    # Find tied weights (tensors referenced by multiple keys)
+    tied_weights = {}
+    keys_to_remove = set()
+    for tensor_id, keys in tensor_to_keys.items():
+        if len(keys) > 1 and not tensor_id == 0:
+            # Multiple keys reference the same tensor - this is weight tying
+            # Sort keys for deterministic ordering
+            keys = sorted(keys)
+            primary_key = keys[0]  # Keep the first key
+            for secondary_key in keys[1:]:
+                tied_weights[secondary_key] = primary_key
+                keys_to_remove.add(secondary_key)
+
+    # Remove tied weights from state_dict (keep only primary references)
+    filtered_state_dict = {
+        k: v for k, v in state_dict.items() if k not in keys_to_remove
+    }
+
+    # Create metadata for weight tying information
+    metadata = {}
+    if tied_weights:
+        # Store weight tying info as JSON string in metadata
+        metadata["weight_tying"] = json.dumps(tied_weights)
+    save_file(filtered_state_dict, filepath, metadata=metadata)
+    print(f"Saved model with {len(tied_weights)} weight tying relationships")
+    return tied_weights
+
+
+def load_model_with_weight_tying(model, filepath):
+    """Load model from safetensors while restoring weight tying"""
+    with safe_open(filepath, framework="pt") as f:
+        metadata = f.metadata()
+        state_dict = {key: f.get_tensor(key) for key in f.keys()}
+
+    # Restore weight tying if metadata exists
+    tied_weights = {}
+    if metadata and "weight_tying" in metadata:
+        tied_weights = json.loads(metadata["weight_tying"])
+        for secondary_key, primary_key in tied_weights.items():
+            if primary_key in state_dict:
+                # Restore the tied reference
+                state_dict[secondary_key] = state_dict[primary_key]
+                print(f"Restored weight tying: {secondary_key} -> {primary_key}")
+
+
+
+    # Handle tracker_string loading with flexible key matching
+    tracker_key = None
+    if "tracker_string" in state_dict:
+        tracker_key = "tracker_string"
+    else:
+        # Search for keys containing "tracker_string"
+        tracker_keys = [key for key in state_dict.keys() if "tracker_string" in key]
+        if len(tracker_keys) == 1:
+            tracker_key = tracker_keys[0]
+        elif len(tracker_keys) > 1:
+            print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            pdb.set_trace()
+        else:
+            print("Error: No tracker_string found in state_dict")
+            pdb.set_trace()
+    # To restore the tracker the string may have changed lengths
+    # so handle that before load_state_dict
+    if hasattr(model, "tracker_string"):
+        model.tracker_string = state_dict[tracker_key]
+    else:
+        model.register_buffer("tracker_string", state_dict[tracker_key])
+
+    # Load the state dict
+    model.load_state_dict(state_dict, strict=False)
+
+    # Re-establish weight tying at the model level
+    # This ensures the actual tensor objects are shared, not just copied
+    if tied_weights:
+        for secondary_key, primary_key in tied_weights.items():
+            try:
+                # Navigate to primary parameter
+                primary_param = model
+                for attr in primary_key.split("."):
+                    if attr.isdigit():
+                        primary_param = primary_param[int(attr)]
+                    else:
+                        primary_param = getattr(primary_param, attr)
+
+                # Navigate to secondary parameter's parent
+                secondary_param = model
+                secondary_attrs = secondary_key.split(".")
+                for attr in secondary_attrs[:-1]:
+                    if attr.isdigit():
+                        secondary_param = secondary_param[int(attr)]
+                    else:
+                        secondary_param = getattr(secondary_param, attr)
+
+                # Actually tie the weights by sharing the tensor
+                final_attr = secondary_attrs[-1]
+                if final_attr.isdigit():
+                    secondary_param[int(final_attr)] = primary_param
+                else:
+                    setattr(secondary_param, final_attr, primary_param)
+
+                print(f"Re-tied weights: {secondary_key} = {primary_key}")
+            except (AttributeError, IndexError) as e:
+                pdb.set_trace()
+                print(
+                    f"Warning: Could not re-tie {secondary_key} -> {primary_key}: {e}"
+                )
+
+    return model
+
+
 def save_net(net, folder, name):
     """Save the network
 
@@ -857,7 +987,10 @@ def save_net(net, folder, name):
     for param in net.parameters():
         param.data = param.data.contiguous()
     if GPA.pc.get_using_safe_tensors():
-        save_file(net.state_dict(), save_point + name + ".pt")
+        if GPA.pc.get_weight_tying_experimental():
+            save_model_with_weight_tying(net, save_point + name + ".pt")
+        else:
+            save_file(net.state_dict(), save_point + name + ".pt")
     else:
         torch.save(net, save_point + name + ".pt")
 
@@ -901,7 +1034,10 @@ def load_net(net, folder, name):
     """
     save_point = folder + "/"
     if GPA.pc.get_using_safe_tensors():
-        state_dict = load_file(save_point + name + ".pt")
+        if GPA.pc.get_weight_tying_experimental():
+            return load_model_with_weight_tying(net, save_point + name + ".pt")
+        else:
+            state_dict = load_file(save_point + name + ".pt")
     else:
         # Different versions of torch require this change
         try:
@@ -974,21 +1110,28 @@ def load_net_from_dict(net, state_dict):
             except Exception as e:
                 print(e)
                 print(
-                    "When missing this value it typically means you "
-                    "converted a module but didn't actually use it in "
+                    "This value is missing from the state dict\n"
+                    "When missing this value it typically means you\n"
+                    "converted a module but didn't actually use it in\n"
                     "your forward and backward pass"
                 )
-                print("module was: %s" % module_name)
+                print("module was: %s" % module.name)
                 print(
                     "check your model definition and forward function and "
                     "ensure this module is being used properly"
                 )
                 print(
-                    "or add it to GPA.pc.get_module_ids_to_track() to leave it out "
-                    "of conversion"
+                    "with GPA.pc.set_verbose(True) you can confirm this is the case if"
+                    'you do not see a "setting d shape for" this module at the first training batch.'
                 )
                 print(
-                    "This can also happen if you adjusted your model "
+                    "If this is the case, and it is correct to not be passing data through it\n"
+                    "Set it to be a tracked module with:\n"
+                    'GPA.pc.append_module_ids_to_track(["%s"]) to leave it out '
+                    % module.name
+                )
+                print(
+                    "\nThis can also happen if you adjusted your model "
                     "definition after calling initialize_pai"
                 )
                 print(
@@ -1001,6 +1144,17 @@ def load_net_from_dict(net, state_dict):
                     "calling initialize_pai after all other model "
                     "initialization steps"
                 )
+                first_key = next(iter(state_dict.keys()))
+
+                print(
+                    "\nA Third reason this can happen is if the model where you called initialize_pai\n"
+                    "and the model within add_validation_score are not the same. \n"
+                    "Check if the module above and %s have the same prefix\n"
+                    % first_key
+                )
+                print(
+                    "if one starts with .model or .base etc and the other does not, this is the problem."
+                )
                 import pdb
 
                 pdb.set_trace()
@@ -1009,10 +1163,26 @@ def load_net_from_dict(net, state_dict):
         num_cycles = int(state_dict[module_name + ".dendrite_module.num_cycles"].item())
         if num_cycles > 0:
             simulate_cycles(module, num_cycles, doing_pai=True)
-    if hasattr(net, "tracker_string"):
-        net.tracker_string = state_dict["tracker_string"]
+    # Handle tracker_string loading with flexible key matching
+    tracker_key = None
+    if "tracker_string" in state_dict:
+        tracker_key = "tracker_string"
     else:
-        net.register_buffer("tracker_string", state_dict["tracker_string"])
+        # Search for keys containing "tracker_string"
+        tracker_keys = [key for key in state_dict.keys() if "tracker_string" in key]
+        if len(tracker_keys) == 1:
+            tracker_key = tracker_keys[0]
+        elif len(tracker_keys) > 1:
+            print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            pdb.set_trace()
+        else:
+            print("Error: No tracker_string found in state_dict")
+            pdb.set_trace()
+    
+    if hasattr(net, "tracker_string"):
+        net.tracker_string = state_dict[tracker_key]
+    else:
+        net.register_buffer("tracker_string", state_dict[tracker_key])
     try:
         net.load_state_dict(state_dict)
     except Exception as e:
@@ -1234,18 +1404,9 @@ def change_learning_modes(net, folder, name, doing_pai):
         because it will delete dendrites if the previous best was better than
         the current best
         """
-        if not GPA.pc.get_retain_all_dendrites():
-            if not GPA.pc.get_silent():
-                print("Importing best Model for switch to PA...")
-
-            net = load_system(net, folder, name, switch_call=True)
-        else:
-            # This wont get created if dendrites would have been deleted without retain_all
-            GPA.pai_tracker.save_graphs(
-                f'_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}'
-            )
-            if not GPA.pc.get_silent():
-                print("Not importing new model since retaining all PB")
+        if not GPA.pc.get_silent():
+            print("Importing best Model for switch to PA...")
+        net = load_system(net, folder, name, switch_call=True)
         GPA.pai_tracker.set_dendrite_training()
         GPA.pai_tracker.member_vars["overwritten_epochs"] = overwritten_epochs
         GPA.pai_tracker.member_vars["overwritten_epochs"] += (
