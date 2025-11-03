@@ -233,6 +233,29 @@ class PAIConfig:
         Whether Perforated Backpropagation is enabled.
     """
 
+    def __getattr__(self, name):
+        """Handle missing attributes gracefully, especially for PB variables.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute being accessed.
+
+        Returns
+        -------
+        None or raises AttributeError
+            Returns None for missing set_ methods, raises AttributeError otherwise.
+        """
+        if name.startswith("set_"):
+            print(
+                f"Variable '{name[4:]}' does not exist without perforatedbp installed.  Ignoring set attempt."
+            )
+            return lambda x: None
+        else:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
     def __init__(self):
         """Initialize PAIConfig with default settings."""
         ### Global Constants
@@ -309,6 +332,10 @@ class PAIConfig:
         # training visualizations
         self.drawing_pai = True
         add_pai_config_var_functions(self, "drawing_pai", self.drawing_pai)
+
+        # Drawing extra graphs beyond the standard ones.
+        self.drawing_extra_graphs = False
+        add_pai_config_var_functions(self, "drawing_extra_graphs", self.drawing_extra_graphs)
 
         # Saving test intermediary models, good for experimentation, bad for memory
         self.test_saves = True
@@ -388,8 +415,9 @@ class PAIConfig:
         self.fixed_switch_num = 250
         add_pai_config_var_functions(self, "fixed_switch_num", self.fixed_switch_num)
         # An additional flag if you want your first switch to occur later than all the
-        # rest for initial pretraining
-        self.first_fixed_switch_num = 249
+        # rest for initial pretraining.  This is a new minimum, if its lower than
+        # the above it will be ignored.
+        self.first_fixed_switch_num = 1
         add_pai_config_var_functions(
             self, "first_fixed_switch_num", self.first_fixed_switch_num
         )
@@ -580,6 +608,11 @@ class PAIConfig:
         self.perforated_backpropagation = False
         add_pai_config_var_functions(
             self, "perforated_backpropagation", self.perforated_backpropagation
+        )
+
+        self.weight_tying_experimental = False
+        add_pai_config_var_functions(
+            self, "weight_tying_experimental", self.weight_tying_experimental
         )
 
 

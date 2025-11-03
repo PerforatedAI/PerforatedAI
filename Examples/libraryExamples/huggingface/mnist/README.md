@@ -88,6 +88,15 @@ Then just run as usual:
 
     CUDA_VISIBLE_DEVICES=0 python mnist_huggingface_perforatedai.py 
 
+Validation scores of original and dendrite optimized networks:
+
+!["Output Graph](OutputGraph.png "Output Graph")
+
+Exact graph that gets generated within the output folder:
+
+!["Example Output](ExampleOutput.png "Example Output")
+
+
 ## Example Output
 This shows an example output which quit after 2 Dendrite Epochs.
 
