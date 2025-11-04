@@ -267,7 +267,15 @@ def replace_predefined_modules(start_module):
     return GPA.pc.get_replacement_modules()[index](start_module)
 
 
-def convert_module(net, depth, name_so_far, converted_list, converted_names_list):
+def convert_module(
+    net,
+    depth,
+    name_so_far,
+    converted_list,
+    converted_names_list,
+    neuron_module_class,
+    tracked_module_class,
+):
     """Recursive function to do all conversion of modules to wrappers of modules
 
     This is the function that goes through all of the module lists from
@@ -299,7 +307,9 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             "calling convert on %s: %s, depth %d"
             % (name_so_far, type(net).__name__, depth)
         )
-    if isinstance(net, PA.PAINeuronModule) or isinstance(net, PA.TrackedNeuronModule):
+    if isinstance(net, neuron_module_class) or (
+        (tracked_module_class is not None) and isinstance(net, tracked_module_class)
+    ):
         if GPA.pc.get_verbose():
             print(
                 "This is only being called because something in your model "
@@ -318,10 +328,12 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
+                if tracked_module_class is None:
+                    continue
                 setattr(
                     net,
                     submodule_id,
-                    PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
+                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_convert():
@@ -330,7 +342,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     submodule_id,
-                    PA.PAINeuronModule(net.get_submodule(submodule_id), sub_name),
+                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
             if type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_replace():
@@ -354,10 +366,12 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "Seq sub is in tracking list so initiating tracked for: %s"
                         % sub_name
                     )
+                if tracked_module_class is None:
+                    continue
                 setattr(
                     net,
                     submodule_id,
-                    PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
+                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             elif (
                 type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_convert()
@@ -391,7 +405,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     submodule_id,
-                    PA.PAINeuronModule(net.get_submodule(submodule_id), sub_name),
+                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             else:
                 if net != net.get_submodule(submodule_id):
@@ -412,6 +426,8 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                             sub_name,
                             converted_list,
                             converted_names_list,
+                            neuron_module_class,
+                            tracked_module_class,
                         ),
                     )
                 # else:
@@ -430,14 +446,18 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
+                if tracked_module_class is None:
+                    continue
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_convert():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
-                setattr(net, member, PA.PAINeuronModule(getattr(net, member), sub_name))
+                setattr(
+                    net, member, neuron_module_class(getattr(net, member), sub_name)
+                )
                 continue
             if id(getattr(net, member, None)) == id(net):
                 if GPA.pc.get_verbose():
@@ -489,8 +509,10 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "sub is in tracking list so initiating tracked for: %s"
                         % sub_name
                     )
+                if tracked_module_class is None:
+                    continue
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
             elif (
                 type(getattr(net, member, None)) in GPA.pc.get_modules_to_convert()
@@ -505,7 +527,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     member,
-                    PA.PAINeuronModule(getattr(net, member), sub_name),
+                    neuron_module_class(getattr(net, member), sub_name),
                 )
             elif (
                 issubclass(type(getattr(net, member, None)), nn.Module)
@@ -529,6 +551,8 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                             sub_name,
                             converted_list,
                             converted_names_list,
+                            neuron_module_class,
+                            tracked_module_class,
                         ),
                     )
             if (
@@ -612,7 +636,9 @@ def convert_network(net, layer_name=""):
             sys.exit(-1)
         net = PA.PAINeuronModule(net, layer_name)
     else:
-        net = convert_module(net, 0, "", [], [])
+        net = convert_module(
+            net, 0, "", [], [], PA.PAINeuronModule, PA.TrackedNeuronModule
+        )
     if GPA.pai_tracker.member_vars["doing_pai"]:
         missed_ones = []
         tracked_ones = []
@@ -889,8 +915,6 @@ def load_model_with_weight_tying(model, filepath):
                 state_dict[secondary_key] = state_dict[primary_key]
                 print(f"Restored weight tying: {secondary_key} -> {primary_key}")
 
-
-
     # Handle tracker_string loading with flexible key matching
     tracker_key = None
     if "tracker_string" in state_dict:
@@ -1058,6 +1082,19 @@ def load_net(net, folder, name):
     return load_net_from_dict(net, state_dict)
 
 
+def get_module_base_name(module):
+    module_name = module.name
+    # This should always be true
+    if module_name[0] == ".":
+        # strip "."
+        module_name = module_name[1:]
+    # If it was a dataparallel it will also have a module at the start
+    # so strip that for loading
+    if module_name[:6] == "module":
+        module_name = module_name[7:]
+    return module_name
+
+
 def load_net_from_dict(net, state_dict):
     """load the network
 
@@ -1088,15 +1125,7 @@ def load_net_from_dict(net, state_dict):
         sys.exit(-1)
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
-        module_name = module.name
-        # This should always be true
-        if module_name[0] == ".":
-            # strip "."
-            module_name = module_name[1:]
-        # If it was a dataparallel it will also have a module at the start
-        # so strip that for loading
-        if module_name[:6] == "module":
-            module_name = module_name[7:]
+        module_name = get_module_base_name(module)
         module.clear_dendrites()
         for tracker in module.dendrite_module.dendrite_values:
             try:
@@ -1178,7 +1207,7 @@ def load_net_from_dict(net, state_dict):
         else:
             print("Error: No tracker_string found in state_dict")
             pdb.set_trace()
-    
+
     if hasattr(net, "tracker_string"):
         net.tracker_string = state_dict[tracker_key]
     else:
