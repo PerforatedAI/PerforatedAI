@@ -6,7 +6,7 @@ General instructions for adding PAI to a system can be found in the [API](https:
 
 ## Contributing
 
-We welcome any contributions to this folder.  Please look at the [mnist example](https://github.com/PerforatedAI/PerforatedAI/Examples/baseExamples/mnist) for how to format a contribution.
+We welcome any contributions to this folder.  Please look at the [mnist example](https://github.com/PerforatedAI/PerforatedAI/tree/main/Examples/baseExamples/mnist) for how to format a contribution.
 
 ## Licensing
 
