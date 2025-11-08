@@ -1,5 +1,0 @@
-dataset,model_id,use_dendrites,exclude_output,width,dropout,params,epochs_trained,val_auc,test_auc,notes
-adult,adult_w512_d0.25_base,False,True,512,0.25,450049,12,0.9124935448196755,0.9159310882507838,baseline_w512
-adult,adult_w128_d0.25_dend,True,True,128,0.25,238465,25,0.9125445108093951,0.9164016537542592,pai_w128_cap12
-credit,credit_w512_d0.25_base,False,True,512,0.25,406529,25,0.7839058086840945,0.7725638176617753,credit_baseline_w512
-credit,credit_w128_d0.25_dend,True,True,128,0.25,301185,31,0.7954676050851051,0.7809698994258023,credit_dend_w128_cap8_seed1337
