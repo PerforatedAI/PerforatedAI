@@ -3,10 +3,10 @@
 **Goal:** I wanted to show that AI dendrites can shrink tabular MLPs on two separate UCI datasets (Adult Income & Credit Default) without losing AUC.
 
 ## What’s inside this folder?
-- `train.py` – single entry point with dataset flag, dendrite toggles, and logging utilities.
-- `run_sweep.py` / `Makefile` – helper shortcuts for the adult runs.
-- `metrics.py`, `param_count.py`, `test_setup.py` – light utilities for metrics, parameter counting, and smoke testing.
-- `results/` – CSVs, comparison chart, and the final PAI graph.
+- `train.py`: single entry point with dataset flag, dendrite toggles, and logging utilities.
+- `run_sweep.py` / `Makefile`: helper shortcuts for the adult runs.
+- `metrics.py`, `param_count.py`, `test_setup.py`: light utilities for metrics, parameter counting, and smoke testing.
+- `results/`: CSVs, comparison chart, and the final PAI graph.
 - `credit_w128_d0.25_dend_seed1337/` – saved checkpoints and  the raw `/PAI/*.png` bundles produced 
 
 ## Installation
