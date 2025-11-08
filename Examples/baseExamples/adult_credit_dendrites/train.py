@@ -142,7 +142,7 @@ class TabularBinaryDataset(Dataset):
 
 
 class AdultMLP(nn.Module):
-    """Simple configurable MLP for Adult Income classification."""
+    """MLP for Adult Income classification."""
 
     def __init__(self, input_dim: int, hidden_width: int, dropout: float):
         super().__init__()
