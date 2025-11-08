@@ -92,8 +92,8 @@ Validation AUC vs parameter count for the four headline runs:
 
 ![Validation bar chart](results/bar_outcomes.png)
 
-### Final PAI graph
-The Perforated AI tracker now emits the standard `/PAI/*.png`. 
+### Final graph
+The Perforated AI tracker now shows the standard `/PAI/*.png`. 
 
 ![PAI Graph](results/pai_credit_seed.png)
 
