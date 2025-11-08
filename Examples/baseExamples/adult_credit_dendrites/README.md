@@ -1,12 +1,12 @@
 # Adult & Credit Tabular Compression with Dendrites
 
-**Goal:** I wanted to show that AI dendrites can shrink tabular MLPs on two separate UCI datasets (Adult Income & Credit Default) without losing AUC.
+This example adds AI dendrites to the Adult Income and Credit Default tabular benchmarks to show how parameter counts drop without hurting AUC.
 
 ## What’s inside this folder?
 - `train.py`: single entry point with dataset flag, dendrite toggles, and logging utilities.
 - `run_sweep.py` / `Makefile`: helper shortcuts for the adult runs.
 - `metrics.py`, `param_count.py`, `test_setup.py`: light utilities for metrics, parameter counting, and smoke testing.
-- `results/`: CSVs, comparison chart, and the final graph.
+- `results/`: CSVs, comparison chart, and the final PAI graph.
 - `credit_w128_d0.25_dend_seed1337/`: saved checkpoints and  the raw `/PAI/*.png` produced 
 
 ## Installation
@@ -92,7 +92,7 @@ Validation AUC vs parameter count for the four headline runs:
 
 ![Validation bar chart](results/bar_outcomes.png)
 
-### Final graph
+### Final PAI graph
 The Perforated AI tracker now shows the standard `/PAI/*.png`. 
 
 ![PAI Graph](results/pai_credit_seed.png)
