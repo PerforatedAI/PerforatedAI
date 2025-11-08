@@ -1,13 +1,13 @@
 # Adult & Credit Tabular Compression with Dendrites
 
-**Goal.** I wanted to show that Perforated AI dendrites can shrink tabular MLPs on two separate UCI datasets (Adult Income & Credit Default) without losing AUC.
+**Goal:** I wanted to show that AI dendrites can shrink tabular MLPs on two separate UCI datasets (Adult Income & Credit Default) without losing AUC.
 
 ## What’s inside this folder?
 - `train.py` – single entry point with dataset flag, dendrite toggles, and logging utilities.
 - `run_sweep.py` / `Makefile` – helper shortcuts for the adult runs.
 - `metrics.py`, `param_count.py`, `test_setup.py` – light utilities for metrics, parameter counting, and smoke testing.
-- `results/` – CSVs, Google-Sheets-style comparison chart, and the final PAI graph.
-- `credit_w128_d0.25_dend_seed1337/` – saved checkpoints + the raw `/PAI/*.png` bundles produced by Perforated AI.
+- `results/` – CSVs, comparison chart, and the final PAI graph.
+- `credit_w128_d0.25_dend_seed1337/` – saved checkpoints and  the raw `/PAI/*.png` bundles produced 
 
 ## Installation
 ```bash
@@ -73,7 +73,7 @@ for seed in 17 23 42 1337 2025; do
     --notes "credit_dend_w128_cap8_seed${seed}"
 done
 ```
-Seed 1337 provided the best no-loss trade-off; keep that row in `results/best_test_scores.csv` after sweeping.
+Seed 1337 provided the best results.
 
 ### Smoke test
 ```bash
@@ -85,17 +85,15 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 - **Default of Credit Card Clients** (`default of credit card clients.arff`): also fetched via OpenML (ID 42477). If network is disabled, download the ARFF manually, drop it into `data_cache/openml/`, and rerun the commands above.
 
 ## Outcomes
-### Google-Sheets style comparison
+
 Validation AUC vs parameter count for the four headline runs:
 
 ![Quality vs Parameters](results/quality_vs_params.png)
 
-### Baseline vs Dendrites bar chart
-
 ![Validation bar chart](results/bar_outcomes.png)
 
 ### Final PAI graph
-The Perforated AI tracker now emits the standard `/PAI/*.png`. Below is the exact `PAI.png` from the winning credit dendritic run (seed 1337):
+The Perforated AI tracker now emits the standard `/PAI/*.png`. 
 
 ![PAI Graph](results/pai_credit_seed.png)
 
