@@ -49,7 +49,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
   --notes credit_baseline_w512
 ```
 
-### 4. Credit Default dendritic (seed 1337 – no loss)
+### 4. Credit Default dendritic 
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
   --dataset credit \
@@ -61,7 +61,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
   --notes credit_dend_w128_cap8_seed1337
 ```
 
-### Optional: seed sweep helper
+### Optional: Seed sweep helper
 ```bash
 for seed in 17 23 42 1337 2025; do
   python Examples/baseExamples/adult_credit_dendrites/train.py \
