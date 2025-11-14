@@ -1379,8 +1379,10 @@ def count_params(net):
     """
     if GPA.pc.get_perforated_backpropagation():
         return UPB.pb_count_params(net)
-    return sum(p.numel() for p in net.parameters())
-
+    parameters = net.named_parameters()
+    unique_params = {p.data_ptr(): p for name, p in parameters if 'parent_module' not in name}.values()
+    return sum(p.numel() for p in unique_params)
+    
 
 def change_learning_modes(net, folder, name, doing_pai):
     """Change between neuron and dendrite learning modes
