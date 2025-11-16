@@ -9,7 +9,7 @@ Also ensure that maximizing_score is set properly in initialize_pai.  If you are
 
 ## Errors Where Warnings are Printed
 
-    "The following layer has not properly set this_input_dimensions"
+    "The following layer has not properly set this_output_dimensions"
 
 Check out the suggestions that are printed and section 4 in customization
 
@@ -120,7 +120,7 @@ If you get this error in setupOptimizer it means you called setupOptimizer but y
     File "perforatedai/pb_layer.py", line X, in perforatedai.pb_layer.pb_neuron_layer.forward
     RuntimeError: The size of tensor a (X) must match the size of tensor b (X) at non-singleton dimension 
     
-If you get this error it means your neurons are not correctly matched in setinput_dimensions.  If your 0 is in the wrong index the tensors that get used for tracking the Dendrite to Neuron weights will be the wrong size.
+If you get this error it means your neurons are not correctly matched in setoutput_dimensions.  If your 0 is in the wrong index the tensors that get used for tracking the Dendrite to Neuron weights will be the wrong size.
 
 ## Initialization Errors
 

@@ -1142,15 +1142,16 @@ def load_net_from_dict(net, state_dict):
                     "This value is missing from the state dict\n"
                     "When missing this value it typically means you\n"
                     "converted a module but didn't actually use it in\n"
-                    "your forward and backward pass"
+                    "your forward and backward pass."
                 )
                 print("module was: %s" % module.name)
+                print("There are many reasons this can happen:")
                 print(
-                    "check your model definition and forward function and "
+                    "\n1 - check your model definition and forward function and "
                     "ensure this module is being used properly"
                 )
                 print(
-                    "with GPA.pc.set_verbose(True) you can confirm this is the case if"
+                    "with GPA.pc.set_verbose(True) you can confirm this is the case if\n"
                     'you do not see a "setting d shape for" this module at the first training batch.'
                 )
                 print(
@@ -1160,7 +1161,7 @@ def load_net_from_dict(net, state_dict):
                     % module.name
                 )
                 print(
-                    "\nThis can also happen if you adjusted your model "
+                    "\n2 - This can also happen if you adjusted your model "
                     "definition after calling initialize_pai"
                 )
                 print(
@@ -1174,9 +1175,8 @@ def load_net_from_dict(net, state_dict):
                     "initialization steps"
                 )
                 first_key = next(iter(state_dict.keys()))
-
                 print(
-                    "\nA Third reason this can happen is if the model where you called initialize_pai\n"
+                    "\n3 - This can happen is if the model where you called initialize_pai\n"
                     "and the model within add_validation_score are not the same. \n"
                     "Check if the module above and %s have the same prefix\n"
                     % first_key
@@ -1184,6 +1184,13 @@ def load_net_from_dict(net, state_dict):
                 print(
                     "if one starts with .model or .base etc and the other does not, this is the problem."
                 )
+                
+                print("\n4 - If you are using this module but then not actually including\n"
+                    "the correct output tensor in the forward.  For example\n"
+                    "if you are using an LSTM and forwarding hidden instead of otput\n"
+                    "but your processors are set up to work with output"
+                )
+                
                 import pdb
 
                 pdb.set_trace()

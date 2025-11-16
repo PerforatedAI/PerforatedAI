@@ -133,7 +133,7 @@ You will know this is required if you get an error similar to the following:
 
     AttributeError: 'tuple' object has no attribute 'requires_grad'
     
-Also as a note, if you are using a GRU or LSTM in an non-traditional manner, such as passing the hidden tensor forward rather than the output, you may need to change how these processors are defined rather than using ours from pb_models. 
+Also as a note, if you are using a GRU or LSTM in an non-traditional manner, such as passing the hidden tensor forward rather than the output, you may need to change how these processors are defined rather than using ours from library_perforatedai. 
 
 #### 2.2.1 - Understanding Processors
 To help visualize what is happening the figure below is provided.  To think about designing a processing function, one must understand that the way Dendrites work is by outputting a single connection to each neuron.  This is implemented in PyTorch by taking the output tensor of a neuron layer, and adding the output tensor of the Dendrite layer multiplied by the corresponding weights.  This means the Dendrite output must be a single tensor with the same dimensionality as the neuron output.  This is simple if it is just a linear layer, one tensor in one tensor out, but it gets more complex when there are multiple tensors involved.
@@ -149,13 +149,24 @@ In the example below the following steps happen in the following order:
  - The neuron's second postprocessor creates a new tuple with this combined output and the NHT which was saved from postprocessor one.
  - The new tuple is returned from the PAI module which has the same format as the original module before being converted to a PAI module.
  
+![GRU Processor](processorExample.png "GRU Processor")
+
+#### Generic Example
+
+This example is more generic, showing the intuition behind what is happening.
+
+ - pre_d - This processor step prepares the input for the dendrite and ensures it has the same format as the full module input
+ - post_d - This procssor step extracts one tensor from the dendrite's output which will be combined with the neuron's output
+ - post_n1 - This procssor step extracts one tensor from the neuron's output which will be combined with the neuron's output
+ - post_n2 - This processor step combines that combined tensor with anything stored from post_n1 such that the PAIModules output will be the same format as the original module's output
+ 
+![Generic Processor](genericProcessor.png "Generic Processor")
+
+
+ 
 #### A note about processors
 
 The clear_processor function is called each time the network is saved.  This includes automatic saves which happen during the addValidationScore stage or any calls to saveSystem.  It should not cause problems in the general case, but if you have reason to call these functions in the middle of training cycles where you don't want processors to be cleared problems could arise.
-
-    
-![GRU Processor](processorExample.png "GRU Processor")
-
         
 #### 3 Multiple Module Systems
 Some deep learning involves components which are not single pytorch Modules.  An example might be a GAN system where the discriminator and generator are separate.  If this is the case they still must be converted together.  This can be worked around simply by creating a class such as the following:
@@ -184,20 +195,20 @@ An alternative is to call convertNetwork after initialize_pai but that still nee
 
 To add dendrites the new modules must know which index of their output tensor corresponds to the neuron dimension.  This is done by setting the following global vector with all -1's and a single 0 in the neuron index. The following is the default to signify convolutional indexing of [batch size, neurons, x, y]
 
-    GPA.pc.set_input_dimensions([-1, 0, -1, -1])
+    GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 
-Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of input_dimensions is not enough.  In these cases set input_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisinput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear conversion is done automatically.
+Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of output_dimensions is not enough.  In these cases set output_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisoutput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear conversion is done automatically.
 
-    model.onlyRecurrentModule.set_this_input_dimensions([-1,-1, 0])
-    model.fullyConnectedOutputLayer.set_this_input_dimensions([-1, 0])
-    model.3dConvLayer.set_this_input_dimensions([-1,-1,0,-1,-1])
+    model.onlyRecurrentModule.set_this_output_dimensions([-1,-1, 0])
+    model.fullyConnectedOutputLayer.set_this_output_dimensions([-1, 0])
+    model.3dConvLayer.set_this_output_dimensions([-1,-1,0,-1,-1])
     
 
 This is based on the output of the layer, not the input.  Try starting without any of these and then run your network, we will tell you if there is an error and how to fix it.  If you suspect there might be more than one problem, set the following flag and they will all be printed to be able to be fixed at once.
 
-    GPA.pc.set_debugging_input_dimensions(1)
+    GPA.pc.set_debugging_output_dimensions(1)
     
-We recommend setting this flag and if there are many problems change GPA.pc.get_input_dimensions() in the initial settings to have a different default value.  Then do this again and hopefully there will be fewer so you can do these changes with the smaller count.
+We recommend setting this flag and if there are many problems change GPA.pc.get_output_dimensions() in the initial settings to have a different default value.  Then do this again and hopefully there will be fewer so you can do these changes with the smaller count.
 
 ### 5 Using Pretrained Networks
 
@@ -244,7 +255,7 @@ If you want to load the best model for any reason you can call:
 
     model = UPA.load_system(model, your save name, 'best_model', True)
     
-This function should be called after initialize_pai and set_this_input_dimensions, but before setup_optimizer
+This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
     
 <!--
 If you want to load a simplified pb model just for inference you can do so with the following:

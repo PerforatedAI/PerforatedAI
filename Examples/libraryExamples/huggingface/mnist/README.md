@@ -31,7 +31,7 @@ The rest of this readme covers the mnist example in this folder.  But additional
     # Same as above for Dendrite epochs
     PBG.p_epochs_to_switch = 10
     # The default shape of input tensors
-    PBG.input_dimensions = [-1, 0, -1, -1]
+    PBG.output_dimensions = [-1, 0, -1, -1]
     
     and just for testing
     PBG.testingDendriteCapacity = True
