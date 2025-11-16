@@ -60,16 +60,19 @@ To do conversion with this library you need to create a custom class, or a wrapp
 ### 3) Perforated AI Settings
         
 Because this example is just doing KAN conversion and not doing dendrites some settings need to be changed to not also do dendrites.  The system also needs to be told to actually do that Linear to KANLinear conversion.  Details in the comments below of what each step does.
-    
+        
     def setupKANonfiguration():
         # Instruct PAI to replace all nn.Linears with a call to kan_from_linear with that nn.Linear as the argument
         GPA.pc.append_modules_to_replace([nn.Linear])
         GPA.pc.append_replacement_modules([kan_from_linear])
         # This line tells the system to not convert the new KANLinears to be dendrite modules (or the other conv2d modules)
         GPA.pc.append_modules_to_track([efficient_kan.KANLinear, nn.Conv2d])
-        # These liens tell the system we are not doing dendritic optimization at all
+        # These lines tell the system we are not doing dendritic optimization at all and shut off warnings related to dendrites
         GPA.pc.set_max_dendrites(0)
         GPA.pc.set_perforated_backpropagation(False)
+        GPA.pc.set_weight_decay_accepted(True)
+        GPA.pc.set_checked_skipped_modules(True)
+        GPA.pc.set_unwrapped_modules_confirmed(True)
     
 ## The One Line
 
