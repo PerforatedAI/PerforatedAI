@@ -144,132 +144,6 @@ class PAIProcessor(ABC):
         pass
 
 
-class LSTMCellProcessor(PAIProcessor):
-    """Processor for LSTM cells to handle hidden and cell states."""
-
-    def post_n1(self, *args, **kwargs):
-        """
-        Extract hidden state from LSTM output for dendrite processing.
-
-        Separates the hidden state (h_t) from the cell state (c_t) in the
-        LSTM output tuple. Stores the cell state temporarily since only the
-        hidden state should be modified by dendrites.
-
-        Parameters
-        ----------
-        *args : tuple
-            Contains LSTM output tuple (h_t, c_t) as first element.
-        **kwargs : dict
-            Unused keyword arguments.
-
-        Returns
-        -------
-        torch.Tensor
-            Hidden state h_t to be passed to dendrite processing.
-        """
-        h_t = args[0][0]
-        c_t = args[0][1]
-        # Store the cell state temporarily and just use the hidden state
-        # to do Dendrite functions
-        self.c_t_n = c_t
-        return h_t
-
-    def post_n2(self, *args, **kwargs):
-        """
-        Recombine dendrite-modified hidden state with cell state.
-
-        Takes the hidden state that has been modified by dendrite operations
-        and combines it with the stored cell state to produce the complete
-        LSTM output tuple.
-
-        Parameters
-        ----------
-        *args : tuple
-            Contains the dendrite-modified hidden state h_t.
-        **kwargs : dict
-            Unused keyword arguments.
-
-        Returns
-        -------
-        tuple
-            Complete LSTM output (h_t, c_t) where h_t has been modified.
-        """
-        h_t = args[0]
-        return h_t, self.c_t_n
-
-    def pre_d(self, *args, **kwargs):
-        """
-        Filter LSTM input for dendrite based on initialization state.
-
-        Checks if this is the first time step (all zeros in h_t) or a
-        subsequent step. For the first step, passes through the original
-        inputs. For subsequent steps, replaces the neuron's hidden state
-        with the dendrite's own internal state from the previous iteration.
-
-        Parameters
-        ----------
-        *args : tuple
-            Contains (input, (h_t, c_t)) where input is the external input
-            and (h_t, c_t) is the neuron's recurrent state.
-        **kwargs : dict
-            Keyword arguments to pass through.
-
-        Returns
-        -------
-        tuple
-            ((processed_input, processed_state), kwargs) for dendrite call.
-        """
-        h_t = args[1][0]
-        # If its the initial step then just use the normal input and zeros
-        if h_t.sum() == 0:
-            return args, kwargs
-        # If its not the first one then return the input it got with its own
-        # h_t and c_t to replace neurons
-        else:
-            return (args[0], (self.h_t_d, self.c_t_d)), kwargs
-
-    def post_d(self, *args, **kwargs):
-        """
-        Extract and store dendrite's LSTM state for next iteration.
-
-        Separates the dendrite's hidden and cell states from its output tuple,
-        stores both for use in the next time step, and returns only the hidden
-        state to be combined with the neuron's output.
-
-        Parameters
-        ----------
-        *args : tuple
-            Contains dendrite LSTM output tuple (h_t, c_t).
-        **kwargs : dict
-            Unused keyword arguments.
-
-        Returns
-        -------
-        torch.Tensor
-            Hidden state h_t to be added to the neuron output.
-        """
-        h_t = args[0][0]
-        c_t = args[0][1]
-        self.h_t_d = h_t
-        self.c_t_d = c_t
-        return h_t
-
-    def clear_processor(self):
-        """
-        Clear all stored LSTM states.
-
-        Removes dendrite hidden state (h_t_d), dendrite cell state (c_t_d),
-        and temporarily stored neuron cell state (c_t_n). Safe to call even
-        if attributes don't exist.
-        """
-        if hasattr(self, "h_t_d"):
-            delattr(self, "h_t_d")
-        if hasattr(self, "c_t_d"):
-            delattr(self, "c_t_d")
-        if hasattr(self, "c_t_n"):
-            delattr(self, "c_t_n")
-
-
 # General multi output processor for any number that ignores later ones
 class MultiOutputProcessor:
     """Processor for handling multiple outputs, ignoring later ones."""
@@ -358,6 +232,317 @@ class MultiOutputProcessor:
         if hasattr(self, "extra_out"):
             delattr(self, "extra_out")
 
+class LSTMCellProcessor(PAIProcessor):
+    """Processor for LSTM cells to handle hidden and cell states."""
+
+    def post_n1(self, *args, **kwargs):
+        """
+        Extract hidden state from LSTM output for dendrite processing.
+
+        Separates the hidden state (h_t) from the cell state (c_t) in the
+        LSTM output tuple. Stores the cell state temporarily since only the
+        hidden state should be modified by dendrites.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains LSTM output tuple (h_t, c_t) as first element.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Hidden state h_t to be passed to dendrite processing.
+        """
+        h_t = args[0][0]
+        c_t = args[0][1]
+        # Store the cell state temporarily and just use the hidden state
+        # to do Dendrite functions
+        self.c_t_n = c_t
+        return h_t
+
+    def post_n2(self, *args, **kwargs):
+        """
+        Recombine dendrite-modified hidden state with cell state.
+
+        Takes the hidden state that has been modified by dendrite operations
+        and combines it with the stored cell state to produce the complete
+        LSTM output tuple.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the dendrite-modified hidden state h_t.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        tuple
+            Complete LSTM output (h_t, c_t) where h_t has been modified.
+        """
+        h_t = args[0]
+        return h_t, self.c_t_n
+
+    def pre_d(self, *args, **kwargs):
+        """
+        Filter LSTMCell input for dendrite based on initialization state.
+
+        Checks if this is the first time step (all zeros in h_t) or a
+        subsequent step. For the first step, passes through the original
+        inputs. For subsequent steps, replaces the neuron's hidden state
+        with the dendrite's own internal state from the previous iteration.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains (input, (h_t, c_t)) where input is the external input
+            and (h_t, c_t) is the neuron's recurrent state.
+        **kwargs : dict
+            Keyword arguments to pass through.
+
+        Returns
+        -------
+        tuple
+            ((processed_input, processed_state), kwargs) for dendrite call.
+        """
+        h_t = args[1][0]
+        # If its the initial step then just use the normal input and zeros
+        if h_t.sum() == 0:
+            return args, kwargs
+        # If its not the first one then return the input it got with its own
+        # h_t and c_t to replace neurons
+        else:
+            return (args[0], (self.h_t_d, self.c_t_d)), kwargs
+
+    def post_d(self, *args, **kwargs):
+        """
+        Extract and store dendrite's LSTM state for next iteration.
+
+        Separates the dendrite's hidden and cell states from its output tuple,
+        stores both for use in the next time step, and returns only the hidden
+        state to be combined with the neuron's output.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains dendrite LSTM output tuple (h_t, c_t).
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Hidden state h_t to be added to the neuron output.
+        """
+        h_t = args[0][0]
+        c_t = args[0][1]
+        self.h_t_d = h_t
+        self.c_t_d = c_t
+        return h_t
+
+    def clear_processor(self):
+        """
+        Clear all stored LSTM states.
+
+        Removes dendrite hidden state (h_t_d), dendrite cell state (c_t_d),
+        and temporarily stored neuron cell state (c_t_n). Safe to call even
+        if attributes don't exist.
+        """
+        if hasattr(self, "h_t_d"):
+            delattr(self, "h_t_d")
+        if hasattr(self, "c_t_d"):
+            delattr(self, "c_t_d")
+        if hasattr(self, "c_t_n"):
+            delattr(self, "c_t_n")
+
+
+
+class LSTMProcessor(PAIProcessor):
+    """Processor for LSTM to handle hidden and output states."""
+
+    def post_n1(self, *args, **kwargs):
+        """
+        Extract hidden state from LSTM output for dendrite processing.
+
+        Separates the hidden state from the output in the
+        LSTM output tuple. Stores the hidden state temporarily since only the
+        output state should be modified by dendrites.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains LSTM output tuple (output, hidden) as first element.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Output state to be passed to dendrite processing.
+        """
+        output = args[0][0]
+        hidden = args[0][1]
+        # Store the hidden state temporarily and just use the output state
+        # to do Dendrite functions
+        self.hidden_n = hidden
+        return output
+
+    def post_n2(self, *args, **kwargs):
+        """
+        Recombine dendrite-modified output with hidden tuple.
+
+        Takes the output state that has been modified by dendrite operations
+        and combines it with the stored hidden state to produce the complete
+        LSTM output tuple.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the dendrite-modified output state.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        tuple
+            Complete LSTM output (output, hidden) where output has been modified.
+        """
+        output = args[0]
+        return output, self.hidden_n
+
+    def pre_d(self, *args, **kwargs):
+        """
+        LSTM input is just the tensor which also goes to the dendrite
+
+        Parameters
+        ----------
+        *args : 
+            Input tensor
+        **kwargs : dict
+            Empty
+
+        Returns
+        -------
+        tuple
+            (output, hidden)
+        """
+        return args, kwargs
+        
+    def post_d(self, *args, **kwargs):
+        """
+        Extract dendrite's output to combine.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains dendrite LSTM output tuple (output, hidden).
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Output state to be added to the neuron output.
+        """
+        output = args[0][0]
+        hidden = args[0][1]
+        return output
+
+    def clear_processor(self):
+        """
+        Clear all stored LSTM states.
+
+        """
+        if hasattr(self, "hidden_n"):
+            delattr(self, "hidden_n")
+
+
+class LSTMProcessorLastHidden(PAIProcessor):
+    """Processor for LSTM to forward the last hidden."""
+
+    def post_n1(self, *args, **kwargs):
+        """
+        Extract the last hidden to combine with dendrites
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains LSTM output tuple (output, hidden) as first element.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Output state to be passed to dendrite processing.
+        """
+        ignored_output = args[0][0]
+        last_hidden = args[0][1][-1]
+
+        return last_hidden
+
+    def post_n2(self, *args, **kwargs):
+        """
+        Recombine dendrite-modified last hidden, and append None just to maintain output format
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains the dendrite-modified output state.
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        tuple
+            Complete LSTM output (output, hidden) where output has been modified.
+        """
+        combined_last_hidden = args[0]
+        return None, combined_last_hidden
+
+    def pre_d(self, *args, **kwargs):
+        """
+        LSTM input is just the tensor which also goes to the dendrite
+
+        Parameters
+        ----------
+        *args : 
+            Input tensor
+        **kwargs : dict
+            Empty
+
+        Returns
+        -------
+        tuple
+            (output, hidden)
+        """
+        return args, kwargs
+        
+    def post_d(self, *args, **kwargs):
+        """
+        Extract extract the dendrites last hidden to combine with neurons.
+
+        Parameters
+        ----------
+        *args : tuple
+            Contains dendrite LSTM output tuple (output, hidden).
+        **kwargs : dict
+            Unused keyword arguments.
+
+        Returns
+        -------
+        torch.Tensor
+            Output state to be added to the neuron output.
+        """
+        ignored_output = args[0][0]
+        last_hidden = args[0][1][-1]
+        return last_hidden
+
+    def clear_processor(self):
+        # Nothing is stored
+        pass
 
 class ResNetPAI(nn.Module):
     """PB-compatible ResNet wrapper.

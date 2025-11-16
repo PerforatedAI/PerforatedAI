@@ -351,7 +351,7 @@ def dqn(
     GPA.pc.set_switch_mode(
         GPA.pc.DOING_HISTORY
     )  # When to switch between PAI and regular learning
-    # GPA.input_dimensions = [0, in_channels, 10, 10]  # PAI expects 0 for variable batch dimension
+    # GPA.output_dimensions = [0, in_channels, 10, 10]  # PAI expects 0 for variable batch dimension
     GPA.pc.set_n_epochs_to_switch(25)  # Normal epochs before switching
     GPA.pc.set_p_epochs_to_switch(25)  # PAI epochs before switching
     #    GPA.switch_mode = GPA.doing_fixed_switch
@@ -365,7 +365,7 @@ def dqn(
     GPA.pc.set_test_saves(True)
     GPA.pc.set_verbose(False)
     GPA.pc.set_extra_verbose(False)
-    GPA.pc.set_debugging_input_dimensions(1)  # Enable debugging for input dimensions
+    GPA.pc.set_debugging_output_dimensions(1)  # Enable debugging for input dimensions
     GPA.pc.set_debugging_memory_leak(False)
     GPA.pc.set_testing_dendrite_capacity(False)
 

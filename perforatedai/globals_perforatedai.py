@@ -117,7 +117,7 @@ class PAIConfig:
         The device to use for computation (CPU, CUDA, etc.).
     save_name : str
         Name used for saving models (should not be set manually).
-    debugging_input_dimensions : int
+    debugging_output_dimensions : int
         Debug level for input dimension checking.
     confirm_correct_sizes : bool
         Whether to verify tensor sizes during execution.
@@ -147,7 +147,7 @@ class PAIConfig:
         Save intermediary test models.
     pai_saves : bool
         Save PAI-specific format models.
-    input_dimensions : list
+    output_dimensions : list
         Format specification for input tensor dimensions.
     improvement_threshold : float
         Relative improvement threshold for validation scores.
@@ -270,9 +270,9 @@ class PAIConfig:
         add_pai_config_var_functions(self, "save_name", self.save_name)
 
         # Debug settings
-        self.debugging_input_dimensions = 0
+        self.debugging_output_dimensions = 0
         add_pai_config_var_functions(
-            self, "debugging_input_dimensions", self.debugging_input_dimensions
+            self, "debugging_output_dimensions", self.debugging_output_dimensions
         )
         # Debugging input tensor sizes.
         # This will slow things down very slightly and is not necessary but can help
@@ -349,12 +349,12 @@ class PAIConfig:
         # planes you are expecting.
         # Neuron index should be set to 0, variable indexes should be set to -1.
         # For example, if your format is [batchsize, nodes, x, y]
-        # input_dimensions is [-1, 0, -1, -1].
-        # if your format is, [batchsize, time index, nodes] input_dimensions is
+        # output_dimensions is [-1, 0, -1, -1].
+        # if your format is, [batchsize, time index, nodes] output_dimensions is
         # [-1, -1, 0]
-        self.input_dimensions = [-1, 0, -1, -1]
+        self.output_dimensions = [-1, 0, -1, -1]
         add_pai_config_var_functions(
-            self, "input_dimensions", self.input_dimensions, list_type=True
+            self, "output_dimensions", self.output_dimensions, list_type=True
         )
 
         # Improvement thresholds

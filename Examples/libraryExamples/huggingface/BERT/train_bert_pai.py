@@ -257,7 +257,7 @@ def set_GPA_params(args):
         raise ValueError(f"Invalid switch_mode: {args.switch_mode}")
     GPA.pc.set_n_epochs_to_switch(args.n_epochs_to_switch)
     GPA.pc.set_p_epochs_to_switch(args.p_epochs_to_switch)
-    GPA.pc.set_input_dimensions([-1, -1, 0])
+    GPA.pc.set_output_dimensions([-1, -1, 0])
     GPA.pc.set_history_lookback(args.history_lookback)
     GPA.pc.set_max_dendrites(args.max_dendrites)
     GPA.pc.set_testing_dendrite_capacity(False)
@@ -267,7 +267,7 @@ def set_GPA_params(args):
     GPA.pc.set_unwrapped_modules_confirmed(args.unwrapped_modules_confirmed)
     GPA.pc.set_unwrapped_norms_confirmed(True)
     GPA.pc.set_cap_at_n(args.cap_at_n)
-    GPA.pc.set_debugging_input_dimensions(1)
+    GPA.pc.set_debugging_output_dimensions(1)
     GPA.pc.set_metric('eval_accuracy')
     GPA.pc.set_weight_decay_accepted(True    )
     
@@ -448,10 +448,10 @@ def main():
         try:
             if "roberta" in args.model_name:
                 if layer_name in ["roberta.pooler", "roberta.pooler.dense", "classifier", "classifier.dense", "classifier.out_proj"]:
-                    layer.set_this_input_dimensions([-1, 0])
+                    layer.set_this_output_dimensions([-1, 0])
             elif "bert" in args.model_name:
                 if layer_name in ["bert.pooler", "bert.pooler.dense", "classifier"]:
-                    layer.set_this_input_dimensions([-1, 0])
+                    layer.set_this_output_dimensions([-1, 0])
         except Exception as e:
             print(f"Could not set input dimensions for {layer_name}: {e}")
     
