@@ -197,7 +197,7 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
         original_output_proj = copy.deepcopy(model.output_projection)
 
         # Configure PerforatedAI for Transformers (3D tensors: [batch, sequence, features])
-        GPA.pc.set_testing_dendrite_capacity(True)
+        GPA.pc.set_testing_dendrite_capacity(False)  # False for real experiments, True for testing
         GPA.pc.set_unwrapped_modules_confirmed(True)
         GPA.pc.set_input_dimensions([-1, -1, 0])  # Critical for 3D tensor support
         GPA.pc.set_module_names_to_convert(["Linear"])

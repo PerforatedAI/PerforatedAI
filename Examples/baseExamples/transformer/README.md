@@ -8,10 +8,12 @@ A head-to-head comparison between standard Transformer language models and dendr
 PerforatedAI/
 ├── requirements.txt          # Python dependencies
 ├── README.md                # This file
+├── test_setup.py            # Environment verification script
 ├── data_preparation.py      # Dataset loading and preprocessing
 ├── model.py                 # Transformer model definitions
 ├── train.py                 # Unified training script
-└── results/                 # Training outputs and analysis
+├── run_experiment.sh        # Automated experiment runner
+└── TECHNICAL_REPORT.md      # Comprehensive analysis and results
 ```
 
 ## Setup
@@ -25,6 +27,9 @@ source venv/bin/activate  # On Mac/Linux
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Verify installation (optional but recommended)
+python test_setup.py
 
 # Login to W&B for experiment tracking
 wandb login

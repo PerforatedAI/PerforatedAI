@@ -42,9 +42,9 @@ fi
 # Install PerforatedAI if needed
 if ! python -c "import perforatedai" &> /dev/null; then
     echo "Installing PerforatedAI..."
-    cd ../../..
+    cd ../../..  # Go from Examples/baseExamples/transformer to project root
     pip install -e .
-    cd -
+    cd Examples/baseExamples/transformer  # Return to example directory
     echo "✓ PerforatedAI installed"
 fi
 
