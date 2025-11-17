@@ -61,8 +61,7 @@ from param_count import count_params
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
-GPA.pc.set_using_safe_tensors(False)
-
+GPA.pc.set_using_safe_tensors(True)
 
 DATA_CACHE_DIR = CURRENT_DIR / "data_cache"
 
@@ -201,14 +200,8 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         "--exclude-output-proj",
         dest="exclude_output_proj",
         action="store_true",
-        default=True,
+        default=False,
         help="Keep output projection vanilla (default).",
-    )
-    parser.add_argument(
-        "--include-output-proj",
-        dest="exclude_output_proj",
-        action="store_false",
-        help="Also dendritize the output layer.",
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
@@ -777,8 +770,8 @@ def train_model(args: argparse.Namespace) -> None:
         if args.max_dendrites is not None:
             GPA.pc.set_max_dendrites(args.max_dendrites)
         if args.fixed_switch_num is not None:
-            GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-            GPA.pc.set_fixed_switch_num(args.fixed_switch_num)
+            GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
+            GPA.pc.set_n_epochs_to_switch(50)
             first_switch = (
                 args.first_fixed_switch_num
                 if args.first_fixed_switch_num is not None

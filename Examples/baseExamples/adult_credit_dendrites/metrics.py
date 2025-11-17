@@ -1,8 +1,8 @@
 """
-Utility metrics for the Adult Income dendritic example.
+Utility metrics for the Adult Income dendritic 
 
 Provides lightweight wrappers around common binary classification metrics
-with fallbacks that keep the training script resilient to degenerate splits.
+with fallbacks that keep the training script resilient to degenerate splits
 """
 
 from __future__ import annotations

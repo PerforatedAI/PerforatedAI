@@ -7,7 +7,7 @@ This example adds AI dendrites to the Adult Income and Credit Default tabular be
 - `run_sweep.py` / `Makefile`: helper shortcuts for the adult runs.
 - `metrics.py`, `param_count.py`, `test_setup.py`: light utilities for metrics, parameter counting, and smoke testing.
 - `results/`: CSVs, comparison chart, and the final PAI graph.
-- `credit_w128_d0.25_dend_seed1337/`: saved checkpoints and  the raw `/PAI/*.png` produced 
+- `credit_w128_d0.25_dend_seed1337/`: saved checkpoints and the raw `/PAI/*.png` produced by Perforated AI.
 
 ## Installation
 ```bash
@@ -49,31 +49,38 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
   --notes credit_baseline_w512
 ```
 
-### 4. Credit Default dendritic 
+### 4. Credit Default dendritic (DOING_HISTORY, no-loss run)
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
   --dataset credit \
-  --epochs 60 --patience 10 \
-  --width 128 --dropout 0.25 \
+  --epochs 1000 --patience 1000 \
+  --width 64 --dropout 0.50 \
   --use-dendrites --exclude-output-proj \
-  --max-dendrites 8 --fixed-switch-num 3 \
+  --max-dendrites 8 --fixed-switch-num 50 \
   --seed 1337 \
-  --notes credit_dend_w128_cap8_seed1337
+  --notes credit_dend_w64_hist_seed1337
 ```
 
-### Optional: Seed sweep helper
+### Optional: sweep helper (width × dropout × dendrites)
 ```bash
-for seed in 17 23 42 1337 2025; do
-  python Examples/baseExamples/adult_credit_dendrites/train.py \
-    --dataset credit --epochs 60 --patience 12 \
-    --width 128 --dropout 0.25 \
-    --use-dendrites --exclude-output-proj \
-    --max-dendrites 8 --fixed-switch-num 3 \
-    --seed $seed \
-    --notes "credit_dend_w128_cap8_seed${seed}"
+for dataset in adult credit; do
+  for width in 64 128 256; do
+    for dropout in 0.25 0.50; do
+      for use_dendrites in true false; do
+        notes="${dataset}_w${width}_d${dropout}_$( [ "$use_dendrites" = true ] && echo dend || echo base )"
+        python Examples/baseExamples/adult_credit_dendrites/train.py \
+          --dataset $dataset \
+          --epochs 120 --patience 20 \
+          --width $width --dropout $dropout \
+          $( [ "$use_dendrites" = true ] && echo "--use-dendrites --exclude-output-proj --max-dendrites 8 --fixed-switch-num 50" || echo "--no-dendrites" ) \
+          --seed 1337 \
+          --notes "$notes"
+      done
+    done
+  done
 done
 ```
-Seed 1337 provided the best results.
+Seed 1337 provided the best results in our sweeps.
 
 ### Smoke test
 ```bash
@@ -93,7 +100,7 @@ Validation AUC vs parameter count for the four headline runs:
 ![Validation bar chart](results/bar_outcomes.png)
 
 ### Final PAI graph
-The Perforated AI tracker now shows the standard `/PAI/*.png`. 
+The Perforated AI tracker now shows the standard `/PAI/*.png`.
 
 ![PAI Graph](results/pai_credit_seed.png)
 
@@ -103,7 +110,7 @@ Dataset | Model | Params | Δ vs Baseline | Val AUC | Test AUC | Notes
 Adult | Vanilla MLP (w=512) | 450,049 | — | 0.9125 | 0.9159 | `baseline_w512`
 Adult | Dendritic MLP (w=128) | 238,465 | −47% | 0.9125 | 0.9164 | `pai_w128_cap12`
 Credit | Vanilla MLP (w=512) | 406,529 | — | 0.7839 | 0.7726 | `credit_baseline_w512`
-Credit | Dendritic MLP (w=128, seed 1337) | 301,185 | −26% | 0.7955 | 0.7810 | `credit_dend_w128_cap8_seed1337`
+Credit | Dendritic MLP (w=64, seed 1337) | 89,521 | −78% | 0.8008 | 0.7829 | `credit_dend_w64_hist_seed1337`
 
 `results/best_test_scores.csv` stores the same table and is what `quality_vs_params.png` reads from. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
 
