@@ -93,7 +93,7 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 
 ## Outcomes
 
-Validation AUC vs parameter count for the four headline runs:
+Validation AUC vs parameter count for the four headline runs (compact labels):
 
 ![Quality vs Parameters](results/quality_vs_params.png)
 
@@ -108,7 +108,7 @@ The Perforated AI tracker now shows the standard `/PAI/*.png`.
 Dataset | Model | Params | Δ vs Baseline | Val AUC | Test AUC | Notes
 ---|---|---|---|---|---|---
 Adult | Vanilla MLP (w=512) | 450,049 | — | 0.9125 | 0.9159 | `baseline_w512`
-Adult | Dendritic MLP (w=128) | 238,465 | −47% | 0.9125 | 0.9164 | `pai_w128_cap12`
+Adult | Dendritic MLP (w=128, seed 1337) | 196,545 | −56% | 0.9156 | 0.9158 | `adult_dend_w128_hist_seed1337_1000`
 Credit | Vanilla MLP (w=512) | 406,529 | — | 0.7839 | 0.7726 | `credit_baseline_w512`
 Credit | Dendritic MLP (w=64, seed 1337) | 89,521 | −78% | 0.8008 | 0.7829 | `credit_dend_w64_hist_seed1337`
 

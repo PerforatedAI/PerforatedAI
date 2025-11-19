@@ -662,10 +662,14 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
     aucs: List[float] = []
     labels: List[str] = []
     label_map = {
-        "baseline_w512": "adult_baseline",
-        "pai_w128_cap12": "adult_dendritic",
-        "credit_baseline_w512": "credit_baseline",
-        "credit_dend_w128_cap8_seed1337": "credit_dendritic",
+        # Adult
+        "baseline_w512": "adult_base",
+        "pai_w128_cap12": "adult_dend",
+        "adult_dend_w128_hist_seed1337_1000": "adult_dend",
+        # Credit
+        "credit_baseline_w512": "credit_base",
+        "credit_dend_w128_cap8_seed1337": "credit_dend",
+        "credit_dend_w64_hist_seed1337": "credit_dend",
     }
     with csv_path.open("r", newline="") as handle:
         reader = csv.DictReader(handle)
