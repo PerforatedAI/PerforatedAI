@@ -69,7 +69,7 @@ for dataset in adult credit; do
         notes="${dataset}_w${width}_d${dropout}_$( [ "$use_dendrites" = true ] && echo dend || echo base )"
         python Examples/baseExamples/adult_credit_dendrites/train.py \
           --dataset $dataset \
-          --epochs 120 --patience 20 \
+          --epochs 1000 --patience 1000 \
           --width $width --dropout $dropout \
           $( [ "$use_dendrites" = true ] && echo "--use-dendrites --exclude-output-proj --max-dendrites 8 --fixed-switch-num 50" || echo "--no-dendrites" ) \
           --seed 1337 \
