@@ -1,6 +1,6 @@
 # Adult & Credit Tabular Compression with Dendrites
 
-This example adds AI dendrites to the Adult Income and Credit Default tabular benchmarks to show how parameter counts drop without hurting AUC.
+This example adds AI dendrites to the Adult Income and Credit Default tabular benchmarks to show how parameter counts drop without losing AUC.
 
 ## What’s inside this folder?
 - `train.py`: single entry point with dataset flag, dendrite toggles, and logging utilities.
