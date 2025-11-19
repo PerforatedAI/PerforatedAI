@@ -7,7 +7,6 @@ This example adds AI dendrites to the Adult Income and Credit Default tabular be
 - `run_sweep.py` / `Makefile`: helper shortcuts for the adult runs.
 - `metrics.py`, `param_count.py`, `test_setup.py`: light utilities for metrics, parameter counting, and smoke testing.
 - `results/`: CSVs, comparison chart, and the final PAI graph.
-- `credit_w128_d0.25_dend_seed1337/`: saved checkpoints and the raw `/PAI/*.png` produced by Perforated AI.
 
 ## Installation
 ```bash
