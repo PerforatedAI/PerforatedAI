@@ -60,7 +60,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
   --notes credit_dend_w64_hist_seed1337
 ```
 
-### Optional: sweep helper (width × dropout × dendrites)
+### Sweep helper (width × dropout × dendrites)
 ```bash
 for dataset in adult credit; do
   for width in 64 128 256; do
