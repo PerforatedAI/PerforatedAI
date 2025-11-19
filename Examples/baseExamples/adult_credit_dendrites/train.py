@@ -658,31 +658,46 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    with csv_path.open("r", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    if not rows:
+        return
+
+    # Select the best baseline and dendritic run per dataset for clarity.
+    best_rows: List[Dict[str, str]] = []
+    datasets = sorted({row["dataset"] for row in rows})
+    for dataset in datasets:
+        for want_dendrites in (False, True):
+            candidates = [
+                row
+                for row in rows
+                if row["dataset"] == dataset
+                and (row["use_dendrites"].lower() == "true") == want_dendrites
+            ]
+            if not candidates:
+                continue
+            candidates.sort(
+                key=lambda r: (float(r.get("val_auc", "nan")), -float(r.get("params", "inf")))
+            )
+            best_rows.append(candidates[-1])
+
+    if not best_rows:
+        return
+
     params: List[float] = []
     aucs: List[float] = []
     labels: List[str] = []
-    label_map = {
-        # Adult
-        "baseline_w512": "adult_base",
-        "pai_w128_cap12": "adult_dend",
-        "adult_dend_w128_hist_seed1337_1000": "adult_dend",
-        # Credit
-        "credit_baseline_w512": "credit_base",
-        "credit_dend_w128_cap8_seed1337": "credit_dend",
-        "credit_dend_w64_hist_seed1337": "credit_dend",
-    }
-    with csv_path.open("r", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            try:
-                params.append(float(row["params"]))
-                aucs.append(float(row["val_auc"]))
-                key = row["notes"] or row["model_id"]
-                labels.append(label_map.get(key, key))
-            except (KeyError, ValueError):
-                continue
+    for row in best_rows:
+        try:
+            params.append(float(row["params"]))
+            aucs.append(float(row["val_auc"]))
+            labels.append(row.get("notes") or row.get("model_id") or "run")
+        except (KeyError, ValueError):
+            continue
     if not params:
         return
+
     plt.figure(figsize=(6, 4))
     plt.scatter(params, aucs, c="tab:blue")
     for x, y, label in zip(params, aucs, labels):

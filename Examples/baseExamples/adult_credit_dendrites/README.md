@@ -93,7 +93,7 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 
 ## Outcomes
 
-Validation AUC vs parameter count for the four headline runs (full sweep archived in `results/best_test_scores_full.csv`, plotted points show all runs):
+Validation AUC vs parameter count for the four headline runs (scatter highlights the best baseline+dendritic pair per dataset; the full sweep is archived in `results/best_test_scores_full.csv`):
 
 ![Quality vs Parameters](results/quality_vs_params.png)
 
