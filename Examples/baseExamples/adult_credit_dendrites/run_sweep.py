@@ -1,10 +1,3 @@
-"""
-Convenience launcher for the Adult Income compression sweep.
-
-Runs the baseline and three dendritic configurations.
-Use `python run_sweep.py` or `make sweep`.
-"""
-
 from __future__ import annotations
 
 import subprocess
@@ -15,80 +8,71 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 
-COMMANDS = [
-    [
-        "--epochs",
-        "40",
-        "--patience",
-        "6",
-        "--width",
-        "512",
-        "--dropout",
-        "0.25",
-        "--no-dendrites",
-        "--notes",
-        "baseline_w512",
-    ],
-    [
-        "--epochs",
-        "60",
-        "--patience",
-        "10",
-        "--width",
-        "128",
-        "--dropout",
-        "0.10",
-        "--use-dendrites",
-        "--exclude-output-proj",
-        "--max-dendrites",
-        "8",
-        "--fixed-switch-num",
-        "3",
-        "--notes",
-        "pai_w128_cap8",
-    ],
-    [
-        "--epochs",
-        "60",
-        "--patience",
-        "10",
-        "--width",
-        "128",
-        "--dropout",
-        "0.15",
-        "--use-dendrites",
-        "--exclude-output-proj",
-        "--max-dendrites",
-        "10",
-        "--fixed-switch-num",
-        "3",
-        "--notes",
-        "pai_w128_cap10_drop015",
-    ],
-    [
-        "--epochs",
-        "60",
-        "--patience",
-        "10",
-        "--width",
-        "128",
-        "--dropout",
-        "0.25",
-        "--use-dendrites",
-        "--exclude-output-proj",
-        "--max-dendrites",
-        "12",
-        "--fixed-switch-num",
-        "3",
-        "--notes",
-        "pai_w128_cap12",
-    ],
-]
+DATASETS = ["adult", "credit"]
+WIDTHS = [64, 128, 256]
+DROPOUTS = [0.25, 0.50]
+SEED = "1337"
+
+
+def build_commands() -> list[list[str]]:
+    commands: list[list[str]] = []
+    for dataset in DATASETS:
+        for width in WIDTHS:
+            for dropout in DROPOUTS:
+                # Baseline
+                commands.append(
+                    [
+                        "--dataset",
+                        dataset,
+                        "--epochs",
+                        "120",
+                        "--patience",
+                        "20",
+                        "--width",
+                        str(width),
+                        "--dropout",
+                        str(dropout),
+                        "--no-dendrites",
+                        "--seed",
+                        SEED,
+                        "--notes",
+                        f"{dataset}_w{width}_d{dropout}_base",
+                    ]
+                )
+
+                # Dendritic (DOING_HISTORY)
+                dend_epochs = "600" if dataset == "credit" else "300"
+                dend_patience = dend_epochs
+                commands.append(
+                    [
+                        "--dataset",
+                        dataset,
+                        "--epochs",
+                        dend_epochs,
+                        "--patience",
+                        dend_patience,
+                        "--width",
+                        str(width),
+                        "--dropout",
+                        str(dropout),
+                        "--use-dendrites",
+                        "--exclude-output-proj",
+                        "--max-dendrites",
+                        "8",
+                        "--fixed-switch-num",
+                        "50",
+                        "--seed",
+                        SEED,
+                        "--notes",
+                        f"{dataset}_w{width}_d{dropout}_dend",
+                    ]
+                )
+    return commands
 
 
 def main() -> None:
     train_script = ROOT / "train.py"
-    for args in COMMANDS:
+    for args in build_commands():
         cmd = [PYTHON, str(train_script), *args]
         print("\nRunning:", " ".join(cmd))
         subprocess.run(cmd, cwd=ROOT, check=True)
