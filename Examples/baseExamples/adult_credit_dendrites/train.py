@@ -693,6 +693,13 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
         "credit_dend_w64_hist_seed1337": "credit_dend",
     }
 
+    offsets = {
+        "adult_base": (-40, -20),
+        "adult_dend": (5, -25),
+        "credit_base": (10, 8),
+        "credit_dend": (10, -18),
+    }
+
     for row in best_rows:
         try:
             params = float(row["params"])
@@ -704,7 +711,7 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
         label = label_map.get(label_key, label_key or "run")
         plt.scatter(params, auc, c="tab:blue" if dataset == "adult" else "tab:orange")
 
-        offset = (5, 5) if dataset == "adult" else (5, -12)
+        offset = offsets.get(label, (5, 5))
 
         plt.annotate(
             label, (params, auc), textcoords="offset points", xytext=offset, fontsize=8
