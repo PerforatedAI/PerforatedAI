@@ -109,7 +109,7 @@ Dataset | Model | Params | Δ vs Baseline | Val AUC | Test AUC | Notes
 ---|---|---|---|---|---|---
 Adult | Vanilla MLP (w=512) | 450,049 | — | 0.9125 | 0.9159 | `baseline_w512`
 Adult | Dendritic MLP (w=128, seed 1337) | 196,545 | −56% | 0.9156 | 0.9158 | `adult_dend_w128_hist_seed1337_1000`
-Credit | Vanilla MLP (w=512) | 406,529 | — | 0.7839 | 0.7726 | `credit_baseline_w512`
+Credit | Vanilla MLP (w=128) | 27,905 | — | 0.7947 | 0.7804 | `credit_base_w128_d0.25_s1337`
 Credit | Dendritic MLP (w=64, seed 1337) | 89,521 | −78% | 0.8008 | 0.7829 | `credit_dend_w64_hist_seed1337`
 
 `results/best_test_scores.csv` stores the same table and is what `quality_vs_params.png` reads from. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.

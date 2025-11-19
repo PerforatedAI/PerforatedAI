@@ -14,3 +14,11 @@ credit,credit_w128_d0.25_dend,True,301185,77493.12696244607,cpu,credit_dend_w128
 credit,credit_w128_d0.25_dend,True,142785,198353.29736385687,cpu,tmp_run
 credit,credit_w64_d0.50_dend,True,78817,20791.22955337839,mps,credit_dend_w64_hist_seed1337
 adult,adult_w128_d0.25_dend,True,196545,33007.16217577322,mps,adult_dend_w128_hist_seed1337_1000
+credit,credit_w64_d0.25_base,False,7809,274763.72149144305,mps,credit_base_w64_d0.25_s1337
+credit,credit_w64_d0.25_dend,True,68801,32845.116944570895,mps,credit_dend_w64_d0.25_s1337
+credit,credit_w64_d0.50_base,False,7809,342846.2764385188,mps,credit_base_w64_d0.50_s1337
+credit,credit_w64_d0.50_dend,True,78817,26739.139639692457,mps,credit_dend_w64_d0.50_s1337
+credit,credit_w128_d0.25_base,False,27905,340022.5337257031,mps,credit_base_w128_d0.25_s1337
+credit,credit_w128_d0.25_dend,True,142785,58767.67399957001,mps,credit_dend_w128_d0.25_s1337
+credit,credit_w128_d0.50_base,False,27905,331739.1424504904,mps,credit_base_w128_d0.50_s1337
+credit,credit_w128_d0.50_dend,True,301185,19636.802843227702,mps,credit_dend_w128_d0.50_s1337
