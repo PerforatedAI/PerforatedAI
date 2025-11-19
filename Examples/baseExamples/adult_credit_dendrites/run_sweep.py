@@ -25,9 +25,9 @@ def build_commands() -> list[list[str]]:
                         "--dataset",
                         dataset,
                         "--epochs",
-                        "120",
+                        "1000",
                         "--patience",
-                        "20",
+                        "1000",
                         "--width",
                         str(width),
                         "--dropout",
@@ -41,16 +41,14 @@ def build_commands() -> list[list[str]]:
                 )
 
                 # Dendritic (DOING_HISTORY)
-                dend_epochs = "600" if dataset == "credit" else "300"
-                dend_patience = dend_epochs
                 commands.append(
                     [
                         "--dataset",
                         dataset,
                         "--epochs",
-                        dend_epochs,
+                        "1000",
                         "--patience",
-                        dend_patience,
+                        "1000",
                         "--width",
                         str(width),
                         "--dropout",
