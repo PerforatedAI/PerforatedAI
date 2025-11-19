@@ -685,24 +685,28 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
     if not best_rows:
         return
 
-    params: List[float] = []
-    aucs: List[float] = []
-    labels: List[str] = []
+    plt.figure(figsize=(6, 4))
     for row in best_rows:
         try:
-            params.append(float(row["params"]))
-            aucs.append(float(row["val_auc"]))
-            labels.append(row.get("notes") or row.get("model_id") or "run")
+            params = float(row["params"])
+            auc = float(row["val_auc"])
         except (KeyError, ValueError):
             continue
-    if not params:
-        return
+        dataset = row["dataset"]
+        label = row.get("notes") or row.get("model_id") or "run"
+        plt.scatter(params, auc, c="tab:blue" if dataset == "adult" else "tab:orange")
 
-    plt.figure(figsize=(6, 4))
-    plt.scatter(params, aucs, c="tab:blue")
-    for x, y, label in zip(params, aucs, labels):
+        if "baseline_w512" in label:
+            offset = (5, -15)
+        elif "adult_dend" in label:
+            offset = (5, 8)
+        elif "credit_base" in label:
+            offset = (5, -12)
+        else:
+            offset = (5, 8)
+
         plt.annotate(
-            label, (x, y), textcoords="offset points", xytext=(5, 5), fontsize=8
+            label, (params, auc), textcoords="offset points", xytext=offset, fontsize=8
         )
     plt.xlabel("Parameters")
     plt.ylabel("Validation AUC")
