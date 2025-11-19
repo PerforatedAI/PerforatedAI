@@ -696,7 +696,7 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
     offsets = {
         "adult_base": (-40, -20),
         "adult_dend": (5, -25),
-        "credit_base": (10, 8),
+        "credit_base": (-5, 12),
         "credit_dend": (10, -18),
     }
 
