@@ -49,7 +49,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
   --notes credit_baseline_w512
 ```
 
-### 4. Credit Default dendritic (DOING_HISTORY, no-loss run)
+### 4. Credit Default dendritic 
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
   --dataset credit \
