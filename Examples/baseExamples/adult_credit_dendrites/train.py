@@ -686,6 +686,13 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
         return
 
     plt.figure(figsize=(6, 4))
+    label_map = {
+        "baseline_w512": "adult_base",
+        "adult_dend_w128_hist_seed1337_1000": "adult_dend",
+        "credit_base_w128_d0.25_s1337": "credit_base",
+        "credit_dend_w64_hist_seed1337": "credit_dend",
+    }
+
     for row in best_rows:
         try:
             params = float(row["params"])
@@ -693,17 +700,11 @@ def update_quality_plot(csv_path: Path, output_path: Path) -> None:
         except (KeyError, ValueError):
             continue
         dataset = row["dataset"]
-        label = row.get("notes") or row.get("model_id") or "run"
+        label_key = row.get("notes") or row.get("model_id")
+        label = label_map.get(label_key, label_key or "run")
         plt.scatter(params, auc, c="tab:blue" if dataset == "adult" else "tab:orange")
 
-        if "baseline_w512" in label:
-            offset = (5, -15)
-        elif "adult_dend" in label:
-            offset = (5, 8)
-        elif "credit_base" in label:
-            offset = (5, -12)
-        else:
-            offset = (5, 8)
+        offset = (5, 5) if dataset == "adult" else (5, -12)
 
         plt.annotate(
             label, (params, auc), textcoords="offset points", xytext=offset, fontsize=8
