@@ -22,7 +22,7 @@ export MPLCONFIGDIR="$(pwd)/Examples/baseExamples/adult_credit_dendrites/results
 ### 1. Adult Income baseline (≈450k params)
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
-  --epochs 40 --patience 6 \
+  --epochs 1000 --patience 1000 \
   --width 512 --dropout 0.25 \
   --no-dendrites \
   --notes baseline_w512
@@ -31,7 +31,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
 ### 2. Adult Income dendritic (≈238k params)
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
-  --epochs 60 --patience 10 \
+  --epochs 1000 --patience 1000 \
   --width 128 --dropout 0.25 \
   --use-dendrites --exclude-output-proj \
   --max-dendrites 12 --fixed-switch-num 3 \
@@ -42,7 +42,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
   --dataset credit \
-  --epochs 40 --patience 6 \
+  --epochs 1000 --patience 1000 \
   --width 512 --dropout 0.25 \
   --no-dendrites \
   --notes credit_baseline_w512
