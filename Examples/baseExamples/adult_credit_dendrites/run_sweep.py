@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent
 PYTHON = sys.executable
 
 DATASETS = ["adult", "credit"]
-WIDTHS = [64, 128, 256]
+WIDTHS = [32, 48, 64, 128, 256]
 DROPOUTS = [0.25, 0.50]
 SEED = "1337"
 

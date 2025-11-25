@@ -22,20 +22,21 @@ export MPLCONFIGDIR="$(pwd)/Examples/baseExamples/adult_credit_dendrites/results
 ### 1. Adult Income baseline (≈450k params)
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
-  --epochs 1000 --patience 1000 \
+  --dataset adult --epochs 1000 --patience 1000 \
   --width 512 --dropout 0.25 \
   --no-dendrites \
-  --notes baseline_w512
+  --notes adult_original_base
 ```
 
-### 2. Adult Income dendritic (≈238k params)
+### 2. Adult Income shrunk + dendritic
 ```bash
 python Examples/baseExamples/adult_credit_dendrites/train.py \
-  --epochs 1000 --patience 1000 \
-  --width 128 --dropout 0.25 \
+  --dataset adult --epochs 1000 --patience 1000 \
+  --width 64 --dropout 0.50 \
   --use-dendrites --exclude-output-proj \
-  --max-dendrites 12 --fixed-switch-num 3 \
-  --notes pai_w128_cap12
+  --max-dendrites 8 --fixed-switch-num 50 \
+  --seed 1337 \
+  --notes adult_shrunk_dend
 ```
 
 ### 3. Credit Default baseline
@@ -43,9 +44,9 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
 python Examples/baseExamples/adult_credit_dendrites/train.py \
   --dataset credit \
   --epochs 1000 --patience 1000 \
-  --width 512 --dropout 0.25 \
+  --width 128 --dropout 0.25 \
   --no-dendrites \
-  --notes credit_baseline_w512
+  --notes credit_compact_base
 ```
 
 ### 4. Credit Default dendritic 
@@ -63,7 +64,7 @@ python Examples/baseExamples/adult_credit_dendrites/train.py \
 ### Sweep helper (width × dropout × dendrites)
 ```bash
 for dataset in adult credit; do
-  for width in 64 128 256; do
+  for width in 32 48 64 128 256; do
     for dropout in 0.25 0.50; do
       for use_dendrites in true false; do
         notes="${dataset}_w${width}_d${dropout}_$( [ "$use_dendrites" = true ] && echo dend || echo base )"
@@ -92,26 +93,23 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 
 ## Outcomes
 
-Validation AUC vs parameter count for the four headline runs (scatter highlights the best baseline+dendritic pair per dataset; the full sweep is archived in `results/best_test_scores_full.csv`):
+- Compression plots (test AUC left, parameters right):  
+  - `results/compression_adult.png` (Adult baseline → shrunk → shrunk+dendrites)  
+  - `results/compression_credit.png` (Credit baseline → shrunk → shrunk+dendrites)
+- Test AUC bars: `results/bar_adult.png`, `results/bar_credit.png`
+- PAI plots: `results/pai_credit_seed.png` (credit dendritic) and `results/pai_adult.png` (adult dendritic)
 
-![Quality vs Parameters](results/quality_vs_params.png)
-
-![Validation bar chart](results/bar_outcomes.png)
-
-### Final PAI graph
-The Perforated AI tracker now shows the standard `/PAI/*.png`.
-
-![PAI Graph](results/pai_credit_seed.png)
-
-## Results summary
-Dataset | Model | Params | Δ vs Baseline | Val AUC | Test AUC | Notes
+## Results summary (val / test AUC)
+Dataset | Model | Params | Δ vs baseline | Val AUC | Test AUC | Notes
 ---|---|---|---|---|---|---
-Adult | Vanilla MLP (w=512) | 450,049 | — | 0.9125 | 0.9159 | `baseline_w512`
-Adult | Dendritic MLP (w=128, seed 1337) | 196,545 | −56% | 0.9156 | 0.9158 | `adult_dend_w128_hist_seed1337_1000`
-Credit | Vanilla MLP (w=128) | 27,905 | — | 0.7947 | 0.7804 | `credit_base_w128_d0.25_s1337`
-Credit | Dendritic MLP (w=64, seed 1337) | 89,521 | −78% | 0.8008 | 0.7829 | `credit_dend_w64_hist_seed1337`
+Adult | Baseline (w=512) | 450,049 | — | 0.9125 | 0.9159 | `adult_original_base`
+Adult | Shrunk baseline (w=64) | 13,249 | −97% | 0.9122 | 0.9161 | `adult_shrunk_base`
+Adult | Shrunk + dendrites (w=64, seed 1337) | 127,201 | −72% | 0.9163 | 0.9161 | `adult_shrunk_dend`
+Credit | Baseline (w=128) | 27,905 | — | 0.7947 | 0.7804 | `credit_compact_base`
+Credit | Shrunk baseline (w=32) | 2,369 | −92% | 0.7802 | 0.7653 | `credit_shrunk_base`
+Credit | Shrunk + dendrites (w=64, seed 1337) | 89,521 | — vs shrunk | 0.8008 | 0.7829 | `credit_best_dend`
 
-`results/best_test_scores.csv` stores the same table and is what `quality_vs_params.png` reads from. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
+`results/best_test_scores.csv` stores these headline rows. The full sweep is in `results/best_test_scores_full.csv`. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
 
 ## Tips & troubleshooting
 - Change `--max-dendrites` / `--fixed-switch-num` to explore other compression targets. Everything is logged so you can audit each restructure.
