@@ -99,15 +99,26 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 - Test AUC bars: `results/bar_adult.png`, `results/bar_credit.png`
 - PAI plots: `results/pai_credit_seed.png` (credit dendritic) and `results/pai_adult.png` (adult dendritic)
 
+Below are the latest compression and headline test AUC visuals pulled from the runs logged in `results/`:
+
+- Adult compression: shrunk model matches baseline test AUC with ~3.5× fewer params.  
+![Adult Model Compression](results/compression_adult.png)
+- Credit compression: dendrites recover accuracy while staying under 0.09M params vs the compact baseline.  
+![Credit Model Compression](results/compression_credit.png)
+- Adult test AUC: dendrites edge past the baseline without growing back to the original size.  
+![Adult Test AUC](results/bar_adult.png)
+- Credit test AUC: dendrites lift test AUC above both baselines.  
+![Credit Test AUC](results/bar_credit.png)
+
 ## Results summary (val / test AUC)
 Dataset | Model | Params | Δ vs baseline | Val AUC | Test AUC | Notes
 ---|---|---|---|---|---|---
-Adult | Baseline (w=512) | 450,049 | — | 0.9125 | 0.9159 | `adult_original_base`
-Adult | Shrunk baseline (w=64) | 13,249 | −97% | 0.9122 | 0.9161 | `adult_shrunk_base`
-Adult | Shrunk + dendrites (w=64, seed 1337) | 127,201 | −72% | 0.9163 | 0.9161 | `adult_shrunk_dend`
-Credit | Baseline (w=128) | 27,905 | — | 0.7947 | 0.7804 | `credit_compact_base`
-Credit | Shrunk baseline (w=32) | 2,369 | −92% | 0.7802 | 0.7653 | `credit_shrunk_base`
-Credit | Shrunk + dendrites (w=64, seed 1337) | 89,521 | — vs shrunk | 0.8008 | 0.7829 | `credit_best_dend`
+Adult | Baseline | 450,049 | — | 0.9125 | 0.9159 | `adult_original_base`
+Adult | Shrunk baseline | 13,249 | −97% | 0.9122 | 0.9161 | `adult_shrunk_base`
+Adult | Shrunk + dendrites | 127,201 | −72% | 0.9163 | 0.9161 | `adult_shrunk_dend`
+Credit | Baseline | 27,905 | — | 0.7947 | 0.7804 | `credit_compact_base`
+Credit | Shrunk baseline | 2,369 | −92% | 0.7802 | 0.7653 | `credit_shrunk_base`
+Credit | Shrunk + dendrites | 89,521 | — vs shrunk | 0.8008 | 0.7829 | `credit_best_dend`
 
 `results/best_test_scores.csv` stores these headline rows. The full sweep is in `results/best_test_scores_full.csv`. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
 
