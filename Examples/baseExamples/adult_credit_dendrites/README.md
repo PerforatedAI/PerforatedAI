@@ -105,14 +105,14 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 - Key Credit Default figures from the credit experiments:  
   - Test AUC comparison of the best traditional vs best dendritic models:  
     ![Credit Test AUC](results/bar_credit.png)  
-  - Parameter compression curve for the credit models:  
+  - Parameter compression vs. test AUC for the Credit models  
     ![Credit Compression](results/credit_compression.png)  
 
   The folder also contains `results/pai_credit_seed.png`, a PAI visualization of the best dendritic credit run, for anyone who wants to inspect the training dynamics in more detail.
 
 In our sweeps, dendritic variants on Adult did not produce consistent or practically meaningful improvements over strong traditional baselines, but the full Adult code and configs remain in this folder for anyone who would like to run further experiments.
 
-## Credit results summary (val / test AUC)
+## Credit Results summary (Val / Test AUC)
 
 Dataset | Model | Params | Val AUC | Test AUC | Notes
 ---|---|---|---|---|---
