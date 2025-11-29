@@ -1,7 +1,5 @@
 dataset,model_id,use_dendrites,exclude_output,width,dropout,params,epochs_trained,val_auc,test_auc,notes
-adult,adult_w512_d0.25_base,False,True,512,0.25,450049,12,0.9124935448196755,0.9159310882507838,adult_original_base
-adult,adult_w64_d0.25_base,False,False,64,0.25,13249,1000,0.9122002345254259,0.9160524650857385,adult_shrunk_base
-adult,adult_w64_d0.50_dend,True,True,64,0.5,127201,755,0.9162543333883931,0.9161235923203875,adult_shrunk_dend
-credit,credit_w128_d0.25_base,False,False,128,0.25,27905,1000,0.7946555122057416,0.780440576634958,credit_compact_base
-credit,credit_w64_d0.50_dend,True,True,64,0.5,89521,783,0.8008,0.7829,credit_best_dend
-credit,credit_w32_d0.25_base,False,False,32,0.25,2369,1000,0.7802352061598749,0.7652797511093269,credit_shrunk_base
+credit,credit_w128_d0.25_base,False,False,128,0.25,27905,1000,0.7946555122057416,0.780440576634958,credit_base_w128_d0.25_s1337
+credit,credit_w64_d0.50_dend,True,True,64,0.5,89521,783,0.8008,0.7829,credit_dend_w64_hist_seed1337
+credit,credit_w32_d0.25_dend,True,True,32,0.25,18801,657,0.7959448349747063,0.7824262539516412,credit_w32_d0.25_dend_hist
+credit,credit_w32_d0.25_base,False,False,32,0.25,2369,1000,0.7802352061598749,0.7652797511093269,credit_w32_d0.25_base

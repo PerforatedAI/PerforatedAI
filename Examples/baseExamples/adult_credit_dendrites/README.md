@@ -1,6 +1,14 @@
-# Adult & Credit Tabular Compression with Dendrites
+# Credit and Adult Tabular Compression with Dendrites
 
-This example adds AI dendrites to the Adult Income and Credit Default tabular benchmarks to show how parameter counts drop without losing AUC.
+This example applies AI dendrites to the **Credit Default** and **Adult Income** tabular benchmarks.  
+
+Across all Credit sweeps, the best dendritic configuration delivered a **0.5% increase in validation AUC** and a **0.25% increase in test AUC** compared to the best traditional model.  
+
+At these already-high accuracy levels, a **0.5% lift corresponds to roughly a 3% reduction in misclassified examples**. For tabular credit-default data, even a 3% improvement can translate to meaningful real-world financial impact.  
+
+We also observe configurations where the **best traditional model can be compressed by approximately 33% with dendrites** and also still slightly improving validation AUC.
+
+On **Adult**, dendritic variants did not produce strong or consistent improvements relative to strong traditional baselines. All Adult code, sweeps, and configs are still included here for future contributors to experiment with.
 
 ## What’s inside this folder?
 - `train.py`: single entry point with dataset flag, dendrite toggles, and logging utilities.
@@ -88,39 +96,41 @@ python Examples/baseExamples/adult_credit_dendrites/test_setup.py
 ```
 
 ## Datasets
-- **Adult Income** (`phpMawTba.arff`): pulled automatically from OpenML (`adult`, version 2). The script caches it under `data_cache/openml/`.
+
 - **Default of Credit Card Clients** (`default of credit card clients.arff`): also fetched via OpenML (ID 42477). If network is disabled, download the ARFF manually, drop it into `data_cache/openml/`, and rerun the commands above.
+- **Adult Income** (`phpMawTba.arff`): pulled automatically from OpenML (`adult`, version 2). The script caches it under `data_cache/openml/`.
 
 ## Outcomes
 
-- Compression plots (test AUC left, parameters right):  
-  - `results/compression_adult.png` (Adult baseline → shrunk → shrunk+dendrites)  
-  - `results/compression_credit.png` (Credit baseline → shrunk → shrunk+dendrites)
-- Test AUC bars: `results/bar_adult.png`, `results/bar_credit.png`
-- PAI plots: `results/pai_credit_seed.png` (credit dendritic) and `results/pai_adult.png` (adult dendritic)
+- Key Credit Default figures from the credit experiments:  
+  - Test AUC comparison of the best traditional vs dendritic models:  
+    ![Credit Test AUC](results/bar_credit.png)  
+  - Parameter compression curve for the same credit models:  
+    ![Credit Compression](results/credit_compression.png)  
 
-Below are the latest compression and headline test AUC visuals pulled from the runs logged in `results/`:
+  The folder also contains `results/pai_credit_seed.png`, a PAI visualization of the best dendritic credit run, for anyone who wants to inspect the training dynamics in more detail.
 
-- Adult compression: shrunk model matches baseline test AUC with ~3.5× fewer params.  
-![Adult Model Compression](results/compression_adult.png)
-- Credit compression: dendrites recover accuracy while staying under 0.09M params vs the compact baseline.  
-![Credit Model Compression](results/compression_credit.png)
-- Adult test AUC: dendrites edge past the baseline without growing back to the original size.  
-![Adult Test AUC](results/bar_adult.png)
-- Credit test AUC: dendrites lift test AUC above both baselines.  
-![Credit Test AUC](results/bar_credit.png)
+In our sweeps, dendritic variants on Adult did not produce consistent or practically meaningful improvements over strong traditional baselines, but the full Adult code and configs remain in this folder for anyone who would like to run further experiments.
 
-## Results summary (val / test AUC)
-Dataset | Model | Params | Δ vs baseline | Val AUC | Test AUC | Notes
----|---|---|---|---|---|---
-Adult | Baseline | 450,049 | — | 0.9125 | 0.9159 | `adult_original_base`
-Adult | Shrunk baseline | 13,249 | −97% | 0.9122 | 0.9161 | `adult_shrunk_base`
-Adult | Shrunk + dendrites | 127,201 | −72% | 0.9163 | 0.9161 | `adult_shrunk_dend`
-Credit | Baseline | 27,905 | — | 0.7947 | 0.7804 | `credit_compact_base`
-Credit | Shrunk baseline | 2,369 | −92% | 0.7802 | 0.7653 | `credit_shrunk_base`
-Credit | Shrunk + dendrites | 89,521 | — vs shrunk | 0.8008 | 0.7829 | `credit_best_dend`
+## Credit results summary (val / test AUC)
 
-`results/best_test_scores.csv` stores these headline rows. The full sweep is in `results/best_test_scores_full.csv`. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
+Dataset | Model | Params | Val AUC | Test AUC | Notes
+---|---|---|---|---|---
+Credit | **Best traditional (validation)** | 27,905 | 0.7947 | 0.7804 | `credit_w128_d0.25_base` – Best traditional model (Val)
+Credit | **Best dendritic (validation)** | 89,521 | 0.8008 | 0.7829 | `credit_w64_d0.50_dend` – Best dendritic model (Val)
+Credit | **Smallest dendritic model beating best traditional (validation)** | 18,801 | 0.7959 | 0.7824 | `credit_w32_d0.25_dend` – Smallest dendritic that beats best traditional
+Credit | **Traditional with same width/dropout as smallest dendritic model** | 2,369 | 0.7802 | 0.7653 | `credit_w32_d0.25_base` – Traditional model with same settings as smallest dendritic
+
+These four configurations capture the key comparisons for the Credit Default experiments:
+
+1. The **best traditional** credit model.  
+2. The **best dendritic** credit model by validation AUC.  
+3. The **smallest dendritic** model that still beats the best traditional model by validation AUC.
+4. The **matching traditional configuration** (same width and dropout) as that smallest dendritic model.
+
+`results/best_test_scores.csv` contains the four representative Credit Default configurations listed above: the best traditional model, the best dendritic model, the smallest dendritic model that outperforms the best traditional model, and the matching traditional baseline with the same architecture. 
+
+The full sweep across widths, dropouts, and dendrite usage is in `results/best_test_scores_full.csv`. `results/inference_bench.csv` holds throughput numbers, and `results/params_progression.csv` logs dendrite growth over time.
 
 ## Tips & troubleshooting
 - Change `--max-dendrites` / `--fixed-switch-num` to explore other compression targets. Everything is logged so you can audit each restructure.
