@@ -334,7 +334,7 @@ class PAIConfig:
         add_pai_config_var_functions(self, "drawing_pai", self.drawing_pai)
 
         # Drawing extra graphs beyond the standard ones.
-        self.drawing_extra_graphs = False
+        self.drawing_extra_graphs = True
         add_pai_config_var_functions(self, "drawing_extra_graphs", self.drawing_extra_graphs)
 
         # Saving test intermediary models, good for experimentation, bad for memory

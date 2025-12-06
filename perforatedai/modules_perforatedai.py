@@ -1069,6 +1069,7 @@ class PAIDendriteModule(nn.Module):
             self.num_dendrites += 1
             if GPA.pc.get_perforated_backpropagation():
                 MPB.set_dendrite_parameters(self.dendrites_to_dendrites)
+                MPB.set_dendrite_parameters(self.layers)
 
     def forward(self, *args, **kwargs):
         """Forward pass for dendrite layer.

@@ -486,9 +486,9 @@ def convert_module(
                     ]
                 )
                 print(
-                    "One of these must be added to "
-                    "GPA.pc.append_module_names_to_not_save() (with the .)"
+                    "One of these must be selected to not be saved by calling, for example:"
                 )
+                print("GPA.pc.append_module_names_to_not_save(%s)" % sub_name)
                 pdb.set_trace()
                 sys.exit(0)
 
@@ -1116,8 +1116,13 @@ def load_net_from_dict(net, state_dict):
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print(
-            "PAI load_net and load_system uses a state_dict so it must be "
+            "PAI load_net and load_system uses a state_dict so it must be\n"
             "called with a net after initialize_pai has been called"
+        )
+        print("This is being flagged because you are attempting to load a model\n"
+            "that does not have any pai_modules in it.  Confirm that you are calling\n"
+            "initialize_pai on the correct model, and the same model is the one\n"
+            "being passed into add_validation_score"
         )
         import pdb
 

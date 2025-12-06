@@ -61,6 +61,12 @@ If your system has multiple optimizers just pick one of them to use.  However, w
     
 If you are doing something separately with the scheduler or optimizer that is adjusting the learning rate based on epochs it is best if you can just define this internally in the scheduler rather than taking in epochs as a parameter to a function after the scheduler is initialized.
 
+We now also have an experimental mode for multiple optimizers.  to use this mode just called the following after setting up your initial optimizer:
+
+     GPA.pai_tracker.set_optimizer_instance(decoder_optimizer)
+     
+Then step both as before.
+
 ## 2 - Network Initialization
 
 Network initialization is the most complicated part of this process that often requires thought and experimentation. This section details what needs to be done and why, but check the "Changes of Note" sections of each of the examples to see descriptions of what we did and when to try to get a feel for what you should do with your network.  As a general rule though, you want to make sure everything other than nonlinearities are contained within PAI modules so that each dendrite block performs the same processing as the associated neuron blocks.  However, options for experiments arise when there are multiple ways to do this because of modules within modules where you can convert the whole thing, or each sub-module with the options below. 
@@ -262,7 +268,7 @@ If you want to load a simplified pb model just for inference you can do so with 
 
     model = fullModel() 
     from perforatedbp import network_pbp as PBN
-    model._model = PBN.load_pai_model(model._model, 'PAIFirstFullRun//best_model_pai.pt')     
+    model = PBN.load_pai_model(model, 'PAIFirstFullRun//best_model_pai.pt')     
 
 Note: this does not use initialize_pai, but all other GPA settings must be replicated first.
 
