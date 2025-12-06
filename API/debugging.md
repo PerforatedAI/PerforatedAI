@@ -148,7 +148,7 @@ The conversion script runs by going through all member variables and determining
 
 This error has been seen when the processor doesn't properly clear the values it has saved.  Make sure you define a clear_processor function for any processors you create.  If you believe you did and are still getting this error, reach out to us.
 
-This can also happen when forward is called to accumulate gradients but then backwards is not called to clear those gradients.  get GPA.pc.set_extra_verbose(True) to print when gradient tensors are added and removed.  If you have them being added but not removed this is the cause.  Check to make sure optimizer.step() is being called properly.  Some programs have methods that do not call optimizer.step() under certain situations.  Our code is also setup such that optimizer.zero_grad will correct this which can be called as an alternative if the optimizer should actually not be stepped.
+This can also happen when forward is called to accumulate gradients but then backwards is not called to clear those gradients.  get GPA.pc.set_extra_verbose(True) to print when gradient tensors are added and removed.  If you have them being added but not removed this is the cause.  Check to make sure optimizer.step() is being called properly.  Some programs have methods that do not call optimizer.step() under certain situations.  Our code is also setup such that optimizer.zero_grad will correct this which can be called before add_validation_score as an alternative if the optimizer should actually not be stepped.
 
 If this does not seem to be the problem try going up in the debugger and calling deep copy on individual modules and submodules to track down which module is causing a problem.
 
@@ -172,7 +172,8 @@ A memory leak is happening if you run out of memory in the middle of a training 
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.
     Without PAI this gets cleared appropriately, but with PAI it does not.  This can be fixed
-    by adding detach() before the loss is added to the cumulative variable.
+    by adding .detach() or .item() before the loss is added to the cumulative variable.
+    - This can also sometimes not be direct, such as using a MulticlassJaccardIndex in PyTorch Lightning which tracks stats over multiple batches.
 - Try removing various blocks of your model or components of your full training process to try to track down exactly which component is causing the problem.  If you can track it down to exactly which line causes a leak with and without it present, we can help you debug why that line is causing problems if it is on our side.
 
 ### Slow Memory Leak Debugging

@@ -38,6 +38,10 @@ NO_MODEL_UPDATE = 0
 NETWORK_RESTRUCTURED = 1
 TRAINING_COMPLETE = 2
 
+# Status constant for each batch
+STEP_CLEARED = 0
+STEP_CALLED = 1
+
 
 def update_restructuring_status(old_status, new_status):
     """Update restructured variable during add_validation_score
@@ -1112,6 +1116,11 @@ class PAINeuronModuleTracker:
         # Flag for if the tracker was loaded
         self.loaded = False
 
+        # flag for 
+        self.member_vars["step_status"] = STEP_CLEARED
+        self.member_var_types["step_status"] = "int"
+
+
         # Settings for tracking learning rates
         self.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
         self.member_var_types["current_n_learning_rate_initial_skip_steps"] = "int"
@@ -1125,11 +1134,11 @@ class PAINeuronModuleTracker:
         self.member_var_types["current_step_count"] = "int"
         self.member_vars["committed_to_initial_rate"] = True
         self.member_var_types["committed_to_initial_rate"] = "bool"
-        self.member_vars["current_n_set_global_best"] = True
         self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_var_types["best_mean_score_improved_this_epoch"] = "int"
 
         # Flag for if current dendrite achieved highest global score
+        self.member_vars["current_n_set_global_best"] = True
         self.member_var_types["current_n_set_global_best"] = "bool"
 
         # Number of tries adding this dendrite count
