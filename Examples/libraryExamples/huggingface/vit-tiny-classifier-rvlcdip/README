@@ -1,0 +1,59 @@
+# ViT Tiny Classifier - RVL-CDIP
+
+## Description
+
+This project demonstrates document image classification using a Vision Transformer (ViT) model on the RVL-CDIP dataset.
+
+### RVL-CDIP Dataset
+- Contains grayscale and color scanned document images.
+- **16 classes**: letter, form, email, handwritten, advertisement, scientific_report, scientific_publication, specification, file_folder, news_article, budget, invoice, presentation, questionnaire, resume, memo.
+- Each image is labeled with one of these document types.
+- The dataset is widely used for document understanding and classification research.
+- [RVL-CDIP on Hugging Face Datasets](https://huggingface.co/datasets/aharley/rvl_cdip)
+
+### Vision Transformer (ViT)
+- ViT is a transformer-based architecture for image classification.
+- It splits images into patches, embeds them, and processes them with transformer layers (self-attention).
+- ViT models achieve state-of-the-art results on many vision tasks, especially with large datasets.
+- This script uses a "tiny" ViT variant for efficiency.
+- [ViT Tiny Classifier Model on Hugging Face](https://huggingface.co/HAMMALE/vit-tiny-classifier-rvlcdip)
+
+## Accuracy Measurement
+- Accuracy is computed as the percentage of correctly classified images:
+  
+  $$
+  \text{Accuracy} = \frac{\text{Number of correct predictions}}{\text{Total number of samples}} \times 100\%
+  $$
+- During evaluation, the script prints batch-wise and overall accuracy.
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+
+Run both training and evaluation (streaming mode):
+
+```bash
+python3 vit_tiny_classifier.py --streaming --eval --train
+```
+
+- `--streaming` uses Hugging Face streaming API for large datasets.
+- `--train` runs training.
+- `--eval` runs evaluation after training.
+
+## Expected Results
+
+With the provided optimizer and dataset, the expected evaluation accuracy is **~57%**.
+
+---
+
+For more options, see the script's help:
+
+```bash
+python3 vit_tiny_classifier.py --help
+```
