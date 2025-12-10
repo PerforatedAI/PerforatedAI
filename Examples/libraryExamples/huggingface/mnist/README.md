@@ -31,7 +31,7 @@ The rest of this readme covers the mnist example in this folder.  But additional
     # Same as above for Dendrite epochs
     PBG.p_epochs_to_switch = 10
     # The default shape of input tensors
-    PBG.input_dimensions = [-1, 0, -1, -1]
+    PBG.output_dimensions = [-1, 0, -1, -1]
     
     and just for testing
     PBG.testingDendriteCapacity = True
@@ -87,6 +87,15 @@ This means the model is setup in a way that has tensors sharing memory.  If you 
 Then just run as usual:
 
     CUDA_VISIBLE_DEVICES=0 python mnist_huggingface_perforatedai.py 
+
+Validation scores of original and dendrite optimized networks:
+
+!["Output Graph](OutputGraph.png "Output Graph")
+
+Exact graph that gets generated within the output folder:
+
+!["Example Output](ExampleOutput.png "Example Output")
+
 
 ## Example Output
 This shows an example output which quit after 2 Dendrite Epochs.

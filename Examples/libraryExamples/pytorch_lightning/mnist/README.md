@@ -78,6 +78,6 @@ Then just run as usual:
     CUDA_VISIBLE_DEVICES=0 python pl_mnist_perforatedai.py 
 
 ## Example Output
-This shows an example output which quit after 2 Dendrite Epochs.
+This shows an example output with GD Dendrites
 
-![ExampleOutput](ExampleOutput.png "Example Output")
+![ExampleOutput](exampleOutput.png "Example Output")

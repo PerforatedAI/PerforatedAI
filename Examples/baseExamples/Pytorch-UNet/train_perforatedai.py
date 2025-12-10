@@ -224,7 +224,7 @@ if __name__ == '__main__':
     GPA.pc.set_n_epochs_to_switch(25)  #This is how many normal epochs to wait for before switching modes.  Make sure this is higher than your schedulers patience. 
     GPA.pc.set_p_epochs_to_switch(25)  #Same as above for PAI epochs
     GPA.pc.set_nodeIndex(1) # This is the index of the nodes within a layer's tensors, as opposed to batch and convolution indexes
-    GPA.pc.set_input_dimensions([-1, 0, -1, -1]) #this is the shape of inputs if you have a shape that varies
+    GPA.pc.set_output_dimensions([-1, 0, -1, -1]) #this is the shape of inputs if you have a shape that varies
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_testing_dendrite_capacity(False)

@@ -11,14 +11,17 @@ from datetime import datetime
 import numpy as np
 import torch
 import torch.nn as nn
+import traceback
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
-except Exception as e:
-    pass
+except ModuleNotFoundError:
+    pass  # Module not found, pass silently
+except ImportError as e:
+    print(f"Import error occurred: {e}")
 
 
 # Values for Dendrite training, minimally used in open source version
@@ -43,7 +46,7 @@ DENDRITE_SAVE_VALUES = (
 )
 
 
-def filter_backward(grad_out, values, candidate_nonlinear_outs):
+def filter_backward(grad_out, values):
     """Filter backward pass for gradient processing.
 
     This function processes gradients during the backward pass,
@@ -55,8 +58,6 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
         The gradient output tensor from the backward pass.
     values : DendriteValueTracker
         A DendriteValueTracker instance containing values associated with the module being processed.
-    candidate_nonlinear_outs : dict
-        A dictionary of candidate modules outputs after non-linear activation.
 
     Returns
     -------
@@ -70,48 +71,49 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
         # If the input dimensions are not initialized
         if not values[0].current_d_init.item():
             # If input dimensions and gradient don't have same shape trigger error and quit
-            if len(values[0].this_input_dimensions) != len(grad_out.shape):
-                print("The following layer has not properly set this_input_dimensions")
+            if len(values[0].this_output_dimensions) != len(grad_out.shape):
+                print("The following layer has not properly set this_output_dimensions")
                 print(values[0].layer_name)
                 print("it is expecting:")
-                print(values[0].this_input_dimensions)
+                print(values[0].this_output_dimensions)
                 print("but received")
                 print(grad_out.shape)
                 print(
-                    "to check these all at once set GPA.pc.set_debugging_input_dimensions(1)"
+                    "to check these all at once set GPA.pc.set_debugging_output_dimensions(1)"
                 )
                 print(
-                    "Call set_this_input_dimensions on this layer after initialize_pai"
+                    f"Call MODEL_VARIABLE{values[0].layer_name}.set_this_output_dimensions([...]) on this layer after initialize_pai"
                 )
-                if not GPA.pc.get_debugging_input_dimensions():
+                print("where the ... is replaced with the correct vector as described in section 4 of customization.md")
+                if not GPA.pc.get_debugging_output_dimensions():
                     sys.exit(0)
                 else:
-                    GPA.pc.set_debugging_input_dimensions(2)
+                    GPA.pc.set_debugging_output_dimensions(2)
                     return
             # Make sure that the input dimensions are correct
-            for i in range(len(values[0].this_input_dimensions)):
-                if values[0].this_input_dimensions[i] == 0:
+            for i in range(len(values[0].this_output_dimensions)):
+                if values[0].this_output_dimensions[i] == 0:
                     continue
                 # Make sure all input dimensions are either -1 (new format) or exact values (old format)
                 if (
-                    not (grad_out.shape[i] == values[0].this_input_dimensions[i])
-                    and not values[0].this_input_dimensions[i] == -1
+                    not (grad_out.shape[i] == values[0].this_output_dimensions[i])
+                    and not values[0].this_output_dimensions[i] == -1
                 ):
                     print(
-                        "The following layer has not properly set this_input_dimensions with this incorrect shape"
+                        "The following layer has not properly set this_output_dimensions with this incorrect shape"
                     )
                     print(values[0].layer_name)
                     print("it is expecting:")
-                    print(values[0].this_input_dimensions)
+                    print(values[0].this_output_dimensions)
                     print("but received")
                     print(grad_out.shape)
                     print(
-                        "to check these all at once set GPA.pc.set_debugging_input_dimensions(1)"
+                        "to check these all at once set GPA.pc.set_debugging_output_dimensions(1)"
                     )
-                    if not GPA.pc.get_debugging_input_dimensions():
+                    if not GPA.pc.get_debugging_output_dimensions():
                         sys.exit(0)
                     else:
-                        GPA.pc.set_debugging_input_dimensions(2)
+                        GPA.pc.set_debugging_output_dimensions(2)
                         return
             # Setup the arrays with the now known shape
             with torch.no_grad():
@@ -125,7 +127,7 @@ def filter_backward(grad_out, values, candidate_nonlinear_outs):
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
         if GPA.pc.get_perforated_backpropagation():
-            MPB.filter_backward_pb(val, values, candidate_nonlinear_outs)
+            MPB.filter_backward_pb(val, values)
 
 
 def set_wrapped_params(model):
@@ -179,7 +181,13 @@ class PAINeuronModule(nn.Module):
         """
         super(PAINeuronModule, self).__init__()
 
-        self.main_module = start_module
+        if isinstance(start_module, nn.Module):
+            self.main_module = start_module
+        else:
+            print("start_module must be nn.Module: %s" % name)
+            print(type(start_module))
+            print(start_module)
+            sys.exit(-1)
         self.name = name
 
         set_wrapped_params(self.main_module)
@@ -218,14 +226,14 @@ class PAINeuronModule(nn.Module):
         self.type = "neuron_module"
 
         self.register_buffer(
-            "this_input_dimensions", (torch.tensor(GPA.pc.get_input_dimensions()))
+            "this_output_dimensions", (torch.tensor(GPA.pc.get_output_dimensions()))
         )
-        if (self.this_input_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == 0).sum() != 1:
             print(f"5 Need exactly one 0 in the input dimensions: {self.name}")
-            print(self.this_input_dimensions)
+            print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_input_dimensions().index(0))
+            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
         )
         self.dendrite_modules_added = 0
 
@@ -239,7 +247,7 @@ class PAINeuronModule(nn.Module):
             self.main_module,
             activation_function_value=self.activation_function_value,
             name=self.name,
-            input_dimensions=self.this_input_dimensions,
+            output_dimensions=self.this_output_dimensions,
         )
         # If it is linear and default has convolutional dimensions, automatically set to just be batch size and neuron indexes
         if (
@@ -249,10 +257,12 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Linear)
             )
         ) and (
-            np.array(self.this_input_dimensions)[2:] == -1
+            np.array(self.this_output_dimensions)[2:] == -1
         ).all():  # Everything past 2 is a negative 1
-            self.set_this_input_dimensions(self.this_input_dimensions[0:2])
+            self.set_this_output_dimensions(self.this_output_dimensions[0:2])
         GPA.pai_tracker.add_pai_neuron_module(self)
+        if GPA.pc.get_perforated_backpropagation():
+            MPB.set_neuron_parameters(self.main_module)
 
     def __getattr__(self, name):
         """Get member variables from the main module.
@@ -275,6 +285,14 @@ class PAINeuronModule(nn.Module):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.main_module, name)
+
+    def apply_pb_grads(self):
+        """Apply perforated backpropagation gradients if enabled."""
+        self.dendrite_module.apply_pb_grads()
+
+    def apply_pb_zero(self):
+        """Clear leftover saved tensors if there are any."""
+        self.dendrite_module.apply_pb_zero()
 
     def clear_processors(self):
         """Clear processors if they save values for DeepCopy and save.
@@ -313,7 +331,7 @@ class PAINeuronModule(nn.Module):
             self.main_module,
             activation_function_value=self.activation_function_value,
             name=self.name,
-            input_dimensions=self.this_input_dimensions,
+            output_dimensions=self.this_output_dimensions,
         )
 
     def __str__(self):
@@ -346,7 +364,7 @@ class PAINeuronModule(nn.Module):
         """Representation of the layer."""
         return self.__str__()
 
-    def set_this_input_dimensions(self, new_input_dimensions):
+    def set_this_output_dimensions(self, new_output_dimensions):
         """Set the input dimensions for the neuron and dendrite blocks.
 
         Signals to this NeuronModule that its input dimensions are different
@@ -354,26 +372,26 @@ class PAINeuronModule(nn.Module):
 
         Parameters
         ----------
-        new_input_dimensions : list
+        new_output_dimensions : list
             A list or tensor specifying the new input dimensions.
         Returns
         -------
         None
 
         """
-        if type(new_input_dimensions) is list:
-            new_input_dimensions = torch.tensor(new_input_dimensions)
-        delattr(self, "this_input_dimensions")
+        if type(new_output_dimensions) is list:
+            new_output_dimensions = torch.tensor(new_output_dimensions)
+        delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_input_dimensions", new_input_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_input_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == 0).sum() != 1:
             print(f"6 need exactly one 0 in the input dimensions: {self.name}")
-            print(new_input_dimensions)
+            print(new_output_dimensions)
         self.this_node_index.copy_(
-            (new_input_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
         )
-        self.dendrite_module.set_this_input_dimensions(new_input_dimensions)
+        self.dendrite_module.set_this_output_dimensions(new_output_dimensions)
 
     def set_mode(self, mode):
         """Switch between neuron training and dendrite training.
@@ -455,6 +473,8 @@ class PAINeuronModule(nn.Module):
             self.dendrite_modules_added += 1
             if GPA.pc.get_perforated_backpropagation():
                 MPB.set_module_n_pb(self)
+                MPB.set_neuron_parameters(self.dendrites_to_top)
+
         # If starting dendrite training
         else:
             try:
@@ -535,7 +555,7 @@ class PAINeuronModule(nn.Module):
         """
 
         # If debugging all input dimensions, quit program on first forward call
-        if GPA.pc.get_debugging_input_dimensions() == 2:
+        if GPA.pc.get_debugging_output_dimensions() == 2:
             print("all input dim problems now printed")
             sys.exit(0)
         if GPA.pc.get_extra_verbose():
@@ -544,7 +564,15 @@ class PAINeuronModule(nn.Module):
         out = self.main_module(*args, **kwargs)
         # Filter with the processor if required
         if self.processor is not None:
-            out = self.processor.post_n1(out)
+            try:
+                out = self.processor.post_n1(out)
+            except Exception as e:
+                traceback.print_exc(limit=None, chain=True)
+                print(f'Your post_n1 processor for {self.name} caused this error')
+                print(f'You must check how this is defined and ensure that it is properly')
+                print(f'accepting outputs from the neuron module and returning the')
+                print(f'single tensor to be combined with the dendrites output tensor')     
+                sys.exit()
         # Call the forwards for all of the Dendrites
         (
             dendrite_outs,
@@ -568,20 +596,13 @@ class PAINeuronModule(nn.Module):
                     )
                 out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
 
-        if GPA.pc.get_perforated_backpropagation():
-            out = MPB.apply_pb(
-                self,
-                out,
-                candidate_outs,
-                candidate_nonlinear_outs,
-                candidate_outs_non_zeroed,
-            )
         # Catch if processors are required
         if type(out) is tuple:
             print(self)
             print(
                 f"The output of the above module {self.name} is a tuple when it must be a single tensor"
             )
+            print("This must be fixed to enable the dendrite and neuron output to be combined")
             print(
                 "Look in the API customization.md at section 2.2 regarding processors to fix this."
             )
@@ -591,19 +612,22 @@ class PAINeuronModule(nn.Module):
 
         # Call filter backward to ensure the neuron index is setup correctly
         if out.requires_grad:
-            if GPA.pc.get_perforated_backpropagation():
-                MPB.setup_hooks(self, out, candidate_nonlinear_outs)
-            else:
-                out.register_hook(
-                    lambda grad: filter_backward(
-                        grad, self.dendrite_module.dendrite_values, {}
-                    )
-                )
+            out.register_hook(
+                lambda grad: filter_backward(grad, self.dendrite_module.dendrite_values)
+            )
 
         # If there is a processor apply the second neuron stage
         if self.processor is not None:
-            out = self.processor.post_n2(out)
-
+            try:
+                out = self.processor.post_n2(out)
+            except Exception as e:
+                traceback.print_exc(limit=None, chain=True)
+                print(f'Your post_n2 processor for {self.name} caused this error')
+                print(f'You must check how this is defined and ensure that it is properly')
+                print(f'accepting the output tensor after combining the neuron\'s output ')
+                print(f'with the dendrite\'s output and returning something that is the')
+                print(f'same format as your original module\'s return')
+                sys.exit()
         return out
 
 
@@ -625,7 +649,13 @@ class TrackedNeuronModule(nn.Module):
         """
         super(TrackedNeuronModule, self).__init__()
 
-        self.main_module = start_module
+        if isinstance(start_module, nn.Module):
+            self.main_module = start_module
+        else:
+            print("start_module must be nn.Module: %s" % name)
+            print(type(start_module))
+            print(start_module)
+            sys.exit(-1)
         self.name = name
 
         self.type = "tracked_module"
@@ -636,6 +666,8 @@ class TrackedNeuronModule(nn.Module):
             )
             print(start_module)
         GPA.pai_tracker.add_tracked_neuron_module(self)
+        if GPA.pc.get_perforated_backpropagation():
+            MPB.set_neuron_parameters(self.main_module)
 
     def __getattr__(self, name):
         """Get member variables from the main module.
@@ -779,7 +811,7 @@ class PAIDendriteModule(nn.Module):
         initial_module,
         activation_function_value=0.3,
         name="no_name_given",
-        input_dimensions=None,
+        output_dimensions=None,
     ):
         """Initialize PAINeuronModule.
 
@@ -794,13 +826,13 @@ class PAIDendriteModule(nn.Module):
             A value associated with the activation function, by default 0.3.
         name : str
             The name of the neuron module.
-        input_dimensions : vector, optional
+        output_dimensions : vector, optional
             The dimensions of the input vector
         """
         super(PAIDendriteModule, self).__init__()
 
-        if input_dimensions is None:
-            input_dimensions = []
+        if output_dimensions is None:
+            output_dimensions = []
 
         self.layers = nn.ModuleList([])
         self.processors = []
@@ -815,23 +847,25 @@ class PAIDendriteModule(nn.Module):
         self.name = name
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
         self.parent_module = UPA.deep_copy_pai(initial_module)
+        if GPA.pc.get_perforated_backpropagation():
+            MPB.set_ignored_parameters(self.parent_module)
         # Setup the input dimensions and node index for combining dendrite outputs
         if GPA.pc.get_perforated_backpropagation():
             MPB.create_extra_tensors(self)
-        if input_dimensions == []:
+        if output_dimensions == []:
             self.register_buffer(
-                "this_input_dimensions", torch.tensor(GPA.pc.get_input_dimensions())
+                "this_output_dimensions", torch.tensor(GPA.pc.get_output_dimensions())
             )
         else:
             self.register_buffer(
-                "this_input_dimensions", input_dimensions.detach().clone()
+                "this_output_dimensions", output_dimensions.detach().clone()
             )
-        if (self.this_input_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == 0).sum() != 1:
             print(f"1 need exactly one 0 in the input dimensions: {self.name}")
-            print(self.this_input_dimensions)
+            print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_input_dimensions().index(0))
+            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
         )
 
         # Initialize dendrite to dendrite connections
@@ -849,11 +883,14 @@ class PAIDendriteModule(nn.Module):
                     False,
                     self.activation_function_value,
                     self.name,
-                    self.this_input_dimensions,
+                    self.this_output_dimensions,
                 )
             )
+        if GPA.pc.get_perforated_backpropagation():
+            self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
+            self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 
-    def set_this_input_dimensions(self, new_input_dimensions):
+    def set_this_output_dimensions(self, new_output_dimensions):
         """Set input dimensions for dendrite layer.
 
         Signals to this DendriteModule that its input dimensions are different
@@ -861,7 +898,7 @@ class PAIDendriteModule(nn.Module):
 
         Parameters
         ----------
-        new_input_dimensions : list
+        new_output_dimensions : list
             A list or tensor specifying the new input dimensions.
         Returns
         -------
@@ -869,21 +906,21 @@ class PAIDendriteModule(nn.Module):
 
         """
 
-        if type(new_input_dimensions) is list:
-            new_input_dimensions = torch.tensor(new_input_dimensions)
-        delattr(self, "this_input_dimensions")
+        if type(new_output_dimensions) is list:
+            new_output_dimensions = torch.tensor(new_output_dimensions)
+        delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_input_dimensions", new_input_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_input_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == 0).sum() != 1:
             print(f"2 Need exactly one 0 in the input dimensions: {self.name}")
-            print(new_input_dimensions)
+            print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_input_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
         )
         for j in range(0, GPA.pc.get_global_candidates()):
-            self.dendrite_values[j].set_this_input_dimensions(new_input_dimensions)
+            self.dendrite_values[j].set_this_output_dimensions(new_output_dimensions)
 
     def create_new_dendrite_module(self, neuron_main_module):
         """Add a new set of dendrites."""
@@ -900,8 +937,6 @@ class PAIDendriteModule(nn.Module):
 
                 new_module = UPA.deep_copy_pai(self.parent_module)
                 init_params(new_module, neuron_main_module)
-                if GPA.pc.get_perforated_backpropagation():
-                    MPB.set_grad_params(new_module, True)
                 self.candidate_module.append(new_module)
                 self.best_candidate_module.append(UPA.deep_copy_pai(new_module))
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
@@ -921,6 +956,9 @@ class PAIDendriteModule(nn.Module):
                     self.candidate_processors.append(
                         GPA.pc.get_module_by_name_processing_classes()[module_index]()
                     )
+                if GPA.pc.get_perforated_backpropagation():
+                    MPB.set_candidate_parameters(self.candidate_module[i])
+                    MPB.set_ignored_parameters(self.best_candidate_module[i])
 
         for i in range(0, GPA.pc.get_global_candidates()):
             self.candidate_module[i].to(GPA.pc.get_device())
@@ -946,6 +984,8 @@ class PAIDendriteModule(nn.Module):
                 )
                 if GPA.pc.get_perforated_backpropagation():
                     MPB.init_candidates(self, j)
+            if GPA.pc.get_perforated_backpropagation():
+                MPB.set_candidate_parameters(self.dendrites_to_candidates)
 
     def clear_processors(self):
         """Clear processors."""
@@ -1027,6 +1067,9 @@ class PAIDendriteModule(nn.Module):
             del self.candidate_module, self.best_candidate_module
 
             self.num_dendrites += 1
+            if GPA.pc.get_perforated_backpropagation():
+                MPB.set_dendrite_parameters(self.dendrites_to_dendrites)
+                MPB.set_dendrite_parameters(self.layers)
 
     def forward(self, *args, **kwargs):
         """Forward pass for dendrite layer.
@@ -1063,10 +1106,26 @@ class PAIDendriteModule(nn.Module):
             if GPA.pc.get_perforated_backpropagation():
                 args2, kwargs2 = MPB.preprocess_pb(*args, **kwargs)
             if self.processors != []:
-                args2, kwargs2 = self.processors[c].pre_d(*args2, **kwargs2)
+                try:
+                    args2, kwargs2 = self.processors[c].pre_d(*args2, **kwargs2)
+                except Exception as e:
+                    traceback.print_exc(limit=None, chain=True)
+                    print(f'Your pre_d processor for {self.name} caused this error')
+                    print(f'You must check how this is defined and ensure that it is properly')
+                    print(f'accepting inputs to the PAIModule and returning what will then be')
+                    print(f'the input to the dendrite module')     
+                    sys.exit()
             out_values = self.layers[c](*args2, **kwargs2)
             if self.processors != []:
-                outs[c] = self.processors[c].post_d(out_values)
+                try:
+                    outs[c] = self.processors[c].post_d(out_values)
+                except Exception as e:
+                    traceback.print_exc(limit=None, chain=True)
+                    print(f'Your post_d processor for {self.name} caused this error')
+                    print(f'You must check how this is defined and ensure that it is properly')
+                    print(f'accepting outputs from the dendrite module and returning the')
+                    print(f'single tensor to be combined with the neurons output tensor')     
+                    sys.exit()
             else:
                 outs[c] = out_values
 
@@ -1125,7 +1184,7 @@ class DendriteValueTracker(nn.Module):
         initialized,
         activation_function_value,
         name,
-        input_dimensions,
+        output_dimensions,
         out_channels=-1,
     ):
         """Initialize DendriteValueTracker.
@@ -1141,7 +1200,7 @@ class DendriteValueTracker(nn.Module):
             A value associated with the activation function.
         name : str
             The name of the associated neuron module.
-        input_dimensions : vector
+        output_dimensions : vector
             The dimensions of the input vector.
         out_channels : int
             The number of output channels
@@ -1156,13 +1215,13 @@ class DendriteValueTracker(nn.Module):
             )
         self.initialized[0] = initialized
         self.activation_function_value = activation_function_value
-        self.register_buffer("this_input_dimensions", input_dimensions.clone().detach())
-        if (self.this_input_dimensions == 0).sum() != 1:
+        self.register_buffer("this_output_dimensions", output_dimensions.clone().detach())
+        if (self.this_output_dimensions == 0).sum() != 1:
             print(f"3 need exactly one 0 in the input dimensions: {self.layer_name}")
-            print(self.this_input_dimensions)
+            print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", (input_dimensions == 0).nonzero(as_tuple=True)[0]
+            "this_node_index", (output_dimensions == 0).nonzero(as_tuple=True)[0]
         )
         if out_channels != -1:
             self.setup_arrays(out_channels)
@@ -1183,7 +1242,7 @@ class DendriteValueTracker(nn.Module):
                 total_string += "\n"
         print(total_string)
 
-    def set_this_input_dimensions(self, new_input_dimensions):
+    def set_this_output_dimensions(self, new_output_dimensions):
         """Set input dimensions for value tracker
 
         Signals to this DendriteValueTracker that its input dimensions are different
@@ -1191,25 +1250,25 @@ class DendriteValueTracker(nn.Module):
 
         Parameters
         ----------
-        new_input_dimensions : list
+        new_output_dimensions : list
             A list or tensor specifying the new input dimensions.
         Returns
         -------
         None
 
         """
-        if type(new_input_dimensions) is list:
-            new_input_dimensions = torch.tensor(new_input_dimensions)
-        delattr(self, "this_input_dimensions")
+        if type(new_output_dimensions) is list:
+            new_output_dimensions = torch.tensor(new_output_dimensions)
+        delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_input_dimensions", new_input_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_input_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == 0).sum() != 1:
             print(f"4 need exactly one 0 in the input dimensions: {self.layer_name}")
-            print(new_input_dimensions)
+            print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_input_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
         )
 
     def set_out_channels(self, shape_values):
@@ -1273,7 +1332,7 @@ class DendriteValueTracker(nn.Module):
             print("If its not you should really delete it, but you can also add")
             print(self.layer_name)
             print("with:")
-            print("GPA.pc.append_module_names_to_track(['" + self.layer_name + "'])")
+            print("GPA.pc.append_module_ids_to_track(['" + self.layer_name + "'])")
             print("This can also happen while testing_dendrite_capacity if you")
             print(
                 "run a validation cycle and try to add Dendrites before doing any training.\n"
