@@ -11,6 +11,8 @@ import pdb
 import os
 import time
 import warnings
+from collections import defaultdict
+
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import tracker_perforatedai as TPA
@@ -24,6 +26,7 @@ import copy
 
 from safetensors.torch import load_file
 from safetensors.torch import save_file
+from safetensors.torch import safe_open
 
 
 def initialize_pai(
@@ -264,7 +267,15 @@ def replace_predefined_modules(start_module):
     return GPA.pc.get_replacement_modules()[index](start_module)
 
 
-def convert_module(net, depth, name_so_far, converted_list, converted_names_list):
+def convert_module(
+    net,
+    depth,
+    name_so_far,
+    converted_list,
+    converted_names_list,
+    neuron_module_class,
+    tracked_module_class,
+):
     """Recursive function to do all conversion of modules to wrappers of modules
 
     This is the function that goes through all of the module lists from
@@ -296,7 +307,9 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             "calling convert on %s: %s, depth %d"
             % (name_so_far, type(net).__name__, depth)
         )
-    if isinstance(net, PA.PAINeuronModule) or isinstance(net, PA.TrackedNeuronModule):
+    if isinstance(net, neuron_module_class) or (
+        (tracked_module_class is not None) and isinstance(net, tracked_module_class)
+    ):
         if GPA.pc.get_verbose():
             print(
                 "This is only being called because something in your model "
@@ -315,10 +328,12 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
+                if tracked_module_class is None:
+                    continue
                 setattr(
                     net,
                     submodule_id,
-                    PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
+                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_convert():
@@ -327,7 +342,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     submodule_id,
-                    PA.PAINeuronModule(net.get_submodule(submodule_id), sub_name),
+                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
             if type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_replace():
@@ -351,10 +366,12 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "Seq sub is in tracking list so initiating tracked for: %s"
                         % sub_name
                     )
+                if tracked_module_class is None:
+                    continue
                 setattr(
                     net,
                     submodule_id,
-                    PA.TrackedNeuronModule(net.get_submodule(submodule_id), sub_name),
+                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             elif (
                 type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_convert()
@@ -388,12 +405,18 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     submodule_id,
-                    PA.PAINeuronModule(net.get_submodule(submodule_id), sub_name),
+                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             else:
                 if net != net.get_submodule(submodule_id):
                     converted_list += [id(net.get_submodule(submodule_id))]
                     converted_names_list += [sub_name]
+                    if GPA.pc.get_verbose():
+                        print(
+                            "sub is module but in no lists so going deeper: %s"
+                            % sub_name
+                        )
+
                     setattr(
                         net,
                         submodule_id,
@@ -403,6 +426,8 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                             sub_name,
                             converted_list,
                             converted_names_list,
+                            neuron_module_class,
+                            tracked_module_class,
                         ),
                     )
                 # else:
@@ -421,14 +446,18 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
+                if tracked_module_class is None:
+                    continue
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_convert():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
-                setattr(net, member, PA.PAINeuronModule(getattr(net, member), sub_name))
+                setattr(
+                    net, member, neuron_module_class(getattr(net, member), sub_name)
+                )
                 continue
             if id(getattr(net, member, None)) == id(net):
                 if GPA.pc.get_verbose():
@@ -457,9 +486,9 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                     ]
                 )
                 print(
-                    "One of these must be added to "
-                    "GPA.pc.append_module_names_to_not_save() (with the .)"
+                    "One of these must be selected to not be saved by calling, for example:"
                 )
+                print("GPA.pc.append_module_names_to_not_save(%s)" % sub_name)
                 pdb.set_trace()
                 sys.exit(0)
 
@@ -480,8 +509,10 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "sub is in tracking list so initiating tracked for: %s"
                         % sub_name
                     )
+                if tracked_module_class is None:
+                    continue
                 setattr(
-                    net, member, PA.TrackedNeuronModule(getattr(net, member), sub_name)
+                    net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
             elif (
                 type(getattr(net, member, None)) in GPA.pc.get_modules_to_convert()
@@ -496,7 +527,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 setattr(
                     net,
                     member,
-                    PA.PAINeuronModule(getattr(net, member), sub_name),
+                    neuron_module_class(getattr(net, member), sub_name),
                 )
             elif (
                 issubclass(type(getattr(net, member, None)), nn.Module)
@@ -506,6 +537,11 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                 if net != getattr(net, member):
                     converted_list += [id(getattr(net, member))]
                     converted_names_list += [sub_name]
+                    if GPA.pc.get_verbose():
+                        print(
+                            "sub is module but in no lists so going deeper: %s"
+                            % sub_name
+                        )
                     setattr(
                         net,
                         member,
@@ -515,6 +551,8 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                             sub_name,
                             converted_list,
                             converted_names_list,
+                            neuron_module_class,
+                            tracked_module_class,
                         ),
                     )
             if (
@@ -537,7 +575,7 @@ def convert_module(net, depth, name_so_far, converted_list, converted_names_list
                         "converted, this is not recommended: %s" % (sub_name)
                     )
                     print(
-                        "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip "
+                        "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip "
                         "this next time"
                     )
                     print(
@@ -598,7 +636,9 @@ def convert_network(net, layer_name=""):
             sys.exit(-1)
         net = PA.PAINeuronModule(net, layer_name)
     else:
-        net = convert_module(net, 0, "", [], [])
+        net = convert_module(
+            net, 0, "", [], [], PA.PAINeuronModule, PA.TrackedNeuronModule
+        )
     if GPA.pai_tracker.member_vars["doing_pai"]:
         missed_ones = []
         tracked_ones = []
@@ -623,7 +663,7 @@ def convert_network(net, layer_name=""):
                 "The following params are not wrapped.\n------------------------------------------------------------------"
             )
             for name in tracked_ones:
-                print(name)
+                print("." + name)
             print(
                 "\n------------------------------------------------------------------"
             )
@@ -631,7 +671,7 @@ def convert_network(net, layer_name=""):
                 "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
             )
             for name in missed_ones:
-                print(name)
+                print("." + name)
             print(
                 "\n------------------------------------------------------------------"
             )
@@ -648,16 +688,16 @@ def convert_network(net, layer_name=""):
                 "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
             )
             print(
-                "Set GPA.pc.get_unwrapped_modules_confirmed() to True to skip this next time"
+                "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time"
             )
             print(
                 "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
             )
-            import pdb
-
-            pdb.set_trace()
+            # If did miss some then set trace to debug
+            if len(missed_ones) != 0:
+                pdb.set_trace()
             print("confirmed")
-    net.register_buffer("tracker_string", torch.tensor([]))
+    net.register_buffer("tracker_string", torch.tensor([], dtype=torch.uint8))
     return net
 
 
@@ -678,7 +718,7 @@ def string_to_tensor(string):
 
     """
     ords = list(map(ord, string))
-    ords = torch.tensor(ords)
+    ords = torch.tensor(ords, dtype=torch.uint8)
     return ords
 
 
@@ -814,6 +854,131 @@ def load_system(
     return net
 
 
+import json
+from collections import defaultdict
+from safetensors.torch import save_file, safe_open
+import torch
+
+
+def save_model_with_weight_tying(model, filepath):
+    """Save model with safetensors while handling weight tying automatically"""
+    state_dict = model.state_dict()
+
+    # Find all weight tied parameters
+    tensor_to_keys = defaultdict(list)
+    for key, tensor in state_dict.items():
+        # Use tensor data pointer as unique identifier
+        tensor_id = tensor.data_ptr()
+        tensor_to_keys[tensor_id].append(key)
+
+    # Find tied weights (tensors referenced by multiple keys)
+    tied_weights = {}
+    keys_to_remove = set()
+    for tensor_id, keys in tensor_to_keys.items():
+        if len(keys) > 1 and not tensor_id == 0:
+            # Multiple keys reference the same tensor - this is weight tying
+            # Sort keys for deterministic ordering
+            keys = sorted(keys)
+            primary_key = keys[0]  # Keep the first key
+            for secondary_key in keys[1:]:
+                tied_weights[secondary_key] = primary_key
+                keys_to_remove.add(secondary_key)
+
+    # Remove tied weights from state_dict (keep only primary references)
+    filtered_state_dict = {
+        k: v for k, v in state_dict.items() if k not in keys_to_remove
+    }
+
+    # Create metadata for weight tying information
+    metadata = {}
+    if tied_weights:
+        # Store weight tying info as JSON string in metadata
+        metadata["weight_tying"] = json.dumps(tied_weights)
+    save_file(filtered_state_dict, filepath, metadata=metadata)
+    print(f"Saved model with {len(tied_weights)} weight tying relationships")
+    return tied_weights
+
+
+def load_model_with_weight_tying(model, filepath):
+    """Load model from safetensors while restoring weight tying"""
+    with safe_open(filepath, framework="pt") as f:
+        metadata = f.metadata()
+        state_dict = {key: f.get_tensor(key) for key in f.keys()}
+
+    # Restore weight tying if metadata exists
+    tied_weights = {}
+    if metadata and "weight_tying" in metadata:
+        tied_weights = json.loads(metadata["weight_tying"])
+        for secondary_key, primary_key in tied_weights.items():
+            if primary_key in state_dict:
+                # Restore the tied reference
+                state_dict[secondary_key] = state_dict[primary_key]
+                print(f"Restored weight tying: {secondary_key} -> {primary_key}")
+
+    # Handle tracker_string loading with flexible key matching
+    tracker_key = None
+    if "tracker_string" in state_dict:
+        tracker_key = "tracker_string"
+    else:
+        # Search for keys containing "tracker_string"
+        tracker_keys = [key for key in state_dict.keys() if "tracker_string" in key]
+        if len(tracker_keys) == 1:
+            tracker_key = tracker_keys[0]
+        elif len(tracker_keys) > 1:
+            print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            pdb.set_trace()
+        else:
+            print("Error: No tracker_string found in state_dict")
+            pdb.set_trace()
+    # To restore the tracker the string may have changed lengths
+    # so handle that before load_state_dict
+    if hasattr(model, "tracker_string"):
+        model.tracker_string = state_dict[tracker_key]
+    else:
+        model.register_buffer("tracker_string", state_dict[tracker_key])
+
+    # Load the state dict
+    model.load_state_dict(state_dict, strict=False)
+
+    # Re-establish weight tying at the model level
+    # This ensures the actual tensor objects are shared, not just copied
+    if tied_weights:
+        for secondary_key, primary_key in tied_weights.items():
+            try:
+                # Navigate to primary parameter
+                primary_param = model
+                for attr in primary_key.split("."):
+                    if attr.isdigit():
+                        primary_param = primary_param[int(attr)]
+                    else:
+                        primary_param = getattr(primary_param, attr)
+
+                # Navigate to secondary parameter's parent
+                secondary_param = model
+                secondary_attrs = secondary_key.split(".")
+                for attr in secondary_attrs[:-1]:
+                    if attr.isdigit():
+                        secondary_param = secondary_param[int(attr)]
+                    else:
+                        secondary_param = getattr(secondary_param, attr)
+
+                # Actually tie the weights by sharing the tensor
+                final_attr = secondary_attrs[-1]
+                if final_attr.isdigit():
+                    secondary_param[int(final_attr)] = primary_param
+                else:
+                    setattr(secondary_param, final_attr, primary_param)
+
+                print(f"Re-tied weights: {secondary_key} = {primary_key}")
+            except (AttributeError, IndexError) as e:
+                pdb.set_trace()
+                print(
+                    f"Warning: Could not re-tie {secondary_key} -> {primary_key}: {e}"
+                )
+
+    return model
+
+
 def save_net(net, folder, name):
     """Save the network
 
@@ -846,7 +1011,10 @@ def save_net(net, folder, name):
     for param in net.parameters():
         param.data = param.data.contiguous()
     if GPA.pc.get_using_safe_tensors():
-        save_file(net.state_dict(), save_point + name + ".pt")
+        if GPA.pc.get_weight_tying_experimental():
+            save_model_with_weight_tying(net, save_point + name + ".pt")
+        else:
+            save_file(net.state_dict(), save_point + name + ".pt")
     else:
         torch.save(net, save_point + name + ".pt")
 
@@ -890,7 +1058,10 @@ def load_net(net, folder, name):
     """
     save_point = folder + "/"
     if GPA.pc.get_using_safe_tensors():
-        state_dict = load_file(save_point + name + ".pt")
+        if GPA.pc.get_weight_tying_experimental():
+            return load_model_with_weight_tying(net, save_point + name + ".pt")
+        else:
+            state_dict = load_file(save_point + name + ".pt")
     else:
         # Different versions of torch require this change
         try:
@@ -909,6 +1080,19 @@ def load_net(net, folder, name):
                     save_point + name + ".pt", map_location=torch.device("cpu")
                 )
     return load_net_from_dict(net, state_dict)
+
+
+def get_module_base_name(module):
+    module_name = module.name
+    # This should always be true
+    if module_name[0] == ".":
+        # strip "."
+        module_name = module_name[1:]
+    # If it was a dataparallel it will also have a module at the start
+    # so strip that for loading
+    if module_name[:6] == "module":
+        module_name = module_name[7:]
+    return module_name
 
 
 def load_net_from_dict(net, state_dict):
@@ -932,8 +1116,13 @@ def load_net_from_dict(net, state_dict):
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print(
-            "PAI load_net and load_system uses a state_dict so it must be "
+            "PAI load_net and load_system uses a state_dict so it must be\n"
             "called with a net after initialize_pai has been called"
+        )
+        print("This is being flagged because you are attempting to load a model\n"
+            "that does not have any pai_modules in it.  Confirm that you are calling\n"
+            "initialize_pai on the correct model, and the same model is the one\n"
+            "being passed into add_validation_score"
         )
         import pdb
 
@@ -941,15 +1130,7 @@ def load_net_from_dict(net, state_dict):
         sys.exit(-1)
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
-        module_name = module.name
-        # This should always be true
-        if module_name[0] == ".":
-            # strip "."
-            module_name = module_name[1:]
-        # If it was a dataparallel it will also have a module at the start
-        # so strip that for loading
-        if module_name[:6] == "module":
-            module_name = module_name[7:]
+        module_name = get_module_base_name(module)
         module.clear_dendrites()
         for tracker in module.dendrite_module.dendrite_values:
             try:
@@ -963,21 +1144,29 @@ def load_net_from_dict(net, state_dict):
             except Exception as e:
                 print(e)
                 print(
-                    "When missing this value it typically means you "
-                    "converted a module but didn't actually use it in "
-                    "your forward and backward pass"
+                    "This value is missing from the state dict\n"
+                    "When missing this value it typically means you\n"
+                    "converted a module but didn't actually use it in\n"
+                    "your forward and backward pass."
                 )
-                print("module was: %s" % module_name)
+                print("module was: %s" % module.name)
+                print("There are many reasons this can happen:")
                 print(
-                    "check your model definition and forward function and "
+                    "\n1 - check your model definition and forward function and "
                     "ensure this module is being used properly"
                 )
                 print(
-                    "or add it to GPA.pc.get_module_ids_to_track() to leave it out "
-                    "of conversion"
+                    "with GPA.pc.set_verbose(True) you can confirm this is the case if\n"
+                    'you do not see a "setting d shape for" this module at the first training batch.'
                 )
                 print(
-                    "This can also happen if you adjusted your model "
+                    "If this is the case, and it is correct to not be passing data through it\n"
+                    "Set it to be a tracked module with:\n"
+                    'GPA.pc.append_module_ids_to_track(["%s"]) to leave it out '
+                    % module.name
+                )
+                print(
+                    "\n2 - This can also happen if you adjusted your model "
                     "definition after calling initialize_pai"
                 )
                 print(
@@ -990,6 +1179,23 @@ def load_net_from_dict(net, state_dict):
                     "calling initialize_pai after all other model "
                     "initialization steps"
                 )
+                first_key = next(iter(state_dict.keys()))
+                print(
+                    "\n3 - This can happen is if the model where you called initialize_pai\n"
+                    "and the model within add_validation_score are not the same. \n"
+                    "Check if the module above and %s have the same prefix\n"
+                    % first_key
+                )
+                print(
+                    "if one starts with .model or .base etc and the other does not, this is the problem."
+                )
+                
+                print("\n4 - If you are using this module but then not actually including\n"
+                    "the correct output tensor in the forward.  For example\n"
+                    "if you are using an LSTM and forwarding hidden instead of otput\n"
+                    "but your processors are set up to work with output"
+                )
+                
                 import pdb
 
                 pdb.set_trace()
@@ -998,10 +1204,26 @@ def load_net_from_dict(net, state_dict):
         num_cycles = int(state_dict[module_name + ".dendrite_module.num_cycles"].item())
         if num_cycles > 0:
             simulate_cycles(module, num_cycles, doing_pai=True)
-    if hasattr(net, "tracker_string"):
-        net.tracker_string = state_dict["tracker_string"]
+    # Handle tracker_string loading with flexible key matching
+    tracker_key = None
+    if "tracker_string" in state_dict:
+        tracker_key = "tracker_string"
     else:
-        net.register_buffer("tracker_string", state_dict["tracker_string"])
+        # Search for keys containing "tracker_string"
+        tracker_keys = [key for key in state_dict.keys() if "tracker_string" in key]
+        if len(tracker_keys) == 1:
+            tracker_key = tracker_keys[0]
+        elif len(tracker_keys) > 1:
+            print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            pdb.set_trace()
+        else:
+            print("Error: No tracker_string found in state_dict")
+            pdb.set_trace()
+
+    if hasattr(net, "tracker_string"):
+        net.tracker_string = state_dict[tracker_key]
+    else:
+        net.register_buffer("tracker_string", state_dict[tracker_key])
     try:
         net.load_state_dict(state_dict)
     except Exception as e:
@@ -1169,8 +1391,10 @@ def count_params(net):
     """
     if GPA.pc.get_perforated_backpropagation():
         return UPB.pb_count_params(net)
-    return sum(p.numel() for p in net.parameters())
-
+    parameters = net.named_parameters()
+    unique_params = {p.data_ptr(): p for name, p in parameters if 'parent_module' not in name}.values()
+    return sum(p.numel() for p in unique_params)
+    
 
 def change_learning_modes(net, folder, name, doing_pai):
     """Change between neuron and dendrite learning modes
@@ -1219,18 +1443,13 @@ def change_learning_modes(net, folder, name, doing_pai):
         else:
             overwritten_val = GPA.pai_tracker.member_vars["neuron_accuracies"]
         """
-        The only reason that retain_all_dendrites should ever be used is to test GPU
-        memory and configuration. So if true don't load the best system
+        If true don't load the best system
         because it will delete dendrites if the previous best was better than
         the current best
         """
-        if not GPA.pc.get_retain_all_dendrites():
-            if not GPA.pc.get_silent():
-                print("Importing best Model for switch to PA...")
-            net = load_system(net, folder, name, switch_call=True)
-        else:
-            if not GPA.pc.get_silent():
-                print("Not importing new model since retaining all PB")
+        if not GPA.pc.get_silent():
+            print("Importing best Model for switch to PA...")
+        net = load_system(net, folder, name, switch_call=True)
         GPA.pai_tracker.set_dendrite_training()
         GPA.pai_tracker.member_vars["overwritten_epochs"] = overwritten_epochs
         GPA.pai_tracker.member_vars["overwritten_epochs"] += (
