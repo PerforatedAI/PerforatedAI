@@ -19,9 +19,6 @@ from perforatedai import utils_perforatedai as UPA
 GPA.pc.set_weight_decay_accepted(True)
 GPA.pc.set_unwrapped_modules_confirmed(True)
 
-#When calculating scores with accuracy improvements the default for this is 1e-4 to enourage any improvement in decisions to count as an improvement.  When minimizing loss instead it should be higher since loss can continue to be reduced even when classification decisions are not being improved.
-
-
 def load_processor():
     return AutoImageProcessor.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
 
@@ -131,7 +128,6 @@ def create_optimizer_and_scheduler(
         f"warmup_steps={num_warmup_steps} ({warmup_ratio*100:.1f}% of training)"
     )
 
-    # 🔌 Let PerforatedAI track optimizer
     GPA.pai_tracker.set_optimizer_instance(optimizer)
 
     return optimizer, scheduler
@@ -229,6 +225,22 @@ def train(
         avg_loss = total_loss / total if total > 0 else 0.0
         print(f"✅ Epoch {epoch+1} done. Avg loss={avg_loss:.4f}, samples={total}")
 
+def configure_vit_pai_dims(model):
+    try:
+        patch_proj = model.vit.embeddings.patch_embeddings.projection
+        if hasattr(patch_proj, "set_this_input_dimensions"):
+            patch_proj.set_this_input_dimensions([-1, 0, -1, -1])
+            print("PAI: set_this_input_dimensions([-1, 0, -1, -1]) for vit.embeddings.patch_embeddings.projection")
+    except AttributeError:
+        print("PAI: could not find vit.embeddings.patch_embeddings.projection (check model structure).")
+
+    try:
+        clf = model.classifier
+        if hasattr(clf, "set_this_input_dimensions"):
+            clf.set_this_input_dimensions([-1, 0])
+            print("PAI: set_this_input_dimensions([-1, 0]) for classifier")
+    except AttributeError:
+        print("PAI: could not find model.classifier (check model structure).")
 
 def main():
     parser = argparse.ArgumentParser(description="ViT + PerforatedAI on RVL-CDIP")
@@ -242,7 +254,6 @@ def main():
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.05)
     parser.add_argument("--warmup-ratio", type=float, default=0.05)
-    parser.add_argument("--doingPAI", type=int, default=1)
     args = parser.parse_args()
 
     print("🚀 Loading processor and model...")
@@ -251,17 +262,16 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 🔌 Initialize PerforatedAI
-    if args.doingPAI:
-        print("🔧 Initializing PerforatedAI integration...")
-        GPA.pc.set_input_dimensions([-1, -1, 0])  # last dim = neuron index
-        model = UPA.initialize_pai(
-            model,
-            doing_pai=True,
-            save_name="vit_rvlcdip_pai",
-            making_graphs=True,
-            maximizing_score=True,
-        )
+    print("🔧 Initializing PerforatedAI integration...")
+    GPA.pc.set_input_dimensions([-1, -1, 0])
+    model = UPA.initialize_pai(
+        model,
+        doing_pai=True,
+        save_name="vit_rvlcdip_pai",
+        making_graphs=True,
+        maximizing_score=True,
+    )
+    configure_vit_pai_dims(model) 
 
     model.to(device)
 
