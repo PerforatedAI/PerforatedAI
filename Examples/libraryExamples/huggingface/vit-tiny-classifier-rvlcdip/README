@@ -50,10 +50,3 @@ python3 vit_tiny_classifier.py --streaming --eval --train
 
 With the provided optimizer and dataset, the expected evaluation accuracy is **~57%**.
 
----
-
-For more options, see the script's help:
-
-```bash
-python3 vit_tiny_classifier.py --help
-```
