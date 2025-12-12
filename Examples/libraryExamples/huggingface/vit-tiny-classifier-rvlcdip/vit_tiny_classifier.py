@@ -15,14 +15,17 @@ import argparse
 
 
 def load_processor():
+    """Load the image processor for the ViT model."""
     return AutoImageProcessor.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
 
 def load_model():
+    """Load a ViT model with random weights using the config from a pretrained checkpoint."""
     config = AutoConfig.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
     return AutoModelForImageClassification.from_config(config)
     #return AutoModelForImageClassification.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
 
 def convert_label_to_class_name(label_id):
+    """Convert a label id to its class name string."""
     class_names = [
         "letter", "form", "email", "handwritten", "advertisement",
         "scientific_report", "scientific_publication", "specification",
@@ -32,11 +35,13 @@ def convert_label_to_class_name(label_id):
     return class_names[label_id]
 
 def example_transform(example, processor):
+    """Transform a dataset example into model-ready pixel values and label."""
     img = example["image"]
     pixel = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0].cpu().numpy()
     return {"pixel_values": pixel, "label": example["label"]}
 
 def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None):
+    """Yield batches of (pixel_values, labels) from a streaming dataset, handling errors."""
     batch_pixels = []
     batch_labels = []
     seen = 0
@@ -89,6 +94,7 @@ def create_optimizer_and_scheduler(
     steps_per_epoch,
     epochs,
 ):
+    """Create AdamW optimizer and cosine scheduler with warmup."""
     # Parameter groups: decay for weights, no decay for LayerNorm/bias
     decay_params = []
     no_decay_params = []
@@ -126,6 +132,7 @@ def create_optimizer_and_scheduler(
     return optimizer, scheduler
 
 def evaluate(model, test_dataset, batch_size, device, processor, max_samples=None):
+    """Evaluate the model on a test dataset and print progress and accuracy."""
     correct = 0
     total = 0
     batch_num = 0
@@ -156,6 +163,7 @@ def train(
     weight_decay=0.05,
     warmup_ratio=0.1,
 ):
+    """Train the model on the training dataset for a given number of epochs."""
     criterion = CrossEntropyLoss()
     model.train()
 
@@ -230,6 +238,7 @@ def train(
         )
 
 def main():
+    """Parse arguments, load data/model, and run training/evaluation as requested."""
     parser = argparse.ArgumentParser(description="ViT tiny classifier on RVL-CDIP dataset")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for inference/training")
     parser.add_argument("--max-samples", type=int, default=None, help="Stop after this many samples (useful for testing)")

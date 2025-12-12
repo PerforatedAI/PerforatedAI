@@ -36,6 +36,7 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Without PAI
 Run both training and evaluation (streaming mode):
 
 ```bash
@@ -46,7 +47,17 @@ python3 vit_tiny_classifier.py --streaming --eval --train
 - `--train` runs training.
 - `--eval` runs evaluation after training.
 
-## Expected Results
+**Expected evaluation accuracy without PAI:** ~57%
 
-With the provided optimizer and dataset, the expected evaluation accuracy is **~57%**.
+### With PAI
+If you have PerforatedAI (PAI) installed and want to use it for acceleration or additional features, run:
+
+```bash
+python3 vit_tiny_classifier_pai.py --streaming --eval --train 
+```
+
+
+**Baseline evaluation accuracy with PAI:** **69.48%**
+
+
 

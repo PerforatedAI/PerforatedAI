@@ -20,15 +20,18 @@ GPA.pc.set_weight_decay_accepted(True)
 GPA.pc.set_unwrapped_modules_confirmed(True)
 
 def load_processor():
+    """Load the image processor for the ViT model."""
     return AutoImageProcessor.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
 
 
 def load_model():
+    """Load a ViT model with random weights using the config from a pretrained checkpoint."""
     config = AutoConfig.from_pretrained("HAMMALE/vit-tiny-classifier-rvlcdip")
     return AutoModelForImageClassification.from_config(config)
 
 
 def convert_label_to_class_name(label_id):
+    """Convert a label id to its class name string."""
     class_names = [
         "letter", "form", "email", "handwritten", "advertisement",
         "scientific_report", "scientific_publication", "specification",
@@ -39,12 +42,14 @@ def convert_label_to_class_name(label_id):
 
 
 def example_transform(example, processor):
+    """Transform a dataset example into model-ready pixel values and label."""
     img = example["image"]
     pixel = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0].cpu().numpy()
     return {"pixel_values": pixel, "label": example["label"]}
 
 
 def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None):
+    """Yield batches of (pixel_values, labels) from a streaming dataset, handling errors."""
     batch_pixels = []
     batch_labels = []
     seen = 0
@@ -96,6 +101,7 @@ def create_optimizer_and_scheduler(
     steps_per_epoch,
     epochs,
 ):
+    """Create AdamW optimizer and cosine scheduler with warmup."""
     decay_params, no_decay_params = [], []
 
     for name, param in model.named_parameters():
@@ -134,6 +140,7 @@ def create_optimizer_and_scheduler(
 
 
 def evaluate(model, test_dataset, batch_size, device, processor, max_samples=None):
+    """Evaluate the model on a test dataset and print progress and accuracy."""
     correct, total, batch_num = 0, 0, 0
     model.eval()
 
@@ -169,6 +176,7 @@ def train(
     weight_decay=0.05,
     warmup_ratio=0.1,
 ):
+    """Train the model on the training dataset for a given number of epochs."""
     criterion = CrossEntropyLoss()
     model.train()
 
@@ -226,6 +234,7 @@ def train(
         print(f"✅ Epoch {epoch+1} done. Avg loss={avg_loss:.4f}, samples={total}")
 
 def configure_vit_pai_dims(model):
+    """Configure PAI-specific input dimensions for ViT model layers if available."""
     try:
         patch_proj = model.vit.embeddings.patch_embeddings.projection
         if hasattr(patch_proj, "set_this_input_dimensions"):
@@ -243,6 +252,7 @@ def configure_vit_pai_dims(model):
         print("PAI: could not find model.classifier (check model structure).")
 
 def main():
+    """Parse arguments, load data/model, initialize PAI, and run training/evaluation as requested."""
     parser = argparse.ArgumentParser(description="ViT + PerforatedAI on RVL-CDIP")
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--max-samples", type=int, default=None)
