@@ -117,7 +117,7 @@ class PAIConfig:
         The device to use for computation (CPU, CUDA, etc.).
     save_name : str
         Name used for saving models (should not be set manually).
-    debugging_input_dimensions : int
+    debugging_output_dimensions : int
         Debug level for input dimension checking.
     confirm_correct_sizes : bool
         Whether to verify tensor sizes during execution.
@@ -147,7 +147,7 @@ class PAIConfig:
         Save intermediary test models.
     pai_saves : bool
         Save PAI-specific format models.
-    input_dimensions : list
+    output_dimensions : list
         Format specification for input tensor dimensions.
     improvement_threshold : float
         Relative improvement threshold for validation scores.
@@ -233,6 +233,29 @@ class PAIConfig:
         Whether Perforated Backpropagation is enabled.
     """
 
+    def __getattr__(self, name):
+        """Handle missing attributes gracefully, especially for PB variables.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute being accessed.
+
+        Returns
+        -------
+        None or raises AttributeError
+            Returns None for missing set_ methods, raises AttributeError otherwise.
+        """
+        if name.startswith("set_"):
+            print(
+                f"Variable '{name[4:]}' does not exist without perforatedbp installed.  Ignoring set attempt."
+            )
+            return lambda x: None
+        else:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            )
+
     def __init__(self):
         """Initialize PAIConfig with default settings."""
         ### Global Constants
@@ -247,9 +270,9 @@ class PAIConfig:
         add_pai_config_var_functions(self, "save_name", self.save_name)
 
         # Debug settings
-        self.debugging_input_dimensions = 0
+        self.debugging_output_dimensions = 0
         add_pai_config_var_functions(
-            self, "debugging_input_dimensions", self.debugging_input_dimensions
+            self, "debugging_output_dimensions", self.debugging_output_dimensions
         )
         # Debugging input tensor sizes.
         # This will slow things down very slightly and is not necessary but can help
@@ -310,6 +333,10 @@ class PAIConfig:
         self.drawing_pai = True
         add_pai_config_var_functions(self, "drawing_pai", self.drawing_pai)
 
+        # Drawing extra graphs beyond the standard ones.
+        self.drawing_extra_graphs = True
+        add_pai_config_var_functions(self, "drawing_extra_graphs", self.drawing_extra_graphs)
+
         # Saving test intermediary models, good for experimentation, bad for memory
         self.test_saves = True
         add_pai_config_var_functions(self, "test_saves", self.test_saves)
@@ -322,12 +349,12 @@ class PAIConfig:
         # planes you are expecting.
         # Neuron index should be set to 0, variable indexes should be set to -1.
         # For example, if your format is [batchsize, nodes, x, y]
-        # input_dimensions is [-1, 0, -1, -1].
-        # if your format is, [batchsize, time index, nodes] input_dimensions is
+        # output_dimensions is [-1, 0, -1, -1].
+        # if your format is, [batchsize, time index, nodes] output_dimensions is
         # [-1, -1, 0]
-        self.input_dimensions = [-1, 0, -1, -1]
+        self.output_dimensions = [-1, 0, -1, -1]
         add_pai_config_var_functions(
-            self, "input_dimensions", self.input_dimensions, list_type=True
+            self, "output_dimensions", self.output_dimensions, list_type=True
         )
 
         # Improvement thresholds
@@ -388,8 +415,9 @@ class PAIConfig:
         self.fixed_switch_num = 250
         add_pai_config_var_functions(self, "fixed_switch_num", self.fixed_switch_num)
         # An additional flag if you want your first switch to occur later than all the
-        # rest for initial pretraining
-        self.first_fixed_switch_num = 249
+        # rest for initial pretraining.  This is a new minimum, if its lower than
+        # the above it will be ignored.
+        self.first_fixed_switch_num = 1
         add_pai_config_var_functions(
             self, "first_fixed_switch_num", self.first_fixed_switch_num
         )
@@ -580,6 +608,11 @@ class PAIConfig:
         self.perforated_backpropagation = False
         add_pai_config_var_functions(
             self, "perforated_backpropagation", self.perforated_backpropagation
+        )
+
+        self.weight_tying_experimental = False
+        add_pai_config_var_functions(
+            self, "weight_tying_experimental", self.weight_tying_experimental
         )
 
 
