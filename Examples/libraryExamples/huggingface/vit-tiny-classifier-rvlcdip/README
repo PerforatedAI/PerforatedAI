@@ -2,7 +2,7 @@
 
 ## Description
 
-This project demonstrates document image classification using a Vision Transformer (ViT) model on the RVL-CDIP dataset.
+This project demonstrates document image classification using a Vision Transformer (ViT) model on the RVL-CDIP dataset, with optional PerforatedAI dendrite support for improved learning.
 
 ### RVL-CDIP Dataset
 - Contains grayscale and color scanned document images.
@@ -20,7 +20,7 @@ This project demonstrates document image classification using a Vision Transform
 
 ## Accuracy Measurement
 - Accuracy is computed as the percentage of correctly classified images:
-  
+
   $$
   \text{Accuracy} = \frac{\text{Number of correct predictions}}{\text{Total number of samples}} \times 100\%
   $$
@@ -28,7 +28,7 @@ This project demonstrates document image classification using a Vision Transform
 
 ## Setup
 
-1. Install dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -36,28 +36,67 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Without PAI
-Run both training and evaluation (streaming mode):
+### Standard Training (without dendrites)
 
 ```bash
-python3 vit_tiny_classifier.py --streaming --eval --train
+python3 vit_tiny_classifier.py --streaming --train --eval
 ```
 
-- `--streaming` uses Hugging Face streaming API for large datasets.
-- `--train` runs training.
-- `--eval` runs evaluation after training.
+**Expected evaluation accuracy:** ~57%
 
-**Expected evaluation accuracy without PAI:** ~57%
+### Training with PerforatedAI Dendrites
 
-### With PAI
-If you have PerforatedAI (PAI) installed and want to use it for acceleration or additional features, run:
+Add the `--use-dendrites` flag to enable PerforatedAI:
 
 ```bash
-python3 vit_tiny_classifier_pai.py --streaming --eval --train 
+python3 vit_tiny_classifier.py --streaming --train --eval --use-dendrites
 ```
 
+**Expected evaluation accuracy with PAI:** ~69%
 
-**Baseline evaluation accuracy with PAI:** **69.48%**
+Training graphs and model checkpoints will be saved to a folder named after `--save-name` (default: `vit_rvlcdip/`).
 
+### Command Line Options
 
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--streaming` | off | Use Hugging Face streaming API for large datasets |
+| `--train` | off | Run training |
+| `--eval` | off | Run evaluation |
+| `--use-dendrites` | off | Enable PerforatedAI dendrites |
+| `--batch-size` | 64 | Batch size for training/evaluation |
+| `--training-epochs` | 3 | Number of training epochs |
+| `--lr` | 3e-4 | Learning rate |
+| `--weight-decay` | 0.05 | Weight decay for optimizer |
+| `--warmup-ratio` | 0.05 | Warmup ratio for scheduler |
+| `--max-samples` | None | Limit samples (useful for quick testing) |
+| `--save-name` | vit_rvlcdip | Save name for PAI outputs |
+| `--dataset` | aharley/rvl_cdip | Hugging Face dataset identifier |
+| `--seed` | 42 | Random seed for reproducibility |
 
+### Quick Test
+
+For a quick test with limited samples:
+
+```bash
+# Without dendrites
+python3 vit_tiny_classifier.py --streaming --train --max-samples 256 --training-epochs 2
+
+# With dendrites
+python3 vit_tiny_classifier.py --streaming --train --max-samples 256 --training-epochs 2 --use-dendrites
+```
+
+## PAI Integration Details
+
+When `--use-dendrites` is enabled, the script:
+
+1. Initializes the model with PAI scaffolding for dendrite addition
+2. Tracks validation scores after each epoch
+3. Automatically adds dendrites when learning plateaus
+4. Generates training graphs (saved to `{save-name}/` folder)
+
+The minimal PAI integration requires these calls in a custom training loop:
+- `GPA.pai_tracker.start_epoch()` - at the start of each epoch
+- `GPA.pai_tracker.set_optimizer_instance(optimizer)` - before recording scores
+- `GPA.pai_tracker.add_validation_score(accuracy, model)` - after validation
+- `GPA.pai_tracker.save_graphs()` - at the end of training
