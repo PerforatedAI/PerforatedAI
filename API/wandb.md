@@ -123,6 +123,43 @@ But we'd recommend at least logging training and validation scores
 
     run.log({"ValAcc": val_acc_val, "TrainAcc": train_acc_val, "TestAcc": test_acc_val, "Param Count": UPA.count_params(model), 'Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
         
+### Arch Logging
+It can sometimes be valuable to also log the best scores at each architecture, and the final scores.  This can be done by adding the following:
+
+    #outside of the loop
+    dendrite_count = 0
+    max_val = 0
+    max_train = 0
+    max_test = 0
+    max_params = 0
+    dendrite_count = 0
+
+    global_max_val = 0
+    global_max_train = 0
+    global_max_test = 0
+    global_max_params =
+
+    #inside the loop after add_validation_score
+    if(val_acc > max_val):
+        max_val = val_acc
+        max_test = test_acc
+        max_train = train_acc
+        max_params = UPA.count_params(model)
+    if(val_acc > global_max_val):
+        global_max_val = val_acc
+        global_max_test = test_acc
+        global_max_train = train_acc
+        global_max_params = UPA.count_params(model)
+    if(restructured):
+        # if n mode and dendrites were just added
+       if(GPA.pai_tracker.member_vars["mode"] == 'n' and (not dendrite_count == GPA.pai_tracker.member_vars["num_dendrites_added"])):
+            dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
+            run.log({"Arch Max Val": max_val, "Arch Max Test": max_test, "Arch Max Train": max_train, "Arch Param Count": max_params, 'Arch Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]-1})
+    elif training_complete:
+        if config.dendrite_mode == 0 or max_dendrites == GPA.pai_tracker.member_vars["num_dendrites_added"]:
+            run.log({"Arch Max Val": max_val, "Arch Max Test": max_test, "Arch Max Train": max_train, "Arch Param Count": max_params, 'Arch Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
+        run.log({"Final Max Val": global_max_val, "Final Max Test": global_max_test, "Final Max Train": global_max_train, "Final Param Count": global_max_params, 'Final Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
+
 
 ## Running
 Now just run your program as usual and you will be able to see the sweep on the sweeps tab on your Weights and Biases homepage
