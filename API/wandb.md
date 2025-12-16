@@ -56,17 +56,11 @@ out a lot of epochs for only slightly worse performance.
 
     GPA.pc.set_cap_at_n(True)
 
-## Updating config and generating ID
-Once this dict has been setup with options, the sweep config can be adjusted and the wandb sweep can be initialized.
-
-    sweep_config["parameters"] = parameters_dict
-    sweep_id = wandb.sweep(sweep_config, project="My First Dendrite Project")
-
 ## Getting the Run Setup
 Next you have to modify your main function to actually run the sweep, this can be done very simply
 by creating a wrapper function run() which calls your original main.  We recommend the following
 try/except which drops into pdb on failure instead of exiting since often there will be problems
-setting this up for the first time.
+setting this up for the first time.  This setup will also allow you to run on multiple instances by setting args.sweep_id to "main" for the original and the sweep id for any additional instances
 
     def run():
         try:
@@ -77,7 +71,16 @@ setting this up for the first time.
             pdb.post_mortem()
     if __name__ == "__main__":
         # Count is how many runs to perform.
-        wandb.agent(sweep_id, run, count=100)
+        project="Dendritic Optimization"
+        sweep_config["parameters"] = parameters_dict
+        if args.sweep_id == "main":
+            sweep_id = wandb.sweep(sweep_config, project=project)
+            print("\nInitialized sweep. Use --sweep_id", sweep_id, "to join on other machines.\n")
+            # Optionally run the agent on this machine as well
+            wandb.agent(sweep_id, run, count=300)
+        else:
+            # Join the existing sweep as an agent
+            wandb.agent(args.sweep_id, run, count=300, project=project)
 
 
 ## Using the config values
@@ -107,16 +110,91 @@ When calling initialize_pai a save name must be set to determine the folder to s
 If you want to retain all of your tests separately you can label your save_name with
 the wandb sweep configuration values.
 
-    name_str = "_".join([f"{key}_{wandb.config[key]}" for key in wandb.config.keys()])
+    excluded = ['method', 'metric', 'parameters', 'dendrite_mode']
+    keys = [k for k in parameters_dict.keys() if k not in excluded]
+    name_str = "Dendrites-" + str(wandb.config.dendrite_mode) + "_" + "_".join(
+    str(wandb.config[k]) for k in keys if k in wandb.config
+    )
     run.name = name_str
-    model = UPA.initialize_pai(model, save_name=name_str)
 
 ## Logging
 Then inside your script you'll also need to add logging.  You can add as much or as little as you'd like
 But we'd recommend at least logging training and validation scores
 
-    run.log({"ValAcc": val_acc_val, "TrainAcc": train_acc_val, "TestAcc": test_acc_val})
+    run.log({"ValAcc": val_acc_val, "TrainAcc": train_acc_val, "TestAcc": test_acc_val, "Param Count": UPA.count_params(model), 'Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
         
+### Arch Logging
+It can sometimes be valuable to also log the best scores at each architecture, and the final scores.  This can be done by adding the following:
+
+    #outside of the loop
+    dendrite_count = 0
+    max_val = 0
+    max_train = 0
+    max_test = 0
+    max_params = 0
+    dendrite_count = 0
+
+    global_max_val = 0
+    global_max_train = 0
+    global_max_test = 0
+    global_max_params =
+
+    #inside the loop after add_validation_score
+    if(val_acc > max_val):
+        max_val = val_acc
+        max_test = test_acc
+        max_train = train_acc
+        max_params = UPA.count_params(model)
+    if(val_acc > global_max_val):
+        global_max_val = val_acc
+        global_max_test = test_acc
+        global_max_train = train_acc
+        global_max_params = UPA.count_params(model)
+    if(restructured):
+        # if n mode and dendrites were just added
+       if(GPA.pai_tracker.member_vars["mode"] == 'n' and (not dendrite_count == GPA.pai_tracker.member_vars["num_dendrites_added"])):
+            dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
+            run.log({"Arch Max Val": max_val, "Arch Max Test": max_test, "Arch Max Train": max_train, "Arch Param Count": max_params, 'Arch Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]-1})
+    elif training_complete:
+        if config.dendrite_mode == 0 or max_dendrites == GPA.pai_tracker.member_vars["num_dendrites_added"]:
+            run.log({"Arch Max Val": max_val, "Arch Max Test": max_test, "Arch Max Train": max_train, "Arch Param Count": max_params, 'Arch Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
+        run.log({"Final Max Val": global_max_val, "Final Max Test": global_max_test, "Final Max Train": global_max_train, "Final Param Count": global_max_params, 'Final Dendrite Count': GPA.pai_tracker.member_vars["num_dendrites_added"]})
+
 
 ## Running
 Now just run your program as usual and you will be able to see the sweep on the sweeps tab on your Weights and Biases homepage
+
+
+## Optional Debugging Function
+
+We sometimes aften a run want to re-run with specific settings where our best models came from.  By using the name that is defined by the parameters this string can also be used to recreate the config without editing the rest of your code.
+
+    from types import SimpleNamespace
+
+    def parse_config_string(name_str, parameters_dict):
+        prefix = "Dendrites-"
+        if not name_str.startswith(prefix):
+            raise ValueError("name_str must start with 'Dendrites-'")
+        rest = name_str[len(prefix):]
+        if "_" in rest:
+            dend_token, rest = rest.split("_", 1)
+        else:
+            dend_token, rest = rest, ""
+        result = {"dendrite_mode": dend_token}
+        tokens = rest.split("_") if rest else []
+        excluded = ['method', 'metric', 'parameters', 'dendrite_mode']
+        keys = [k for k in parameters_dict.keys() if k not in excluded]
+        for key in keys:
+            if not tokens:
+                break
+            result[key] = tokens.pop(0)
+        if tokens:
+            result["_extras"] = tokens
+        return SimpleNamespace(**result)
+
+Then in your main include, for example:
+
+    name_str = "Dendrites-0_0.3_3_1_0.5_0.1_10_5_2_2_0.01_0_0_1_0"
+    config = parse_config_string(name_str, parameters_dict=parameters_dict) 
+    
+Anw now this config can be used instead of the wandb config.  Just be sure the same parameters dict that you used to train is passed into this function.

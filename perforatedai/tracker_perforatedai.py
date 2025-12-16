@@ -26,9 +26,10 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import tracker_pbp as TPB
-
-except Exception as e:
-    pass
+except ModuleNotFoundError:
+    pass  # Module not found, pass silently
+except ImportError as e:
+    print(f"Import error occurred: {e}")
 
 mpl.use("Agg")
 
@@ -36,6 +37,10 @@ mpl.use("Agg")
 NO_MODEL_UPDATE = 0
 NETWORK_RESTRUCTURED = 1
 TRAINING_COMPLETE = 2
+
+# Status constant for each batch
+STEP_CLEARED = 0
+STEP_CALLED = 1
 
 
 def update_restructuring_status(old_status, new_status):
@@ -269,7 +274,17 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
         GPA.pai_tracker.member_vars["current_best_validation_score"] = (
             GPA.pai_tracker.member_vars["running_accuracy"]
         )
-
+        GPA.pai_tracker.member_vars["epoch_last_improved"] = (
+            GPA.pai_tracker.member_vars["num_epochs_run"]
+        )
+        if GPA.pc.get_verbose():
+            print(
+                f'2 epoch improved is {GPA.pai_tracker.member_vars["epoch_last_improved"]}'
+            )
+        # Immediately update this list before saving so loading will have it correctly
+        GPA.pai_tracker.member_vars["last_improved_accuracies"].append(
+            GPA.pai_tracker.member_vars["epoch_last_improved"]
+        )
         # Check if global best
         is_global_best = score_beats_current_best(
             GPA.pai_tracker.member_vars["current_best_validation_score"],
@@ -292,14 +307,6 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
             UPA.save_system(net, GPA.pc.get_save_name(), "best_model")
             if GPA.pc.get_pai_saves():
                 UPA.pai_save_system(net, GPA.pc.get_save_name(), "best_model")
-
-        GPA.pai_tracker.member_vars["epoch_last_improved"] = (
-            GPA.pai_tracker.member_vars["num_epochs_run"]
-        )
-        if GPA.pc.get_verbose():
-            print(
-                f'2 epoch improved is {GPA.pai_tracker.member_vars["epoch_last_improved"]}'
-            )
     else:
         if GPA.pc.get_verbose():
             print("Not saving new best because:")
@@ -326,7 +333,9 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                     f"which is not lower than "
                     f'{GPA.pai_tracker.member_vars["current_best_validation_score"]}'
                 )
-
+        GPA.pai_tracker.member_vars["last_improved_accuracies"].append(
+            GPA.pai_tracker.member_vars["epoch_last_improved"]
+        )
         # If it's the first epoch, save as best anyway
         if len(GPA.pai_tracker.member_vars["accuracies"]) == 1:
             if GPA.pc.get_verbose():
@@ -1107,6 +1116,11 @@ class PAINeuronModuleTracker:
         # Flag for if the tracker was loaded
         self.loaded = False
 
+        # flag for 
+        self.member_vars["step_status"] = STEP_CLEARED
+        self.member_var_types["step_status"] = "int"
+
+
         # Settings for tracking learning rates
         self.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
         self.member_var_types["current_n_learning_rate_initial_skip_steps"] = "int"
@@ -1120,11 +1134,11 @@ class PAINeuronModuleTracker:
         self.member_var_types["current_step_count"] = "int"
         self.member_vars["committed_to_initial_rate"] = True
         self.member_var_types["committed_to_initial_rate"] = "bool"
-        self.member_vars["current_n_set_global_best"] = True
         self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_var_types["best_mean_score_improved_this_epoch"] = "int"
 
         # Flag for if current dendrite achieved highest global score
+        self.member_vars["current_n_set_global_best"] = True
         self.member_var_types["current_n_set_global_best"] = "bool"
 
         # Number of tries adding this dendrite count
@@ -1323,6 +1337,121 @@ class PAINeuronModuleTracker:
 
                 pdb.set_trace()
 
+    def from_string_debug(self, string):
+        """Debug function to print tracker values from string without loading them.
+
+        Parameters
+        ----------
+        string : str
+            The string to debug load from.
+        """
+        f = io.StringIO(string)
+        print("=== DEBUGGING TRACKER VARIABLES ===")
+
+        while True:
+            line = f.readline()
+            if not line:
+                break
+            vals = line.split(",")
+            var = vals[0]
+
+            print(f"\nVariable: {var}")
+            print(f"Type: {self.member_var_types.get(var, 'UNKNOWN TYPE')}")
+            print(f"Current value: {self.member_vars.get(var, 'NOT SET')}")
+
+            if self.member_var_types.get(var) == "bool":
+                val = vals[1][:-1]
+                print(f"Would set to: {val} -> {val == 'True'}")
+
+            elif self.member_var_types.get(var) == "int":
+                val = vals[1]
+                print(f"Would set to: {int(val)}")
+
+            elif self.member_var_types.get(var) == "float":
+                val = vals[1]
+                print(f"Would set to: {float(val)}")
+
+            elif self.member_var_types.get(var) == "string":
+                val = vals[1][:-1]
+                print(f"Would set to: '{val}'")
+
+            elif self.member_var_types.get(var) == "type":
+                print("Would skip (type loading)")
+
+            elif self.member_var_types.get(var) == "empty array":
+                val = vals[1]
+                print(f"Would set to: [] (empty array)")
+
+            elif self.member_var_types.get(var) == "int array":
+                vals_line = f.readline()[:-1].split(",")
+                print(f"Would set to int array with {len(vals_line)} elements:")
+                if vals_line[0] != "":
+                    print(
+                        f"  Elements: {vals_line[:5]}{'...' if len(vals_line) > 5 else ''}"
+                    )
+                else:
+                    print("  Empty array")
+
+            elif self.member_var_types.get(var) == "float array":
+                vals_line = f.readline()[:-1].split(",")
+                print(f"Would set to float array with {len(vals_line)} elements:")
+                if vals_line[0] != "":
+                    print(
+                        f"  Elements: {vals_line[:5]}{'...' if len(vals_line) > 5 else ''}"
+                    )
+                else:
+                    print("  Empty array")
+
+            elif self.member_var_types.get(var) == "float array dictionary array":
+                print("Would process float array dictionary array:")
+                array_count = 0
+                line2 = f.readline()[:-1]
+                while line2 != "endarray":
+                    key_count = 0
+                    while line2 != "endkey":
+                        vals_dict = line2.split(",")
+                        name = vals_dict[0]
+                        print(
+                            f"  Array {array_count}, Key '{name}': {len(vals_dict)-1} elements"
+                        )
+                        key_count += 1
+                        line2 = f.readline()[:-1]
+                    print(f"  Array {array_count} has {key_count} keys")
+                    array_count += 1
+                    line2 = f.readline()[:-1]
+                print(f"  Total arrays: {array_count}")
+
+            elif self.member_var_types.get(var) == "float array dictionary":
+                print("Would process float array dictionary:")
+                line2 = f.readline()[:-1]
+                key_count = 0
+                while line2 != "end":
+                    vals_dict = line2.split(",")
+                    name = vals_dict[0]
+                    print(f"  Key '{name}': {len(vals_dict)-1} elements")
+                    key_count += 1
+                    line2 = f.readline()[:-1]
+                print(f"  Total keys: {key_count}")
+
+            elif self.member_var_types.get(var) == "float array array":
+                print("Would process float array array:")
+                line2 = f.readline()[:-1]
+                array_count = 0
+                while line2 != "end":
+                    if line2:
+                        vals_array = line2.split(",")
+                        print(f"  Array {array_count}: {len(vals_array)} elements")
+                    else:
+                        print(f"  Array {array_count}: empty")
+                    array_count += 1
+                    line2 = f.readline()[:-1]
+                print(f"  Total arrays: {array_count}")
+
+            else:
+                print(f"UNKNOWN TYPE: {self.member_var_types.get(var, 'NOT FOUND')}")
+
+        print("\n=== END DEBUG ===")
+
     def save_tracker_settings(self):
         """Save tracker settings for DistributedDataParallel use.
 
@@ -1395,23 +1524,26 @@ class PAINeuronModuleTracker:
         """
 
         try:
-            if (
-                optimizer_instance.param_groups[0]["weight_decay"] > 0
-                and GPA.pc.get_weight_decay_accepted() is False
-            ):
-                print(
-                    "For PAI training it is recommended to not use "
-                    "weight decay in your optimizer"
-                )
-                print(
-                    "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
-                    "warning or c to continue"
-                )
-                GPA.pc.set_weight_decay_accepted(True)
-                pdb.set_trace()
+            for param_group in optimizer_instance.param_groups:
+                if (
+                    param_group["weight_decay"] > 0
+                    and GPA.pc.get_weight_decay_accepted() is False
+                ):
+                    print(
+                        "For PAI training it is recommended to not use "
+                        "weight decay in your optimizer"
+                    )
+                    print(
+                        "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
+                        "warning or c to continue"
+                    )
+                    GPA.pc.set_weight_decay_accepted(True)
+                    pdb.set_trace()
         except:
             pass
         self.member_vars["optimizer_instance"] = optimizer_instance
+        if GPA.pc.get_perforated_backpropagation():
+            TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later
@@ -1566,7 +1698,7 @@ class PAINeuronModuleTracker:
                 opt_args["params"] = UPA.get_pai_network_params(net)
 
         optimizer = self.member_vars["optimizer"](**opt_args)
-        self.member_vars["optimizer_instance"] = optimizer
+        self.set_optimizer_instance(optimizer)
 
         if self.member_vars["scheduler"] is not None:
             self.member_vars["scheduler_instance"] = self.member_vars["scheduler"](
@@ -1651,22 +1783,29 @@ class PAINeuronModuleTracker:
         """
 
         switch_phrase = "No mode, this should never be the case."
+        switch_number = GPA.pc.get_n_epochs_to_switch()
         if self.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME:
             switch_phrase = "DOING_SWITCH_EVERY_TIME"
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_HISTORY:
             switch_phrase = "DOING_HISTORY"
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_FIXED_SWITCH:
             switch_phrase = "DOING_FIXED_SWITCH"
+            switch_number = GPA.pc.get_fixed_switch_num()
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_NO_SWITCH:
             switch_phrase = "DOING_NO_SWITCH"
-
+        else:
+            print(
+                "A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode()."
+            )
+            pdb.set_trace()
         if not GPA.pc.get_silent():
+
             print(
                 f'Checking PAI switch with mode {self.member_vars["mode"]}, '
                 f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
                 f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
                 f'total epochs {self.member_vars["total_epochs_run"]}, '
-                f'n: {GPA.pc.get_n_epochs_to_switch()}, num_cycles: {self.member_vars["num_cycles"]}'
+                f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
             )
         if GPA.pc.get_perforated_backpropagation():
             # this will fill in epoch last improved
@@ -1731,9 +1870,12 @@ class PAINeuronModuleTracker:
             return True
 
         if self.member_vars["switch_mode"] == GPA.pc.DOING_FIXED_SWITCH and (
-            (self.member_vars["total_epochs_run"] % GPA.pc.get_fixed_switch_num() == 0)
+            (
+                self.member_vars["total_epochs_run"] % GPA.pc.get_fixed_switch_num()
+                == GPA.pc.get_fixed_switch_num() - 1
+            )
             and self.member_vars["num_epochs_run"]
-            >= GPA.pc.get_first_fixed_switch_num()
+            >= GPA.pc.get_first_fixed_switch_num() - 1
         ):
             if not GPA.pc.get_silent():
                 print("Returning True - Fixed switch number is hit")
@@ -1858,7 +2000,13 @@ class PAINeuronModuleTracker:
 
         if GPA.pc.get_find_best_lr():
             self.member_vars["committed_to_initial_rate"] = False
-        self.member_vars["current_n_set_global_best"] = False
+        # If retaining all dendrties always say that the current dendrites set global best for saving and loading
+        if GPA.pc.get_retain_all_dendrites():
+            self.member_vars["current_n_set_global_best"] = True
+            self.member_vars["global_best_validation_score"] = 0
+        else:
+            self.member_vars["current_n_set_global_best"] = False
+
         # Don't reset global best, but do reset current best
         self.member_vars["current_best_validation_score"] = 0
         self.member_vars["initial_lr_test_epoch_count"] = -1
@@ -2510,7 +2658,7 @@ class PAINeuronModuleTracker:
                     ax.plot(
                         np.arange(len(self.member_vars["current_scores"][layer_id])),
                         self.member_vars["current_scores"][layer_id],
-                        label=f"Best current for all Nodes Layer {self.neuron_module_vector[layer_id].name}",
+                        label=f"Current:{self.neuron_module_vector[layer_id].name}",
                     )
 
                 pd2 = pd.DataFrame(
@@ -2715,17 +2863,18 @@ class PAINeuronModuleTracker:
         ax = plt.subplot(221)
         self.generate_accuracy_plots(ax, save_folder, extra_string)
 
-        # Plot the times for each training epoch
-        ax = plt.subplot(222)
-        self.generate_time_plots(ax, save_folder, extra_string)
-
-        # Plot learning rates for each training epoch
-        ax = plt.subplot(223)
-        self.generate_learning_rate_plots(ax, save_folder, extra_string)
-
         # Plot dendrite learning scores
-        ax = plt.subplot(224)
+        ax = plt.subplot(222)
         self.generate_dendrite_learning_plots(ax, save_folder, extra_string)
+
+        if GPA.pc.get_drawing_extra_graphs():
+            # Plot learning rates for each training epoch
+            ax = plt.subplot(223)
+            self.generate_learning_rate_plots(ax, save_folder, extra_string)
+
+            # Plot the times for each training epoch
+            ax = plt.subplot(224)
+            self.generate_time_plots(ax, save_folder, extra_string)
 
         # Generate extra CSV files
         self.generate_extra_csv_files(save_folder, extra_string)
@@ -2949,10 +3098,6 @@ class PAINeuronModuleTracker:
         if GPA.pc.get_pai_saves():
             UPA.pai_save_system(net, GPA.pc.get_save_name(), "latest")
 
-        GPA.pai_tracker.member_vars["last_improved_accuracies"].append(
-            GPA.pai_tracker.member_vars["epoch_last_improved"]
-        )
-
         restructuring_status_value = NO_MODEL_UPDATE
         # If it is time to switch based on scores and counter or a manual switch
         if GPA.pai_tracker.switch_time() or force_switch:
@@ -3030,8 +3175,6 @@ class PAINeuronModuleTracker:
                         f"{GPA.pc.get_save_name()}/best_model.pt",
                         f'{GPA.pc.get_save_name()}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
                     )
-                    if GPA.pc.get_extra_verbose():
-                        pdb.set_trace()
 
                 net = UPA.change_learning_modes(
                     net,
@@ -3108,3 +3251,15 @@ class PAINeuronModuleTracker:
         """Add dendrite module to all neuron modules."""
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
+
+    def apply_pb_grads(self):
+        """Apply perforated backpropagation gradients to all modules."""
+        if self.member_vars["mode"] == "p":
+            for module in self.neuron_module_vector:
+                module.apply_pb_grads()
+
+    def apply_pb_zero(self):
+        """Apply perforated backpropagation zero gradients to all modules."""
+        if self.member_vars["mode"] == "p":
+            for module in self.neuron_module_vector:
+                module.apply_pb_zero()
