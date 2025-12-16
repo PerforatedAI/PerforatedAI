@@ -27,7 +27,7 @@ except ImportError as e:
 # Values for Dendrite training, minimally used in open source version
 DENDRITE_TENSOR_VALUES = [
     "shape"
-]  # Shape is tensor of same shape as total neurons in layer
+]  # Shape is tensor of same shape as total neurons in module
 DENDRITE_SINGLE_VALUES = []
 
 DENDRITE_INIT_VALUES = ["initialized", "current_d_init"]
@@ -72,7 +72,7 @@ def filter_backward(grad_out, values):
         if not values[0].current_d_init.item():
             # If input dimensions and gradient don't have same shape trigger error and quit
             if len(values[0].this_output_dimensions) != len(grad_out.shape):
-                print("The following layer has not properly set this_output_dimensions")
+                print("The following module has not properly set this_output_dimensions")
                 print(values[0].layer_name)
                 print("it is expecting:")
                 print(values[0].this_output_dimensions)
@@ -82,7 +82,7 @@ def filter_backward(grad_out, values):
                     "to check these all at once set GPA.pc.set_debugging_output_dimensions(1)"
                 )
                 print(
-                    f"Call MODEL_VARIABLE{values[0].layer_name}.set_this_output_dimensions([...]) on this layer after initialize_pai"
+                    f"Call MODEL_VARIABLE{values[0].layer_name}.set_this_output_dimensions([...]) on this module after initialize_pai"
                 )
                 print("where the ... is replaced with the correct vector as described in section 4 of customization.md")
                 if not GPA.pc.get_debugging_output_dimensions():
@@ -100,7 +100,7 @@ def filter_backward(grad_out, values):
                     and not values[0].this_output_dimensions[i] == -1
                 ):
                     print(
-                        "The following layer has not properly set this_output_dimensions with this incorrect shape"
+                        "The following module has not properly set this_output_dimensions with this incorrect shape"
                     )
                     print(values[0].layer_name)
                     print("it is expecting:")
@@ -193,7 +193,7 @@ class PAINeuronModule(nn.Module):
         set_wrapped_params(self.main_module)
         if GPA.pc.get_verbose():
             print(
-                f"initing a layer {self.name} with main type {type(self.main_module)}"
+                f"initing a module {self.name} with main type {type(self.main_module)}"
             )
             print(start_module)
 
@@ -242,7 +242,7 @@ class PAINeuronModule(nn.Module):
         self.register_parameter("newest_dendrite_to_top", None)
         self.candidate_to_top = nn.ParameterList()
         self.register_parameter("current_candidate_to_top", None)
-        # Create the dendrite layer
+        # Create the dendrite module
         self.dendrite_module = PAIDendriteModule(
             self.main_module,
             activation_function_value=self.activation_function_value,
@@ -285,6 +285,20 @@ class PAINeuronModule(nn.Module):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.main_module, name)
+
+    def __getitem__(self, index):
+        """Support indexing operations on the main module.
+
+        Parameters
+        ----------
+        index : int or slice
+            The index or slice to retrieve.
+
+        Returns
+        -------
+        The indexed item from the main module.
+        """
+        return self.main_module[index]
 
     def apply_pb_grads(self):
         """Apply perforated backpropagation gradients if enabled."""
@@ -335,7 +349,7 @@ class PAINeuronModule(nn.Module):
         )
 
     def __str__(self):
-        """String representation of the layer.
+        """String representation of the module.
 
         Parameters
         ----------
@@ -344,7 +358,7 @@ class PAINeuronModule(nn.Module):
         Returns
         -------
         str
-            String representation of the layer.
+            String representation of the module.
 
         Notes
         -----
@@ -361,7 +375,7 @@ class PAINeuronModule(nn.Module):
             return total_string
 
     def __repr__(self):
-        """Representation of the layer."""
+        """Representation of the module."""
         return self.__str__()
 
     def set_this_output_dimensions(self, new_output_dimensions):
@@ -486,14 +500,14 @@ class PAINeuronModule(nn.Module):
             except Exception as e:
                 print(e)
                 print(
-                    f"this occurred in layer: {self.dendrite_module.dendrite_values[0].layer_name}"
+                    f"this occurred in module: {self.dendrite_module.dendrite_values[0].layer_name}"
                 )
                 print(
                     "Module should be added to module_names_to_track so it doesn't have dendrites added"
                 )
                 print("If you are getting here but out_channels has not been set")
                 print(
-                    "A common reason is that this layer never had gradients flow through it."
+                    "A common reason is that this module never had gradients flow through it."
                 )
                 print("I have seen this happen because:")
                 print("-The weights were frozen (requires_grad = False)")
@@ -507,7 +521,7 @@ class PAINeuronModule(nn.Module):
                     "If this is normal behavior set GPA.pc.set_checked_skipped_modules(True) in the main to ignore"
                 )
                 print(
-                    "You can also set right now in this pdb terminal to have this not happen more after checking all layers this cycle."
+                    "You can also set right now in this pdb terminal to have this not happen more after checking all modules this cycle."
                 )
                 if not GPA.pc.get_checked_skipped_modules():
                     import pdb
@@ -534,7 +548,7 @@ class PAINeuronModule(nn.Module):
         self.dendrite_module.create_new_dendrite_module(self.main_module)
 
     def forward(self, *args, **kwargs):
-        """Forward pass through the neuron layer.
+        """Forward pass through the neuron module.
 
         Parameters
         ----------
@@ -662,7 +676,7 @@ class TrackedNeuronModule(nn.Module):
         set_tracked_params(self.main_module)
         if GPA.pc.get_verbose():
             print(
-                f"tracking a layer {self.name} with main type {type(self.main_module)}"
+                f"tracking a module {self.name} with main type {type(self.main_module)}"
             )
             print(start_module)
         GPA.pai_tracker.add_tracked_neuron_module(self)
@@ -691,8 +705,22 @@ class TrackedNeuronModule(nn.Module):
         except AttributeError:
             return getattr(self.main_module, name)
 
+    def __getitem__(self, index):
+        """Support indexing operations on the main module.
+
+        Parameters
+        ----------
+        index : int or slice
+            The index or slice to retrieve.
+
+        Returns
+        -------
+        The indexed item from the main module.
+        """
+        return self.main_module[index]
+
     def set_mode(self, mode):
-        """Set mode for tracked layer.
+        """Set mode for tracked module.
 
         Parameters
         ----------
@@ -706,7 +734,7 @@ class TrackedNeuronModule(nn.Module):
 
         Notes
         -----
-        This function does not change any behavior since this is a tracked layer.
+        This function does not change any behavior since this is a tracked module.
         """
 
         if GPA.pc.get_verbose():
@@ -714,7 +742,7 @@ class TrackedNeuronModule(nn.Module):
         return True
 
     def forward(self, *args, **kwargs):
-        """Forward pass for tracked layer.
+        """Forward pass for tracked module.
 
         Parameters
         ----------
@@ -736,7 +764,7 @@ class TrackedNeuronModule(nn.Module):
         return self.main_module(*args, **kwargs)
 
     def __str__(self):
-        """String representation of the layer.
+        """String representation of the module.
 
         Parameters
         ----------
@@ -745,7 +773,7 @@ class TrackedNeuronModule(nn.Module):
         Returns
         -------
         str
-            String representation of the layer.
+            String representation of the module.
 
         Notes
         -----
@@ -754,15 +782,15 @@ class TrackedNeuronModule(nn.Module):
 
         if GPA.pc.get_verbose():
             total_string = self.main_module.__str__()
-            total_string = "PAITrackedLayer(" + total_string + ")"
+            total_string = "PAITrackedModule(" + total_string + ")"
             return total_string
         else:
             total_string = self.main_module.__str__()
-            total_string = "PAITrackedLayer(" + total_string + ")"
+            total_string = "PAITrackedModule(" + total_string + ")"
             return total_string
 
     def __repr__(self):
-        """Representation of the layer."""
+        """Representation of the module."""
         return self.__str__()
 
 
@@ -891,7 +919,7 @@ class PAIDendriteModule(nn.Module):
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 
     def set_this_output_dimensions(self, new_output_dimensions):
-        """Set input dimensions for dendrite layer.
+        """Set input dimensions for dendrite module.
 
         Signals to this DendriteModule that its input dimensions are different
         than the global default.
@@ -924,7 +952,7 @@ class PAIDendriteModule(nn.Module):
 
     def create_new_dendrite_module(self, neuron_main_module):
         """Add a new set of dendrites."""
-        # Candidate layer
+        # Candidate module
         self.candidate_module = nn.ModuleList([])
         # Copy that is unused for open source version
         self.best_candidate_module = nn.ModuleList([])
@@ -1018,10 +1046,10 @@ class PAIDendriteModule(nn.Module):
         if GPA.pc.get_verbose():
             print(f"PAI calling set mode {mode} : {self.num_cycles}")
 
-        # When switching back to neuron training mode convert candidates layers into accepted layers
+        # When switching back to neuron training mode convert candidates modules into accepted modules
         if mode == "n":
             if GPA.pc.get_verbose():
-                print("So calling all the things to add to layers")
+                print("So calling all the things to add to modules")
             # Copy weights/bias from correct candidates
             if self.num_dendrites == 1:
                 self.dendrites_to_dendrites = nn.ParameterList()
@@ -1072,7 +1100,7 @@ class PAIDendriteModule(nn.Module):
                 MPB.set_dendrite_parameters(self.layers)
 
     def forward(self, *args, **kwargs):
-        """Forward pass for dendrite layer.
+        """Forward pass for dendrite module.
 
         Parameters
         ----------
@@ -1100,7 +1128,7 @@ class PAIDendriteModule(nn.Module):
 
         outs = {}
 
-        # For all layers apply processors, call the layers, then apply post processors
+        # For all modules apply processors, call the modules, then apply post processors
         args2, kwargs2 = args, kwargs
         for c in range(0, self.num_dendrites):
             if GPA.pc.get_perforated_backpropagation():

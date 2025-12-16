@@ -85,7 +85,24 @@ Similar as above there is a setting that defaults to using what is available.  I
     GPA.pc.set_device('cpu')
     
 Additionally, if you are running on mac or generally using any device that will not be properly set with the call of `device = torch.device("cuda" if use_cuda else "cpu")` you should set your device as `GPA.pc.set_device(your device type)`
-    
+
+    AttributeError: 'DendriteValueTracker' object has no attribute 'device'
+
+This can be caused when after restructuring there is a optimizer.step() before a forward() and backward().  We have seen this automatically happen in the skorch framework.  It can be solved in that situation by passing the first datapoint through:
+
+    # Do a dummy forward+backward pass to populate gradients
+    iterator = net.get_iterator(dataset_train, training=True)
+    Xi, yi = next(iter(iterator))
+    net.optimizer_.zero_grad()
+    y_pred = net.infer(Xi)
+    loss = net.get_loss(y_pred, yi, X=Xi, training=True)
+    loss.backward()
+    print("PAI: Dummy forward/backward completed")
+    net.optimizer_.zero_grad()
+    print("PAI: Model restructured and optimizer reinitialized")
+
+
+
 ## Attribute Error:
     
     AttributeError: 'pb_neuron_layer' object has no attribute 'SOMEVARIABLE'
