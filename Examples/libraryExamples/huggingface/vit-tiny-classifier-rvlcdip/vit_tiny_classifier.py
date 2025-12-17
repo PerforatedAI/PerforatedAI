@@ -15,6 +15,7 @@ import torch
 import argparse
 import random
 import os
+import time
 from tqdm import tqdm
 
 # PAI imports (optional - only used when --use-dendrites is set)
@@ -76,19 +77,82 @@ def example_transform(example, processor):
 
 
 class PreprocessedDataset(Dataset):
-    """PyTorch Dataset for preprocessed data stored as .pt files."""
+    """PyTorch Dataset for preprocessed sharded data."""
 
     def __init__(self, data_dir, split="train"):
         self.data_dir = os.path.join(data_dir, split)
-        self.files = sorted([f for f in os.listdir(self.data_dir) if f.endswith('.pt')])
-        print(f"Found {len(self.files)} preprocessed samples in {self.data_dir}")
+
+        # Load metadata
+        metadata_path = os.path.join(self.data_dir, "metadata.pt")
+        if os.path.exists(metadata_path):
+            self.metadata = torch.load(metadata_path)
+            self.num_samples = self.metadata["num_samples"]
+            self.shard_size = self.metadata["shard_size"]
+            self.compressed = self.metadata.get("compressed", False)
+            self.fp16 = self.metadata.get("fp16", False)
+        else:
+            # Fallback for old format (individual .pt files)
+            self.files = sorted([f for f in os.listdir(self.data_dir) if f.endswith('.pt') and not f.startswith('shard')])
+            self.num_samples = len(self.files)
+            self.shard_size = 1
+            self.compressed = False
+            self.fp16 = False
+            self.metadata = None
+
+        # Cache for loaded shards
+        self.current_shard_idx = -1
+        self.current_shard_data = None
+
+        print(f"Found {self.num_samples} preprocessed samples in {self.data_dir} "
+              f"(sharded={self.metadata is not None}, fp16={self.fp16}, compressed={self.compressed})")
 
     def __len__(self):
-        return len(self.files)
+        return self.num_samples
+
+    def _load_shard(self, shard_idx):
+        """Load a shard file into memory."""
+        if self.metadata is None:
+            # Old format - individual files
+            return None
+
+        shard_path = os.path.join(self.data_dir, f"shard_{shard_idx:05d}.pt")
+
+        if self.compressed:
+            import gzip
+            import pickle
+            with gzip.open(shard_path + ".gz", "rb") as f:
+                data = pickle.load(f)
+        else:
+            data = torch.load(shard_path)
+
+        return data
 
     def __getitem__(self, idx):
-        data = torch.load(os.path.join(self.data_dir, self.files[idx]))
-        return data["pixel_values"], data["label"]
+        if self.metadata is None:
+            # Old format - individual files
+            data = torch.load(os.path.join(self.data_dir, self.files[idx]))
+            pixel_values = data["pixel_values"]
+            if pixel_values.dtype == torch.float16:
+                pixel_values = pixel_values.float()
+            return pixel_values, data["label"]
+
+        # Sharded format
+        shard_idx = idx // self.shard_size
+        local_idx = idx % self.shard_size
+
+        # Load shard if not cached
+        if shard_idx != self.current_shard_idx:
+            self.current_shard_data = self._load_shard(shard_idx)
+            self.current_shard_idx = shard_idx
+
+        pixel_values = self.current_shard_data["pixel_values"][local_idx]
+        label = self.current_shard_data["labels"][local_idx]
+
+        # Convert fp16 back to fp32 for model input
+        if pixel_values.dtype == torch.float16:
+            pixel_values = pixel_values.float()
+
+        return pixel_values, label
 
 
 class GPUPreloadedDataset(Dataset):
@@ -105,8 +169,15 @@ class GPUPreloadedDataset(Dataset):
         return self.pixel_values[idx], self.labels[idx]
 
 
-def preprocess_and_save(dataset_name, processor, output_dir, split="train", max_samples=None):
-    """Preprocess dataset and save as individual .pt files for fast loading."""
+def preprocess_and_save(dataset_name, processor, output_dir, split="train", max_samples=None,
+                        shard_size=5000, use_fp16=True, compress=True):
+    """Preprocess dataset and save as optimized sharded files.
+
+    Args:
+        shard_size: Number of samples per shard file (larger = fewer files, faster loading)
+        use_fp16: Save in half precision (50% smaller, minimal quality loss for images)
+        compress: Use gzip compression (slower to save, faster to load, ~30% smaller)
+    """
     save_dir = os.path.join(output_dir, split)
     os.makedirs(save_dir, exist_ok=True)
 
@@ -114,32 +185,90 @@ def preprocess_and_save(dataset_name, processor, output_dir, split="train", max_
     dataset = load_dataset(dataset_name, split=split, trust_remote_code=True)
 
     num_samples = min(len(dataset), max_samples) if max_samples else len(dataset)
-    print(f"Preprocessing {num_samples} samples...")
+    num_shards = (num_samples + shard_size - 1) // shard_size
+    print(f"Preprocessing {num_samples} samples into {num_shards} shards (fp16={use_fp16}, compress={compress})...")
 
     saved = 0
     failed = 0
+    shard_pixels = []
+    shard_labels = []
+    shard_idx = 0
+    total_bytes = 0
+
     for idx in tqdm(range(num_samples), desc=f"Preprocessing {split}"):
         try:
             example = dataset[idx]
             img = example["image"]
             pixel_values = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0]
-            label = example["label"]
 
-            torch.save({
-                "pixel_values": pixel_values,
-                "label": label
-            }, os.path.join(save_dir, f"{idx:08d}.pt"))
+            # Convert to fp16 to save space
+            if use_fp16:
+                pixel_values = pixel_values.half()
+
+            shard_pixels.append(pixel_values)
+            shard_labels.append(example["label"])
             saved += 1
-        except Exception as e:
+        except Exception:
             failed += 1
             continue
 
-    print(f"Saved {saved} samples to {save_dir} ({failed} failed)")
+        # Save shard when full
+        if len(shard_pixels) >= shard_size:
+            shard_path = os.path.join(save_dir, f"shard_{shard_idx:05d}.pt")
+            shard_data = {
+                "pixel_values": torch.stack(shard_pixels),
+                "labels": torch.tensor(shard_labels, dtype=torch.long),
+                "fp16": use_fp16
+            }
+            if compress:
+                import gzip
+                import pickle
+                with gzip.open(shard_path + ".gz", "wb", compresslevel=1) as f:
+                    pickle.dump(shard_data, f)
+                total_bytes += os.path.getsize(shard_path + ".gz")
+            else:
+                torch.save(shard_data, shard_path)
+                total_bytes += os.path.getsize(shard_path)
+
+            shard_pixels = []
+            shard_labels = []
+            shard_idx += 1
+
+    # Save remaining samples
+    if shard_pixels:
+        shard_path = os.path.join(save_dir, f"shard_{shard_idx:05d}.pt")
+        shard_data = {
+            "pixel_values": torch.stack(shard_pixels),
+            "labels": torch.tensor(shard_labels, dtype=torch.long),
+            "fp16": use_fp16
+        }
+        if compress:
+            import gzip
+            import pickle
+            with gzip.open(shard_path + ".gz", "wb", compresslevel=1) as f:
+                pickle.dump(shard_data, f)
+            total_bytes += os.path.getsize(shard_path + ".gz")
+        else:
+            torch.save(shard_data, shard_path)
+            total_bytes += os.path.getsize(shard_path)
+
+    # Save metadata
+    metadata = {
+        "num_samples": saved,
+        "num_shards": shard_idx + 1,
+        "shard_size": shard_size,
+        "fp16": use_fp16,
+        "compressed": compress
+    }
+    torch.save(metadata, os.path.join(save_dir, "metadata.pt"))
+
+    print(f"Saved {saved} samples in {shard_idx + 1} shards ({failed} failed)")
+    print(f"Total size: {total_bytes / 1e9:.2f} GB ({total_bytes / saved / 1024:.1f} KB/sample)")
     return saved
 
 
-def preprocess_to_single_file(dataset_name, processor, output_dir, split="train", max_samples=None):
-    """Preprocess dataset and save as a single .pt file (faster loading, more RAM)."""
+def preprocess_to_single_file(dataset_name, processor, output_dir, split="train", max_samples=None, use_fp16=True):
+    """Preprocess dataset and save as a single .pt file (for validation set)."""
     os.makedirs(output_dir, exist_ok=True)
     save_path = os.path.join(output_dir, f"{split}.pt")
 
@@ -147,7 +276,7 @@ def preprocess_to_single_file(dataset_name, processor, output_dir, split="train"
     dataset = load_dataset(dataset_name, split=split, trust_remote_code=True)
 
     num_samples = min(len(dataset), max_samples) if max_samples else len(dataset)
-    print(f"Preprocessing {num_samples} samples into single file...")
+    print(f"Preprocessing {num_samples} samples into single file (fp16={use_fp16})...")
 
     all_pixels = []
     all_labels = []
@@ -158,6 +287,8 @@ def preprocess_to_single_file(dataset_name, processor, output_dir, split="train"
             example = dataset[idx]
             img = example["image"]
             pixel_values = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0]
+            if use_fp16:
+                pixel_values = pixel_values.half()
             all_pixels.append(pixel_values)
             all_labels.append(example["label"])
         except Exception:
@@ -170,7 +301,8 @@ def preprocess_to_single_file(dataset_name, processor, output_dir, split="train"
 
     torch.save({
         "pixel_values": pixel_tensor,
-        "labels": label_tensor
+        "labels": label_tensor,
+        "fp16": use_fp16
     }, save_path)
 
     print(f"Saved {len(all_labels)} samples to {save_path} ({failed} failed)")
@@ -186,6 +318,11 @@ def load_preprocessed_single_file(data_dir, split="train", device=None):
 
     pixel_values = data["pixel_values"]
     labels = data["labels"]
+
+    # Convert fp16 back to fp32
+    if pixel_values.dtype == torch.float16:
+        print("Converting fp16 to fp32...")
+        pixel_values = pixel_values.float()
 
     if device is not None and device.type == "cuda":
         print(f"Moving {split} data to GPU...")
@@ -499,6 +636,9 @@ def train(
         batch_num = 0
         model.train()
 
+        # Timing variables
+        last_log_time = time.time()
+
         # Get data iterator based on loading strategy
         if use_dataloader:
             data_iter = train_loader
@@ -545,8 +685,13 @@ def train(
             batch_num += 1
 
             if global_step % 10 == 0:
+                current_time = time.time()
+                elapsed = current_time - last_log_time
+                samples_per_sec = (10 * batch_size) / elapsed if elapsed > 0 else 0
                 current_lr = scheduler.get_last_lr()[0]
-                print(f"  Step {global_step}: batch={batch_num}, loss={loss.item():.4f}, lr={current_lr:.6f}")
+                print(f"  Step {global_step}: batch={batch_num}, loss={loss.item():.4f}, lr={current_lr:.6f}, "
+                      f"time={elapsed:.2f}s, samples/sec={samples_per_sec:.1f}")
+                last_log_time = current_time
 
         avg_loss = total_loss / total if total > 0 else 0.0
         print(f"Epoch {epoch+1} done. Avg loss: {avg_loss:.4f}, samples: {total}")
