@@ -98,8 +98,8 @@ def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None)
             continue
 
         if len(batch_pixels) >= batch_size:
-            pixel_batch = torch.from_numpy(np.stack(batch_pixels)).to(device)
-            label_batch = torch.tensor(batch_labels, dtype=torch.long).to(device)
+            pixel_batch = torch.from_numpy(np.stack(batch_pixels)).pin_memory().to(device, non_blocking=True)
+            label_batch = torch.tensor(batch_labels, dtype=torch.long).pin_memory().to(device, non_blocking=True)
             yield pixel_batch, label_batch
             batch_pixels = []
             batch_labels = []
@@ -109,8 +109,8 @@ def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None)
 
     # Yield remaining samples
     if batch_pixels:
-        pixel_batch = torch.from_numpy(np.stack(batch_pixels)).to(device)
-        label_batch = torch.tensor(batch_labels, dtype=torch.long).to(device)
+        pixel_batch = torch.from_numpy(np.stack(batch_pixels)).pin_memory().to(device, non_blocking=True)
+        label_batch = torch.tensor(batch_labels, dtype=torch.long).pin_memory().to(device, non_blocking=True)
         yield pixel_batch, label_batch
 
     if failed > 0:
