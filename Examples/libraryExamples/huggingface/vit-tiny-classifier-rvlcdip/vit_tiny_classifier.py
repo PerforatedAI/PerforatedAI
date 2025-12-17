@@ -8,10 +8,14 @@ from transformers import (
 from torch.optim import AdamW
 from torch.nn import CrossEntropyLoss
 from torch.nn.utils import clip_grad_norm_
+from torch.utils.data import Dataset, DataLoader
+from torch.cuda.amp import autocast, GradScaler
 import numpy as np
 import torch
 import argparse
 import random
+import os
+from tqdm import tqdm
 
 # PAI imports (optional - only used when --use-dendrites is set)
 GPA = None
@@ -69,6 +73,126 @@ def example_transform(example, processor):
     img = example["image"]
     pixel = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0].cpu().numpy()
     return {"pixel_values": pixel, "label": example["label"]}
+
+
+class PreprocessedDataset(Dataset):
+    """PyTorch Dataset for preprocessed data stored as .pt files."""
+
+    def __init__(self, data_dir, split="train"):
+        self.data_dir = os.path.join(data_dir, split)
+        self.files = sorted([f for f in os.listdir(self.data_dir) if f.endswith('.pt')])
+        print(f"Found {len(self.files)} preprocessed samples in {self.data_dir}")
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        data = torch.load(os.path.join(self.data_dir, self.files[idx]))
+        return data["pixel_values"], data["label"]
+
+
+class GPUPreloadedDataset(Dataset):
+    """Dataset that keeps all data on GPU for maximum speed."""
+
+    def __init__(self, pixel_values, labels):
+        self.pixel_values = pixel_values
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.pixel_values[idx], self.labels[idx]
+
+
+def preprocess_and_save(dataset_name, processor, output_dir, split="train", max_samples=None):
+    """Preprocess dataset and save as individual .pt files for fast loading."""
+    save_dir = os.path.join(output_dir, split)
+    os.makedirs(save_dir, exist_ok=True)
+
+    print(f"Loading {split} dataset...")
+    dataset = load_dataset(dataset_name, split=split, trust_remote_code=True)
+
+    num_samples = min(len(dataset), max_samples) if max_samples else len(dataset)
+    print(f"Preprocessing {num_samples} samples...")
+
+    saved = 0
+    failed = 0
+    for idx in tqdm(range(num_samples), desc=f"Preprocessing {split}"):
+        try:
+            example = dataset[idx]
+            img = example["image"]
+            pixel_values = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0]
+            label = example["label"]
+
+            torch.save({
+                "pixel_values": pixel_values,
+                "label": label
+            }, os.path.join(save_dir, f"{idx:08d}.pt"))
+            saved += 1
+        except Exception as e:
+            failed += 1
+            continue
+
+    print(f"Saved {saved} samples to {save_dir} ({failed} failed)")
+    return saved
+
+
+def preprocess_to_single_file(dataset_name, processor, output_dir, split="train", max_samples=None):
+    """Preprocess dataset and save as a single .pt file (faster loading, more RAM)."""
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.join(output_dir, f"{split}.pt")
+
+    print(f"Loading {split} dataset...")
+    dataset = load_dataset(dataset_name, split=split, trust_remote_code=True)
+
+    num_samples = min(len(dataset), max_samples) if max_samples else len(dataset)
+    print(f"Preprocessing {num_samples} samples into single file...")
+
+    all_pixels = []
+    all_labels = []
+    failed = 0
+
+    for idx in tqdm(range(num_samples), desc=f"Preprocessing {split}"):
+        try:
+            example = dataset[idx]
+            img = example["image"]
+            pixel_values = processor(img.convert("RGB"), return_tensors="pt")["pixel_values"][0]
+            all_pixels.append(pixel_values)
+            all_labels.append(example["label"])
+        except Exception:
+            failed += 1
+            continue
+
+    # Stack into tensors
+    pixel_tensor = torch.stack(all_pixels)
+    label_tensor = torch.tensor(all_labels, dtype=torch.long)
+
+    torch.save({
+        "pixel_values": pixel_tensor,
+        "labels": label_tensor
+    }, save_path)
+
+    print(f"Saved {len(all_labels)} samples to {save_path} ({failed} failed)")
+    print(f"File size: {os.path.getsize(save_path) / 1e9:.2f} GB")
+    return len(all_labels)
+
+
+def load_preprocessed_single_file(data_dir, split="train", device=None):
+    """Load preprocessed data from single .pt file, optionally to GPU."""
+    load_path = os.path.join(data_dir, f"{split}.pt")
+    print(f"Loading preprocessed data from {load_path}...")
+    data = torch.load(load_path)
+
+    pixel_values = data["pixel_values"]
+    labels = data["labels"]
+
+    if device is not None and device.type == "cuda":
+        print(f"Moving {split} data to GPU...")
+        pixel_values = pixel_values.to(device)
+        labels = labels.to(device)
+
+    return GPUPreloadedDataset(pixel_values, labels)
 
 
 def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None):
@@ -190,6 +314,38 @@ def evaluate(model, test_dataset, batch_size, device, processor, max_samples=Non
     return accuracy
 
 
+def evaluate_dataloader(model, dataloader, device, use_fp16=True, data_on_gpu=False):
+    """Evaluate the model using a DataLoader (faster than batch_iterator)."""
+    correct = 0
+    total = 0
+    batch_num = 0
+    model.eval()
+
+    with torch.no_grad():
+        for pixel_batch, label_batch in dataloader:
+            if not data_on_gpu:
+                pixel_batch = pixel_batch.to(device, non_blocking=True)
+                label_batch = label_batch.to(device, non_blocking=True)
+
+            if use_fp16 and device.type == "cuda":
+                with autocast():
+                    outputs = model(pixel_batch)
+            else:
+                outputs = model(pixel_batch)
+
+            preds = outputs.logits.argmax(-1)
+            correct += int((preds == label_batch).sum().item())
+            total += label_batch.size(0)
+            batch_num += 1
+
+            if batch_num % 10 == 0:
+                print(f"Eval batch {batch_num}: samples={total}, accuracy={correct/total*100:.2f}%")
+
+    accuracy = (correct / total) if total > 0 else 0.0
+    print(f"Test Accuracy: {accuracy * 100:.2f}% on {total} samples")
+    return accuracy
+
+
 def configure_pai_dimensions(model):
     """Configure PAI input/output dimensions for ViT layers."""
     # Patch embeddings projection: input is [batch, channels, height, width]
@@ -209,9 +365,19 @@ def configure_pai_dimensions(model):
         pass
 
     # Encoder layers: output is [batch, seq_len, hidden_dim]
-    # Set output dimensions for all encoder dense layers
+    # Set output dimensions for all encoder layers
     try:
-        for i, layer in enumerate(model.vit.encoder.layer):
+        for layer in model.vit.encoder.layer:
+            # Attention query/key/value projections
+            if hasattr(layer.attention.attention, "query"):
+                if hasattr(layer.attention.attention.query, "set_this_output_dimensions"):
+                    layer.attention.attention.query.set_this_output_dimensions([-1, -1, 0])
+            if hasattr(layer.attention.attention, "key"):
+                if hasattr(layer.attention.attention.key, "set_this_output_dimensions"):
+                    layer.attention.attention.key.set_this_output_dimensions([-1, -1, 0])
+            if hasattr(layer.attention.attention, "value"):
+                if hasattr(layer.attention.attention.value, "set_this_output_dimensions"):
+                    layer.attention.attention.value.set_this_output_dimensions([-1, -1, 0])
             # Attention output dense
             if hasattr(layer.attention.output.dense, "set_this_output_dimensions"):
                 layer.attention.output.dense.set_this_output_dimensions([-1, -1, 0])
@@ -239,12 +405,61 @@ def train(
     use_dendrites=False,
     save_name="vit_rvlcdip",
     streaming=False,
+    preprocessed_dir=None,
+    num_workers=4,
+    use_fp16=True,
+    preload_val_gpu=False,
 ):
-    """Train the model, optionally with PAI dendrites."""
+    """Train the model, optionally with PAI dendrites.
+
+    Args:
+        preprocessed_dir: If set, load preprocessed data from this directory
+        num_workers: Number of DataLoader workers for parallel loading
+        use_fp16: Use mixed precision training (recommended for GPU)
+        preload_val_gpu: Load validation set entirely to GPU
+    """
     criterion = CrossEntropyLoss()
 
-    # Load datasets once if not streaming
-    if not streaming:
+    # Setup mixed precision
+    scaler = GradScaler() if use_fp16 and device.type == "cuda" else None
+    if scaler:
+        print("Using mixed precision (fp16) training")
+
+    # Determine data loading strategy
+    use_dataloader = preprocessed_dir is not None
+    train_loader = None
+    val_loader = None
+    val_gpu_dataset = None
+
+    if use_dataloader:
+        # Load from preprocessed files using DataLoader
+        print(f"Loading preprocessed data from {preprocessed_dir}")
+        train_dataset = PreprocessedDataset(preprocessed_dir, split="train")
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            persistent_workers=num_workers > 0,
+            prefetch_factor=2 if num_workers > 0 else None,
+        )
+        steps_per_epoch = len(train_loader)
+
+        # Validation: preload to GPU if requested and fits
+        if preload_val_gpu and device.type == "cuda":
+            val_gpu_dataset = load_preprocessed_single_file(preprocessed_dir, split="test", device=device)
+            val_loader = DataLoader(val_gpu_dataset, batch_size=batch_size, shuffle=False)
+        else:
+            val_dataset = PreprocessedDataset(preprocessed_dir, split="test")
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True,
+            )
+    elif not streaming:
         print("Loading full train dataset (this may take a while on first run)...")
         train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
         print("Loading full validation dataset...")
@@ -284,21 +499,43 @@ def train(
         batch_num = 0
         model.train()
 
-        # Reload dataset for streaming (exhausted after one pass), reuse for non-streaming
-        if streaming:
+        # Get data iterator based on loading strategy
+        if use_dataloader:
+            data_iter = train_loader
+        elif streaming:
             epoch_train_dataset = load_dataset(dataset_name, split="train", streaming=True, trust_remote_code=True)
+            data_iter = batch_iterator(epoch_train_dataset, batch_size, device, processor, max_samples)
         else:
-            epoch_train_dataset = train_dataset
+            data_iter = batch_iterator(train_dataset, batch_size, device, processor, max_samples)
 
-        for pixel_batch, label_batch in batch_iterator(epoch_train_dataset, batch_size, device, processor, max_samples):
+        for batch_data in data_iter:
+            if use_dataloader:
+                pixel_batch, label_batch = batch_data
+                if device.type == "cuda" and not preload_val_gpu:
+                    pixel_batch = pixel_batch.to(device, non_blocking=True)
+                    label_batch = label_batch.to(device, non_blocking=True)
+            else:
+                pixel_batch, label_batch = batch_data
+
             optimizer.zero_grad()
-            outputs = model(pixel_batch)
-            loss = criterion(outputs.logits, label_batch)
-            loss.backward()
 
-            clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # Mixed precision forward pass
+            if scaler:
+                with autocast():
+                    outputs = model(pixel_batch)
+                    loss = criterion(outputs.logits, label_batch)
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.parameters(), max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                outputs = model(pixel_batch)
+                loss = criterion(outputs.logits, label_batch)
+                loss.backward()
+                clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
 
-            optimizer.step()
             scheduler.step()
             global_step += 1
 
@@ -316,11 +553,13 @@ def train(
 
         # Validation after each epoch
         print(f"Running validation after epoch {epoch+1}...")
-        if streaming:
+        if use_dataloader:
+            accuracy = evaluate_dataloader(model, val_loader, device, use_fp16, preload_val_gpu or val_gpu_dataset is not None)
+        elif streaming:
             epoch_val_dataset = load_dataset(dataset_name, split="test", streaming=True, trust_remote_code=True)
+            accuracy = evaluate(model, epoch_val_dataset, batch_size, device, processor, max_samples)
         else:
-            epoch_val_dataset = val_dataset
-        accuracy = evaluate(model, epoch_val_dataset, batch_size, device, processor, max_samples)
+            accuracy = evaluate(model, val_dataset, batch_size, device, processor, max_samples)
 
         # PAI: Record validation score
         if use_dendrites and GPA is not None:
@@ -350,10 +589,10 @@ def train(
 def main():
     """Parse arguments and run training/evaluation."""
     parser = argparse.ArgumentParser(description="ViT tiny classifier on RVL-CDIP dataset")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size")
+    parser.add_argument("--batch-size", type=int, default=64, help="Batch size (use 256+ for A100)")
     parser.add_argument("--max-samples", type=int, default=None, help="Limit samples (for testing)")
     parser.add_argument("--dataset", type=str, default="aharley/rvl_cdip", help="HF dataset identifier")
-    parser.add_argument("--streaming", action="store_true", help="Stream dataset")
+    parser.add_argument("--streaming", action="store_true", help="Stream dataset (slow, use --preprocess instead)")
     parser.add_argument("--train", action="store_true", help="Run training")
     parser.add_argument("--eval", action="store_true", help="Run evaluation")
     parser.add_argument("--training-epochs", type=int, default=3, help="Number of epochs")
@@ -365,16 +604,41 @@ def main():
     parser.add_argument("--save-name", type=str, default="vit_rvlcdip", help="Save name for PAI outputs")
     # Reproducibility
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+
+    # Performance options
+    parser.add_argument("--preprocess", action="store_true", help="Preprocess dataset and save to disk")
+    parser.add_argument("--preprocess-dir", type=str, default="./preprocessed_data", help="Directory for preprocessed data")
+    parser.add_argument("--num-workers", type=int, default=4, help="DataLoader workers (0 for main process)")
+    parser.add_argument("--fp16", action="store_true", default=True, help="Use mixed precision training")
+    parser.add_argument("--no-fp16", action="store_true", help="Disable mixed precision training")
+    parser.add_argument("--preload-val-gpu", action="store_true", help="Preload validation set to GPU")
+
     args = parser.parse_args()
+
+    # Handle fp16 flag
+    use_fp16 = args.fp16 and not args.no_fp16
 
     # Set seed for reproducibility
     set_seed(args.seed)
 
     print("Loading processor and model...")
     processor = load_processor()
-    model = load_model()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    if device.type == "cuda":
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+
+    # Preprocessing mode: preprocess dataset and exit
+    if args.preprocess:
+        print(f"Preprocessing dataset to {args.preprocess_dir}...")
+        preprocess_and_save(args.dataset, processor, args.preprocess_dir, split="train", max_samples=args.max_samples)
+        preprocess_to_single_file(args.dataset, processor, args.preprocess_dir, split="test", max_samples=args.max_samples)
+        print("Preprocessing complete! Run training with --preprocess-dir to use preprocessed data.")
+        return
+
+    model = load_model()
 
     # Initialize PAI if dendrites are enabled
     if args.use_dendrites:
@@ -393,8 +657,19 @@ def main():
 
     model.to(device)
 
+    # Check if preprocessed data exists
+    preprocessed_dir = None
+    if os.path.exists(args.preprocess_dir) and os.path.exists(os.path.join(args.preprocess_dir, "train")):
+        preprocessed_dir = args.preprocess_dir
+        print(f"Using preprocessed data from {preprocessed_dir}")
+
     if args.train:
         print(f"Starting training on '{args.dataset}'...")
+        if preprocessed_dir:
+            print(f"  Using DataLoader with {args.num_workers} workers")
+            print(f"  Mixed precision (fp16): {use_fp16}")
+            print(f"  Batch size: {args.batch_size}")
+
         model = train(
             model,
             args.batch_size,
@@ -409,13 +684,22 @@ def main():
             use_dendrites=args.use_dendrites,
             save_name=args.save_name,
             streaming=args.streaming,
+            preprocessed_dir=preprocessed_dir,
+            num_workers=args.num_workers,
+            use_fp16=use_fp16,
+            preload_val_gpu=args.preload_val_gpu,
         )
 
     if args.eval and not args.train:
         # Standalone eval (training already includes validation)
         print(f"Loading test dataset '{args.dataset}'...")
-        test_dataset = load_dataset(args.dataset, split="test", streaming=args.streaming, trust_remote_code=True)
-        evaluate(model, test_dataset, args.batch_size, device, processor, max_samples=args.max_samples)
+        if preprocessed_dir:
+            val_dataset = PreprocessedDataset(preprocessed_dir, split="test")
+            val_loader = DataLoader(val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=True)
+            evaluate_dataloader(model, val_loader, device, use_fp16)
+        else:
+            test_dataset = load_dataset(args.dataset, split="test", streaming=args.streaming, trust_remote_code=True)
+            evaluate(model, test_dataset, args.batch_size, device, processor, max_samples=args.max_samples)
 
 
 if __name__ == "__main__":
