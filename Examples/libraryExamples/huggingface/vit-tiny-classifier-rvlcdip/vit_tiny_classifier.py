@@ -135,7 +135,8 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
                 yield pixel_values, data["label"]
         else:
             # Sharded format with prefetching
-            prefetch_queue = Queue(maxsize=2)  # Prefetch up to 2 shards ahead
+            # Prefetch 4 shards ahead to hide gzip decompression latency (~7s per shard)
+            prefetch_queue = Queue(maxsize=4)
 
             def prefetch_worker():
                 """Background thread to load shards."""
