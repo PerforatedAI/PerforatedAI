@@ -76,8 +76,8 @@ def example_transform(example, processor):
     return {"pixel_values": pixel, "label": example["label"]}
 
 
-class PreprocessedDataset(Dataset):
-    """PyTorch Dataset for preprocessed sharded data."""
+class PreprocessedDataset(torch.utils.data.IterableDataset):
+    """PyTorch IterableDataset for preprocessed sharded data. Loads one shard at a time for memory efficiency."""
 
     def __init__(self, data_dir, split="train"):
         self.data_dir = os.path.join(data_dir, split)
@@ -88,33 +88,27 @@ class PreprocessedDataset(Dataset):
             self.metadata = torch.load(metadata_path)
             self.num_samples = self.metadata["num_samples"]
             self.shard_size = self.metadata["shard_size"]
+            self.num_shards = self.metadata["num_shards"]
             self.compressed = self.metadata.get("compressed", False)
             self.fp16 = self.metadata.get("fp16", False)
         else:
             # Fallback for old format (individual .pt files)
-            self.files = sorted([f for f in os.listdir(self.data_dir) if f.endswith('.pt') and not f.startswith('shard')])
+            self.files = sorted([f for f in os.listdir(self.data_dir) if f.endswith('.pt') and not f.startswith('shard') and f != 'metadata.pt'])
             self.num_samples = len(self.files)
             self.shard_size = 1
+            self.num_shards = self.num_samples
             self.compressed = False
             self.fp16 = False
             self.metadata = None
 
-        # Cache for loaded shards
-        self.current_shard_idx = -1
-        self.current_shard_data = None
-
         print(f"Found {self.num_samples} preprocessed samples in {self.data_dir} "
-              f"(sharded={self.metadata is not None}, fp16={self.fp16}, compressed={self.compressed})")
+              f"(shards={self.num_shards}, fp16={self.fp16}, compressed={self.compressed})")
 
     def __len__(self):
         return self.num_samples
 
     def _load_shard(self, shard_idx):
         """Load a shard file into memory."""
-        if self.metadata is None:
-            # Old format - individual files
-            return None
-
         shard_path = os.path.join(self.data_dir, f"shard_{shard_idx:05d}.pt")
 
         if self.compressed:
@@ -127,32 +121,29 @@ class PreprocessedDataset(Dataset):
 
         return data
 
-    def __getitem__(self, idx):
+    def __iter__(self):
         if self.metadata is None:
             # Old format - individual files
-            data = torch.load(os.path.join(self.data_dir, self.files[idx]))
-            pixel_values = data["pixel_values"]
-            if pixel_values.dtype == torch.float16:
-                pixel_values = pixel_values.float()
-            return pixel_values, data["label"]
+            for f in self.files:
+                data = torch.load(os.path.join(self.data_dir, f))
+                pixel_values = data["pixel_values"]
+                if pixel_values.dtype == torch.float16:
+                    pixel_values = pixel_values.float()
+                yield pixel_values, data["label"]
+        else:
+            # Sharded format - load one shard at a time
+            for shard_idx in range(self.num_shards):
+                shard_data = self._load_shard(shard_idx)
+                pixel_values = shard_data["pixel_values"]
+                labels = shard_data["labels"]
 
-        # Sharded format
-        shard_idx = idx // self.shard_size
-        local_idx = idx % self.shard_size
+                # Convert fp16 to fp32
+                if pixel_values.dtype == torch.float16:
+                    pixel_values = pixel_values.float()
 
-        # Load shard if not cached
-        if shard_idx != self.current_shard_idx:
-            self.current_shard_data = self._load_shard(shard_idx)
-            self.current_shard_idx = shard_idx
-
-        pixel_values = self.current_shard_data["pixel_values"][local_idx]
-        label = self.current_shard_data["labels"][local_idx]
-
-        # Convert fp16 back to fp32 for model input
-        if pixel_values.dtype == torch.float16:
-            pixel_values = pixel_values.float()
-
-        return pixel_values, label
+                # Yield each sample from the shard
+                for i in range(len(labels)):
+                    yield pixel_values[i], labels[i]
 
 
 class GPUPreloadedDataset(Dataset):
@@ -572,16 +563,14 @@ def train(
         # Load from preprocessed files using DataLoader
         print(f"Loading preprocessed data from {preprocessed_dir}")
         train_dataset = PreprocessedDataset(preprocessed_dir, split="train")
+        # IterableDataset doesn't support shuffle - data is read sequentially by shard
         train_loader = DataLoader(
             train_dataset,
             batch_size=batch_size,
-            shuffle=True,
-            num_workers=num_workers,
+            num_workers=0,  # IterableDataset works best with 0 workers for sharded data
             pin_memory=True,
-            persistent_workers=num_workers > 0,
-            prefetch_factor=2 if num_workers > 0 else None,
         )
-        steps_per_epoch = len(train_loader)
+        steps_per_epoch = (len(train_dataset) + batch_size - 1) // batch_size
 
         # Validation: check if test.pt exists (single file) or test/ directory (sharded)
         test_single_file = os.path.join(preprocessed_dir, "test.pt")
@@ -600,8 +589,7 @@ def train(
             val_loader = DataLoader(
                 val_dataset,
                 batch_size=batch_size,
-                shuffle=False,
-                num_workers=num_workers,
+                num_workers=0,
                 pin_memory=True,
             )
         else:
