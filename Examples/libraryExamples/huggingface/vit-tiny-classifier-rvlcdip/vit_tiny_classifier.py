@@ -77,7 +77,7 @@ def example_transform(example, processor):
 
 
 class PreprocessedDataset(torch.utils.data.IterableDataset):
-    """PyTorch IterableDataset for preprocessed sharded data. Loads one shard at a time for memory efficiency."""
+    """PyTorch IterableDataset for preprocessed sharded data. Loads one shard at a time with prefetching."""
 
     def __init__(self, data_dir, split="train"):
         self.data_dir = os.path.join(data_dir, split)
@@ -122,6 +122,9 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
         return data
 
     def __iter__(self):
+        import threading
+        from queue import Queue
+
         if self.metadata is None:
             # Old format - individual files
             for f in self.files:
@@ -131,9 +134,26 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
                     pixel_values = pixel_values.float()
                 yield pixel_values, data["label"]
         else:
-            # Sharded format - load one shard at a time
-            for shard_idx in range(self.num_shards):
-                shard_data = self._load_shard(shard_idx)
+            # Sharded format with prefetching
+            prefetch_queue = Queue(maxsize=2)  # Prefetch up to 2 shards ahead
+
+            def prefetch_worker():
+                """Background thread to load shards."""
+                for shard_idx in range(self.num_shards):
+                    shard_data = self._load_shard(shard_idx)
+                    prefetch_queue.put(shard_data)
+                prefetch_queue.put(None)  # Signal end
+
+            # Start prefetch thread
+            prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
+            prefetch_thread.start()
+
+            # Consume shards from queue
+            while True:
+                shard_data = prefetch_queue.get()
+                if shard_data is None:
+                    break
+
                 pixel_values = shard_data["pixel_values"]
                 labels = shard_data["labels"]
 
@@ -144,6 +164,8 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
                 # Yield each sample from the shard
                 for i in range(len(labels)):
                     yield pixel_values[i], labels[i]
+
+            prefetch_thread.join()
 
 
 class GPUPreloadedDataset(Dataset):
