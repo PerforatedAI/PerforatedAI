@@ -122,8 +122,7 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
         return data
 
     def __iter__(self):
-        import threading
-        from queue import Queue
+        from multiprocessing import Process, Queue as MPQueue
 
         if self.metadata is None:
             # Old format - individual files
@@ -134,20 +133,30 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
                     pixel_values = pixel_values.float()
                 yield pixel_values, data["label"]
         else:
-            # Sharded format with prefetching
-            # Prefetch 4 shards ahead to hide gzip decompression latency (~7s per shard)
-            prefetch_queue = Queue(maxsize=4)
+            # Sharded format with multiprocessing prefetch (bypasses GIL)
+            prefetch_queue = MPQueue(maxsize=2)
 
-            def prefetch_worker():
-                """Background thread to load shards."""
-                for shard_idx in range(self.num_shards):
-                    shard_data = self._load_shard(shard_idx)
-                    prefetch_queue.put(shard_data)
-                prefetch_queue.put(None)  # Signal end
+            def prefetch_worker(data_dir, num_shards, compressed, queue):
+                """Separate process to load and decompress shards."""
+                import gzip
+                import pickle
+                for shard_idx in range(num_shards):
+                    shard_path = os.path.join(data_dir, f"shard_{shard_idx:05d}.pt")
+                    if compressed:
+                        with gzip.open(shard_path + ".gz", "rb") as f:
+                            shard_data = pickle.load(f)
+                    else:
+                        shard_data = torch.load(shard_path)
+                    queue.put(shard_data)
+                queue.put(None)  # Signal end
 
-            # Start prefetch thread
-            prefetch_thread = threading.Thread(target=prefetch_worker, daemon=True)
-            prefetch_thread.start()
+            # Start prefetch process
+            prefetch_proc = Process(
+                target=prefetch_worker,
+                args=(self.data_dir, self.num_shards, self.compressed, prefetch_queue),
+                daemon=True
+            )
+            prefetch_proc.start()
 
             # Consume shards from queue
             while True:
@@ -166,7 +175,7 @@ class PreprocessedDataset(torch.utils.data.IterableDataset):
                 for i in range(len(labels)):
                     yield pixel_values[i], labels[i]
 
-            prefetch_thread.join()
+            prefetch_proc.join()
 
 
 class GPUPreloadedDataset(Dataset):
