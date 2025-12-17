@@ -207,16 +207,28 @@ def train(
     dataset_name="aharley/rvl_cdip",
     use_dendrites=False,
     save_name="vit_rvlcdip",
+    streaming=False,
 ):
     """Train the model, optionally with PAI dendrites."""
     criterion = CrossEntropyLoss()
 
-    # Estimate steps per epoch
-    if max_samples is not None:
-        steps_per_epoch = (max_samples + batch_size - 1) // batch_size
+    # Load datasets once if not streaming
+    if not streaming:
+        print("Loading full train dataset (this may take a while on first run)...")
+        train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
+        print("Loading full validation dataset...")
+        val_dataset = load_dataset(dataset_name, split="test", trust_remote_code=True)
+        dataset_size = min(len(train_dataset), max_samples) if max_samples else len(train_dataset)
+        steps_per_epoch = (dataset_size + batch_size - 1) // batch_size
     else:
-        steps_per_epoch = 1000 // batch_size
-        print(f"Using approximate steps_per_epoch={steps_per_epoch}")
+        train_dataset = None
+        val_dataset = None
+        # Estimate steps per epoch for streaming
+        if max_samples is not None:
+            steps_per_epoch = (max_samples + batch_size - 1) // batch_size
+        else:
+            steps_per_epoch = 1000 // batch_size
+            print(f"Using approximate steps_per_epoch={steps_per_epoch}")
 
     optimizer, scheduler = create_optimizer_and_scheduler(
         model=model,
@@ -241,10 +253,13 @@ def train(
         batch_num = 0
         model.train()
 
-        # Reload dataset for streaming (exhausted after one pass)
-        train_dataset = load_dataset(dataset_name, split="train", streaming=True, trust_remote_code=True)
+        # Reload dataset for streaming (exhausted after one pass), reuse for non-streaming
+        if streaming:
+            epoch_train_dataset = load_dataset(dataset_name, split="train", streaming=True, trust_remote_code=True)
+        else:
+            epoch_train_dataset = train_dataset
 
-        for pixel_batch, label_batch in batch_iterator(train_dataset, batch_size, device, processor, max_samples):
+        for pixel_batch, label_batch in batch_iterator(epoch_train_dataset, batch_size, device, processor, max_samples):
             optimizer.zero_grad()
             outputs = model(pixel_batch)
             loss = criterion(outputs.logits, label_batch)
@@ -270,8 +285,11 @@ def train(
 
         # Validation after each epoch
         print(f"Running validation after epoch {epoch+1}...")
-        val_dataset = load_dataset(dataset_name, split="test", streaming=True, trust_remote_code=True)
-        accuracy = evaluate(model, val_dataset, batch_size, device, processor, max_samples)
+        if streaming:
+            epoch_val_dataset = load_dataset(dataset_name, split="test", streaming=True, trust_remote_code=True)
+        else:
+            epoch_val_dataset = val_dataset
+        accuracy = evaluate(model, epoch_val_dataset, batch_size, device, processor, max_samples)
 
         # PAI: Record validation score
         if use_dendrites and GPA is not None:
@@ -358,6 +376,7 @@ def main():
             dataset_name=args.dataset,
             use_dendrites=args.use_dendrites,
             save_name=args.save_name,
+            streaming=args.streaming,
         )
 
     if args.eval and not args.train:
