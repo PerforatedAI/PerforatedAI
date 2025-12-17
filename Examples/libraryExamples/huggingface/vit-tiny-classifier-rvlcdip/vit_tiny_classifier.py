@@ -98,8 +98,15 @@ def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None)
             continue
 
         if len(batch_pixels) >= batch_size:
-            pixel_batch = torch.from_numpy(np.stack(batch_pixels)).pin_memory().to(device, non_blocking=True)
-            label_batch = torch.tensor(batch_labels, dtype=torch.long).pin_memory().to(device, non_blocking=True)
+            pixel_batch = torch.from_numpy(np.stack(batch_pixels))
+            label_batch = torch.tensor(batch_labels, dtype=torch.long)
+            # Use pinned memory for faster GPU transfer (only works with CUDA)
+            if device.type == "cuda":
+                pixel_batch = pixel_batch.pin_memory().to(device, non_blocking=True)
+                label_batch = label_batch.pin_memory().to(device, non_blocking=True)
+            else:
+                pixel_batch = pixel_batch.to(device)
+                label_batch = label_batch.to(device)
             yield pixel_batch, label_batch
             batch_pixels = []
             batch_labels = []
@@ -109,8 +116,14 @@ def batch_iterator(iterable_ds, batch_size, device, processor, max_samples=None)
 
     # Yield remaining samples
     if batch_pixels:
-        pixel_batch = torch.from_numpy(np.stack(batch_pixels)).pin_memory().to(device, non_blocking=True)
-        label_batch = torch.tensor(batch_labels, dtype=torch.long).pin_memory().to(device, non_blocking=True)
+        pixel_batch = torch.from_numpy(np.stack(batch_pixels))
+        label_batch = torch.tensor(batch_labels, dtype=torch.long)
+        if device.type == "cuda":
+            pixel_batch = pixel_batch.pin_memory().to(device, non_blocking=True)
+            label_batch = label_batch.pin_memory().to(device, non_blocking=True)
+        else:
+            pixel_batch = pixel_batch.to(device)
+            label_batch = label_batch.to(device)
         yield pixel_batch, label_batch
 
     if failed > 0:
@@ -178,7 +191,8 @@ def evaluate(model, test_dataset, batch_size, device, processor, max_samples=Non
 
 
 def configure_pai_dimensions(model):
-    """Configure PAI input dimensions for ViT layers."""
+    """Configure PAI input/output dimensions for ViT layers."""
+    # Patch embeddings projection: input is [batch, channels, height, width]
     try:
         patch_proj = model.vit.embeddings.patch_embeddings.projection
         if hasattr(patch_proj, "set_this_input_dimensions"):
@@ -186,10 +200,27 @@ def configure_pai_dimensions(model):
     except AttributeError:
         pass
 
+    # Classifier: input is [batch, hidden_dim]
     try:
         clf = model.classifier
         if hasattr(clf, "set_this_input_dimensions"):
             clf.set_this_input_dimensions([-1, 0])
+    except AttributeError:
+        pass
+
+    # Encoder layers: output is [batch, seq_len, hidden_dim]
+    # Set output dimensions for all encoder dense layers
+    try:
+        for i, layer in enumerate(model.vit.encoder.layer):
+            # Attention output dense
+            if hasattr(layer.attention.output.dense, "set_this_output_dimensions"):
+                layer.attention.output.dense.set_this_output_dimensions([-1, -1, 0])
+            # MLP intermediate dense
+            if hasattr(layer.intermediate.dense, "set_this_output_dimensions"):
+                layer.intermediate.dense.set_this_output_dimensions([-1, -1, 0])
+            # MLP output dense
+            if hasattr(layer.output.dense, "set_this_output_dimensions"):
+                layer.output.dense.set_this_output_dimensions([-1, -1, 0])
     except AttributeError:
         pass
 
@@ -350,6 +381,7 @@ def main():
         print("Initializing PerforatedAI...")
         init_pai()
         GPA.pc.set_input_dimensions([-1, -1, 0])
+        GPA.pc.set_testing_dendrite_capacity(False)
         model = UPA.initialize_pai(
             model,
             doing_pai=True,
