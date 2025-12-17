@@ -583,11 +583,19 @@ def train(
         )
         steps_per_epoch = len(train_loader)
 
-        # Validation: preload to GPU if requested and fits
+        # Validation: check if test.pt exists (single file) or test/ directory (sharded)
+        test_single_file = os.path.join(preprocessed_dir, "test.pt")
+        test_dir = os.path.join(preprocessed_dir, "test")
+
         if preload_val_gpu and device.type == "cuda":
             val_gpu_dataset = load_preprocessed_single_file(preprocessed_dir, split="test", device=device)
             val_loader = DataLoader(val_gpu_dataset, batch_size=batch_size, shuffle=False)
-        else:
+        elif os.path.exists(test_single_file):
+            # Load from single file
+            val_gpu_dataset = load_preprocessed_single_file(preprocessed_dir, split="test", device=None)
+            val_loader = DataLoader(val_gpu_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+        elif os.path.exists(test_dir):
+            # Load from sharded directory
             val_dataset = PreprocessedDataset(preprocessed_dir, split="test")
             val_loader = DataLoader(
                 val_dataset,
@@ -596,6 +604,8 @@ def train(
                 num_workers=num_workers,
                 pin_memory=True,
             )
+        else:
+            raise FileNotFoundError(f"No preprocessed test data found at {test_single_file} or {test_dir}")
     elif not streaming:
         print("Loading full train dataset (this may take a while on first run)...")
         train_dataset = load_dataset(dataset_name, split="train", trust_remote_code=True)
