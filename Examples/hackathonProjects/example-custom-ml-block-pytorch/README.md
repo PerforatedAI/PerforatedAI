@@ -22,4 +22,4 @@ This repository replaces the PyTorch script from the example PyTorch block with 
 
 The image below is one selected output graph from a training run. Although the high oscillations cause difficulty in seeing improvements from dendrites 1 and 2, dendrites 3 and 4 show clear improvements above the previous architectures.
 
-<img src="./../../../Dendritic NN Impulse Block Training.png" alt="Example training output graph." width="300" height="200">
+<img src="./Dendritic NN Impulse Block Training.png" alt="Example training output graph." width="300" height="200">
