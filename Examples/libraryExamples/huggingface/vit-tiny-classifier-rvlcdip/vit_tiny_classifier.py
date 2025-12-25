@@ -243,32 +243,47 @@ def preprocess_and_cache(dataset_name, split, processor, cache_dir, max_samples=
     samples_seen = 0
     failed = 0
 
-    # Stream and process batches
-    for batch in tqdm(batched_dataset, desc=f"Caching {split}"):
-        if max_samples and samples_seen >= max_samples:
-            break
-
-        images = batch["image"]
-        labels = batch["label"]
-
-        rgb_images = []
-        valid_labels = []
-        for idx, (img, label) in enumerate(zip(images, labels)):
-            if max_samples and samples_seen + len(valid_labels) >= max_samples:
+    # Stream and process batches - use manual iteration to catch decoding errors
+    batch_iter = iter(batched_dataset)
+    with tqdm(desc=f"Caching {split}") as pbar:
+        while True:
+            if max_samples and samples_seen >= max_samples:
                 break
+            
+            # Catch HuggingFace decoding errors at iteration level
             try:
-                rgb_images.append(img.convert("RGB"))
-                valid_labels.append(label)
+                batch = next(batch_iter)
+            except StopIteration:
+                break
             except Exception as e:
-                print(f"Skipping corrupt image (sample {samples_seen + idx}): {type(e).__name__}: {e}")
+                print(f"\nSkipping corrupt batch: {type(e).__name__}")
                 failed += 1
+                pbar.update(1)
                 continue
 
-        if rgb_images:
-            pixel_values = processor(rgb_images, return_tensors="pt")["pixel_values"]
-            all_pixels.append(pixel_values)
-            all_labels.extend(valid_labels)
-            samples_seen += len(valid_labels)
+            images = batch["image"]
+            labels = batch["label"]
+
+            rgb_images = []
+            valid_labels = []
+            for idx, (img, label) in enumerate(zip(images, labels)):
+                if max_samples and samples_seen + len(valid_labels) >= max_samples:
+                    break
+                try:
+                    rgb_images.append(img.convert("RGB"))
+                    valid_labels.append(label)
+                except Exception as e:
+                    print(f"\nSkipping corrupt image (sample {samples_seen + idx}): {type(e).__name__}: {e}")
+                    failed += 1
+                    continue
+
+            if rgb_images:
+                pixel_values = processor(rgb_images, return_tensors="pt")["pixel_values"]
+                all_pixels.append(pixel_values)
+                all_labels.extend(valid_labels)
+                samples_seen += len(valid_labels)
+                pbar.update(1)
+                pbar.set_postfix({"samples": samples_seen, "failed": failed})
 
     # Concatenate all batches
     pixel_tensor = torch.cat(all_pixels, dim=0)
@@ -447,11 +462,11 @@ def train(
 
     global_step = 0
 
-    for epoch in range(epochs):
+    for epoch in range(100000000):  # Run indefinitely until PAI stops training
         if use_dendrites and GPA is not None:
             GPA.pai_tracker.start_epoch()
 
-        print(f"\nEpoch {epoch+1}/{epochs}")
+        print(f"\nEpoch {epoch+1}")
         total_loss = 0.0
         total = 0
         batch_num = 0
@@ -473,8 +488,8 @@ def train(
             )
 
         for pixel_batch, label_batch in data_iter:
-            pixel_batch = pixel_batch.to(device)
-            label_batch = label_batch.to(device)
+            pixel_batch = pixel_batch.to(device, non_blocking=True)
+            label_batch = label_batch.to(device, non_blocking=True)
 
             optimizer.zero_grad()
 
@@ -531,17 +546,23 @@ def train(
 
         if use_dendrites and GPA is not None:
             GPA.pai_tracker.set_optimizer_instance(optimizer)
-            model, _, restructured = GPA.pai_tracker.add_validation_score(accuracy, model)
+            model, restructured, training_complete = GPA.pai_tracker.add_validation_score(accuracy, model)
+
+            if training_complete:
+                print("PAI signaled training complete, stopping training.")
+                break
 
             if restructured:
                 print("Model restructured by PAI, recreating optimizer...")
+                # Use the original epochs value for scheduler (not remaining epochs)
+                # since we're running indefinitely until PAI stops us
                 optimizer, scheduler = create_optimizer_and_scheduler(
                     model=model,
                     lr=lr,
                     weight_decay=weight_decay,
                     warmup_ratio=warmup_ratio,
                     steps_per_epoch=steps_per_epoch,
-                    epochs=epochs - epoch - 1,
+                    epochs=epochs,  # Use original value, not remaining
                     use_dendrites=use_dendrites,
                 )
 
@@ -599,7 +620,7 @@ def main():
     if args.use_dendrites:
         print("Initializing PerforatedAI...")
         init_pai()
-        GPA.pc.set_input_dimensions([-1, -1, 0])
+        #GPA.pc.set_output_dimensions([-1, -1, 0])
         GPA.pc.set_testing_dendrite_capacity(False)
         model = UPA.initialize_pai(
             model,
