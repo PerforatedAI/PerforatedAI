@@ -1,3 +1,47 @@
+# Data and output directories
 data/
 out/
+trained/
+PAI/
 
+# Python virtual environments (THIS IS CRITICAL - 7.1GB!)
+ENV/
+env/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Model files
+*.pt
+*.pth
+*.onnx
+*.model
+*.weights
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data files
+*.npy
+*.npz
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

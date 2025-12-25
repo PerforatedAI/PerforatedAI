@@ -33,8 +33,17 @@ COPY requirements.txt ./
 
 RUN pip3 install -r requirements.txt
 
-RUN pip3 install tf_keras
+# Option 1: Clone from GitHub (uncomment and update URL)
+# ARG GITHUB_REPO=https://github.com/yourusername/yourrepo.git
+# ARG GITHUB_BRANCH=main
+# RUN git clone --depth 1 --branch ${GITHUB_BRANCH} ${GITHUB_REPO} /tmp/repo && \
+#     cp /tmp/repo/train.py ./ && \
+#     cp /tmp/repo/parameters.json ./ && \
+#     rm -rf /tmp/repo
 
-COPY . ./
+# Option 2: Copy local files (default)
+COPY train.py ./
+COPY parameters.json ./
+
 ENTRYPOINT ["python3", "-u", "train.py"]
 
