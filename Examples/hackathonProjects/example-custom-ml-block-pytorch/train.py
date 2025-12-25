@@ -2,7 +2,7 @@
 # Generalized train.py for Edge Impulse custom learning blocks with PerforatedAI
 
 import sys
-print("This is version 3.0", flush=True)
+print("This is version 4.0", flush=True)
 print("="*60, flush=True)
 sys.stdout.flush()
 # 
