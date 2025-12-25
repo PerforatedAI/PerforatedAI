@@ -33,14 +33,9 @@ COPY requirements.txt ./
 
 RUN pip3 install -r requirements.txt
 
-# Clone from GitHub to get latest train.py and parameters.json
-ARG GITHUB_REPO=https://github.com/PerforatedAI/PerforatedAI.git
-ARG GITHUB_BRANCH=impulse-testing
-ARG CODE_PATH=Examples/hackathonProjects/example-custom-ml-block-pytorch
-RUN git clone --depth 1 --branch ${GITHUB_BRANCH} ${GITHUB_REPO} /tmp/repo && \
-    cp /tmp/repo/${CODE_PATH}/train.py ./ && \
-    cp /tmp/repo/${CODE_PATH}/parameters.json ./ && \
-    rm -rf /tmp/repo
+# Copy entrypoint script
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
-ENTRYPOINT ["python3", "-u", "train.py"]
+ENTRYPOINT ["./entrypoint.sh"]
 
