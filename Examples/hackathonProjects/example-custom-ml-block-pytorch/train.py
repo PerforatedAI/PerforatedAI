@@ -97,7 +97,6 @@ parser.add_argument('--data-directory', type=str, default='data', dest='data_dir
 parser.add_argument('--out-directory', type=str, default='out', dest='out_directory')
 
 # Training hyperparameters
-parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--batch-size', type=int, default=32, dest='batch_size')
 parser.add_argument('--learning-rate', type=float, default=0.001, dest='learning_rate')
 parser.add_argument('--seed', type=int, default=0)
@@ -504,8 +503,8 @@ def main(config):
     else:
         GPA.pc.set_n_epochs_to_switch(100)
 
-    GPA.pc.set_verbose(True)
-    GPA.pc.set_silent(False)
+    GPA.pc.set_verbose(False)
+    GPA.pc.set_silent(True)
 
 
     model = UPA.initialize_pai(model)
@@ -939,6 +938,8 @@ def main(config):
             # Test on full X_split_test dataset
             X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
             Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
+            print(f"Full test dataset size: {X_test_full.shape[0]} samples")
+            print(f"(Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)})")
             X_test_full = torch.FloatTensor(X_test_full)
             Y_test_full = torch.FloatTensor(Y_test_full)
             full_test_dataset = TensorDataset(X_test_full, Y_test_full)

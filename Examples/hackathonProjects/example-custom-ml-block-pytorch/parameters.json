@@ -10,13 +10,6 @@
     },
     "parameters": [
         {
-            "name": "Number of training cycles",
-            "value": "100",
-            "type": "int",
-            "help": "Number of epochs to train the neural network on.",
-            "param": "epochs"
-        },
-        {
             "name": "Batch Size",
             "value": "32",
             "type": "int",
@@ -158,7 +151,7 @@
         },
         {
             "name": "Dendrite Forward Function",
-            "value": "tanh",
+            "value": "relu",
             "type": "select",
             "valid": [
                 "relu",
@@ -174,7 +167,7 @@
         },
         {
             "name": "Dendrite Conversion",
-            "value": "All Layers",
+            "value": "Linear Only",
             "type": "select",
             "valid": [
                 "Linear Only",
