@@ -2,7 +2,7 @@
 # Generalized train.py for Edge Impulse custom learning blocks with PerforatedAI
 
 import sys
-print("This is version 1.1", flush=True)
+print("This is version 3.57", flush=True)
 print("="*60, flush=True)
 sys.stdout.flush()
 # 
@@ -111,7 +111,7 @@ parser.add_argument('--noise-std', type=float, default=0, help="Gaussian noise s
 parser.add_argument('--channel-growth-mode', type=int, default=5, choices=[0,1,2,3,4,5], help="Channel growth pattern", dest='channel_growth_mode')
 
 # PerforatedAI dendritic optimization parameters
-parser.add_argument('--dendritic-optimization', type=str, required=False, default="false", dest='dendritic_optimization')
+parser.add_argument('--dendritic-optimization', type=str, required=False, default="true", dest='dendritic_optimization')
 parser.add_argument('--switch-speed', type=str, default='slow', help="speed to switch", choices=['slow', 'medium', 'fast'], dest='switch_speed')
 parser.add_argument('--max-dendrites', type=int, default=3, dest='max_dendrites')
 parser.add_argument('--improvement-threshold', type=str, default='medium', choices=['high', 'medium', 'low'], dest='improvement_threshold')
@@ -120,11 +120,18 @@ parser.add_argument('--dendrite-forward-function', type=str, default='tanh', cho
 parser.add_argument('--dendrite-conversion', type=str, default='All Layers', choices=['Linear Only','All Layers'], dest='dendrite_conversion')
 parser.add_argument('--improved-dendritic-optimization', type=str, required=False, default="false", dest='improved_dendritic_optimization')
 parser.add_argument('--perforated-ai-token', type=str, required=False, default="", dest='perforated_ai_token')
+parser.add_argument('--confirm-quant-score', type=str, required=False, default="false", dest='confirm_quant_score', help="Test int8 quantization accuracy locally")
 
 # Use parse_known_args to ignore any extra arguments Edge Impulse might pass
 args, unknown = parser.parse_known_args()
 if unknown:
     print(f"Note: Ignoring unknown arguments: {unknown}")
+
+# Print all parsed arguments for debugging
+print("\n=== Parsed Arguments ===", flush=True)
+for arg, value in vars(args).items():
+    print(f"{arg}: {value}", flush=True)
+print("========================\n", flush=True)
 
 os.environ["PAIEMAIL"] = "user@edgeimpulse.com"
 os.environ["PAITOKEN"] = args.perforated_ai_token
@@ -245,6 +252,7 @@ class AdaptiveClassifier(nn.Module):
         self.width = width
         self.linear_dropout = linear_dropout
         self.noise_std = noise_std
+        self.export_mode = False  # When True, output probabilities; when False, output logits
         
         # Channel growth patterns
         if growth_mode == 0:
@@ -429,8 +437,12 @@ class AdaptiveClassifier(nn.Module):
         for linear_layer in self.linear_layers:
             x = linear_layer(x)
         
-        # Clamp output to prevent extreme values during quantization
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        # Apply softmax only in export mode to output probabilities for Edge Impulse
+        # During training, output raw logits for CrossEntropyLoss compatibility
+        if self.export_mode:
+            # Clamp logits to prevent numerical instability in softmax and int8 quantization
+            x = torch.clamp(x, min=-10.0, max=10.0)
+            x = torch.nn.functional.softmax(x, dim=1)
         
         return x
 
@@ -465,9 +477,11 @@ def main(config):
 
 
     GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)
+    print(f"Max dendrites set to: {GPA.pc.get_max_dendrites()}", flush=True)
     GPA.pc.set_perforated_backpropagation(str2bool(args.improved_dendritic_optimization))
     GPA.pc.set_dendrite_update_mode(True)
     GPA.pc.set_initial_correlation_batches(40)
+    GPA.pc.set_max_dendrite_tries(1)
     # Instantiate adaptive model based on detected data type
     model = AdaptiveClassifier(
         input_shape=input_shape,
@@ -490,11 +504,18 @@ def main(config):
     else:
         GPA.pc.set_n_epochs_to_switch(100)
 
-    GPA.pc.set_verbose(False)
-    GPA.pc.set_silent(True)
+    GPA.pc.set_verbose(True)
+    GPA.pc.set_silent(False)
 
 
     model = UPA.initialize_pai(model)
+    
+    # Re-verify max_dendrites after initialization
+    print(f"Max dendrites after initialize_pai: {GPA.pc.get_max_dendrites()}", flush=True)
+    if GPA.pc.get_max_dendrites() != (args.max_dendrites if str2bool(args.dendritic_optimization) else 0):
+        print(f"WARNING: Max dendrites changed during initialization! Re-setting to {args.max_dendrites}...", flush=True)
+        GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)
+        print(f"Max dendrites now: {GPA.pc.get_max_dendrites()}", flush=True)
     
     # Set output dimensions for Conv1d layers if they are being optimized with dendrites
     for block in model.conv_blocks:
@@ -608,7 +629,7 @@ def main(config):
             schedArgs = {'mode':'max', 'patience': 5}
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
-        print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f} | Dendrite Count and Mode: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
+        print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
 
     test_loss, test_acc = test(model, test_loader, criterion, device)
 
@@ -668,8 +689,30 @@ def main(config):
     onnx_path = os.path.join(args.out_directory, 'model.onnx')
     dummy_input = torch.randn((1, onnx_input_size))
     
-    # Put model in eval mode for export
+    # Put model in eval mode and enable export mode for softmax output
     model.eval()
+    model.export_mode = True  # Output probabilities instead of logits
+    
+    # Move model to CPU for export
+    model = model.cpu()
+    
+    # Check model output range with some sample data for diagnostics
+    print("\n=== Checking model output range ===", flush=True)
+    with torch.no_grad():
+        sample_outputs = []
+        for batch_idx, (data, _) in enumerate(test_loader):
+            if batch_idx >= 5:  # Check first 5 batches
+                break
+            data = data.view(data.size(0), -1).cpu()
+            output = model(data)
+            sample_outputs.append(output)
+        
+        all_outputs = torch.cat(sample_outputs, dim=0)
+        print(f"Output min: {all_outputs.min().item():.4f}", flush=True)
+        print(f"Output max: {all_outputs.max().item():.4f}", flush=True)
+        print(f"Output mean: {all_outputs.mean().item():.4f}", flush=True)
+        print(f"Output std: {all_outputs.std().item():.4f}", flush=True)
+    print("===================================\n", flush=True)
     
     # Use legacy ONNX exporter to avoid torch.export issues with dynamic shapes
     # Dynamic axes allow variable batch size for validation
@@ -790,6 +833,137 @@ def main(config):
     except Exception as e:
         print(f"⚠ Error validating ONNX model: {e}")
         traceback.print_exc()
+        print("="*60 + "\n")
+    
+    # -------------------------
+    # Test INT8 Quantization (similar to Edge Impulse)
+    # -------------------------
+    if str2bool(args.confirm_quant_score):
+        print("\n" + "="*60)
+        print("TESTING INT8 QUANTIZATION")
+        print("="*60)
+        
+        try:
+            import tensorflow as tf
+            import subprocess
+            
+            # Convert ONNX to TFLite with int8 quantization
+            def representative_dataset():
+                """Generate representative data for quantization calibration"""
+                for batch_idx, (data, _) in enumerate(train_loader):
+                    if batch_idx >= 100:  # Use 100 batches for calibration
+                        break
+                    data_np = data.cpu().numpy()
+                    for i in range(data_np.shape[0]):
+                        sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                        yield [sample]
+            
+            # Convert ONNX to TF SavedModel using onnx2tf
+            saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
+            print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
+            result = subprocess.run(
+                [sys.executable, "-m", "onnx2tf", "-i", onnx_path, "-o", saved_model_dir, "-osd"],
+                capture_output=True, text=True, timeout=120
+            )
+            if result.returncode != 0:
+                print(f"onnx2tf stderr: {result.stderr}")
+                raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
+            print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
+            
+            # Convert to TFLite with int8 quantization
+            converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+            converter.optimizations = [tf.lite.Optimize.DEFAULT]
+            converter.representative_dataset = representative_dataset
+            converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+            converter.inference_input_type = tf.int8
+            converter.inference_output_type = tf.int8
+            
+            tflite_model = converter.convert()
+            tflite_path = os.path.join(args.out_directory, 'model_int8.tflite')
+            with open(tflite_path, 'wb') as f:
+                f.write(tflite_model)
+            print(f"Created int8 quantized model: {tflite_path}")
+            
+            # Test int8 quantized model
+            interpreter = tf.lite.Interpreter(model_path=tflite_path)
+            interpreter.allocate_tensors()
+            
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+            
+            def test_int8(loader, dataset_name):
+                correct = 0
+                total = 0
+                
+                for inputs, labels in loader:
+                    inputs_np = inputs.cpu().numpy()
+                    batch_size = inputs_np.shape[0]
+                    inputs_flat = inputs_np.reshape(batch_size, -1)
+                    
+                    # Handle Edge Impulse label format
+                    labels = labels.cpu().numpy()
+                    if labels.ndim > 1:
+                        if labels.shape[1] == 4:
+                            labels = labels[:, 0].astype(int)
+                        elif labels.shape[1] > 1:
+                            labels = np.argmax(labels, axis=1)
+                    else:
+                        labels = labels.astype(int)
+                    
+                    # Process one sample at a time
+                    for i in range(batch_size):
+                        sample = inputs_flat[i:i+1].astype(np.float32)
+                        
+                        # Quantize input if needed
+                        if input_details[0]['dtype'] == np.int8:
+                            input_scale, input_zero_point = input_details[0]['quantization']
+                            sample = (sample / input_scale + input_zero_point).astype(np.int8)
+                        
+                        interpreter.set_tensor(input_details[0]['index'], sample)
+                        interpreter.invoke()
+                        output = interpreter.get_tensor(output_details[0]['index'])
+                        
+                        # Dequantize output if needed
+                        if output_details[0]['dtype'] == np.int8:
+                            output_scale, output_zero_point = output_details[0]['quantization']
+                            output = (output.astype(np.float32) - output_zero_point) * output_scale
+                        
+                        predicted = np.argmax(output[0])
+                        correct += (predicted == labels[i])
+                        total += 1
+                
+                accuracy = correct / total
+                print(f"{dataset_name} Accuracy (INT8): {accuracy:.4f} ({correct}/{total})")
+                return accuracy
+            
+            # Test on full X_split_test dataset
+            X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
+            Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
+            X_test_full = torch.FloatTensor(X_test_full)
+            Y_test_full = torch.FloatTensor(Y_test_full)
+            full_test_dataset = TensorDataset(X_test_full, Y_test_full)
+            full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
+            
+            full_test_acc_int8 = test_int8(full_test_loader, "Full Test Set")
+            
+            print("\nComparison:")
+            print(f"PyTorch  - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+            print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            print(f"INT8     - Full: {full_test_acc_int8:.4f}")
+
+            print("="*60 + "\n")
+            
+        except ImportError as ie:
+            print(f"⚠ Missing dependencies for int8 testing: {ie}")
+            print("  Install with: pip install tensorflow onnx2tf")
+            print("="*60 + "\n")
+        except Exception as e:
+            print(f"⚠ Error during int8 quantization test: {e}")
+            traceback.print_exc()
+            print("="*60 + "\n")
+    else:
+        print("\n" + "="*60)
+        print("Skipping int8 quantization test (use --confirm-quant-score true to enable)")
         print("="*60 + "\n")
 
     """

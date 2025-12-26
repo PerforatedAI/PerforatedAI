@@ -1,8 +1,18 @@
-# Minimal requirements for Edge Impulse deployment (CPU-only, no CUDA)
+# Minimal requirements for Edge Impulse deployment
+# PyTorch is pre-installed in the base image, so we don't need to install it
 numpy
-torch --index-url https://download.pytorch.org/whl/cpu
-onnx
+onnx>=1.15.0,<1.17.0
 onnxruntime
 perforatedai
 perforatedbp
 pandas
+# onnx2tf dependencies (from https://github.com/PINTO0309/onnx2tf)
+tensorflow>=2.19.0
+tf-keras>=2.19.0
+ai-edge-litert>=1.2.0
+psutil>=5.9.5
+ml_dtypes>=0.5.1
+onnx_graphsurgeon
+simple-onnx-processing-tools
+onnxsim
+onnx2tf

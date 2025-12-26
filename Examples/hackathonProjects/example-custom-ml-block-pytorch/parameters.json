@@ -210,6 +210,13 @@
                 "value": "true"
             },
             "param": "perforated-ai-token"
+        },
+        {
+            "name": "Confirm quantization score",
+            "value": "false",
+            "type": "boolean",
+            "help": "Test int8 quantization accuracy locally (requires TensorFlow, increases training time).",
+            "param": "confirm-quant-score"
         }
     ]
 }
