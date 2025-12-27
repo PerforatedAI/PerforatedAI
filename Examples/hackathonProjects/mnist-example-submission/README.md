@@ -13,7 +13,9 @@ Example Content:
 MNIST is a standard dataset used to demonstrate proof-of-concept for new tools. This hackathon submission tests adding dendrites to the MNIST example from PyTorch.
 
 Team:
+
 Name - Position/Company - contact info optional
+
 Rorry Brenner - Founder, Perforated AI - https://www.linkedin.com/in/rorrybrenner - rorry@perforatedai.com
 
 ## Project Impact - Required
