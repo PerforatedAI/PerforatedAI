@@ -97,10 +97,16 @@ parser.add_argument('--data-directory', type=str, default='data', dest='data_dir
 parser.add_argument('--out-directory', type=str, default='out', dest='out_directory')
 
 # Training hyperparameters
-parser.add_argument('--batch-size', type=int, default=32, dest='batch_size')
-parser.add_argument('--learning-rate', type=float, default=0.001, dest='learning_rate')
+parser.add_argument('--batch-size', type=int, default=128, dest='batch_size')
+parser.add_argument('--learning-rate', type=float, default=0.005, dest='learning_rate')
 parser.add_argument('--seed', type=int, default=0)
-parser.add_argument('--noise-std', type=float, default=0, help="Gaussian noise stddev during training", dest='noise_std')
+parser.add_argument('--noise-std', type=str, default='None', help="Gaussian noise augmentation (None/Low/High)", dest='noise_std')
+
+# Data augmentation parameters (SpecAugment for spectrograms)
+parser.add_argument('--mask-time-bands', type=str, default='None', help="Time band masking (None/Low/High)", dest='mask_time_bands')
+parser.add_argument('--mask-freq-bands', type=str, default='None', help="Frequency band masking (None/Low/High)", dest='mask_freq_bands')
+parser.add_argument('--warp-time', type=str, default='false', help="Enable time warping", dest='warp_time')
+parser.add_argument('--auto-weight-classes', type=str, default='false', help="Auto weight classes", dest='auto_weight_classes')
 
 # Layer-by-layer architecture parameters (layers 0-19)
 for i in range(20):
@@ -144,13 +150,83 @@ for arg, value in vars(args).items():
     print(f"{arg}: {value}", flush=True)
 print("========================\n", flush=True)
 
+# Helper functions (defined before use)
+def str2bool(value: str) -> bool:
+    return str(value).lower() in ("1", "true", "t", "yes", "y")
+
+def parse_augmentation_level(level: str, low_val, high_val, none_val=0):
+    """Parse None/Low/High augmentation level to numeric value."""
+    level = str(level).strip().lower()
+    if level in ('low', 'l'):
+        return low_val
+    elif level in ('high', 'h'):
+        return high_val
+    else:  # None, empty, or 0
+        return none_val
+
+# Parse augmentation levels from None/Low/High to numeric values
+noise_std_val = parse_augmentation_level(args.noise_std, low_val=0.2, high_val=0.45, none_val=0.0)
+mask_time_bands_val = parse_augmentation_level(args.mask_time_bands, low_val=1, high_val=3, none_val=0)
+mask_freq_bands_val = parse_augmentation_level(args.mask_freq_bands, low_val=1, high_val=3, none_val=0)
+warp_time_val = str2bool(args.warp_time)
+auto_weight_val = str2bool(args.auto_weight_classes)
+
+print(f"Parsed augmentation settings:")
+print(f"  Noise std: {args.noise_std} -> {noise_std_val}")
+print(f"  Mask time bands: {args.mask_time_bands} -> {mask_time_bands_val}")
+print(f"  Mask freq bands: {args.mask_freq_bands} -> {mask_freq_bands_val}")
+print(f"  Warp time: {args.warp_time} -> {warp_time_val}")
+print(f"  Auto weight classes: {args.auto_weight_classes} -> {auto_weight_val}\n")
+
+# Parse layer configurations early (needed for data type detection)
+layer_configs = []
+for i in range(20):
+    layer_type = getattr(args, f'layer_{i}_type', 'None')
+    if layer_type == 'None':
+        break  # Stop at first None layer
+    
+    config = {'type': layer_type}
+    
+    if layer_type == 'Dense':
+        channels_str = getattr(args, f'layer_{i}_dense_channels', '')
+        if channels_str:
+            config['channels'] = int(channels_str)
+            
+    elif layer_type == '1D Convolution/Pool':
+        config_str = getattr(args, f'layer_{i}_conv1d_config', '')
+        if config_str:
+            parts = [p.strip() for p in config_str.split(',')]
+            if len(parts) >= 1:
+                config['channels'] = int(parts[0])
+            if len(parts) >= 2:
+                config['kernel_size'] = int(parts[1])
+            if len(parts) >= 3:
+                config['layer_count'] = int(parts[2])
+                
+    elif layer_type == '2D Convolution/Pool':
+        config_str = getattr(args, f'layer_{i}_conv2d_config', '')
+        if config_str:
+            parts = [p.strip() for p in config_str.split(',')]
+            if len(parts) >= 1:
+                config['channels'] = int(parts[0])
+            if len(parts) >= 2:
+                config['kernel_size'] = int(parts[1])
+            if len(parts) >= 3:
+                config['layer_count'] = int(parts[2])
+                
+    elif layer_type == 'Dropout':
+        rate_str = getattr(args, f'layer_{i}_dropout_rate', '')
+        if rate_str:
+            config['rate'] = float(rate_str)
+    
+    layer_configs.append(config)
+
+print(f"Parsed {len(layer_configs)} layer configurations")
+
 os.environ["PAIEMAIL"] = "user@edgeimpulse.com"
 os.environ["PAITOKEN"] = args.perforated_ai_token
 
 os.makedirs(args.out_directory, exist_ok=True)
-
-def str2bool(value: str) -> bool:
-    return str(value).lower() in ("1", "true", "t", "yes", "y")
 
 # -------------------------
 # Load data
@@ -206,9 +282,15 @@ if len(input_shape) == 3:
         data_type = '1d_timeseries'
         print(f"Detected flattened data, treating as 1D: {input_shape}")
 elif len(input_shape) == 1:
-    # 1D input: (features,) - Time-series or custom features
-    data_type = '1d_timeseries'
-    print(f"Detected 1D time-series/feature data: {input_shape}")
+    # 1D input: (features,) - Check if architecture needs 2D treatment
+    # If we have Conv2D/MaxPool2D layers, treat as flattened spectrogram
+    has_conv2d = any(layer.get('type') in ['Conv2D', 'MaxPool2D', '2D Convolution/Pool'] for layer in layer_configs)
+    if has_conv2d:
+        data_type = '2d_image'
+        print(f"Detected flattened spectrogram with Conv2D architecture: {input_shape}")
+    else:
+        data_type = '1d_timeseries'
+        print(f"Detected 1D time-series/feature data: {input_shape}")
 else:
     raise ValueError(f"Unsupported input shape: {input_shape}. Expected 1D (features,) or 3D (H, W, C)")
 
@@ -250,13 +332,17 @@ class AdaptiveClassifier(nn.Module):
     Adaptive classifier with flexible layer-by-layer configuration.
     Supports: Dense, 1D Conv/Pool, 2D Conv/Pool, Flatten, Dropout layers.
     """
-    def __init__(self, input_shape, classes, data_type='1d_timeseries', layer_configs=None, noise_std=0.2):
+    def __init__(self, input_shape, classes, data_type='1d_timeseries', layer_configs=None, noise_std=0.2,
+                 mask_time_bands=0, mask_freq_bands=0, warp_time=False):
         super(AdaptiveClassifier, self).__init__()
         
         self.input_shape = input_shape
         self.classes = classes
         self.data_type = data_type
         self.noise_std = noise_std
+        self.mask_time_bands = mask_time_bands
+        self.mask_freq_bands = mask_freq_bands
+        self.warp_time = warp_time
         self.export_mode = False  # When True, output probabilities; when False, output logits
         self.layer_configs = layer_configs or []
         
@@ -268,7 +354,14 @@ class AdaptiveClassifier(nn.Module):
         
         # Track current shape through the network
         if self.data_type == '2d_image':
-            self.rows, self.columns, self.channels = input_shape
+            if len(input_shape) == 3:
+                self.rows, self.columns, self.channels = input_shape
+            elif len(input_shape) == 1:
+                # Flattened spectrogram - need to reshape like Keras
+                # Keras formula: rows = input_length / columns, columns = 13, channels = 1
+                self.channels = 1
+                self.columns = 13
+                self.rows = int(input_shape[0] / self.columns)
             current_shape = (self.channels, self.rows, self.columns)  # PyTorch format: (C, H, W)
             current_size = None
         elif self.data_type == '1d_timeseries':
@@ -399,28 +492,94 @@ class AdaptiveClassifier(nn.Module):
                     module.weight *= (desired / (norm + 1e-8))
     
     def forward(self, x):
-        # Add noise during training if specified
+        # Add noise FIRST to match Keras (applied on flattened 1D input before reshape)
         if self.training and self.noise_std > 0:
             noise = torch.randn_like(x) * self.noise_std
             x = x + noise
         
-        # Prepare input based on data type
+        # Reshape input to match expected format (after noise, like Keras)
         if self.data_type == '2d_image':
-            # Reshape for 2D convolutions: (N, H, W, C) -> (N, C, H, W)
+            # Reshape from (batch, height, width, channels) to (batch, channels, height, width)
+            # OR from flattened (batch, features) to (batch, channels, height, width)
             if x.dim() == 2:
-                # Flat input, reshape to image
-                x = x.view(-1, self.channels, self.rows, self.columns)
-            elif x.dim() == 4:
-                # Already 4D (N, H, W, C), permute to (N, C, H, W)
+                # Flattened input like (batch, 624) - need to reshape to spectrogram
+                # Keras does: GaussianNoise -> Reshape((rows, columns, channels))
+                batch_size = x.size(0)
+                x = x.view(batch_size, self.rows, self.columns, self.channels)
+                # Convert to PyTorch format: (batch, channels, height, width)
                 x = x.permute(0, 3, 1, 2)
-        elif self.data_type == '1d_timeseries':
-            # Handle 1D time-series data
-            if x.dim() == 2:
-                # (N, features) - reshape to (N, 1, features) for Conv1d
-                x = x.unsqueeze(1)
-            elif x.dim() == 4:
-                # If somehow 4D, flatten appropriately
-                x = x.view(x.size(0), -1)
+            elif x.dim() == 4 and x.size(1) != self.channels:
+                # NHWC format: (batch, height, width, channels) -> (batch, channels, height, width)
+                x = x.permute(0, 3, 1, 2)
+        
+        # Apply SpecAugment-style masking during training (for spectrograms)
+        if self.training and self.data_type == '2d_image':
+            # Time masking (mT_num_time_masks, T_time_mask_max_consecutive)
+            # Low: 1 mask, max 1 consecutive | High: 3 masks, max 2 consecutive
+            if self.mask_time_bands > 0:
+                t_max_consecutive = 1 if self.mask_time_bands == 1 else 2
+                for _ in range(self.mask_time_bands):
+                    time_dim = x.size(-2) if x.dim() == 4 else x.size(-1)
+                    if time_dim > t_max_consecutive:
+                        t = torch.randint(0, time_dim - t_max_consecutive, (1,)).item()
+                        if x.dim() == 4:  # (N, C, H, W) or (N, H, W, C)
+                            x[:, :, t:t+t_max_consecutive, :] = 0
+                        else:
+                            x[:, t:t+t_max_consecutive] = 0
+            
+            # Frequency masking (mF_num_freq_masks, F_freq_mask_max_consecutive)
+            # Low: 1 mask, max 4 consecutive | High: 3 masks, max 4 consecutive
+            if self.mask_freq_bands > 0:
+                f_max_consecutive = 4  # Same for both Low and High
+                for _ in range(self.mask_freq_bands):
+                    freq_dim = x.size(-1)
+                    if freq_dim > f_max_consecutive:
+                        f = torch.randint(0, freq_dim - f_max_consecutive, (1,)).item()
+                        if x.dim() == 4:
+                            x[:, :, :, f:f+f_max_consecutive] = 0
+                        else:
+                            x[:, :, f:f+f_max_consecutive] = 0
+            
+            # Time warping (sparse image warp) - matches TensorFlow SpecAugment
+            # Based on tf.contrib.image.sparse_image_warp and dense_image_warp
+            if self.warp_time:
+                # Only apply if spectrogram is large enough
+                if x.dim() == 4 and x.size(-2) > 10:
+                    batch_size, channels, time_dim, freq_dim = x.shape
+                    
+                    # Create a flow field with random time warp
+                    # W_time_warp_max_distance = 6 (from Keras implementation)
+                    center_time = time_dim // 2
+                    warp_amount = torch.randint(-6, 7, (batch_size,), device=x.device).float()
+                    
+                    # Create a simple 1D warp centered at the middle
+                    # This warps the center of the time axis by a random amount
+                    time_indices = torch.arange(time_dim, device=x.device, dtype=torch.float32)
+                    
+                    for b in range(batch_size):
+                        # Compute warped coordinates (bilinear interpolation)
+                        warp = warp_amount[b]
+                        if abs(warp) > 0.1:  # Only warp if significant
+                            # Apply Gaussian-like warp centered at middle
+                            sigma = time_dim / 4.0
+                            gaussian = torch.exp(-((time_indices - center_time) ** 2) / (2 * sigma ** 2))
+                            warped_indices = time_indices + warp * gaussian
+                            warped_indices = torch.clamp(warped_indices, 0, time_dim - 1)
+                            
+                            # Bilinear interpolation for warping
+                            floor_indices = warped_indices.long()
+                            ceil_indices = torch.clamp(floor_indices + 1, 0, time_dim - 1)
+                            alpha = warped_indices - floor_indices.float()
+                            
+                            # Interpolate across time dimension for each channel and freq
+                            warped_x = torch.zeros_like(x[b])
+                            for t in range(time_dim):
+                                floor_idx = floor_indices[t]
+                                ceil_idx = ceil_indices[t]
+                                a = alpha[t]
+                                warped_x[:, t, :] = (1 - a) * x[b, :, floor_idx, :] + a * x[b, :, ceil_idx, :]
+                            
+                            x[b] = warped_x
         
         # Pass through all configured layers
         for i, layer in enumerate(self.layers):
@@ -514,50 +673,7 @@ def main(config):
     GPA.pc.set_initial_correlation_batches(40)
     GPA.pc.set_max_dendrite_tries(1)
     
-    # Parse layer configurations from arguments
-    layer_configs = []
-    for i in range(20):
-        layer_type = getattr(args, f'layer_{i}_type', 'None')
-        if layer_type == 'None':
-            break  # Stop at first None layer
-        
-        config = {'type': layer_type}
-        
-        if layer_type == 'Dense':
-            channels_str = getattr(args, f'layer_{i}_dense_channels', '')
-            if channels_str:
-                config['channels'] = int(channels_str)
-                
-        elif layer_type == '1D Convolution/Pool':
-            config_str = getattr(args, f'layer_{i}_conv1d_config', '')
-            if config_str:
-                parts = [p.strip() for p in config_str.split(',')]
-                if len(parts) >= 1:
-                    config['channels'] = int(parts[0])
-                if len(parts) >= 2:
-                    config['kernel_size'] = int(parts[1])
-                if len(parts) >= 3:
-                    config['layer_count'] = int(parts[2])
-                    
-        elif layer_type == '2D Convolution/Pool':
-            config_str = getattr(args, f'layer_{i}_conv2d_config', '')
-            if config_str:
-                parts = [p.strip() for p in config_str.split(',')]
-                if len(parts) >= 1:
-                    config['channels'] = int(parts[0])
-                if len(parts) >= 2:
-                    config['kernel_size'] = int(parts[1])
-                if len(parts) >= 3:
-                    config['layer_count'] = int(parts[2])
-                    
-        elif layer_type == 'Dropout':
-            rate_str = getattr(args, f'layer_{i}_dropout_rate', '')
-            if rate_str:
-                config['rate'] = float(rate_str)
-        
-        layer_configs.append(config)
-    
-    print(f"\nParsed {len(layer_configs)} layer configurations:", flush=True)
+    print(f"\nUsing {len(layer_configs)} layer configurations:", flush=True)
     for i, cfg in enumerate(layer_configs):
         print(f"  Layer {i}: {cfg}", flush=True)
     
@@ -567,7 +683,10 @@ def main(config):
         classes=num_classes,
         data_type=data_type,
         layer_configs=layer_configs,
-        noise_std=args.noise_std
+        noise_std=noise_std_val,
+        mask_time_bands=mask_time_bands_val,
+        mask_freq_bands=mask_freq_bands_val,
+        warp_time=warp_time_val
     ).to(device)
 
     GPA.pc.set_testing_dendrite_capacity(False)
@@ -606,7 +725,26 @@ def main(config):
     schedArgs = {'mode':'max', 'patience': 5}
     optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
-    criterion = nn.CrossEntropyLoss()
+    # Compute class weights if auto_weight_classes is enabled
+    class_weights = None
+    if auto_weight_val:
+        # Extract labels from Y_train_tensor
+        if Y_train_tensor.dim() > 1:
+            if Y_train_tensor.size(1) == 4:
+                train_labels = Y_train_tensor[:, 0].long()
+            else:
+                train_labels = torch.argmax(Y_train_tensor, dim=1)
+        else:
+            train_labels = Y_train_tensor.long()
+        
+        # Compute class weights inversely proportional to class frequencies
+        class_counts = torch.bincount(train_labels)
+        total_samples = len(train_labels)
+        class_weights = total_samples / (len(class_counts) * class_counts.float())
+        class_weights = class_weights.to(device)
+        print(f"Using class weights: {class_weights}")
+    
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     def train_epoch(model, loader, criterion, optimizer, device):
         model.train()

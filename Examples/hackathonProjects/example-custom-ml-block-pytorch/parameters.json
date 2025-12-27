@@ -11,13 +11,13 @@
     "parameters": [
         {
             "name": "Batch Size",
-            "value": "32",
+            "value": "128",
             "type": "int",
             "param": "batch-size"
         },
         {
             "name": "Learning rate",
-            "value": "0.001",
+            "value": "0.005",
             "type": "float",
             "help": "How fast the neural network learns, if the network overfits quickly, then lower the learning rate.",
             "param": "learning-rate"
@@ -31,10 +31,41 @@
         },
         {
             "name": "Noise Standard Deviation",
-            "value": "0.0",
-            "type": "float",
+            "value": "None",
+            "type": "select",
             "param": "noise-std",
-            "help": "Gaussian noise stddev during training."
+            "valid": ["None", "Low", "High"],
+            "help": "Gaussian noise augmentation during training. Low=0.2, High=0.45."
+        },
+        {
+            "name": "Mask Time Bands",
+            "value": "None",
+            "type": "select",
+            "param": "mask-time-bands",
+            "valid": ["None", "Low", "High"],
+            "help": "Time band masking (SpecAugment). Low=1 band/1 consecutive, High=3 bands/2 consecutive."
+        },
+        {
+            "name": "Mask Frequency Bands",
+            "value": "None",
+            "type": "select",
+            "param": "mask-freq-bands",
+            "valid": ["None", "Low", "High"],
+            "help": "Frequency band masking (SpecAugment). Low=1 band/4 consecutive, High=3 bands/4 consecutive."
+        },
+        {
+            "name": "Warp Time",
+            "value": "false",
+            "type": "boolean",
+            "param": "warp-time",
+            "help": "Enable time warping augmentation for spectrograms."
+        },
+        {
+            "name": "Auto Weight Classes",
+            "value": "false",
+            "type": "boolean",
+            "param": "auto-weight-classes",
+            "help": "Automatically weight classes based on sample counts to handle class imbalance."
         },
         {
             "name": "Dendritic Optimization",
