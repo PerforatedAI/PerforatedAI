@@ -9,7 +9,6 @@ This folder displays what a hackathon project should look like.  Each submission
 Example Content:
 
 MNIST is a standard used to show proof of concept of new tools.  This hackathon submission tests adding dendrites to the MNIST example from PyTorch.
-```markdown
 # Example Hackathon Project
 
 ## Intro - Required
