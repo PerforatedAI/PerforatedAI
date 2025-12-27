@@ -6,9 +6,15 @@ Description:
 
 This folder shows what a hackathon project should look like. Each submission must be made as a pull request to the `main` branch of this repository. Check out the repo, create a new folder inside the `Examples/hackathonProjects` folder, and place your code there. The code can link to other repositories, but the submission must be included here in this format.
 
+The intro additionally should include your team information.
+
 Example Content:
 
 MNIST is a standard dataset used to demonstrate proof-of-concept for new tools. This hackathon submission tests adding dendrites to the MNIST example from PyTorch.
+
+Team:
+Name - Position/Company - contact info optional
+Rorry Brenner - Founder, Perforated AI - https://www.linkedin.com/in/rorrybrenner - rorry@perforatedai.com
 
 ## Project Impact - Required
 
@@ -25,6 +31,8 @@ MNIST is a dataset for OCR. Improving the accuracy of an OCR system matters beca
 Description:
 
 Each project must include instructions for how to install and run the project.
+
+The only exeception to this is is you are in a lab or company that is working with proprietary data or models that are not able to be open sourced.  If that is the case a PR will not be required, but we will require permission to formally include your company or lab in any publications or related media we produce related to the hackathon.
 
 Example Content:
 
