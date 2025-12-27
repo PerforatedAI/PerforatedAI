@@ -2,8 +2,8 @@
     "version": 1,
     "type": "machine-learning",
     "info": {
-        "name": "Dendritic NN Block",
-        "description": "Dendritic NN Block.",
+        "name": "Dendritic NN Block (PyTorch)",
+        "description": "An ML block that implements a PyTorch neural network with Dendritic Optimization.  Dendritic Optimization is a technique that enhances the learning capacity of neural networks by mimicking the dendritic structures found in biological neurons. This block allows users to create custom neural network architectures with configurable layers and apply Dendritic Optimization to improve performance on various tasks.",
         "operatesOn": "other",
         "indRequiresGpu": false,
         "repositoryUrl": "https://github.com/edgeimpulse/example-custom-ml-block-pytorch"
@@ -30,62 +30,11 @@
             "param": "seed"
         },
         {
-            "name": "Dropout",
-            "value": "0.1",
-            "type": "float",
-            "param": "dropout"
-        },
-        {
-            "name": "Number of Convolutions",
-            "value": "3",
-            "type": "select",
-            "valid": [
-                "1",
-                "2",
-                "3"
-            ],
-            "configType": "int",
-            "param": "num-conv"
-        },
-        {
-            "name": "Number of Linear Layers",
-            "value": "2",
-            "type": "select",
-            "valid": [
-                "1",
-                "2"
-            ],
-            "configType": "int",
-            "param": "num-linear"
-        },
-        {
-            "name": "Network Width",
-            "value": "2.0",
-            "type": "float",
-            "param": "network-width",
-            "help": "Width multiplier for channels."
-        },
-        {
             "name": "Noise Standard Deviation",
             "value": "0.0",
             "type": "float",
             "param": "noise-std",
             "help": "Gaussian noise stddev during training."
-        },
-        {
-            "name": "Channel Growth Mode",
-            "value": "5",
-            "type": "select",
-            "valid": [
-                "0",
-                "1",
-                "2",
-                "3",
-                "4",
-                "5"
-            ],
-            "configType": "int",
-            "param": "channel-growth-mode"
         },
         {
             "name": "Dendritic Optimization",
@@ -210,6 +159,1348 @@
             "type": "boolean",
             "help": "Test int8 quantization accuracy locally (requires TensorFlow, increases training time).",
             "param": "confirm-quant-score"
+        },
+        {
+            "name": "Layer 0 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 0.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-0-type"
+        },
+        {
+            "name": "0 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-0-dense-channels",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "0 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-0-conv1d-config",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "0 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-0-conv2d-config",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "0 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-0-dropout-rate",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 1 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 1.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-1-type",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "1 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-1-dense-channels",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "1 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-1-conv1d-config",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "1 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-1-conv2d-config",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "1 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-1-dropout-rate",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 2 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 2.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-2-type",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "2 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-2-dense-channels",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "2 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-2-conv1d-config",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "2 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-2-conv2d-config",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "2 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-2-dropout-rate",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 3 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 3.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-3-type",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "3 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-3-dense-channels",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "3 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-3-conv1d-config",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "3 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-3-conv2d-config",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "3 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-3-dropout-rate",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 4 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 4.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-4-type",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "4 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-4-dense-channels",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "4 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-4-conv1d-config",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "4 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-4-conv2d-config",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "4 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-4-dropout-rate",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 5 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 5.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-5-type",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "5 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-5-dense-channels",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "5 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-5-conv1d-config",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "5 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-5-conv2d-config",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "5 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-5-dropout-rate",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 6 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 6.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-6-type",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "6 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-6-dense-channels",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "6 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-6-conv1d-config",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "6 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-6-conv2d-config",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "6 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-6-dropout-rate",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 7 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 7.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-7-type",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "7 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-7-dense-channels",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "7 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-7-conv1d-config",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "7 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-7-conv2d-config",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "7 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-7-dropout-rate",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 8 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 8.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-8-type",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "8 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-8-dense-channels",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "8 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-8-conv1d-config",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "8 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-8-conv2d-config",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "8 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-8-dropout-rate",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 9 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 9.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-9-type",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "9 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-9-dense-channels",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "9 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-9-conv1d-config",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "9 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-9-conv2d-config",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "9 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-9-dropout-rate",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 10 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 10.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-10-type",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "10 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-10-dense-channels",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "10 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-10-conv1d-config",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "10 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-10-conv2d-config",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "10 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-10-dropout-rate",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 11 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 11.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-11-type",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "11 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-11-dense-channels",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "11 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-11-conv1d-config",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "11 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-11-conv2d-config",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "11 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-11-dropout-rate",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 12 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 12.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-12-type",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "12 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-12-dense-channels",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "12 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-12-conv1d-config",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "12 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-12-conv2d-config",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "12 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-12-dropout-rate",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 13 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 13.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-13-type",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "13 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-13-dense-channels",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "13 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-13-conv1d-config",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "13 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-13-conv2d-config",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "13 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-13-dropout-rate",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 14 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 14.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-14-type",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "14 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-14-dense-channels",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "14 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-14-conv1d-config",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "14 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-14-conv2d-config",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "14 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-14-dropout-rate",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 15 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 15.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-15-type",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "15 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-15-dense-channels",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "15 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-15-conv1d-config",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "15 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-15-conv2d-config",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "15 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-15-dropout-rate",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 16 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 16.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-16-type",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "16 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-16-dense-channels",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "16 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-16-conv1d-config",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "16 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-16-conv2d-config",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "16 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-16-dropout-rate",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 17 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 17.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-17-type",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "17 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-17-dense-channels",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "17 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-17-conv1d-config",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "17 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-17-conv2d-config",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "17 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-17-dropout-rate",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 18 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 18.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-18-type",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "18 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-18-dense-channels",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "18 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-18-conv1d-config",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "18 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-18-conv2d-config",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "18 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-18-dropout-rate",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Layer 19 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 19.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout"
+            ],
+            "param": "layer-19-type",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "19 - Dense Channels",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-19-dense-channels",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "19 - 1D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-19-conv1d-config",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "19 - 2D Conv/Pool (Channels,Kernel Size,Layer Count)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-19-conv2d-config",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "19 - Dropout (Dropout Rate)",
+            "value": "",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-19-dropout-rate",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "Output Layer",
+            "value": "A Fully Connected output layer will always be included",
+            "type": "string",
+            "help": "Information about automatic layer additions in the model architecture.",
+            "param": "output-layer-info"
         }
     ]
 }

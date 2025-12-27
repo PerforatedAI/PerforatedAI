@@ -100,14 +100,26 @@ parser.add_argument('--out-directory', type=str, default='out', dest='out_direct
 parser.add_argument('--batch-size', type=int, default=32, dest='batch_size')
 parser.add_argument('--learning-rate', type=float, default=0.001, dest='learning_rate')
 parser.add_argument('--seed', type=int, default=0)
-parser.add_argument('--dropout', type=float, default=0.1)
-
-# Model architecture parameters
-parser.add_argument('--num-conv', type=int, default=3, choices=[1,2,3,4], help="Number of conv layers for 2D data", dest='num_conv')
-parser.add_argument('--num-linear', type=int, default=2, choices=[1,2,3], help="Number of linear layers", dest='num_linear')
-parser.add_argument('--network-width', type=float, default=2, help="Width multiplier for channels", dest='network_width')
 parser.add_argument('--noise-std', type=float, default=0, help="Gaussian noise stddev during training", dest='noise_std')
-parser.add_argument('--channel-growth-mode', type=int, default=5, choices=[0,1,2,3,4,5], help="Channel growth pattern", dest='channel_growth_mode')
+
+# Layer-by-layer architecture parameters (layers 0-19)
+for i in range(20):
+    parser.add_argument(f'--layer-{i}-type', type=str, default='None', dest=f'layer_{i}_type',
+                        choices=['None', 'Dense', '1D Convolution/Pool', '2D Convolution/Pool', 'Dropout'],
+                        help=f"Type of layer {i}")
+    # Dense layer parameters
+    parser.add_argument(f'--layer-{i}-dense-channels', type=str, default='', dest=f'layer_{i}_dense_channels',
+                        help=f"Layer {i} Dense: number of output channels")
+    # 1D Conv/Pool parameters
+    parser.add_argument(f'--layer-{i}-conv1d-config', type=str, default='', dest=f'layer_{i}_conv1d_config',
+                        help=f"Layer {i} 1D Conv/Pool: channels,kernel_size,layer_count (comma-separated)")
+    # 2D Conv/Pool parameters
+    parser.add_argument(f'--layer-{i}-conv2d-config', type=str, default='', dest=f'layer_{i}_conv2d_config',
+                        help=f"Layer {i} 2D Conv/Pool: channels,kernel_size,layer_count (comma-separated)")
+
+    # Dropout parameters
+    parser.add_argument(f'--layer-{i}-dropout-rate', type=str, default='', dest=f'layer_{i}_dropout_rate',
+                        help=f"Layer {i} Dropout: dropout rate (0.0-1.0)")
 
 # PerforatedAI dendritic optimization parameters
 parser.add_argument('--dendritic-optimization', type=str, required=False, default="true", dest='dendritic_optimization')
@@ -235,133 +247,128 @@ test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False
 # -------------------------
 class AdaptiveClassifier(nn.Module):
     """
-    Adaptive classifier that works with:
-    - 1D data: time-series, sensor data, custom features
-    - 2D data: images, spectrograms, MFCC/MFE features
+    Adaptive classifier with flexible layer-by-layer configuration.
+    Supports: Dense, 1D Conv/Pool, 2D Conv/Pool, Flatten, Dropout layers.
     """
-    def __init__(self, input_shape, classes, data_type='1d_timeseries', num_conv=2, num_linear=1, 
-                 width=1.0, linear_dropout=0.5, noise_std=0.2, growth_mode=0):
+    def __init__(self, input_shape, classes, data_type='1d_timeseries', layer_configs=None, noise_std=0.2):
         super(AdaptiveClassifier, self).__init__()
         
         self.input_shape = input_shape
         self.classes = classes
         self.data_type = data_type
-        self.num_conv = num_conv
-        self.num_linear = num_linear
-        self.width = width
-        self.linear_dropout = linear_dropout
         self.noise_std = noise_std
         self.export_mode = False  # When True, output probabilities; when False, output logits
+        self.layer_configs = layer_configs or []
         
-        # Channel growth patterns
-        if growth_mode == 0:
-            base_channels = [8, 16, 32, 64]
-        elif growth_mode == 1:
-            base_channels = [8, 16, 24, 32]
-        elif growth_mode == 2:
-            base_channels = [8, 16, 16, 32]
-        elif growth_mode == 3:
-            base_channels = [8, 16, 16, 16]
-        elif growth_mode == 4:
-            base_channels = [8, 8, 8, 8]
-        elif growth_mode == 5:
-            base_channels = [8, 8, 8, 16]
-        self.channel_sizes = [max(1, int(ch * width)) for ch in base_channels]
+        # Build layers dynamically from configuration
+        self.layers = nn.ModuleList()
+        self._constrained_conv_layers = []
+        self._flatten_layer_indices = []  # Track flatten layers for post-PerforatedAI fixing
+        self._flatten_layer_indices = []  # Track flatten layers for post-PerforatedAI fixing
         
+        # Track current shape through the network
         if self.data_type == '2d_image':
-            # For 2D image/spectrogram data (H, W, C)
             self.rows, self.columns, self.channels = input_shape
-            self.conv_blocks = nn.ModuleList()
-            self._constrained_conv_layers = []
-            
-            if num_conv > 0:
-                in_channels = self.channels
-                for i in range(num_conv):
-                    out_channels = self.channel_sizes[i]
-                    conv_block = nn.Sequential(
-                        nn.Conv2d(in_channels=in_channels, out_channels=out_channels, 
-                                kernel_size=3, padding='same'),
-                        nn.ReLU(),
-                        nn.MaxPool2d(kernel_size=2, stride=2),
-                        nn.Dropout(0.25)
-                    )
-                    self.conv_blocks.append(conv_block)
-                    self._constrained_conv_layers.append(conv_block[0])
-                    in_channels = out_channels
-                
-                # Calculate flattened size after conv layers
-                final_rows = self.rows // (2 ** num_conv)
-                final_cols = self.columns // (2 ** num_conv)
-                flattened_size = self.channel_sizes[num_conv - 1] * final_rows * final_cols
-            else:
-                # No conv layers - flatten input
-                flattened_size = self.rows * self.columns * self.channels
-                
+            current_shape = (self.channels, self.rows, self.columns)  # PyTorch format: (C, H, W)
+            current_size = None
         elif self.data_type == '1d_timeseries':
-            # For 1D time-series or feature data
             if len(input_shape) == 1:
                 self.input_length = input_shape[0]
             else:
-                # If somehow 3D but should be treated as 1D
                 self.input_length = np.prod(input_shape)
+            current_shape = (1, self.input_length)  # (channels, length) for 1D conv
+            current_size = self.input_length
+        
+        # Build each layer from configuration
+        for i, config in enumerate(self.layer_configs):
+            layer_type = config.get('type', 'None')
             
-            self.conv_blocks = nn.ModuleList()
-            self._constrained_conv_layers = []
-            
-            # Optional 1D convolutions for time-series
-            if num_conv > 0 and self.input_length >= 16:
-                in_channels = 1
-                current_length = self.input_length
+            if layer_type == 'Dense':
+                channels = int(config.get('channels', 64))
+                # If we're coming from conv layers (current_shape is set), automatically flatten
+                if current_shape is not None:
+                    self.layers.append(nn.Flatten())
+                    self._flatten_layer_indices.append(len(self.layers) - 1)
+                    if len(current_shape) == 3:
+                        current_size = current_shape[0] * current_shape[1] * current_shape[2]
+                    elif len(current_shape) == 2:
+                        current_size = current_shape[0] * current_shape[1]
+                    current_shape = None
                 
-                for i in range(num_conv):
-                    out_channels = self.channel_sizes[i]
-                    # Use 1D convolutions for time-series
-                    conv_block = nn.Sequential(
-                        nn.Conv1d(in_channels=in_channels, out_channels=out_channels,
-                                kernel_size=3, padding=1),
-                        nn.ReLU(),
-                        nn.MaxPool1d(kernel_size=2, stride=2),
-                        nn.Dropout(0.25)
-                    )
-                    self.conv_blocks.append(conv_block)
-                    self._constrained_conv_layers.append(conv_block[0])
-                    in_channels = out_channels
-                    current_length = current_length // 2
+                self.layers.append(nn.Linear(current_size, channels))
+                self.layers.append(nn.ReLU())
+                current_size = channels
                 
-                flattened_size = self.channel_sizes[num_conv - 1] * current_length
-            else:
-                # No conv layers or input too small - use input directly
-                flattened_size = self.input_length
+            elif layer_type == '1D Convolution/Pool':
+                channels = int(config.get('channels', 16))
+                kernel_size = int(config.get('kernel_size', 3))
+                layer_count = int(config.get('layer_count', 1))
+                
+                # Auto-flatten if coming from 2D conv
+                if current_shape is not None and len(current_shape) == 3:
+                    # Coming from 2D conv, need to flatten to 1D
+                    self.layers.append(nn.Flatten())
+                    self._flatten_layer_indices.append(len(self.layers) - 1)
+                    current_size = current_shape[0] * current_shape[1] * current_shape[2]
+                    current_shape = None
+                
+                in_channels = current_shape[0] if current_shape else 1
+                current_length = current_shape[1] if current_shape else current_size
+                
+                # Add layer_count conv+relu layers
+                for _ in range(layer_count):
+                    conv = nn.Conv1d(in_channels, channels, kernel_size, padding=kernel_size//2)
+                    self.layers.append(conv)
+                    self._constrained_conv_layers.append(conv)
+                    self.layers.append(nn.ReLU())
+                    in_channels = channels
+                
+                # Single pooling at the end
+                self.layers.append(nn.MaxPool1d(2))
+                current_length = current_length // 2
+                
+                current_shape = (channels, current_length)
+                current_size = None
+                
+            elif layer_type == '2D Convolution/Pool':
+                channels = int(config.get('channels', 16))
+                kernel_size = int(config.get('kernel_size', 3))
+                layer_count = int(config.get('layer_count', 1))
+                
+                in_channels = current_shape[0] if current_shape else 1
+                current_rows = current_shape[1] if len(current_shape) > 1 else 1
+                current_cols = current_shape[2] if len(current_shape) > 2 else 1
+                
+                # Add layer_count conv+relu layers
+                for _ in range(layer_count):
+                    conv = nn.Conv2d(in_channels, channels, kernel_size, padding='same')
+                    self.layers.append(conv)
+                    self._constrained_conv_layers.append(conv)
+                    self.layers.append(nn.ReLU())
+                    in_channels = channels
+                
+                # Single pooling at the end
+                self.layers.append(nn.MaxPool2d(2))
+                current_rows = current_rows // 2
+                current_cols = current_cols // 2
+                
+                current_shape = (channels, current_rows, current_cols)
+                current_size = None
+                
+            elif layer_type == 'Dropout':
+                rate = float(config.get('rate', 0.5))
+                self.layers.append(nn.Dropout(rate))
         
-        # Linear layers (same for both 1D and 2D)
-        self.linear_layers = nn.ModuleList()
-        linear_sizes = self._calculate_linear_sizes(flattened_size, classes, num_linear)
+        # Final output layer
+        if current_size is None:
+            # Need to flatten
+            self.layers.append(nn.Flatten())
+            if len(current_shape) == 3:
+                current_size = current_shape[0] * current_shape[1] * current_shape[2]
+            elif len(current_shape) == 2:
+                current_size = current_shape[0] * current_shape[1]
         
-        for i in range(num_linear - 1):
-            self.linear_layers.append(nn.Sequential(
-                nn.Dropout(linear_dropout),
-                nn.Linear(linear_sizes[i], linear_sizes[i + 1]),
-                nn.ReLU()
-            ))
-        
-        self.linear_layers.append(nn.Sequential(
-            nn.Dropout(linear_dropout),
-            nn.Linear(linear_sizes[-2], linear_sizes[-1])
-        ))
-    
-    def _calculate_linear_sizes(self, input_size, output_size, num_layers):
-        if num_layers == 1:
-            return [input_size, output_size]
-        sizes = [input_size]
-        log_start = torch.log(torch.tensor(float(input_size)))
-        log_end = torch.log(torch.tensor(float(output_size)))
-        for i in range(1, num_layers):
-            ratio = i / num_layers
-            log_size = log_start + (log_end - log_start) * ratio
-            size = max(output_size, int(torch.exp(log_size).item()))
-            sizes.append(size)
-        sizes.append(output_size)
-        return sizes
+        self.layers.append(nn.Linear(current_size, classes))
     
     def _max_norm_constraint_tensor(self, weight: torch.Tensor, max_value=1.0) -> torch.Tensor:
         if weight.dim() == 3:
@@ -397,6 +404,7 @@ class AdaptiveClassifier(nn.Module):
             noise = torch.randn_like(x) * self.noise_std
             x = x + noise
         
+        # Prepare input based on data type
         if self.data_type == '2d_image':
             # Reshape for 2D convolutions: (N, H, W, C) -> (N, C, H, W)
             if x.dim() == 2:
@@ -405,36 +413,60 @@ class AdaptiveClassifier(nn.Module):
             elif x.dim() == 4:
                 # Already 4D (N, H, W, C), permute to (N, C, H, W)
                 x = x.permute(0, 3, 1, 2)
-            
-            # Pass through conv blocks
-            if len(self.conv_blocks) > 0:
-                for conv_block in self.conv_blocks:
-                    x = conv_block(x)
-            x = x.view(x.size(0), -1)
-            
         elif self.data_type == '1d_timeseries':
             # Handle 1D time-series data
             if x.dim() == 2:
-                # (N, features) format
-                if len(self.conv_blocks) > 0:
-                    # Reshape to (N, 1, features) for 1D conv
-                    x = x.unsqueeze(1)
-                    for conv_block in self.conv_blocks:
-                        x = conv_block(x)
-                    x = x.view(x.size(0), -1)
-                # else: already in correct shape for linear layers
+                # (N, features) - reshape to (N, 1, features) for Conv1d
+                x = x.unsqueeze(1)
             elif x.dim() == 4:
                 # If somehow 4D, flatten appropriately
                 x = x.view(x.size(0), -1)
-                if len(self.conv_blocks) > 0:
-                    x = x.unsqueeze(1)
-                    for conv_block in self.conv_blocks:
-                        x = conv_block(x)
-                    x = x.view(x.size(0), -1)
         
-        # Pass through linear layers
-        for linear_layer in self.linear_layers:
-            x = linear_layer(x)
+        # Pass through all configured layers
+        for i, layer in enumerate(self.layers):
+            # Check actual layer type (may be wrapped by PAIModule)
+            actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
+            
+            if isinstance(actual_layer, nn.Conv1d):
+                # PerforatedAI handles the unsqueeze, just pass through
+                x = layer(x)
+                # Check for dimension issues after PerforatedAI transforms
+                if x.dim() != 3 and x.dim() != 2:
+                    raise RuntimeError(
+                        f"Conv1d layer at index {i} produced {x.dim()}D output with shape {x.shape}, "
+                        f"expected 3D (batch, channels, length) or 2D after PerforatedAI transforms.")
+            elif isinstance(actual_layer, nn.Conv2d):
+                # Input should already be in correct format from data prep
+                x = layer(x)
+            elif isinstance(actual_layer, nn.MaxPool1d):
+                # Ensure input is 3D for MaxPool1d
+                if x.dim() == 2:
+                    x = x.unsqueeze(0)  # Add batch dimension if lost
+                x = layer(x)
+            elif isinstance(actual_layer, nn.MaxPool2d):
+                # Ensure input is 4D for MaxPool2d
+                if x.dim() == 3:
+                    x = x.unsqueeze(0)  # Add batch dimension if lost
+                x = layer(x)
+            elif i in self._flatten_layer_indices:
+                # Use index-based detection instead of isinstance - PerforatedAI transforms break isinstance checks
+                # Handle case where batch dimension was lost due to PerforatedAI transforms
+                if x.dim() == 2:
+                    # Could be (batch, features) already flat, or (channels, length) with batch squeezed
+                    # Assume it's (channels, length) and add batch dimension back
+                    x = x.unsqueeze(0)  # Now (1, channels, length)
+                
+                x = layer(x)
+                # Ensure output is truly flat
+                if x.dim() > 2:
+                    x = x.view(x.size(0), -1)
+            elif isinstance(actual_layer, nn.Linear):
+                # Before Linear layer, ensure input is 2D
+                if x.dim() > 2:
+                    x = x.view(x.size(0), -1)
+                x = layer(x)
+            else:
+                x = layer(x)
         
         # Apply softmax only in export mode to output probabilities for Edge Impulse
         # During training, output raw logits for CrossEntropyLoss compatibility
@@ -481,17 +513,61 @@ def main(config):
     GPA.pc.set_dendrite_update_mode(True)
     GPA.pc.set_initial_correlation_batches(40)
     GPA.pc.set_max_dendrite_tries(1)
+    
+    # Parse layer configurations from arguments
+    layer_configs = []
+    for i in range(20):
+        layer_type = getattr(args, f'layer_{i}_type', 'None')
+        if layer_type == 'None':
+            break  # Stop at first None layer
+        
+        config = {'type': layer_type}
+        
+        if layer_type == 'Dense':
+            channels_str = getattr(args, f'layer_{i}_dense_channels', '')
+            if channels_str:
+                config['channels'] = int(channels_str)
+                
+        elif layer_type == '1D Convolution/Pool':
+            config_str = getattr(args, f'layer_{i}_conv1d_config', '')
+            if config_str:
+                parts = [p.strip() for p in config_str.split(',')]
+                if len(parts) >= 1:
+                    config['channels'] = int(parts[0])
+                if len(parts) >= 2:
+                    config['kernel_size'] = int(parts[1])
+                if len(parts) >= 3:
+                    config['layer_count'] = int(parts[2])
+                    
+        elif layer_type == '2D Convolution/Pool':
+            config_str = getattr(args, f'layer_{i}_conv2d_config', '')
+            if config_str:
+                parts = [p.strip() for p in config_str.split(',')]
+                if len(parts) >= 1:
+                    config['channels'] = int(parts[0])
+                if len(parts) >= 2:
+                    config['kernel_size'] = int(parts[1])
+                if len(parts) >= 3:
+                    config['layer_count'] = int(parts[2])
+                    
+        elif layer_type == 'Dropout':
+            rate_str = getattr(args, f'layer_{i}_dropout_rate', '')
+            if rate_str:
+                config['rate'] = float(rate_str)
+        
+        layer_configs.append(config)
+    
+    print(f"\nParsed {len(layer_configs)} layer configurations:", flush=True)
+    for i, cfg in enumerate(layer_configs):
+        print(f"  Layer {i}: {cfg}", flush=True)
+    
     # Instantiate adaptive model based on detected data type
     model = AdaptiveClassifier(
         input_shape=input_shape,
         classes=num_classes,
         data_type=data_type,
-        num_conv=args.num_conv,
-        num_linear=args.num_linear,
-        width=args.network_width,
-        linear_dropout=args.dropout,
-        noise_std=args.noise_std,
-        growth_mode=args.channel_growth_mode
+        layer_configs=layer_configs,
+        noise_std=args.noise_std
     ).to(device)
 
     GPA.pc.set_testing_dendrite_capacity(False)
@@ -517,13 +593,11 @@ def main(config):
         print(f"Max dendrites now: {GPA.pc.get_max_dendrites()}", flush=True)
     
     # Set output dimensions for Conv1d layers if they are being optimized with dendrites
-    for block in model.conv_blocks:
-        print(block)
-        if hasattr(block, '__iter__') and len(block) > 0:
-            first_layer = block[0]
+    for layer in model.layers:
+        if isinstance(layer, nn.Conv1d):
             # Check if it's a PAIModule (PerforatedAI wrapped layer) by type name
-            if type(first_layer).__name__ == 'PAINeuronModule' and isinstance(first_layer.main_module, nn.Conv1d):
-                first_layer.set_this_output_dimensions([-1, 0, -1])
+            if type(layer).__name__ == 'PAINeuronModule' and isinstance(layer.main_module, nn.Conv1d):
+                layer.set_this_output_dimensions([-1, 0, -1])
     print(model)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
@@ -664,17 +738,16 @@ def main(config):
     model  = CPA.refresh_net(model)
     
     # Fix padding for conv layers if needed
-    for block in model.conv_blocks:
-        if hasattr(block, '__iter__'):
-            for layer in block:
-                if isinstance(layer, (nn.Conv2d, nn.Conv1d)) and hasattr(layer, 'layer_array'):
-                    for conv in layer.layer_array:
-                        if hasattr(conv, 'padding') and conv.padding == 'same':
-                            if isinstance(conv.kernel_size, tuple):
-                                padding = tuple((k - 1) // 2 for k in conv.kernel_size)
-                            else:
-                                padding = (conv.kernel_size - 1) // 2
-                            conv.padding = padding
+    for layer in model.layers:
+        if isinstance(layer, (nn.Conv2d, nn.Conv1d)):
+            if hasattr(layer, 'layer_array'):
+                for conv in layer.layer_array:
+                    if hasattr(conv, 'padding') and conv.padding == 'same':
+                        if isinstance(conv.kernel_size, tuple):
+                            padding = tuple((k - 1) // 2 for k in conv.kernel_size)
+                        else:
+                            padding = (conv.kernel_size - 1) // 2
+                        conv.padding = padding
 
     # Export ONNX with batch size 1 (important for Edge Impulse)
     # Calculate total input size for ONNX export
@@ -695,23 +768,25 @@ def main(config):
     # Move model to CPU for export
     model = model.cpu()
     
-    # Check model output range with some sample data for diagnostics
-    print("\n=== Checking model output range ===", flush=True)
-    with torch.no_grad():
-        sample_outputs = []
-        for batch_idx, (data, _) in enumerate(test_loader):
-            if batch_idx >= 5:  # Check first 5 batches
-                break
-            data = data.view(data.size(0), -1).cpu()
-            output = model(data)
-            sample_outputs.append(output)
-        
-        all_outputs = torch.cat(sample_outputs, dim=0)
-        print(f"Output min: {all_outputs.min().item():.4f}", flush=True)
-        print(f"Output max: {all_outputs.max().item():.4f}", flush=True)
-        print(f"Output mean: {all_outputs.mean().item():.4f}", flush=True)
-        print(f"Output std: {all_outputs.std().item():.4f}", flush=True)
-    print("===================================\n", flush=True)
+    # Test dummy input works before ONNX export
+    print("\n=== Testing dummy input before ONNX export ===", flush=True)
+    print(f"Model layers: {len(model.layers)}", flush=True)
+    for i, layer in enumerate(model.layers):
+        actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
+        has_main = hasattr(layer, 'main_module')
+        print(f"  Layer {i}: {type(layer).__name__} (has_main_module={has_main}) -> {type(actual_layer).__name__}", flush=True)
+    
+    try:
+        with torch.no_grad():
+            test_output = model(dummy_input)
+            print(f"Dummy input shape: {dummy_input.shape}", flush=True)
+            print(f"Model output shape: {test_output.shape}", flush=True)
+            print("Dummy input test passed!", flush=True)
+    except Exception as e:
+        print(f"ERROR: Dummy input test failed: {e}", flush=True)
+        print("This model cannot be exported to ONNX.", flush=True)
+        return
+    print("="*50 + "\n", flush=True)
     
     # Use legacy ONNX exporter to avoid torch.export issues with dynamic shapes
     # Dynamic axes allow variable batch size for validation
