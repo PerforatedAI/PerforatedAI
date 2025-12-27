@@ -1,30 +1,42 @@
 # Example Hackathon Project
 
-## Intro (Required)
+## Intro - Required
 
 Description:
 
-This folder displays what a hackathon project should look like.  Each submission must be completed as a PR into the main branch of this repo.  You must check out the repo, create a new folder inside the above Examples/hackathon folder and place your code there.  The code can link to other repos but the submission must be here in this format.
+This folder displays what a hackathon project should look like.  Each submission must be completed as a PR into the main branch of this repo.  You must check out the repo, create a new folder inside the above Examples/hackathonProjects folder and place your code there.  The code can link to other repos but the submission must be here in this format.
 
 Example Content:
 
 MNIST is a standard used to show proof of concept of new tools.  This hackathon submission tests adding dendrites to the MNIST example from PyTorch.
+```markdown
+# Example Hackathon Project
 
-## Project Impact (Required)
+## Intro - Required
 
 Description:
 
-The Project Impact section should describe why this matters.  Just a short few sentences are all that is required to describe why improved accuracy or compressed models would matter for this application.
+This folder shows what a hackathon project should look like. Each submission must be made as a pull request to the `main` branch of this repository. Check out the repo, create a new folder inside the `Examples/hackathonProjects` folder, and place your code there. The code can link to other repositories, but the submission must be included here in this format.
 
 Example Content:
 
-MNIST is a dataset of OCR.  Improving the accuracy of an OCR system matters because it ensures that text extracted from images or documents is reliable, reducing errors in data processing and analysis. Higher accuracy also saves time and costs by minimizing the need for manual corrections or reprocessing. In fields like finance, healthcare, and legal work, precise text recognition is critical since even small mistakes can lead to serious misinterpretations or compliance issues.
+MNIST is a standard dataset used to demonstrate proof-of-concept for new tools. This hackathon submission tests adding dendrites to the MNIST example from PyTorch.
 
-## Useage Instructions (Required)
+## Project Impact - Required
 
 Description:
 
-Each project must have instructions for how to install and run the project.
+The Project Impact section should describe why this matters. A short paragraph (a few sentences) is sufficient to explain why improved accuracy or compressed models would matter for this application.
+
+Example Content:
+
+MNIST is a dataset for OCR. Improving the accuracy of an OCR system matters because it ensures that text extracted from images or documents is reliable, reducing errors in data processing and analysis. Higher accuracy also saves time and costs by minimizing the need for manual corrections or reprocessing. In fields like finance, healthcare, and legal work, precise text recognition is critical since even small mistakes can lead to serious misinterpretations or compliance issues.
+
+## Usage Instructions - Required
+
+Description:
+
+Each project must include instructions for how to install and run the project.
 
 Example Content:
 
@@ -36,65 +48,67 @@ Run:
 
     PAIPASSWORD=123 CUDA_VISIBLE_DEVICES=0 python mnist_perforatedai_wandb.py --count 25
 
-## Results (Required)
+## Results - Required
 
 Description:
 
-Each project must have results.  The minimum must be included:
+Each project must have results. The minimum must be included:
 
 - Accuracy Projects
   - The accuracy of the final dendritic network
-  - The accuracy of that same architecture with the same settings without dendrites (If you look at PAI/PAIbest_test_scores.csv this will show the original architecture's scores)
-  - Optional - The accuracy of the original network, or other optimial non-dendritic architectures
+  - The accuracy of that same architecture with the same settings without dendrites (If you look at `PAI/PAIbest_test_scores.csv` this will show the original architecture's scores)
+  - Optional - The accuracy of the original network, or other optimal non-dendritic architectures
   - Remaining Error Reduction
-    - This is the percentage of remaining error that dendrites were able to reduce.  For example, if dendrites take accuracy from 90% to 92% that is 20% Remaining Error Reduction, an improvement of 2% out of a remaining error of 10% from the original 90%.
+    - This is the percentage of remaining error that dendrites were able to reduce. For example, if dendrites take accuracy from 90% to 92%, that is a 20% Remaining Error Reduction — an improvement of 2% out of a remaining error of 10% from the original 90%.
 - Compression Projects
-  - The accuracy and parameter count of the optimial non-dendritic model
+  - The accuracy and parameter count of the optimal non-dendritic model
   - The accuracy and parameter count of the final dendritic network
-  - The accuracy and parameter count of that same architecture with the same settings without dendrites (If you look at PAI/PAIbest_test_scores.csv this will sh the original architecture's scores)
+  - The accuracy and parameter count of that same architecture with the same settings without dendrites (If you look at `PAI/PAIbest_test_scores.csv` this will show the original architecture's scores)
   - Percent Parameter Reduction
 
 Example Content:
 
-This MNIST example showed that Dendritic Optimization can improve accuracy on MNIST.  Comparing the best Traditional Model to the best dendritic model below:
+This MNIST example shows that Dendritic Optimization can improve accuracy on MNIST. Comparing the best traditional model to the best dendritic model below:
 
-| Model        | Final Validation Score |
-|--------------|------------------------|
-| Traditional  | 99.26                  |
-| Dendritic    | 99.42                  |
+| Model        | Final Validation Score |  Notes  |
+|--------------|------------------------| ------- |
+| Traditional  | 99.26                  | Optional Notes here |
+| Dendritic    | 99.42                  | Such as network hyperparameters |
 
 This provides a Remaining Error Reduction of **21.6%**.
 
-### Raw Results Graph (Required)
+## Raw Results Graph - Required
 
 Description:
 
-When running our library output graphs are automatically generated.  By default they are in the PAI folder, but you can also change your save name with the save_name parameter when calling initialize_pai.  The final graph generated by training will be in "PAI/PAI.png" with default naming.  This shows the final results of your training run that you are submitting.  **It is absolutely mandatory that you include this file.**  Without this file there is no way to tell that your project actually added dendrites correctly.  Before awarding prizes we will be running your code and confirming your results, but if this file is not included we will not be able to be sure if that reproduction is actually correct.  Another reason this is required, is because it is the only way you yourself can actually be sure things are working properly so if you do not check it you might not realize your project is not complete.  Please take a look at [this document](https://docs.google.com/document/d/1HygopGvDopYEF_rBlQvSbifgK-3GgQqnerX7yVngvHs/edit?usp=sharing) which includes examples of what problems you might run into and how they will look on this graph.  The closer your graph looks like the "What a Good Graph Should look like" graph the better.  If your graph has any of the other problems it will impact our scoring. If this graph is not included, or if your graph looks like the "No Dendrites" graph your submission will not be judged.
+When running our library, output graphs are automatically generated. By default they are saved in the `PAI` folder, but you can also change the filename with the `save_name` parameter when calling `initialize_pai`. The final graph generated by training will be `PAI/PAI.png` by default, and it shows the final results of the training run you are submitting. **It is absolutely mandatory that you include this file.** Without it there is no way to verify that your project actually added dendrites correctly. Before awarding prizes, we will run your code and confirm your results; however, if this file is not included we will not be able to confirm reproduction. Another reason this is required is that it is the only way you can be sure things are working properly — if you do not check it you might not realize your project is incomplete. Please take a look at [this document](https://docs.google.com/document/d/1HygopGvDopYEF_rBlQvSbifgK-3GgQqnerX7yVngvHs/edit?usp=sharing), which includes examples of problems you might run into and how they will look on this graph. The closer your graph looks to the "What a Good Graph Should Look Like" example, the better. If your graph has any of the other problems it will impact our scoring. If this graph is not included, or if your graph looks like the "No Dendrites" graph, your submission will not be judged. The important graph is the top-left graph in the image. The red vertical lines will only be present for CC dendrites if you requested a PAI license; requesting a license is not required to be eligible for prizes. The form to request a license is here: https://share.hsforms.com/1meVnVMXtQTiUDm6WWKLGDgrzzmm
+
 
 Example Content:
 
 ![Example Perforated AI output graph.](./PAI.png)
 
-### Clean Results Graph (Optional)
+## Clean Results Graph - Optional
 
 Description:
 
-If you would like to provide a graph, that will be great.  This wont impact how we judge the project, but it will help visualize the full impact of dendrites.  To generate a graph please use the [results graph template](https://docs.google.com/spreadsheets/d/1SuCrKkS7uzGQSlKniL3OtjIZEcyeW93isHkl6FIgL-0/edit?usp=sharing).
+If you would like to provide a graph, that will be great. This won't impact how we judge the project, but it will help visualize the full impact of dendrites. To generate a graph, please use the [results graph template](https://docs.google.com/spreadsheets/d/1SuCrKkS7uzGQSlKniL3OtjIZEcyeW93isHkl6FIgL-0/edit?usp=sharing).
 
 Example Content:
 
 ![Example training output graph.](./Accuracy%20Improvement.png)
 
-### Weights and Biases Sweep Report (Optional)
+## Weights and Biases Sweep Report - Optional
 
 Description:
 
-A Weights and Biases sweep report is the ideal way to show that you really experimented thoroughly.  It can display in great detail with simple visuals the outcomes of each of your experiments with clear labels to show exactly how dendrites improved your model and dataset.  Having this will grant bonus points from the judges, but it is not mandatory for submission or to win our top prizes.  Reach out if you have any trouble creating a Weights and Biases account.
+A Weights and Biases sweep report is an ideal way to show that you experimented thoroughly. It can display, with clear visuals, the outcomes of each of your experiments so judges can see exactly how dendrites affected your model and dataset. Having this will grant bonus points from the judges, but it is not mandatory for submission or to win our top prizes. Reach out if you have any trouble creating a Weights and Biases account.
 
 Example Content:
 
 [Weights and Biases Report](https://api.wandb.ai/links/perforated-ai/r97p9ss2)
 
-### Additional Files (Optional)
+## Additional Files - Optional
 
-Your code must be able to be run, but all files can be here or they can be linked elsewhere.  Please include them here if it is only a few files and only have your code as a link if it is a fork of another large repository.  In addition to this README and code required to run the project, it is also great if you include any original files to show what you started from and what the project looked like before adding dendrites.  A requirements.txt file is also very helpful for installation.
+Your code must be runnable; files can be included here or linked elsewhere. Please include them here if there are only a few files, and provide a link to your code only if it is a fork of another large repository. In addition to this README and the code required to run the project, it is helpful to include any original files that show what you started from and what the project looked like before adding dendrites. A `requirements.txt` file is also helpful for installation.
+```
