@@ -99,7 +99,7 @@ parser.add_argument('--out-directory', type=str, default='out', dest='out_direct
 # Training hyperparameters
 parser.add_argument('--batch-size', type=int, default=128, dest='batch_size')
 parser.add_argument('--learning-rate', type=float, default=0.005, dest='learning_rate')
-parser.add_argument('--seed', type=int, default=0)
+parser.add_argument('--seed', type=int, default=-1, help="Random seed for reproducibility. Use -1 for random (non-deterministic) behavior")
 parser.add_argument('--noise-std', type=str, default='None', help="Gaussian noise augmentation (None/Low/High)", dest='noise_std')
 
 # Data augmentation parameters (SpecAugment for spectrograms)
@@ -197,22 +197,22 @@ for i in range(20):
         if config_str:
             parts = [p.strip() for p in config_str.split(',')]
             if len(parts) >= 1:
-                config['channels'] = int(parts[0])
+                config['channels'] = int(parts[0].strip())
             if len(parts) >= 2:
-                config['kernel_size'] = int(parts[1])
+                config['kernel_size'] = int(parts[1].strip())
             if len(parts) >= 3:
-                config['layer_count'] = int(parts[2])
+                config['layer_count'] = int(parts[2].strip())
                 
     elif layer_type == '2D Convolution/Pool':
         config_str = getattr(args, f'layer_{i}_conv2d_config', '')
         if config_str:
             parts = [p.strip() for p in config_str.split(',')]
             if len(parts) >= 1:
-                config['channels'] = int(parts[0])
+                config['channels'] = int(parts[0].strip())
             if len(parts) >= 2:
-                config['kernel_size'] = int(parts[1])
+                config['kernel_size'] = int(parts[1].strip())
             if len(parts) >= 3:
-                config['layer_count'] = int(parts[2])
+                config['layer_count'] = int(parts[2].strip())
                 
     elif layer_type == 'Dropout':
         rate_str = getattr(args, f'layer_{i}_dropout_rate', '')
@@ -434,14 +434,16 @@ class AdaptiveClassifier(nn.Module):
                 
                 # Add layer_count conv+relu layers
                 for _ in range(layer_count):
-                    conv = nn.Conv2d(in_channels, channels, kernel_size, padding='same')
+                    # Keras padding='same' with odd kernel size: padding = (kernel_size - 1) // 2
+                    padding = (kernel_size - 1) // 2
+                    conv = nn.Conv2d(in_channels, channels, kernel_size, padding=padding)
                     self.layers.append(conv)
                     self._constrained_conv_layers.append(conv)
                     self.layers.append(nn.ReLU())
                     in_channels = channels
                 
                 # Single pooling at the end
-                self.layers.append(nn.MaxPool2d(2))
+                self.layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
                 current_rows = current_rows // 2
                 current_cols = current_cols // 2
                 
@@ -630,8 +632,6 @@ class AdaptiveClassifier(nn.Module):
         # Apply softmax only in export mode to output probabilities for Edge Impulse
         # During training, output raw logits for CrossEntropyLoss compatibility
         if self.export_mode:
-            # Clamp logits to prevent numerical instability in softmax and int8 quantization
-            x = torch.clamp(x, min=-10.0, max=10.0)
             x = torch.nn.functional.softmax(x, dim=1)
         
         return x
@@ -698,9 +698,12 @@ def main(config):
     else:
         GPA.pc.set_n_epochs_to_switch(100)
 
-    GPA.pc.set_verbose(False)
-    GPA.pc.set_silent(True)
+    GPA.pc.set_verbose(True)
+    GPA.pc.set_silent(False)
 
+    # Print model architecture and parameter count BEFORE initialize_pai
+    print(model)
+    print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     model = UPA.initialize_pai(model)
     
@@ -717,12 +720,24 @@ def main(config):
             # Check if it's a PAIModule (PerforatedAI wrapped layer) by type name
             if type(layer).__name__ == 'PAINeuronModule' and isinstance(layer.main_module, nn.Conv1d):
                 layer.set_this_output_dimensions([-1, 0, -1])
-    print(model)
-    print(f"Total parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+    print(f"Total parameters (after PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+    
+    # Debug: Print model configuration
+    print(f"\n[DEBUG] PyTorch Model Configuration:")
+    print(f"[DEBUG] Input shape: {input_shape}, Data type: {data_type}")
+    print(f"[DEBUG] Reshape to: rows={model.rows if hasattr(model, 'rows') else 'N/A'}, cols={model.columns if hasattr(model, 'columns') else 'N/A'}, channels={model.channels if hasattr(model, 'channels') else 'N/A'}")
+    print(f"[DEBUG] Noise std: {noise_std_val}")
+    print(f"[DEBUG] Mask time bands: {mask_time_bands_val}, Mask freq bands: {mask_freq_bands_val}, Warp time: {warp_time_val}")
+    print(f"[DEBUG] Layer count: {len(model.layers)}")
+    for i, layer in enumerate(model.layers):
+        actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
+        print(f"[DEBUG]   Layer {i}: {type(actual_layer).__name__}")
+    print()
+    
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999)}
-    schedArgs = {'mode':'max', 'patience': 5}
+    schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}  # Set to 1000 to match Keras (no LR scheduling)
     optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     # Compute class weights if auto_weight_classes is enabled
@@ -829,7 +844,7 @@ def main(config):
         GPA.pai_tracker.add_extra_score(test_acc, 'Test')
         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
         model.to(device)
-        if training_complete:
+        if training_complete:  # Stop at 100 epochs to match Keras
             break
         elif restructured:
             if first_test_acc == 0:
@@ -837,12 +852,15 @@ def main(config):
                 first_test_acc = test_acc
             print('Restructured dendritic architecture')
             optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999)}
-            schedArgs = {'mode':'max', 'patience': 5}
+            schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
         print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
+        print(f'[DEBUG] Epoch {epoch+1}: train_loss={train_loss:.4f}, train_acc={train_acc:.4f}, val_loss={val_loss:.4f}, val_acc={val_acc:.4f}')
 
     test_loss, test_acc = test(model, test_loader, criterion, device)
+    print(f'\n[DEBUG] Final Test: test_loss={test_loss:.4f}, test_acc={test_acc:.4f}')
+
 
     if str2bool(args.dendritic_optimization):
         print(f'First architecture: Val Acc: {first_val_acc:.4f}, Test Acc: {first_test_acc:.4f}, params: {first_param_count}')
@@ -852,6 +870,20 @@ def main(config):
         print(f'Test: {(100.0*((max_test_acc-first_test_acc)/(1-first_test_acc))):.2f}%')
     else:
         print(f'Final architecture: Val Acc: {val_acc:.4f}, Test Acc: {test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
+
+    # -------------------------
+    # Get baseline PyTorch scores BEFORE blockwise/refresh transformations
+    # -------------------------
+    # Move model to CPU and eval mode to get reference scores
+    model = model.cpu()
+    model.eval()
+    model.export_mode = False  # Use logits for evaluation
+    
+    print("\n=== PyTorch Baseline (before ONNX export transformations) ===", flush=True)
+    pytorch_val_loss, pytorch_val_acc = test(model, val_loader, criterion, torch.device('cpu'))
+    pytorch_test_loss, pytorch_test_acc = test(model, test_loader, criterion, torch.device('cpu'))
+    print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
+    print("="*50 + "\n", flush=True)
 
     # -------------------------
     # Print best_test_scores table
@@ -872,8 +904,204 @@ def main(config):
     from perforatedai import blockwise_perforatedai as BPA
     from perforatedai import clean_perforatedai as CPA
     #model = UPA.load_system(model, 'PAI', 'best_model', True)
+    print("before blockwise and refresh:")
+    print(model)
     model = BPA.blockwise_network(model)
     model  = CPA.refresh_net(model)
+    print("after blockwise and refresh:")
+    print(model)
+    # ============================================================================
+    # COMPREHENSIVE DEBUGGING: Inspect ALL weights and activations
+    # ============================================================================
+    print("\n" + "="*80)
+    print("DEBUGGING: Analyzing model after dendritic transformations")
+    print("="*80)
+    
+    # 1. Print complete model structure
+    print("\n--- MODEL STRUCTURE ---")
+    for i, (name, module) in enumerate(model.named_modules()):
+        print(f"{i:3d}. {name:50s} -> {type(module).__name__}")
+    
+    # 2. Analyze ALL parameters with detailed statistics
+    print("\n--- PARAMETER ANALYSIS (BEFORE any clipping) ---")
+    print(f"{'Module Name':<60s} {'Shape':<20s} {'Min':<12s} {'Max':<12s} {'Mean':<12s} {'Std':<12s}")
+    print("-" * 120)
+    
+    extreme_params = []
+    all_param_stats = []
+    
+    for name, module in model.named_modules():
+        for param_name, param in module.named_parameters(recurse=False):
+            full_name = f"{name}.{param_name}" if name else param_name
+            
+            with torch.no_grad():
+                p_min = param.min().item()
+                p_max = param.max().item()
+                p_mean = param.mean().item()
+                p_std = param.std().item()
+                p_abs_max = param.abs().max().item()
+                
+                stats = {
+                    'name': full_name,
+                    'shape': str(list(param.shape)),
+                    'min': p_min,
+                    'max': p_max,
+                    'mean': p_mean,
+                    'std': p_std,
+                    'abs_max': p_abs_max
+                }
+                all_param_stats.append(stats)
+                
+                # Flag extreme parameters
+                if p_abs_max > 100 or abs(p_mean) > 100:
+                    extreme_params.append(stats)
+                
+                # Print with scientific notation for large values
+                print(f"{full_name:<60s} {str(list(param.shape)):<20s} {p_min:12.4e} {p_max:12.4e} {p_mean:12.4e} {p_std:12.4e}")
+    
+    if extreme_params:
+        print("\n⚠️  WARNING: Found parameters with extreme values:")
+        for stat in extreme_params:
+            print(f"  - {stat['name']}: abs_max={stat['abs_max']:.2e}, mean={stat['mean']:.2e}")
+    else:
+        print("\n✓ All parameters have reasonable magnitudes (< 100)")
+    
+    # 3. Test forward pass and capture activation statistics
+    print("\n--- ACTIVATION ANALYSIS (using calibration sample) ---")
+    model.eval()
+    model.export_mode = False  # Don't apply softmax yet
+    
+    # Get a sample from training data for activation analysis
+    sample_input, _ = next(iter(train_loader))
+    sample_input = sample_input[0:1].cpu()  # Take just one sample and move to CPU
+    sample_flat = sample_input.view(1, -1)
+    
+    # Hook to capture activations
+    activations = {}
+    def make_hook(name):
+        def hook(module, input, output):
+            if isinstance(output, torch.Tensor):
+                with torch.no_grad():
+                    activations[name] = {
+                        'shape': list(output.shape),
+                        'min': output.min().item(),
+                        'max': output.max().item(),
+                        'mean': output.mean().item(),
+                        'std': output.std().item(),
+                        'abs_max': output.abs().max().item()
+                    }
+        return hook
+    
+    # Register hooks on all modules
+    hooks = []
+    for name, module in model.named_modules():
+        if name:  # Skip root module
+            hooks.append(module.register_forward_hook(make_hook(name)))
+    
+    # Run forward pass
+    with torch.no_grad():
+        output = model(sample_flat)
+    
+    # Remove hooks
+    for hook in hooks:
+        hook.remove()
+    
+    # Print activation statistics
+    print(f"{'Module Name':<60s} {'Shape':<20s} {'Min':<12s} {'Max':<12s} {'Abs Max':<12s}")
+    print("-" * 120)
+    
+    extreme_activations = []
+    for name, stats in activations.items():
+        print(f"{name:<60s} {str(stats['shape']):<20s} {stats['min']:12.4e} {stats['max']:12.4e} {stats['abs_max']:12.4e}")
+        
+        if stats['abs_max'] > 1000:
+            extreme_activations.append({'name': name, **stats})
+    
+    if extreme_activations:
+        print("\n⚠️  WARNING: Found activations with extreme values:")
+        for act in extreme_activations:
+            print(f"  - {act['name']}: abs_max={act['abs_max']:.2e}, range=[{act['min']:.2e}, {act['max']:.2e}]")
+    else:
+        print("\n✓ All activations have reasonable magnitudes (< 1000)")
+    
+    # 4. Check for tanh operations specifically
+    print("\n--- CHECKING FOR TANH AND DENDRITIC OPERATIONS ---")
+    found_tanh = False
+    found_dendritic = False
+    for name, module in model.named_modules():
+        module_type = type(module).__name__
+        if 'tanh' in module_type.lower() or 'Tanh' in module_type:
+            print(f"  Found Tanh: {name} -> {module_type}")
+            found_tanh = True
+        if 'dendrit' in module_type.lower() or 'Dendrit' in module_type:
+            print(f"  Found Dendritic: {name} -> {module_type}")
+            found_dendritic = True
+    
+    if not found_tanh and not found_dendritic:
+        print("  No explicit Tanh or Dendritic modules found")
+        print("  (They may be embedded in custom forward functions)")
+    
+    print("="*80 + "\n")
+    
+    # Now apply weight constraints based on what we found
+    print("--- APPLYING WEIGHT CONSTRAINTS ---")
+    if extreme_params:
+        print("Found extreme parameters - applying aggressive clipping to [-1, 1]")
+        clip_range = 1.0
+    elif extreme_activations:
+        print("Found extreme activations - applying moderate clipping to [-10, 10]")
+        clip_range = 10.0
+    else:
+        print("No extreme values found - applying conservative clipping to [-100, 100]")
+        clip_range = 100.0
+    
+    constrained_params = 0
+    for name, module in model.named_modules():
+        for param_name, param in module.named_parameters(recurse=False):
+            full_name = f"{name}.{param_name}" if name else param_name
+            with torch.no_grad():
+                orig_max = param.abs().max().item()
+                param.clamp_(-clip_range, clip_range)
+                if orig_max > clip_range:
+                    print(f"  Clipped {full_name}: {orig_max:.2e} → {clip_range:.2f}")
+                    constrained_params += 1
+    
+    print(f"Constrained {constrained_params} parameters to [±{clip_range}]")
+    print("="*80 + "\n")
+    
+    # ============================================================================
+    # INSPECT skip_weights - These are likely causing the 1e36 scales
+    # ============================================================================
+    print("--- INSPECTING SKIP_WEIGHTS ---")
+    skip_weights_found = False
+    for name, module in model.named_modules():
+        if hasattr(module, 'skip_weights'):
+            skip_weights_found = True
+            print(f"\nModule: {name}")
+            print(f"  skip_weights type: {type(module.skip_weights)}")
+            
+            if isinstance(module.skip_weights, nn.ParameterList):
+                print(f"  Length: {len(module.skip_weights)}")
+                for i, param in enumerate(module.skip_weights):
+                    print(f"  Parameter {i}:")
+                    print(f"    Shape: {param.shape}")
+                    print(f"    Min: {param.min().item():.6e}, Max: {param.max().item():.6e}")
+                    print(f"    Mean: {param.mean().item():.6e}, Std: {param.std().item():.6e}")
+                
+                # Try to remove empty skip_weights
+                if len(module.skip_weights) == 0:
+                    print(f"  ⚠️  EMPTY ParameterList - attempting to remove...")
+                    try:
+                        delattr(module, 'skip_weights')
+                        print(f"  ✓ Successfully removed empty skip_weights")
+                    except Exception as e:
+                        print(f"  ✗ Failed to remove: {e}")
+            else:
+                print(f"  Not a ParameterList - it's a {type(module.skip_weights)}")
+    
+    if not skip_weights_found:
+        print("  No skip_weights found in any module")
+    print("="*80 + "\n")
     
     # Fix padding for conv layers if needed
     for layer in model.layers:
@@ -887,6 +1115,10 @@ def main(config):
                             padding = (conv.kernel_size - 1) // 2
                         conv.padding = padding
 
+    # Model already in eval mode and on CPU from baseline evaluation
+    # Now enable export mode for ONNX (outputs probabilities)
+    model.export_mode = True
+    
     # Export ONNX with batch size 1 (important for Edge Impulse)
     # Calculate total input size for ONNX export
     if data_type == '2d_image':
@@ -898,13 +1130,6 @@ def main(config):
     
     onnx_path = os.path.join(args.out_directory, 'model.onnx')
     dummy_input = torch.randn((1, onnx_input_size))
-    
-    # Put model in eval mode and enable export mode for softmax output
-    model.eval()
-    model.export_mode = True  # Output probabilities instead of logits
-    
-    # Move model to CPU for export
-    model = model.cpu()
     
     # Test dummy input works before ONNX export
     print("\n=== Testing dummy input before ONNX export ===", flush=True)
@@ -932,7 +1157,7 @@ def main(config):
     
     # Try with dynamo=False first (PyTorch 2.1+), fallback to legacy exporter
     try:
-        torch.onnx.export(model.cpu(),
+        torch.onnx.export(model,
                           dummy_input,
                           onnx_path,
                           export_params=True,
@@ -946,7 +1171,7 @@ def main(config):
         # Older PyTorch version, dynamo parameter doesn't exist
         # Set environment variable to force legacy exporter
         os.environ['TORCH_ONNX_EXPERIMENTAL_RUNTIME_TYPE_CHECK'] = '0'
-        torch.onnx.export(model.cpu(),
+        torch.onnx.export(model,
                           dummy_input,
                           onnx_path,
                           export_params=True,
@@ -956,6 +1181,78 @@ def main(config):
                           output_names=['output'],
                           dynamic_axes=dynamic_axes)
     print("Exported ONNX to", onnx_path)
+    
+    # ============================================================================
+    # INSPECT skip_weights AFTER export - These are likely causing the 1e36 scales
+    # ============================================================================
+    print("\n" + "="*80)
+    print("INSPECTING SKIP_WEIGHTS (post-export for debugging)")
+    print("="*80)
+    skip_weights_found = False
+    for name, module in model.named_modules():
+        if hasattr(module, 'skip_weights'):
+            skip_weights_found = True
+            print(f"\nModule: {name}")
+            print(f"  skip_weights type: {type(module.skip_weights)}")
+            
+            if isinstance(module.skip_weights, nn.ParameterList):
+                print(f"  Length: {len(module.skip_weights)}")
+                for i, param in enumerate(module.skip_weights):
+                    print(f"  Parameter {i}:")
+                    print(f"    Shape: {param.shape}")
+                    print(f"    Min: {param.min().item():.6e}, Max: {param.max().item():.6e}")
+                    print(f"    Mean: {param.mean().item():.6e}, Std: {param.std().item():.6e}")
+            else:
+                print(f"  Not a ParameterList - it's a {type(module.skip_weights)}")
+    
+    if not skip_weights_found:
+        print("  No skip_weights found in any module")
+    print("="*80 + "\n")
+    
+    # -------------------------
+    # DEBUG: Inspect ONNX model for extreme initializer values
+    # -------------------------
+    print("\n=== INSPECTING ONNX MODEL INITIALIZERS ===")
+    try:
+        import onnx
+        onnx_model = onnx.load(onnx_path)
+        
+        print(f"ONNX Opset: {onnx_model.opset_import[0].version}")
+        print(f"Initializers (constants): {len(onnx_model.graph.initializer)}")
+        
+        extreme_initializers = []
+        for init in onnx_model.graph.initializer:
+            # Convert to numpy array
+            from onnx.numpy_helper import to_array
+            arr = to_array(init)
+            
+            if arr.size > 0:
+                abs_max = np.abs(arr).max()
+                abs_mean = np.abs(arr).mean()
+                
+                if abs_max > 1000 or abs_mean > 100:
+                    extreme_initializers.append({
+                        'name': init.name,
+                        'shape': arr.shape,
+                        'abs_max': abs_max,
+                        'abs_mean': abs_mean,
+                        'min': arr.min(),
+                        'max': arr.max()
+                    })
+                    print(f"\n⚠️  EXTREME INITIALIZER: {init.name}")
+                    print(f"    Shape: {arr.shape}")
+                    print(f"    Range: [{arr.min():.6e}, {arr.max():.6e}]")
+                    print(f"    Abs max: {abs_max:.6e}, Abs mean: {abs_mean:.6e}")
+        
+        if not extreme_initializers:
+            print("\n✓ All ONNX initializers have reasonable values")
+        else:
+            print(f"\n⚠️  Found {len(extreme_initializers)} initializers with extreme values!")
+            
+    except Exception as e:
+        print(f"Failed to inspect ONNX model: {e}")
+    
+    print("="*80 + "\n")
     
     # -------------------------
     # Validate ONNX model accuracy
@@ -1021,13 +1318,13 @@ def main(config):
         val_acc_onnx = test_onnx(val_loader, "Validation")
         test_acc_onnx = test_onnx(test_loader, "Test")
         
-        # Compare with PyTorch model results
+        # Compare with PyTorch model results (use fresh eval, not training max)
         print("\nComparison:")
-        print(f"PyTorch  - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+        print(f"PyTorch  - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
         print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
         
-        val_diff = abs(max_val_acc - val_acc_onnx)
-        test_diff = abs(max_test_acc - test_acc_onnx)
+        val_diff = abs(pytorch_val_acc - val_acc_onnx)
+        test_diff = abs(pytorch_test_acc - test_acc_onnx)
         
         if val_diff < 0.001 and test_diff < 0.001:
             print("✓ ONNX model matches PyTorch model (difference < 0.1%)")
@@ -1062,13 +1359,24 @@ def main(config):
             # Convert ONNX to TFLite with int8 quantization
             def representative_dataset():
                 """Generate representative data for quantization calibration"""
+                activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
+                
                 for batch_idx, (data, _) in enumerate(train_loader):
                     if batch_idx >= 100:  # Use 100 batches for calibration
                         break
                     data_np = data.cpu().numpy()
                     for i in range(data_np.shape[0]):
                         sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                        activation_stats['min'] = min(activation_stats['min'], sample.min())
+                        activation_stats['max'] = max(activation_stats['max'], sample.max())
+                        activation_stats['samples'] += 1
                         yield [sample]
+                
+                print(f"\nCalibration dataset statistics:")
+                print(f"  Samples: {activation_stats['samples']}")
+                print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
+                print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
+
             
             # Convert ONNX to TF SavedModel using onnx2tf
             saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
@@ -1083,6 +1391,7 @@ def main(config):
             print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
             
             # Convert to TFLite with int8 quantization
+            print("\nAttempting int8 quantization...")
             converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             converter.representative_dataset = representative_dataset
@@ -1090,15 +1399,78 @@ def main(config):
             converter.inference_input_type = tf.int8
             converter.inference_output_type = tf.int8
             
-            tflite_model = converter.convert()
-            tflite_path = os.path.join(args.out_directory, 'model_int8.tflite')
-            with open(tflite_path, 'wb') as f:
-                f.write(tflite_model)
-            print(f"Created int8 quantized model: {tflite_path}")
+            try:
+                tflite_model = converter.convert()
+                tflite_path = os.path.join(args.out_directory, 'model_int8.tflite')
+                with open(tflite_path, 'wb') as f:
+                    f.write(tflite_model)
+                print(f"✓ Successfully created int8 quantized model: {tflite_path}")
+            except Exception as quant_error:
+                print(f"\n✗ INT8 QUANTIZATION FAILED")
+                print(f"Error: {quant_error}")
+                print("\nThis is the same error Edge Impulse encounters.")
+                print("The dendritic network likely produces activation ranges that are incompatible with int8 quantization.")
+                print("\nPossible solutions:")
+                print("  1. Skip dendritic optimization for Edge Impulse deployment")
+                print("  2. Add activation clipping in the dendritic modules")
+                print("  3. Use mixed precision (int8 weights, float32 activations)")
+                raise
             
             # Test int8 quantized model
+            print("\nTesting int8 quantized model...")
+            
+            # Inspect TFLite model before allocating tensors
+            try:
+                import flatbuffers
+                from tensorflow.lite.python import schema_py_generated as schema_fb
+                
+                with open(tflite_path, 'rb') as f:
+                    buf = bytearray(f.read())
+                
+                model = schema_fb.Model.GetRootAsModel(buf, 0)
+                
+                print(f"\nTFLite Model Info:")
+                print(f"  Version: {model.Version()}")
+                print(f"  Subgraphs: {model.SubgraphsLength()}")
+                
+                subgraph = model.Subgraphs(0)
+                print(f"  Tensors: {subgraph.TensorsLength()}")
+                print(f"  Operators: {subgraph.OperatorsLength()}")
+                
+                # Check quantization parameters for each tensor
+                print(f"\nTensor Quantization Details:")
+                for i in range(subgraph.TensorsLength()):
+                    tensor = subgraph.Tensors(i)
+                    name = tensor.Name().decode('utf-8') if tensor.Name() else f"tensor_{i}"
+                    quant = tensor.Quantization()
+                    
+                    if quant and quant.ScaleLength() > 0:
+                        scales = [quant.Scale(j) for j in range(quant.ScaleLength())]
+                        zero_points = [quant.ZeroPoint(j) for j in range(quant.ZeroPointLength())]
+                        print(f"  Tensor {i} ({name}): scale={scales}, zero_point={zero_points}")
+                        
+                        # Check for problematic quantization scales
+                        for scale in scales:
+                            if scale <= 0 or scale > 1e6:
+                                print(f"    ⚠️  WARNING: Tensor {i} has extreme scale: {scale}")
+                
+            except Exception as inspect_error:
+                print(f"Could not inspect TFLite model: {inspect_error}")
+            
+            # Now try to allocate tensors
             interpreter = tf.lite.Interpreter(model_path=tflite_path)
-            interpreter.allocate_tensors()
+            
+            try:
+                interpreter.allocate_tensors()
+                print("\n✓ Tensor allocation successful")
+            except (RuntimeError, Exception) as alloc_error:
+                print(f"\n✗ TENSOR ALLOCATION FAILED")
+                print(f"Error: {alloc_error}")
+                print("\nThis is the exact error Edge Impulse encountered.")
+                print("The quantized model has invalid tensor configurations.")
+                print("\nLikely cause: PerforatedAI dendritic modules create activation ranges")
+                print("that cannot be properly quantized to int8.")
+                raise
             
             input_details = interpreter.get_input_details()
             output_details = interpreter.get_output_details()
