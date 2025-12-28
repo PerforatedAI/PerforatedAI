@@ -88,10 +88,11 @@
         },
         {
             "name": "Speed Switch",
-            "value": "slow",
+            "value": "extra-slow",
             "type": "select",
             "help": "Controls the speed to switch.",
             "valid": [
+                "extra-slow",
                 "slow",
                 "medium",
                 "fast"

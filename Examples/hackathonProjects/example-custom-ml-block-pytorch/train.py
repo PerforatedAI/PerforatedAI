@@ -129,7 +129,7 @@ for i in range(20):
 
 # PerforatedAI dendritic optimization parameters
 parser.add_argument('--dendritic-optimization', type=str, required=False, default="true", dest='dendritic_optimization')
-parser.add_argument('--switch-speed', type=str, default='slow', help="speed to switch", choices=['slow', 'medium', 'fast'], dest='switch_speed')
+parser.add_argument('--switch-speed', type=str, default='extra-slow', help="speed to switch", choices=['extra-slow', 'slow', 'medium', 'fast'], dest='switch_speed')
 parser.add_argument('--max-dendrites', type=int, default=3, dest='max_dendrites')
 parser.add_argument('--improvement-threshold', type=str, default='medium', choices=['high', 'medium', 'low'], dest='improvement_threshold')
 parser.add_argument('--dendrite-weight-initialization-multiplier', type=float, default=0.01, dest='dendrite_weight_initialization_multiplier')
@@ -695,11 +695,13 @@ def main(config):
         GPA.pc.set_n_epochs_to_switch(10)
     elif args.switch_speed == 'medium':
         GPA.pc.set_n_epochs_to_switch(25)
-    else:
+    elif args.switch_speed == 'slow':
         GPA.pc.set_n_epochs_to_switch(100)
+    elif args.switch_speed == 'extra-slow':
+        GPA.pc.set_n_epochs_to_switch(250)
 
-    GPA.pc.set_verbose(True)
-    GPA.pc.set_silent(False)
+    GPA.pc.set_verbose(False)
+    GPA.pc.set_silent(True)
 
     # Print model architecture and parameter count BEFORE initialize_pai
     print(model)
