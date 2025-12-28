@@ -49,4 +49,10 @@ This makes it suitable for experimentation, education, and future research.
 ## Author
 Mostafa Waly  
 Independent Researcher / Hackathon Participant
+## Raw Training Graph
+
+The following plot shows the raw training loss comparison between the baseline CNN and the dendritic-enhanced CNN.
+
+![Raw Loss Comparison](./raw_loss_comparison.png)
+
 
