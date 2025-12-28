@@ -1115,21 +1115,8 @@ def main(config):
             import subprocess
             
             # Convert ONNX to TFLite with int8 quantization
-            # First, compute normalization statistics from training data
-            print("Computing input normalization statistics...")
-            all_train_data = []
-            for data, _ in train_loader:
-                all_train_data.append(data.cpu().numpy())
-            all_train_data = np.concatenate(all_train_data, axis=0)
-            input_mean = all_train_data.mean(axis=0, keepdims=True)
-            input_std = all_train_data.std(axis=0, keepdims=True) + 1e-8  # Avoid division by zero
-            
-            print(f"Input statistics:")
-            print(f"  Mean range: [{input_mean.min():.4f}, {input_mean.max():.4f}]")
-            print(f"  Std range: [{input_std.min():.4f}, {input_std.max():.4f}]")
-            
             def representative_dataset():
-                """Generate representative data for quantization calibration with normalization"""
+                """Generate representative data for quantization calibration"""
                 activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
                 
                 for batch_idx, (data, _) in enumerate(train_loader):
@@ -1138,14 +1125,12 @@ def main(config):
                     data_np = data.cpu().numpy()
                     for i in range(data_np.shape[0]):
                         sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
-                        # Normalize the sample
-                        sample = (sample - input_mean.reshape(1, -1)) / input_std.reshape(1, -1)
                         activation_stats['min'] = min(activation_stats['min'], sample.min())
                         activation_stats['max'] = max(activation_stats['max'], sample.max())
                         activation_stats['samples'] += 1
                         yield [sample]
                 
-                print(f"\nCalibration dataset statistics (after normalization):")
+                print(f"\nCalibration dataset statistics:")
                 print(f"  Samples: {activation_stats['samples']}")
                 print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
                 print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
@@ -1169,8 +1154,10 @@ def main(config):
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             converter.representative_dataset = representative_dataset
             converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-            converter.inference_input_type = tf.int8
-            converter.inference_output_type = tf.int8
+            # Edge Impulse uses float32 inputs/outputs with int8 weights internally
+            # Don't force int8 for inputs/outputs - let TFLite decide
+            # converter.inference_input_type = tf.int8
+            # converter.inference_output_type = tf.int8
             
             try:
                 tflite_model = converter.convert()
@@ -1270,9 +1257,6 @@ def main(config):
                     # Process one sample at a time
                     for i in range(batch_size):
                         sample = inputs_flat[i:i+1].astype(np.float32)
-                        
-                        # Normalize the input to match calibration data
-                        sample = (sample - input_mean.reshape(1, -1)) / input_std.reshape(1, -1)
                         
                         # Quantize input if needed
                         if input_details[0]['dtype'] == np.int8:
