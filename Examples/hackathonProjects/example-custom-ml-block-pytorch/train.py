@@ -2,9 +2,6 @@
 # Generalized train.py for Edge Impulse custom learning blocks with PerforatedAI
 
 import sys
-print("This is version 3.57", flush=True)
-print("="*60, flush=True)
-sys.stdout.flush()
 # 
 # SUPPORTED DATA MODALITIES:
 # ==========================
@@ -129,26 +126,21 @@ for i in range(20):
 
 # PerforatedAI dendritic optimization parameters
 parser.add_argument('--dendritic-optimization', type=str, required=False, default="true", dest='dendritic_optimization')
-parser.add_argument('--switch-speed', type=str, default='extra-slow', help="speed to switch", choices=['extra-slow', 'slow', 'medium', 'fast'], dest='switch_speed')
-parser.add_argument('--max-dendrites', type=int, default=3, dest='max_dendrites')
+parser.add_argument('--switch-speed', type=str, default='slow', help="speed to switch", choices=['extra-slow', 'slow', 'medium', 'fast'], dest='switch_speed')
+parser.add_argument('--max-dendrites', type=int, default=1, dest='max_dendrites')
 parser.add_argument('--improvement-threshold', type=str, default='medium', choices=['high', 'medium', 'low'], dest='improvement_threshold')
 parser.add_argument('--dendrite-weight-initialization-multiplier', type=float, default=0.01, dest='dendrite_weight_initialization_multiplier')
 parser.add_argument('--dendrite-forward-function', type=str, default='tanh', choices=['relu','sigmoid','tanh'], dest='dendrite_forward_function')
 parser.add_argument('--dendrite-conversion', type=str, default='All Layers', choices=['Linear Only','All Layers'], dest='dendrite_conversion')
 parser.add_argument('--improved-dendritic-optimization', type=str, required=False, default="false", dest='improved_dendritic_optimization')
 parser.add_argument('--perforated-ai-token', type=str, required=False, default="", dest='perforated_ai_token')
+parser.add_argument('--split-test', type=str, required=False, default="false", dest='split_test', help="Split test set into validation and test. If false, uses full test set for validation.")
 parser.add_argument('--confirm-quant-score', type=str, required=False, default="false", dest='confirm_quant_score', help="Test int8 quantization accuracy locally")
 
 # Use parse_known_args to ignore any extra arguments Edge Impulse might pass
 args, unknown = parser.parse_known_args()
 if unknown:
     print(f"Note: Ignoring unknown arguments: {unknown}")
-
-# Print all parsed arguments for debugging
-print("\n=== Parsed Arguments ===", flush=True)
-for arg, value in vars(args).items():
-    print(f"{arg}: {value}", flush=True)
-print("========================\n", flush=True)
 
 # Helper functions (defined before use)
 def str2bool(value: str) -> bool:
@@ -221,8 +213,6 @@ for i in range(20):
     
     layer_configs.append(config)
 
-print(f"Parsed {len(layer_configs)} layer configurations")
-
 os.environ["PAIEMAIL"] = "user@edgeimpulse.com"
 os.environ["PAITOKEN"] = args.perforated_ai_token
 
@@ -245,23 +235,30 @@ input_shape = X_train.shape[1:]
 num_samples = X_train.shape[0]
 
 # Extract class labels correctly from Edge Impulse format
-# Y_train format: (N, 4) with columns [label_index, sample_id, start_ms, end_ms]
-# OR for one-hot: (N, num_classes)
+# Y_train can be:
+# 1. One-hot encoded: (N, num_classes) where each row sums to 1
+# 2. Edge Impulse metadata: (N, 4) with [label_index, sample_id, start_ms, end_ms]
+# 3. Simple labels: (N,) with class indices
+
 if Y_train.ndim > 1 and Y_train.shape[1] > 1:
-    # Check if it's the 4-column format or one-hot encoded
-    if Y_train.shape[1] == 4:
-        # Edge Impulse 4-column format: first column is label_index
-        num_classes = len(np.unique(Y_train[:, 0]))
-    else:
+    # Check if one-hot encoded by seeing if rows sum to 1 (or close to 1)
+    row_sums = Y_train.sum(axis=1)
+    is_onehot = np.allclose(row_sums, 1.0) and np.all((Y_train == 0) | (Y_train == 1))
+    
+    if is_onehot:
         # One-hot encoded format
         num_classes = Y_train.shape[1]
+        print(f"Detected one-hot encoded labels with {num_classes} classes")
+    else:
+        # Assume Edge Impulse metadata format: first column is label_index
+        num_classes = len(np.unique(Y_train[:, 0]))
+        print(f"Detected Edge Impulse metadata format, extracted {num_classes} classes from first column")
 else:
     # Simple label array
     num_classes = len(np.unique(Y_train))
+    print(f"Detected simple label array with {num_classes} classes")
 
 print(f"Number of classes: {num_classes}")
-print(f"Y_train format: {Y_train.shape}, Y_train sample: {Y_train[:3]}")
-print(f"Unique labels in Y_train: {np.unique(Y_train[:, 0]) if Y_train.ndim > 1 and Y_train.shape[1] >= 1 else np.unique(Y_train)}")
 
 # Detect data modality based on input shape
 # Edge Impulse data formats:
@@ -296,12 +293,19 @@ else:
 
 print(f"Data type: {data_type}, Number of classes: {num_classes}")
 
-# Split test set in half for test and validation (same logic as original)
-split_idx = len(X_test) // 2
-X_val = X_test[:split_idx]
-Y_val = Y_test[:split_idx]
-X_test = X_test[split_idx:]
-Y_test = Y_test[split_idx:]
+# Split test set in half for test and validation, or use full test set for validation
+if str2bool(args.split_test):
+    print("Splitting test set into validation and test sets")
+    split_idx = len(X_test) // 2
+    X_val = X_test[:split_idx]
+    Y_val = Y_test[:split_idx]
+    X_test = X_test[split_idx:]
+    Y_test = Y_test[split_idx:]
+else:
+    print("Using full test set for validation (no separate test set)")
+    X_val = X_test
+    Y_val = Y_test
+    # Keep X_test and Y_test the same for compatibility, but they won't be used separately
 
 # Convert to tensors on device
 X_train = torch.FloatTensor(X_train).to(device)
@@ -313,7 +317,8 @@ Y_test = torch.FloatTensor(Y_test).to(device)
 
 train_dataset = TensorDataset(X_train, Y_train)
 val_dataset = TensorDataset(X_val, Y_val)
-test_dataset = TensorDataset(X_test, Y_test)
+if str2bool(args.split_test):
+    test_dataset = TensorDataset(X_test, Y_test)
 
 if args.seed >= 0:
     torch.manual_seed(args.seed)
@@ -322,7 +327,8 @@ if args.seed >= 0:
 
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=False)
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
+if str2bool(args.split_test):
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
 
 # -------------------------
 # Generalized Model definition
@@ -369,8 +375,19 @@ class AdaptiveClassifier(nn.Module):
                 self.input_length = input_shape[0]
             else:
                 self.input_length = np.prod(input_shape)
-            current_shape = (1, self.input_length)  # (channels, length) for 1D conv
-            current_size = self.input_length
+            # For 1D data, check if we're starting with conv or dense layers
+            # If starting with Dense, use current_size; if Conv1d, use current_shape
+            has_initial_conv = False
+            if layer_configs:
+                first_layer_type = layer_configs[0].get('type', 'None')
+                has_initial_conv = first_layer_type == '1D Convolution/Pool'
+            
+            if has_initial_conv:
+                current_shape = (1, self.input_length)  # (channels, length) for 1D conv
+                current_size = None
+            else:
+                current_shape = None
+                current_size = self.input_length
         
         # Build each layer from configuration
         for i, config in enumerate(self.layer_configs):
@@ -667,11 +684,10 @@ def main(config):
 
 
     GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)
-    print(f"Max dendrites set to: {GPA.pc.get_max_dendrites()}", flush=True)
     GPA.pc.set_perforated_backpropagation(str2bool(args.improved_dendritic_optimization))
     GPA.pc.set_dendrite_update_mode(True)
     GPA.pc.set_initial_correlation_batches(40)
-    GPA.pc.set_max_dendrite_tries(1)
+    GPA.pc.set_max_dendrite_tries(2)
     
     print(f"\nUsing {len(layer_configs)} layer configurations:", flush=True)
     for i, cfg in enumerate(layer_configs):
@@ -724,18 +740,6 @@ def main(config):
                 layer.set_this_output_dimensions([-1, 0, -1])
     print(f"Total parameters (after PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     
-    # Debug: Print model configuration
-    print(f"\n[DEBUG] PyTorch Model Configuration:")
-    print(f"[DEBUG] Input shape: {input_shape}, Data type: {data_type}")
-    print(f"[DEBUG] Reshape to: rows={model.rows if hasattr(model, 'rows') else 'N/A'}, cols={model.columns if hasattr(model, 'columns') else 'N/A'}, channels={model.channels if hasattr(model, 'channels') else 'N/A'}")
-    print(f"[DEBUG] Noise std: {noise_std_val}")
-    print(f"[DEBUG] Mask time bands: {mask_time_bands_val}, Mask freq bands: {mask_freq_bands_val}, Warp time: {warp_time_val}")
-    print(f"[DEBUG] Layer count: {len(model.layers)}")
-    for i, layer in enumerate(model.layers):
-        actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
-        print(f"[DEBUG]   Layer {i}: {type(actual_layer).__name__}")
-    print()
-    
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999)}
@@ -745,14 +749,19 @@ def main(config):
     # Compute class weights if auto_weight_classes is enabled
     class_weights = None
     if auto_weight_val:
-        # Extract labels from Y_train_tensor
-        if Y_train_tensor.dim() > 1:
-            if Y_train_tensor.size(1) == 4:
-                train_labels = Y_train_tensor[:, 0].long()
+        # Extract labels from Y_train
+        if Y_train.dim() > 1:
+            # Check if one-hot encoded
+            row_sums = Y_train.sum(dim=1)
+            is_onehot = torch.allclose(row_sums, torch.ones_like(row_sums)) and torch.all((Y_train == 0) | (Y_train == 1))
+            
+            if is_onehot:
+                train_labels = torch.argmax(Y_train, dim=1)
             else:
-                train_labels = torch.argmax(Y_train_tensor, dim=1)
+                # Assume first column is label index
+                train_labels = Y_train[:, 0].long()
         else:
-            train_labels = Y_train_tensor.long()
+            train_labels = Y_train.long()
         
         # Compute class weights inversely proportional to class frequencies
         class_counts = torch.bincount(train_labels)
@@ -837,13 +846,17 @@ def main(config):
         epoch += 1
         train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = test(model, val_loader, criterion, device)
-        test_loss, test_acc = test(model, test_loader, criterion, device)
+        if str2bool(args.split_test):
+            test_loss, test_acc = test(model, test_loader, criterion, device)
+        else:
+            test_acc = val_acc  # Use validation as test when not split
         if(val_acc > max_val_acc):
             max_val_acc = val_acc
             max_test_acc = test_acc
 
         GPA.pai_tracker.add_extra_score(train_acc, 'Train')
-        GPA.pai_tracker.add_extra_score(test_acc, 'Test')
+        if str2bool(args.split_test):
+            GPA.pai_tracker.add_extra_score(test_acc, 'Test')
         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
         model.to(device)
         if training_complete:  # Stop at 100 epochs to match Keras
@@ -858,18 +871,29 @@ def main(config):
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
         print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
-        print(f'[DEBUG] Epoch {epoch+1}: train_loss={train_loss:.4f}, train_acc={train_acc:.4f}, val_loss={val_loss:.4f}, val_acc={val_acc:.4f}')
 
-    test_loss, test_acc = test(model, test_loader, criterion, device)
-    print(f'\n[DEBUG] Final Test: test_loss={test_loss:.4f}, test_acc={test_acc:.4f}')
-
+    if str2bool(args.split_test):
+        test_loss, test_acc = test(model, test_loader, criterion, device)
+    else:
+        test_acc = val_acc  # Use validation as test when not split
 
     if str2bool(args.dendritic_optimization):
         print(f'First architecture: Val Acc: {first_val_acc:.4f}, Test Acc: {first_test_acc:.4f}, params: {first_param_count}')
         print(f'Best architecture: Val Acc: {max_val_acc:.4f}, Test Acc: {max_test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
         print('Reduction in misclassifications because of dendrites')
-        print(f'Validation: {(100.0*((max_val_acc-first_val_acc)/(1-first_val_acc))):.2f}%')
-        print(f'Test: {(100.0*((max_test_acc-first_test_acc)/(1-first_test_acc))):.2f}%')
+        
+        # Calculate reduction, handling perfect accuracy case
+        if first_val_acc >= 1.0:
+            print(f'Validation: N/A (already perfect accuracy)')
+        else:
+            val_reduction = 100.0 * ((max_val_acc - first_val_acc) / (1 - first_val_acc))
+            print(f'Validation: {val_reduction:.2f}%')
+        
+        if first_test_acc >= 1.0:
+            print(f'Test: N/A (already perfect accuracy)')
+        else:
+            test_reduction = 100.0 * ((max_test_acc - first_test_acc) / (1 - first_test_acc))
+            print(f'Test: {test_reduction:.2f}%')
     else:
         print(f'Final architecture: Val Acc: {val_acc:.4f}, Test Acc: {test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
 
@@ -883,8 +907,11 @@ def main(config):
     
     print("\n=== PyTorch Baseline (before ONNX export transformations) ===", flush=True)
     pytorch_val_loss, pytorch_val_acc = test(model, val_loader, criterion, torch.device('cpu'))
-    pytorch_test_loss, pytorch_test_acc = test(model, test_loader, criterion, torch.device('cpu'))
-    print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
+    if str2bool(args.split_test):
+        pytorch_test_loss, pytorch_test_acc = test(model, test_loader, criterion, torch.device('cpu'))
+        print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
+    else:
+        print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}")
     print("="*50 + "\n", flush=True)
 
     # -------------------------
@@ -905,205 +932,13 @@ def main(config):
     """
     from perforatedai import blockwise_perforatedai as BPA
     from perforatedai import clean_perforatedai as CPA
-    #model = UPA.load_system(model, 'PAI', 'best_model', True)
-    print("before blockwise and refresh:")
-    print(model)
     model = BPA.blockwise_network(model)
     model  = CPA.refresh_net(model)
-    print("after blockwise and refresh:")
-    print(model)
-    # ============================================================================
-    # COMPREHENSIVE DEBUGGING: Inspect ALL weights and activations
-    # ============================================================================
-    print("\n" + "="*80)
-    print("DEBUGGING: Analyzing model after dendritic transformations")
-    print("="*80)
     
-    # 1. Print complete model structure
-    print("\n--- MODEL STRUCTURE ---")
-    for i, (name, module) in enumerate(model.named_modules()):
-        print(f"{i:3d}. {name:50s} -> {type(module).__name__}")
-    
-    # 2. Analyze ALL parameters with detailed statistics
-    print("\n--- PARAMETER ANALYSIS (BEFORE any clipping) ---")
-    print(f"{'Module Name':<60s} {'Shape':<20s} {'Min':<12s} {'Max':<12s} {'Mean':<12s} {'Std':<12s}")
-    print("-" * 120)
-    
-    extreme_params = []
-    all_param_stats = []
-    
-    for name, module in model.named_modules():
-        for param_name, param in module.named_parameters(recurse=False):
-            full_name = f"{name}.{param_name}" if name else param_name
-            
-            with torch.no_grad():
-                p_min = param.min().item()
-                p_max = param.max().item()
-                p_mean = param.mean().item()
-                p_std = param.std().item()
-                p_abs_max = param.abs().max().item()
-                
-                stats = {
-                    'name': full_name,
-                    'shape': str(list(param.shape)),
-                    'min': p_min,
-                    'max': p_max,
-                    'mean': p_mean,
-                    'std': p_std,
-                    'abs_max': p_abs_max
-                }
-                all_param_stats.append(stats)
-                
-                # Flag extreme parameters
-                if p_abs_max > 100 or abs(p_mean) > 100:
-                    extreme_params.append(stats)
-                
-                # Print with scientific notation for large values
-                print(f"{full_name:<60s} {str(list(param.shape)):<20s} {p_min:12.4e} {p_max:12.4e} {p_mean:12.4e} {p_std:12.4e}")
-    
-    if extreme_params:
-        print("\n⚠️  WARNING: Found parameters with extreme values:")
-        for stat in extreme_params:
-            print(f"  - {stat['name']}: abs_max={stat['abs_max']:.2e}, mean={stat['mean']:.2e}")
-    else:
-        print("\n✓ All parameters have reasonable magnitudes (< 100)")
-    
-    # 3. Test forward pass and capture activation statistics
-    print("\n--- ACTIVATION ANALYSIS (using calibration sample) ---")
+
+    # Test forward pass and capture activation statistics
     model.eval()
-    model.export_mode = False  # Don't apply softmax yet
-    
-    # Get a sample from training data for activation analysis
-    sample_input, _ = next(iter(train_loader))
-    sample_input = sample_input[0:1].cpu()  # Take just one sample and move to CPU
-    sample_flat = sample_input.view(1, -1)
-    
-    # Hook to capture activations
-    activations = {}
-    def make_hook(name):
-        def hook(module, input, output):
-            if isinstance(output, torch.Tensor):
-                with torch.no_grad():
-                    activations[name] = {
-                        'shape': list(output.shape),
-                        'min': output.min().item(),
-                        'max': output.max().item(),
-                        'mean': output.mean().item(),
-                        'std': output.std().item(),
-                        'abs_max': output.abs().max().item()
-                    }
-        return hook
-    
-    # Register hooks on all modules
-    hooks = []
-    for name, module in model.named_modules():
-        if name:  # Skip root module
-            hooks.append(module.register_forward_hook(make_hook(name)))
-    
-    # Run forward pass
-    with torch.no_grad():
-        output = model(sample_flat)
-    
-    # Remove hooks
-    for hook in hooks:
-        hook.remove()
-    
-    # Print activation statistics
-    print(f"{'Module Name':<60s} {'Shape':<20s} {'Min':<12s} {'Max':<12s} {'Abs Max':<12s}")
-    print("-" * 120)
-    
-    extreme_activations = []
-    for name, stats in activations.items():
-        print(f"{name:<60s} {str(stats['shape']):<20s} {stats['min']:12.4e} {stats['max']:12.4e} {stats['abs_max']:12.4e}")
-        
-        if stats['abs_max'] > 1000:
-            extreme_activations.append({'name': name, **stats})
-    
-    if extreme_activations:
-        print("\n⚠️  WARNING: Found activations with extreme values:")
-        for act in extreme_activations:
-            print(f"  - {act['name']}: abs_max={act['abs_max']:.2e}, range=[{act['min']:.2e}, {act['max']:.2e}]")
-    else:
-        print("\n✓ All activations have reasonable magnitudes (< 1000)")
-    
-    # 4. Check for tanh operations specifically
-    print("\n--- CHECKING FOR TANH AND DENDRITIC OPERATIONS ---")
-    found_tanh = False
-    found_dendritic = False
-    for name, module in model.named_modules():
-        module_type = type(module).__name__
-        if 'tanh' in module_type.lower() or 'Tanh' in module_type:
-            print(f"  Found Tanh: {name} -> {module_type}")
-            found_tanh = True
-        if 'dendrit' in module_type.lower() or 'Dendrit' in module_type:
-            print(f"  Found Dendritic: {name} -> {module_type}")
-            found_dendritic = True
-    
-    if not found_tanh and not found_dendritic:
-        print("  No explicit Tanh or Dendritic modules found")
-        print("  (They may be embedded in custom forward functions)")
-    
-    print("="*80 + "\n")
-    
-    # Now apply weight constraints based on what we found
-    print("--- APPLYING WEIGHT CONSTRAINTS ---")
-    if extreme_params:
-        print("Found extreme parameters - applying aggressive clipping to [-1, 1]")
-        clip_range = 1.0
-    elif extreme_activations:
-        print("Found extreme activations - applying moderate clipping to [-10, 10]")
-        clip_range = 10.0
-    else:
-        print("No extreme values found - applying conservative clipping to [-100, 100]")
-        clip_range = 100.0
-    
-    constrained_params = 0
-    for name, module in model.named_modules():
-        for param_name, param in module.named_parameters(recurse=False):
-            full_name = f"{name}.{param_name}" if name else param_name
-            with torch.no_grad():
-                orig_max = param.abs().max().item()
-                param.clamp_(-clip_range, clip_range)
-                if orig_max > clip_range:
-                    print(f"  Clipped {full_name}: {orig_max:.2e} → {clip_range:.2f}")
-                    constrained_params += 1
-    
-    print(f"Constrained {constrained_params} parameters to [±{clip_range}]")
-    print("="*80 + "\n")
-    
-    # ============================================================================
-    # INSPECT skip_weights - These are likely causing the 1e36 scales
-    # ============================================================================
-    print("--- INSPECTING SKIP_WEIGHTS ---")
-    skip_weights_found = False
-    for name, module in model.named_modules():
-        if hasattr(module, 'skip_weights'):
-            skip_weights_found = True
-            print(f"\nModule: {name}")
-            print(f"  skip_weights type: {type(module.skip_weights)}")
-            
-            if isinstance(module.skip_weights, nn.ParameterList):
-                print(f"  Length: {len(module.skip_weights)}")
-                for i, param in enumerate(module.skip_weights):
-                    print(f"  Parameter {i}:")
-                    print(f"    Shape: {param.shape}")
-                    print(f"    Min: {param.min().item():.6e}, Max: {param.max().item():.6e}")
-                    print(f"    Mean: {param.mean().item():.6e}, Std: {param.std().item():.6e}")
-                
-                # Try to remove empty skip_weights
-                if len(module.skip_weights) == 0:
-                    print(f"  ⚠️  EMPTY ParameterList - attempting to remove...")
-                    try:
-                        delattr(module, 'skip_weights')
-                        print(f"  ✓ Successfully removed empty skip_weights")
-                    except Exception as e:
-                        print(f"  ✗ Failed to remove: {e}")
-            else:
-                print(f"  Not a ParameterList - it's a {type(module.skip_weights)}")
-    
-    if not skip_weights_found:
-        print("  No skip_weights found in any module")
-    print("="*80 + "\n")
+    model.export_mode = False
     
     # Fix padding for conv layers if needed
     for layer in model.layers:
@@ -1132,27 +967,6 @@ def main(config):
     
     onnx_path = os.path.join(args.out_directory, 'model.onnx')
     dummy_input = torch.randn((1, onnx_input_size))
-    
-    # Test dummy input works before ONNX export
-    print("\n=== Testing dummy input before ONNX export ===", flush=True)
-    print(f"Model layers: {len(model.layers)}", flush=True)
-    for i, layer in enumerate(model.layers):
-        actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
-        has_main = hasattr(layer, 'main_module')
-        print(f"  Layer {i}: {type(layer).__name__} (has_main_module={has_main}) -> {type(actual_layer).__name__}", flush=True)
-    
-    try:
-        with torch.no_grad():
-            test_output = model(dummy_input)
-            print(f"Dummy input shape: {dummy_input.shape}", flush=True)
-            print(f"Model output shape: {test_output.shape}", flush=True)
-            print("Dummy input test passed!", flush=True)
-    except Exception as e:
-        print(f"ERROR: Dummy input test failed: {e}", flush=True)
-        print("This model cannot be exported to ONNX.", flush=True)
-        return
-    print("="*50 + "\n", flush=True)
-    
     # Use legacy ONNX exporter to avoid torch.export issues with dynamic shapes
     # Dynamic axes allow variable batch size for validation
     dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
@@ -1183,78 +997,6 @@ def main(config):
                           output_names=['output'],
                           dynamic_axes=dynamic_axes)
     print("Exported ONNX to", onnx_path)
-    
-    # ============================================================================
-    # INSPECT skip_weights AFTER export - These are likely causing the 1e36 scales
-    # ============================================================================
-    print("\n" + "="*80)
-    print("INSPECTING SKIP_WEIGHTS (post-export for debugging)")
-    print("="*80)
-    skip_weights_found = False
-    for name, module in model.named_modules():
-        if hasattr(module, 'skip_weights'):
-            skip_weights_found = True
-            print(f"\nModule: {name}")
-            print(f"  skip_weights type: {type(module.skip_weights)}")
-            
-            if isinstance(module.skip_weights, nn.ParameterList):
-                print(f"  Length: {len(module.skip_weights)}")
-                for i, param in enumerate(module.skip_weights):
-                    print(f"  Parameter {i}:")
-                    print(f"    Shape: {param.shape}")
-                    print(f"    Min: {param.min().item():.6e}, Max: {param.max().item():.6e}")
-                    print(f"    Mean: {param.mean().item():.6e}, Std: {param.std().item():.6e}")
-            else:
-                print(f"  Not a ParameterList - it's a {type(module.skip_weights)}")
-    
-    if not skip_weights_found:
-        print("  No skip_weights found in any module")
-    print("="*80 + "\n")
-    
-    # -------------------------
-    # DEBUG: Inspect ONNX model for extreme initializer values
-    # -------------------------
-    print("\n=== INSPECTING ONNX MODEL INITIALIZERS ===")
-    try:
-        import onnx
-        onnx_model = onnx.load(onnx_path)
-        
-        print(f"ONNX Opset: {onnx_model.opset_import[0].version}")
-        print(f"Initializers (constants): {len(onnx_model.graph.initializer)}")
-        
-        extreme_initializers = []
-        for init in onnx_model.graph.initializer:
-            # Convert to numpy array
-            from onnx.numpy_helper import to_array
-            arr = to_array(init)
-            
-            if arr.size > 0:
-                abs_max = np.abs(arr).max()
-                abs_mean = np.abs(arr).mean()
-                
-                if abs_max > 1000 or abs_mean > 100:
-                    extreme_initializers.append({
-                        'name': init.name,
-                        'shape': arr.shape,
-                        'abs_max': abs_max,
-                        'abs_mean': abs_mean,
-                        'min': arr.min(),
-                        'max': arr.max()
-                    })
-                    print(f"\n⚠️  EXTREME INITIALIZER: {init.name}")
-                    print(f"    Shape: {arr.shape}")
-                    print(f"    Range: [{arr.min():.6e}, {arr.max():.6e}]")
-                    print(f"    Abs max: {abs_max:.6e}, Abs mean: {abs_mean:.6e}")
-        
-        if not extreme_initializers:
-            print("\n✓ All ONNX initializers have reasonable values")
-        else:
-            print(f"\n⚠️  Found {len(extreme_initializers)} initializers with extreme values!")
-            
-    except Exception as e:
-        print(f"Failed to inspect ONNX model: {e}")
-    
-    print("="*80 + "\n")
     
     # -------------------------
     # Validate ONNX model accuracy
@@ -1318,22 +1060,36 @@ def main(config):
         
         # Test on validation and test sets
         val_acc_onnx = test_onnx(val_loader, "Validation")
-        test_acc_onnx = test_onnx(test_loader, "Test")
+        if str2bool(args.split_test):
+            test_acc_onnx = test_onnx(test_loader, "Test")
         
         # Compare with PyTorch model results (use fresh eval, not training max)
         print("\nComparison:")
-        print(f"PyTorch  - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
-        print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
-        
-        val_diff = abs(pytorch_val_acc - val_acc_onnx)
-        test_diff = abs(pytorch_test_acc - test_acc_onnx)
-        
-        if val_diff < 0.001 and test_diff < 0.001:
-            print("✓ ONNX model matches PyTorch model (difference < 0.1%)")
-        elif val_diff < 0.01 and test_diff < 0.01:
-            print("⚠ ONNX model has small difference from PyTorch (difference < 1%)")
+        if str2bool(args.split_test):
+            print(f"PyTorch  - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
+            print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            
+            val_diff = abs(pytorch_val_acc - val_acc_onnx)
+            test_diff = abs(pytorch_test_acc - test_acc_onnx)
+            
+            if val_diff < 0.001 and test_diff < 0.001:
+                print("✓ ONNX model matches PyTorch model (difference < 0.1%)")
+            elif val_diff < 0.01 and test_diff < 0.01:
+                print("⚠ ONNX model has small difference from PyTorch (difference < 1%)")
+            else:
+                print(f"⚠ WARNING: ONNX model differs significantly (val diff: {val_diff:.4f}, test diff: {test_diff:.4f})")
         else:
-            print(f"⚠ WARNING: ONNX model differs significantly (val diff: {val_diff:.4f}, test diff: {test_diff:.4f})")
+            print(f"PyTorch  - Val: {pytorch_val_acc:.4f}")
+            print(f"ONNX     - Val: {val_acc_onnx:.4f}")
+            
+            val_diff = abs(pytorch_val_acc - val_acc_onnx)
+            
+            if val_diff < 0.001:
+                print("✓ ONNX model matches PyTorch model (difference < 0.1%)")
+            elif val_diff < 0.01:
+                print("⚠ ONNX model has small difference from PyTorch (difference < 1%)")
+            else:
+                print(f"⚠ WARNING: ONNX model differs significantly (val diff: {val_diff:.4f})")
         
         print("="*60 + "\n")
         
@@ -1359,8 +1115,21 @@ def main(config):
             import subprocess
             
             # Convert ONNX to TFLite with int8 quantization
+            # First, compute normalization statistics from training data
+            print("Computing input normalization statistics...")
+            all_train_data = []
+            for data, _ in train_loader:
+                all_train_data.append(data.cpu().numpy())
+            all_train_data = np.concatenate(all_train_data, axis=0)
+            input_mean = all_train_data.mean(axis=0, keepdims=True)
+            input_std = all_train_data.std(axis=0, keepdims=True) + 1e-8  # Avoid division by zero
+            
+            print(f"Input statistics:")
+            print(f"  Mean range: [{input_mean.min():.4f}, {input_mean.max():.4f}]")
+            print(f"  Std range: [{input_std.min():.4f}, {input_std.max():.4f}]")
+            
             def representative_dataset():
-                """Generate representative data for quantization calibration"""
+                """Generate representative data for quantization calibration with normalization"""
                 activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
                 
                 for batch_idx, (data, _) in enumerate(train_loader):
@@ -1369,12 +1138,14 @@ def main(config):
                     data_np = data.cpu().numpy()
                     for i in range(data_np.shape[0]):
                         sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                        # Normalize the sample
+                        sample = (sample - input_mean.reshape(1, -1)) / input_std.reshape(1, -1)
                         activation_stats['min'] = min(activation_stats['min'], sample.min())
                         activation_stats['max'] = max(activation_stats['max'], sample.max())
                         activation_stats['samples'] += 1
                         yield [sample]
                 
-                print(f"\nCalibration dataset statistics:")
+                print(f"\nCalibration dataset statistics (after normalization):")
                 print(f"  Samples: {activation_stats['samples']}")
                 print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
                 print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
@@ -1500,6 +1271,9 @@ def main(config):
                     for i in range(batch_size):
                         sample = inputs_flat[i:i+1].astype(np.float32)
                         
+                        # Normalize the input to match calibration data
+                        sample = (sample - input_mean.reshape(1, -1)) / input_std.reshape(1, -1)
+                        
                         # Quantize input if needed
                         if input_details[0]['dtype'] == np.int8:
                             input_scale, input_zero_point = input_details[0]['quantization']
@@ -1526,7 +1300,10 @@ def main(config):
             X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
             Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
             print(f"Full test dataset size: {X_test_full.shape[0]} samples")
-            print(f"(Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)})")
+            if str2bool(args.split_test):
+                print(f"(Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)})")
+            else:
+                print(f"(Val size: {len(val_loader.dataset)})")
             X_test_full = torch.FloatTensor(X_test_full)
             Y_test_full = torch.FloatTensor(Y_test_full)
             full_test_dataset = TensorDataset(X_test_full, Y_test_full)
@@ -1535,8 +1312,12 @@ def main(config):
             full_test_acc_int8 = test_int8(full_test_loader, "Full Test Set")
             
             print("\nComparison:")
-            print(f"PyTorch  - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
-            print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            if str2bool(args.split_test):
+                print(f"PyTorch  - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+                print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            else:
+                print(f"PyTorch  - Val: {max_val_acc:.4f}")
+                print(f"ONNX     - Val: {val_acc_onnx:.4f}")
             print(f"INT8     - Full: {full_test_acc_int8:.4f}")
 
             print("="*60 + "\n")

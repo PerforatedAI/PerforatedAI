@@ -88,7 +88,7 @@
         },
         {
             "name": "Speed Switch",
-            "value": "extra-slow",
+            "value": "slow",
             "type": "select",
             "help": "Controls the speed to switch.",
             "valid": [
@@ -106,7 +106,7 @@
         },
         {
             "name": "Maximum number of Dendrites",
-            "value": "3",
+            "value": "1",
             "type": "int",
             "showIf": {
                 "parameter": "dendritic-optimization",
@@ -203,6 +203,13 @@
             "type": "boolean",
             "help": "Test int8 quantization accuracy locally (requires TensorFlow, increases training time).",
             "param": "confirm-quant-score"
+        },
+        {
+            "name": "Split test set",
+            "value": "false",
+            "type": "boolean",
+            "help": "Split test set into validation and test. If false, uses full test set for validation.",
+            "param": "split-test"
         },
         {
             "name": "Layer 0 Type",
