@@ -41,7 +41,7 @@ This MNIST classification project demonstrates significant model compression thr
 
 ## Raw Results Graph - Required
 
-![Perforated AI Dendritic Optimization Results](./PAI.png)
+![Perforated AI Dendritic Optimization Results](https://github.com/riush03/PerforatedAI/blob/main/Examples/hackathonProjects/dendritic_optimization/comparison_results.png)
 
 *Figure: Training progress showing baseline vs dendritic network performance with dendritic connections effectively preserving critical neural pathways.*
 
