@@ -52,7 +52,8 @@ Independent Researcher / Hackathon Participant
 ## Raw Training Graph
 
 The following plot shows the raw training loss comparison between the baseline CNN and the dendritic-enhanced CNN.
-<img width="567" height="455" alt="raw_loss_comparison png" src="https://github.com/user-attachments/assets/24940bef-3c97-4890-9540-ffe064f68a36" />
+![Raw Loss Comparison](raw_loss_comparison.png)
+
 
 
 
