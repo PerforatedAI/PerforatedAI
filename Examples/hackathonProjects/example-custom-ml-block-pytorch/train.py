@@ -135,7 +135,6 @@ parser.add_argument('--dendrite-conversion', type=str, default='All Layers', cho
 parser.add_argument('--improved-dendritic-optimization', type=str, required=False, default="false", dest='improved_dendritic_optimization')
 parser.add_argument('--perforated-ai-token', type=str, required=False, default="", dest='perforated_ai_token')
 parser.add_argument('--split-test', type=str, required=False, default="false", dest='split_test', help="Split test set into validation and test. If false, uses full test set for validation.")
-parser.add_argument('--confirm-quant-score', type=str, required=False, default="false", dest='confirm_quant_score', help="Test int8 quantization accuracy locally")
 
 # Use parse_known_args to ignore any extra arguments Edge Impulse might pass
 args, unknown = parser.parse_known_args()
@@ -1105,219 +1104,228 @@ def main(config):
     # -------------------------
     # Test INT8 Quantization (similar to Edge Impulse)
     # -------------------------
-    if str2bool(args.confirm_quant_score):
-        print("\n" + "="*60)
-        print("TESTING INT8 QUANTIZATION")
-        print("="*60)
+    print("\n" + "="*60)
+    print("TESTING INT8 QUANTIZATION")
+    print("="*60)
+    
+    try:
+        import tensorflow as tf
+        import subprocess
+        
+        # Convert ONNX to TFLite with int8 quantization
+        def representative_dataset():
+            """Generate representative data for quantization calibration"""
+            activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
+            
+            for batch_idx, (data, _) in enumerate(train_loader):
+                if batch_idx >= 100:  # Use 100 batches for calibration
+                    break
+                data_np = data.cpu().numpy()
+                for i in range(data_np.shape[0]):
+                    sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                    activation_stats['min'] = min(activation_stats['min'], sample.min())
+                    activation_stats['max'] = max(activation_stats['max'], sample.max())
+                    activation_stats['samples'] += 1
+                    yield [sample]
+            
+            print(f"\nCalibration dataset statistics:")
+            print(f"  Samples: {activation_stats['samples']}")
+            print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
+            print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
+
+        
+        # Convert ONNX to TF SavedModel using onnx2tf
+        saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
+        print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
+        result = subprocess.run(
+            [sys.executable, "-m", "onnx2tf", "-i", onnx_path, "-o", saved_model_dir, "-osd"],
+            capture_output=True, text=True, timeout=120
+        )
+        if result.returncode != 0:
+            print(f"onnx2tf stderr: {result.stderr}")
+            raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
+        print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
+        
+        # First, create unquantized float32 TFLite model (model.tflite)
+        print("\nConverting to unquantized TFLite (float32)...")
+        converter_float = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+        tflite_float_model = converter_float.convert()
+        tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
+        with open(tflite_float_path, 'wb') as f:
+            f.write(tflite_float_model)
+        print(f"✓ Created float32 TFLite model: {tflite_float_path}")
+        
+        # Then, create quantized int8 TFLite model (model_quantized_int8_io.tflite)
+        print("\nConverting to quantized TFLite (int8)...")
+        converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+        converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
+        converter_int8.representative_dataset = representative_dataset
+        converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+        # Edge Impulse uses float32 inputs/outputs with int8 weights internally
+        # Don't force int8 for inputs/outputs - let TFLite decide
+        # converter_int8.inference_input_type = tf.int8
+        # converter_int8.inference_output_type = tf.int8
         
         try:
-            import tensorflow as tf
-            import subprocess
+            tflite_int8_model = converter_int8.convert()
+            tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
+            with open(tflite_int8_path, 'wb') as f:
+                f.write(tflite_int8_model)
+            print(f"✓ Created int8 quantized model: {tflite_int8_path}")
+        except Exception as quant_error:
+            print(f"\n✗ INT8 QUANTIZATION FAILED")
+            print(f"Error: {quant_error}")
+            print("\nThis is the same error Edge Impulse encounters.")
+            print("The dendritic network likely produces activation ranges that are incompatible with int8 quantization.")
+            print("\nPossible solutions:")
+            print("  1. Skip dendritic optimization for Edge Impulse deployment")
+            print("  2. Add activation clipping in the dendritic modules")
+            print("  3. Use mixed precision (int8 weights, float32 activations)")
+            raise
+        
+        # Test int8 quantized model
+        print("\nTesting int8 quantized model...")
+        tflite_path = tflite_int8_path  # Use int8 path for testing
+        
+        # Inspect TFLite model before allocating tensors
+        try:
+            import flatbuffers
+            from tensorflow.lite.python import schema_py_generated as schema_fb
             
-            # Convert ONNX to TFLite with int8 quantization
-            def representative_dataset():
-                """Generate representative data for quantization calibration"""
-                activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
-                
-                for batch_idx, (data, _) in enumerate(train_loader):
-                    if batch_idx >= 100:  # Use 100 batches for calibration
-                        break
-                    data_np = data.cpu().numpy()
-                    for i in range(data_np.shape[0]):
-                        sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
-                        activation_stats['min'] = min(activation_stats['min'], sample.min())
-                        activation_stats['max'] = max(activation_stats['max'], sample.max())
-                        activation_stats['samples'] += 1
-                        yield [sample]
-                
-                print(f"\nCalibration dataset statistics:")
-                print(f"  Samples: {activation_stats['samples']}")
-                print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
-                print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
-
+            with open(tflite_path, 'rb') as f:
+                buf = bytearray(f.read())
             
-            # Convert ONNX to TF SavedModel using onnx2tf
-            saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
-            print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
-            result = subprocess.run(
-                [sys.executable, "-m", "onnx2tf", "-i", onnx_path, "-o", saved_model_dir, "-osd"],
-                capture_output=True, text=True, timeout=120
-            )
-            if result.returncode != 0:
-                print(f"onnx2tf stderr: {result.stderr}")
-                raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
-            print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
+            model = schema_fb.Model.GetRootAsModel(buf, 0)
             
-            # Convert to TFLite with int8 quantization
-            print("\nAttempting int8 quantization...")
-            converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-            converter.optimizations = [tf.lite.Optimize.DEFAULT]
-            converter.representative_dataset = representative_dataset
-            converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-            # Edge Impulse uses float32 inputs/outputs with int8 weights internally
-            # Don't force int8 for inputs/outputs - let TFLite decide
-            # converter.inference_input_type = tf.int8
-            # converter.inference_output_type = tf.int8
+            print(f"\nTFLite Model Info:")
+            print(f"  Version: {model.Version()}")
+            print(f"  Subgraphs: {model.SubgraphsLength()}")
             
-            try:
-                tflite_model = converter.convert()
-                tflite_path = os.path.join(args.out_directory, 'model_int8.tflite')
-                with open(tflite_path, 'wb') as f:
-                    f.write(tflite_model)
-                print(f"✓ Successfully created int8 quantized model: {tflite_path}")
-            except Exception as quant_error:
-                print(f"\n✗ INT8 QUANTIZATION FAILED")
-                print(f"Error: {quant_error}")
-                print("\nThis is the same error Edge Impulse encounters.")
-                print("The dendritic network likely produces activation ranges that are incompatible with int8 quantization.")
-                print("\nPossible solutions:")
-                print("  1. Skip dendritic optimization for Edge Impulse deployment")
-                print("  2. Add activation clipping in the dendritic modules")
-                print("  3. Use mixed precision (int8 weights, float32 activations)")
-                raise
+            subgraph = model.Subgraphs(0)
+            print(f"  Tensors: {subgraph.TensorsLength()}")
+            print(f"  Operators: {subgraph.OperatorsLength()}")
             
-            # Test int8 quantized model
-            print("\nTesting int8 quantized model...")
-            
-            # Inspect TFLite model before allocating tensors
-            try:
-                import flatbuffers
-                from tensorflow.lite.python import schema_py_generated as schema_fb
+            # Check quantization parameters for each tensor
+            print(f"\nTensor Quantization Details:")
+            for i in range(subgraph.TensorsLength()):
+                tensor = subgraph.Tensors(i)
+                name = tensor.Name().decode('utf-8') if tensor.Name() else f"tensor_{i}"
+                quant = tensor.Quantization()
                 
-                with open(tflite_path, 'rb') as f:
-                    buf = bytearray(f.read())
-                
-                model = schema_fb.Model.GetRootAsModel(buf, 0)
-                
-                print(f"\nTFLite Model Info:")
-                print(f"  Version: {model.Version()}")
-                print(f"  Subgraphs: {model.SubgraphsLength()}")
-                
-                subgraph = model.Subgraphs(0)
-                print(f"  Tensors: {subgraph.TensorsLength()}")
-                print(f"  Operators: {subgraph.OperatorsLength()}")
-                
-                # Check quantization parameters for each tensor
-                print(f"\nTensor Quantization Details:")
-                for i in range(subgraph.TensorsLength()):
-                    tensor = subgraph.Tensors(i)
-                    name = tensor.Name().decode('utf-8') if tensor.Name() else f"tensor_{i}"
-                    quant = tensor.Quantization()
+                if quant and quant.ScaleLength() > 0:
+                    scales = [quant.Scale(j) for j in range(quant.ScaleLength())]
+                    zero_points = [quant.ZeroPoint(j) for j in range(quant.ZeroPointLength())]
+                    print(f"  Tensor {i} ({name}): scale={scales}, zero_point={zero_points}")
                     
-                    if quant and quant.ScaleLength() > 0:
-                        scales = [quant.Scale(j) for j in range(quant.ScaleLength())]
-                        zero_points = [quant.ZeroPoint(j) for j in range(quant.ZeroPointLength())]
-                        print(f"  Tensor {i} ({name}): scale={scales}, zero_point={zero_points}")
-                        
-                        # Check for problematic quantization scales
-                        for scale in scales:
-                            if scale <= 0 or scale > 1e6:
-                                print(f"    ⚠️  WARNING: Tensor {i} has extreme scale: {scale}")
-                
-            except Exception as inspect_error:
-                print(f"Could not inspect TFLite model: {inspect_error}")
+                    # Check for problematic quantization scales
+                    for scale in scales:
+                        if scale <= 0 or scale > 1e6:
+                            print(f"    ⚠️  WARNING: Tensor {i} has extreme scale: {scale}")
             
-            # Now try to allocate tensors
-            interpreter = tf.lite.Interpreter(model_path=tflite_path)
+        except Exception as inspect_error:
+            print(f"Could not inspect TFLite model: {inspect_error}")
+        
+        # Define test function for TFLite models
+        def test_tflite(model_path, loader, dataset_name):
+            interpreter = tf.lite.Interpreter(model_path=model_path)
             
             try:
                 interpreter.allocate_tensors()
-                print("\n✓ Tensor allocation successful")
             except (RuntimeError, Exception) as alloc_error:
-                print(f"\n✗ TENSOR ALLOCATION FAILED")
+                print(f"\n✗ TENSOR ALLOCATION FAILED for {model_path}")
                 print(f"Error: {alloc_error}")
-                print("\nThis is the exact error Edge Impulse encountered.")
-                print("The quantized model has invalid tensor configurations.")
-                print("\nLikely cause: PerforatedAI dendritic modules create activation ranges")
-                print("that cannot be properly quantized to int8.")
                 raise
             
             input_details = interpreter.get_input_details()
             output_details = interpreter.get_output_details()
             
-            def test_int8(loader, dataset_name):
-                correct = 0
-                total = 0
+            correct = 0
+            total = 0
+            
+            for inputs, labels in loader:
+                inputs_np = inputs.cpu().numpy()
+                batch_size = inputs_np.shape[0]
+                inputs_flat = inputs_np.reshape(batch_size, -1)
                 
-                for inputs, labels in loader:
-                    inputs_np = inputs.cpu().numpy()
-                    batch_size = inputs_np.shape[0]
-                    inputs_flat = inputs_np.reshape(batch_size, -1)
-                    
-                    # Handle Edge Impulse label format
-                    labels = labels.cpu().numpy()
-                    if labels.ndim > 1:
-                        if labels.shape[1] == 4:
-                            labels = labels[:, 0].astype(int)
-                        elif labels.shape[1] > 1:
-                            labels = np.argmax(labels, axis=1)
-                    else:
-                        labels = labels.astype(int)
-                    
-                    # Process one sample at a time
-                    for i in range(batch_size):
-                        sample = inputs_flat[i:i+1].astype(np.float32)
-                        
-                        # Quantize input if needed
-                        if input_details[0]['dtype'] == np.int8:
-                            input_scale, input_zero_point = input_details[0]['quantization']
-                            sample = (sample / input_scale + input_zero_point).astype(np.int8)
-                        
-                        interpreter.set_tensor(input_details[0]['index'], sample)
-                        interpreter.invoke()
-                        output = interpreter.get_tensor(output_details[0]['index'])
-                        
-                        # Dequantize output if needed
-                        if output_details[0]['dtype'] == np.int8:
-                            output_scale, output_zero_point = output_details[0]['quantization']
-                            output = (output.astype(np.float32) - output_zero_point) * output_scale
-                        
-                        predicted = np.argmax(output[0])
-                        correct += (predicted == labels[i])
-                        total += 1
+                # Handle Edge Impulse label format
+                labels = labels.cpu().numpy()
+                if labels.ndim > 1:
+                    if labels.shape[1] == 4:
+                        labels = labels[:, 0].astype(int)
+                    elif labels.shape[1] > 1:
+                        labels = np.argmax(labels, axis=1)
+                else:
+                    labels = labels.astype(int)
                 
-                accuracy = correct / total
-                print(f"{dataset_name} Accuracy (INT8): {accuracy:.4f} ({correct}/{total})")
-                return accuracy
+                # Process one sample at a time
+                for i in range(batch_size):
+                    sample = inputs_flat[i:i+1].astype(np.float32)
+                    
+                    # Quantize input if needed
+                    if input_details[0]['dtype'] == np.int8:
+                        input_scale, input_zero_point = input_details[0]['quantization']
+                        sample = (sample / input_scale + input_zero_point).astype(np.int8)
+                    
+                    interpreter.set_tensor(input_details[0]['index'], sample)
+                    interpreter.invoke()
+                    output = interpreter.get_tensor(output_details[0]['index'])
+                    
+                    # Dequantize output if needed
+                    if output_details[0]['dtype'] == np.int8:
+                        output_scale, output_zero_point = output_details[0]['quantization']
+                        output = (output.astype(np.float32) - output_zero_point) * output_scale
+                    
+                    predicted = np.argmax(output[0])
+                    correct += (predicted == labels[i])
+                    total += 1
             
-            # Test on full X_split_test dataset
-            X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
-            Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
-            print(f"Full test dataset size: {X_test_full.shape[0]} samples")
-            if str2bool(args.split_test):
-                print(f"(Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)})")
-            else:
-                print(f"(Val size: {len(val_loader.dataset)})")
-            X_test_full = torch.FloatTensor(X_test_full)
-            Y_test_full = torch.FloatTensor(Y_test_full)
-            full_test_dataset = TensorDataset(X_test_full, Y_test_full)
-            full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
-            
-            full_test_acc_int8 = test_int8(full_test_loader, "Full Test Set")
-            
-            print("\nComparison:")
-            if str2bool(args.split_test):
-                print(f"PyTorch  - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
-                print(f"ONNX     - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
-            else:
-                print(f"PyTorch  - Val: {max_val_acc:.4f}")
-                print(f"ONNX     - Val: {val_acc_onnx:.4f}")
-            print(f"INT8     - Full: {full_test_acc_int8:.4f}")
-
-            print("="*60 + "\n")
-            
-        except ImportError as ie:
-            print(f"⚠ Missing dependencies for int8 testing: {ie}")
-            print("  Install with: pip install tensorflow onnx2tf")
-            print("="*60 + "\n")
-        except Exception as e:
-            print(f"⚠ Error during int8 quantization test: {e}")
-            traceback.print_exc()
-            print("="*60 + "\n")
-    else:
+            accuracy = correct / total
+            print(f"{dataset_name}: {accuracy:.4f} ({correct}/{total})")
+            return accuracy
+        
+        # Test on full X_split_test dataset
+        X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
+        Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
+        print(f"\nFull test dataset size: {X_test_full.shape[0]} samples")
+        if str2bool(args.split_test):
+            print(f"(Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)})")
+        else:
+            print(f"(Val size: {len(val_loader.dataset)})")
+        X_test_full = torch.FloatTensor(X_test_full)
+        Y_test_full = torch.FloatTensor(Y_test_full)
+        full_test_dataset = TensorDataset(X_test_full, Y_test_full)
+        full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
+        
+        # Test both float32 and int8 models
+        print("\nTesting float32 TFLite model (model.tflite)...")
+        full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
+        
+        print("\nTesting int8 TFLite model (model_quantized_int8_io.tflite)...")
+        full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
+        
         print("\n" + "="*60)
-        print("Skipping int8 quantization test (use --confirm-quant-score true to enable)")
+        print("FINAL COMPARISON")
+        print("="*60)
+        if str2bool(args.split_test):
+            print(f"PyTorch        - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+            print(f"ONNX           - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+        else:
+            print(f"PyTorch        - Val: {max_val_acc:.4f}")
+            print(f"ONNX           - Val: {val_acc_onnx:.4f}")
+        print(f"TFLite Float32 - Full: {full_test_acc_float:.4f}")
+        print(f"TFLite INT8    - Full: {full_test_acc_int8:.4f}")
+
         print("="*60 + "\n")
+        
+    except ImportError as ie:
+        print(f"⚠ Missing dependencies for int8 testing: {ie}")
+        print("  Install with: pip install tensorflow onnx2tf")
+        print("="*60 + "\n")
+    except Exception as e:
+        print(f"⚠ Error during int8 quantization test: {e}")
+        traceback.print_exc()
+        print("="*60 + "\n")
+
 
     """
     # Attempt to run onnx2tf (so EI won't need to re-run it)
