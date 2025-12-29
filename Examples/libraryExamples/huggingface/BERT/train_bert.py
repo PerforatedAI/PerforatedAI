@@ -26,16 +26,6 @@ Usage example for SNLI:
        --save_strategy epoch --save_total_limit 2 --metric_for_best_model eval_accuracy \
        --greater_is_better True --scheduler_type reduce_lr_on_plateau --scheduler_patience 2 \
        --scheduler_factor 0.5 --scheduler_min_lr 1e-7
-
-Usage example for AGNEWS:
-    python train_bert.py --model_name "prajjwal1/bert-tiny" --dataset agnews --dsn \
-       --seed 42 --num_epochs 100 --batch_size 256 --max_len 128 --lr 1e-5 \
-       --hidden_dropout_prob 0.1 --attention_probs_dropout_prob 0.1 \
-       --model_save_location ./model_output_SNLI --early_stopping --early_stopping_patience 6 \
-       --early_stopping_threshold 0.0 --save_steps 500 --evaluation_strategy epoch \
-       --save_strategy epoch --save_total_limit 2 --metric_for_best_model eval_accuracy \
-       --greater_is_better True --scheduler_type reduce_lr_on_plateau --scheduler_patience 2 \
-       --scheduler_factor 0.5 --scheduler_min_lr 1e-7
 """
 
 import os
@@ -89,42 +79,6 @@ def count_model_parameters(model):
         print(f"{name} | {num_params:,}")
     print(f"\nTotal Model Parameters: {total_params:,}")
     return total_params
-
-def load_agnews_dataset(tokenizer, max_len, seed=42):
-    """Load AG News using modern HuggingFace approach - no custom Dataset class needed!"""
-    
-    # Load dataset
-    dataset = load_dataset("ag_news")
-    
-    # Create validation split from train (AG News only has train/test)
-    train_val = dataset["train"].train_test_split(test_size=0.1, seed=seed)
-    
-    # Tokenization function
-    def tokenize_function(examples):
-        # AG News has "text" field
-        return tokenizer(
-            examples["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=max_len
-        )
-    
-    # Apply tokenization - this returns HuggingFace Dataset objects
-    train_dataset = train_val["train"].map(tokenize_function, batched=True)
-    val_dataset = train_val["test"].map(tokenize_function, batched=True)
-    test_dataset = dataset["test"].map(tokenize_function, batched=True)
-    
-    # Rename label column to "labels" (what Trainer expects)
-    train_dataset = train_dataset.rename_column("label", "labels")
-    val_dataset = val_dataset.rename_column("label", "labels")
-    test_dataset = test_dataset.rename_column("label", "labels")
-    
-    # Set format for PyTorch
-    train_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
-    val_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
-    test_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
-    
-    return train_dataset, val_dataset, test_dataset
 
 def load_imdb_dataset(tokenizer, max_len, seed=42, reduce_lines=False, cache_dir="./cached_datasets"):
     """
@@ -246,7 +200,7 @@ def main():
     # Model and tokenizer settings
     parser.add_argument("--model_name", type=str, required=True, help="Model name (e.g., roberta-base or bert-base-uncased)")
     # Dataset selection: imdb or snli
-    parser.add_argument("--dataset", type=str, choices=["imdb", "snli", "agnews"], required=True, help="Dataset type: imdb or snli")
+    parser.add_argument("--dataset", type=str, choices=["imdb", "snli"], required=True, help="Dataset type: imdb or snli")
     # DSN flag: if enabled, set number of encoder layers to 0.
     parser.add_argument("--dsn", action="store_true", help="Enable DSN mode (set number of encoder layers to 0)")
     # Set compression for model width
@@ -290,10 +244,8 @@ def main():
     # Set number of labels and load model configuration.
     if args.dataset == "imdb":
         num_labels = 2
-    elif args.dataset == "snli":  # snli
+    else:  # snli
         num_labels = 3
-    elif args.dataset == "agnews":
-        num_labels = 4
         
     config = AutoConfig.from_pretrained(args.model_name, num_labels=num_labels)
     
@@ -335,13 +287,9 @@ def main():
         train_dataset, dev_dataset, test_dataset = load_imdb_dataset(
             tokenizer, args.max_len, seed=args.seed, reduce_lines=args.reduce_lines_for_testing
         )
-    elif args.dataset == "snli":
+    else:  # SNLI
         train_dataset, dev_dataset, test_dataset = load_snli_dataset(
             tokenizer, args.max_len, seed=args.seed, reduce_lines=args.reduce_lines_for_testing
-        )
-    else:  # agnews
-        train_dataset, dev_dataset, test_dataset = load_agnews_dataset(
-            tokenizer, args.max_len, seed=args.seed
         )
 
     # Prepare training arguments.
@@ -361,7 +309,7 @@ def main():
         save_total_limit=args.save_total_limit,
         save_strategy=args.save_strategy,
         save_steps=args.save_steps,
-        eval_strategy=args.evaluation_strategy,
+        evaluation_strategy=args.evaluation_strategy,
         eval_steps=args.eval_steps,
         learning_rate=args.lr,
         seed=args.seed,

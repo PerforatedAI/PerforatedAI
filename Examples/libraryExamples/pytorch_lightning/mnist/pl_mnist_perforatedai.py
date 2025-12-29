@@ -23,6 +23,8 @@ GPA.pc.set_output_dimensions([-1, 0])
 GPA.pc.set_history_lookback(1)
 GPA.pc.set_max_dendrites(5)
 GPA.pc.set_testing_dendrite_capacity(False)
+#GPA.pc.set_verbose(True)
+#GPA.pc.set_extra_verbose(True)
 
 model_path = "."
 
@@ -89,6 +91,9 @@ class LightningMNISTClassifier(pl.LightningModule):
         logs = {"train_loss": loss}
         return {"loss": loss, "log": logs}
 
+    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure):
+        optimizer.step(closure=optimizer_closure)
+
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         logits = self.forward(x)
@@ -137,7 +142,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         # Clear the list of step outputs so future scores are only for current epoch
         self.validation_step_outputs = []
         self.test_step_outputs = []
-        return {"avg_val_loss": avg_loss, "log": tensorboard_logs}
+        #return {"avg_val_loss": avg_loss, "log": tensorboard_logs}
 
     def on_test_epoch_end(self):
         avg_loss = torch.tensor(self.test_step_outputs).mean()
@@ -147,7 +152,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         # Clear the list of step outputs so future scores are only for current epoch
         self.test_step_outputs = []
         # this is so off right now because the setting is to 5% better or bust.  trying to just debug why it doesnt test properly at the end.
-        return {"avg_test_loss": avg_loss, "log": tensorboard_logs}
+        #return {"avg_test_loss": avg_loss, "log": tensorboard_logs}
 
     def configure_optimizers(self):
         GPA.pai_tracker.set_optimizer(torch.optim.Adam)
