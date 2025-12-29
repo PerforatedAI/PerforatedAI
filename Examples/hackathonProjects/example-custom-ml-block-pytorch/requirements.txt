@@ -1,0 +1,23 @@
+# Core TF / LiteRT stack aligned with onnx2tf
+tensorflow==2.19.0
+ai_edge_litert==1.2.0
+protobuf==3.20.3
+tf-keras==2.19.0
+flatbuffers>=23.5.26
+
+# ONNX / conversion tooling
+onnx==1.17.0
+onnx2tf          # let pip resolve a recent version compatible with the above
+onnxruntime
+onnx_graphsurgeon
+sng4onnx>=1.0.4
+sne4onnx
+onnxsim
+
+# Utilities
+psutil==5.9.5
+
+# Training frameworks (safe to keep if you don’t import TF/TFLite in same process)
+torch==2.6.0
+perforatedai==3.0.4
+perforatedbp==3.0.4
