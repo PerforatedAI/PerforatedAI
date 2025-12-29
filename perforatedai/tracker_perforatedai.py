@@ -390,12 +390,12 @@ def process_no_improvement(net):
 
     if (
         GPA.pai_tracker.member_vars["num_dendrite_tries"]
-        < GPA.pc.get_max_dendrite_tries()
+        < GPA.pc.get_max_dendrite_tries() -1
     ):
         if not GPA.pc.get_silent():
             print(
                 f"Dendrites did not improve but current tries "
-                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]} '
+                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} '
                 f"is less than max tries {GPA.pc.get_max_dendrite_tries()} "
                 f"so loading last switch and trying new Dendrites."
             )
@@ -413,16 +413,21 @@ def process_no_improvement(net):
         if not GPA.pc.get_silent():
             print(
                 f"Dendrites did not improve system and "
-                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]} >= '
+                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} > '
                 f"{GPA.pc.get_max_dendrite_tries()} so returning training_complete."
             )
             print(
                 "You should now exit your training loop and "
                 "best_model will be your final model for inference"
             )
+            if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+                print("For improved results, try perforated backpropagation next time!")
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
+        print('before graphs')
         GPA.pai_tracker.save_graphs()
+        print('after graphs')
         UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
+        print('after save')
         return TRAINING_COMPLETE, net
 
 
@@ -444,10 +449,16 @@ def process_final_network(net):
         print(
             f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}"
         )
+        if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+            print("For improved results, try perforated backpropagation next time!")
     GPA.pai_tracker.save_graphs("before_final")
+    print("before load")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
+    print("after load")
     GPA.pai_tracker.save_graphs()
+    print("after graphs")
     UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
+    print("after save")
     return net
 
 
@@ -522,9 +533,14 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
             or GPA.pai_tracker.member_vars["mode"] == "p"
         ):
             if GPA.pc.get_verbose():
+                if hasattr(GPA.pai_tracker.member_vars["scheduler_instance"], '_step_count'):
+                    count = GPA.pai_tracker.member_vars["scheduler_instance"]._step_count
+                else:
+                    count = GPA.pai_tracker.member_vars["scheduler_instance"].last_epoch
+
                 print(
                     f"Incrementing scheduler to count "
-                    f'{GPA.pai_tracker.member_vars["scheduler_instance"]._step_count}'
+                    f'{count}'
                 )
             GPA.pai_tracker.member_vars["scheduler_instance"].step()
             if (
@@ -635,6 +651,22 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
         # And learning rate just stepped
         (stepped or at_last_count)
     ):
+
+        # If this is the first dendrite addition (last_max_learning_rate_steps == 0),
+        # immediately commit to the initial rate without searching
+        if GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] == 0:
+            if GPA.pc.get_verbose():
+                print(
+                    f"First dendrite addition detected (last_max_learning_rate_steps == 0), "
+                    f"immediately committing to initial rate without search"
+                )
+            GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+            GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
+                GPA.pai_tracker.member_vars["current_step_count"]
+            )
+            GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
+                learning_rate2
+            )
 
         # If hasn't committed to a learning rate for this cycle yet
         if not GPA.pai_tracker.member_vars["committed_to_initial_rate"]:
@@ -1659,7 +1691,7 @@ class PAINeuronModuleTracker:
 
         return current_steps, learning_rate1
 
-    def setup_optimizer(self, net, opt_args, sched_args=None):
+    def setup_optimizer(self, net, opt_args, sched_args=None, parameters=None):
         """Initialize the optimizer and scheduler when added.
 
         Parameters
@@ -1691,19 +1723,85 @@ class PAINeuronModuleTracker:
             GPA.pc.set_weight_decay_accepted(True)
             pdb.set_trace()
 
-        if "model" not in opt_args.keys():
+        if ("model" not in opt_args.keys()) and "params" not in opt_args.keys():
+            print("In setup_optimizer it will be depreciated to not pass in params yourself in the future")
+            print("please change the settings to include params")
             if self.member_vars["mode"] == "n":
-                opt_args["params"] = filter(lambda p: p.requires_grad, net.parameters())
+                if parameters is not None:
+                    opt_args["params"] = parameters
+                else:
+                    opt_args["params"] = filter(lambda p: p.requires_grad, net.parameters())
             else:
-                opt_args["params"] = UPA.get_pai_network_params(net)
+                params = UPA.get_pai_network_params(net)
+                if parameters is not None:
+                    # Filter parameters to only those in params, preserving weight_decay
+                    params_set = set(params)
+                    filtered_params = []
+                    for param_group in parameters:
+                        filtered_group_params = [p for p in param_group["params"] if p in params_set]
+                        if filtered_group_params:
+                            filtered_params.append({
+                                "params": filtered_group_params,
+                                "weight_decay": param_group["weight_decay"]
+                            })
+                    opt_args["params"] = filtered_params
+                else:
+                    opt_args["params"] = params
+        elif "params" in opt_args.keys():
+            # Check if params is a list of param groups (dicts) or a single param group
+            params_value = opt_args["params"]
+            if isinstance(params_value, list) and len(params_value) > 0:
+                # Check if it's a list of dicts (multiple param groups) or list of tensors (single group)
+                if isinstance(params_value[0], dict):
+                    # Multiple param groups format: [{"params": [...], "lr": ...}, ...]
+                    # Filter each param group for requires_grad
+                    filtered_param_groups = []
+                    for param_group in params_value:
+                        filtered_group_params = [p for p in param_group["params"] if p.requires_grad]
+                        if filtered_group_params:
+                            new_group = param_group.copy()
+                            new_group["params"] = filtered_group_params
+                            filtered_param_groups.append(new_group)
+                    opt_args["params"] = filtered_param_groups
+                else:
+                    # Single param group format: [tensor1, tensor2, ...] or generator
+                    # Filter for requires_grad
+                    opt_args["params"] = [p for p in params_value if p.requires_grad]
+            elif hasattr(params_value, '__iter__'):
+                # Handle generators or other iterables
+                opt_args["params"] = [p for p in params_value if p.requires_grad]
 
         optimizer = self.member_vars["optimizer"](**opt_args)
         self.set_optimizer_instance(optimizer)
 
         if self.member_vars["scheduler"] is not None:
-            self.member_vars["scheduler_instance"] = self.member_vars["scheduler"](
-                optimizer, **sched_args
-            )
+            # Handle SequentialLR specially
+            if self.member_vars["scheduler"] is torch.optim.lr_scheduler.SequentialLR:
+                """
+                sched_args should be a dict with "schedulers" (list of tuples) and "milestones"
+                For example:
+                sequential_schedArgs = {
+                    "schedulers": [
+                        (warmup_scheduler_class, warmup_schedArgs),
+                        (main_scheduler_class, main_schedArgs)
+                    ],
+                    "milestones": [switch_epoch]
+                }
+                """
+                schedulers = []
+                milestones = sched_args.get("milestones", [])
+                scheduler_configs = sched_args.get("schedulers", [])
+                
+                for scheduler_class, scheduler_args in scheduler_configs:
+                    schedulers.append(scheduler_class(optimizer, **scheduler_args))
+                
+                self.member_vars["scheduler_instance"] = torch.optim.lr_scheduler.SequentialLR(
+                    optimizer, schedulers=schedulers, milestones=milestones
+                )
+            else:
+                self.member_vars["scheduler_instance"] = self.member_vars["scheduler"](
+                    optimizer, **sched_args
+                )
             current_steps = 0
 
             for param_group in GPA.pai_tracker.member_vars[
@@ -1820,20 +1918,34 @@ class PAINeuronModuleTracker:
                 print("Returning True - switching every time")
             return True
 
+        # Check if we're in the middle of learning rate optimization
+        # If so, block ALL switch triggers until committed
+        if GPA.pc.get_verbose():
+            print("=== LR Optimization Check ===")
+            print(f'  mode == "n": {self.member_vars["mode"] == "n"}')
+            print(f"  get_learn_dendrites_live(): {GPA.pc.get_learn_dendrites_live()}")
+            print(f'  committed_to_initial_rate: {GPA.pai_tracker.member_vars["committed_to_initial_rate"]}')
+            print(f"  get_dont_give_up_unless_learning_rate_lowered(): {GPA.pc.get_dont_give_up_unless_learning_rate_lowered()}")
+            print(f'  current_n_learning_rate_initial_skip_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+            print(f'  last_max_learning_rate_steps: {self.member_vars["last_max_learning_rate_steps"]}')
+            print(f'  skip_steps < max_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"] < self.member_vars["last_max_learning_rate_steps"]}')
+            print(f'  scheduler is not None: {self.member_vars["scheduler"] is not None}')
+            print("=============================")
+        
         if (
             ((self.member_vars["mode"] == "n") or GPA.pc.get_learn_dendrites_live())
-            and (self.member_vars["switch_mode"] == GPA.pc.DOING_HISTORY)
             and (GPA.pai_tracker.member_vars["committed_to_initial_rate"] is False)
             and (GPA.pc.get_dont_give_up_unless_learning_rate_lowered())
             and (
                 self.member_vars["current_n_learning_rate_initial_skip_steps"]
-                < self.member_vars["last_max_learning_rate_steps"]
+                <= self.member_vars["last_max_learning_rate_steps"]
             )
             and self.member_vars["scheduler"] is not None
         ):
             if not GPA.pc.get_silent():
                 print(
-                    f"Returning False since no first step yet and comparing "
+                    f"Returning False - learning rate optimization in progress. "
+                    f"Not committed yet. Comparing "
                     f'initial {self.member_vars["current_n_learning_rate_initial_skip_steps"]} '
                     f'to last max {self.member_vars["last_max_learning_rate_steps"]}'
                 )
@@ -2000,6 +2112,7 @@ class PAINeuronModuleTracker:
 
         if GPA.pc.get_find_best_lr():
             self.member_vars["committed_to_initial_rate"] = False
+            print("Resetting committed to initial rate to False")
         # If retaining all dendrties always say that the current dendrites set global best for saving and loading
         if GPA.pc.get_retain_all_dendrites():
             self.member_vars["current_n_set_global_best"] = True
@@ -3137,7 +3250,10 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["current_n_set_global_best"]}, '
                         f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}, '
                         f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]}, '
-                        f'{GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
+                        f'{GPA.pai_tracker.member_vars["last_max_learning_rate_value"]},'
+                        f'{GPA.pc.get_max_dendrites()},'
+                        f'{GPA.pai_tracker.member_vars["num_dendrites_added"]},'
+                        f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]},'
                     )
                 # If the max number of dendrites has been hit or not doing pai and adding dendtites
                 # then return rather than adding more
@@ -3148,6 +3264,10 @@ class PAINeuronModuleTracker:
                         == GPA.pai_tracker.member_vars["num_dendrites_added"]
                     )
                 ) or (GPA.pai_tracker.member_vars["doing_pai"] is False):
+                    if GPA.pc.get_verbose():
+                        print(
+                            "Max dendrites reached or not doing PAI, finishing training"
+                        )
                     net = process_final_network(net)
                     return net, True, True
 

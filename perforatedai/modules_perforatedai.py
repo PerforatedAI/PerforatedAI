@@ -260,6 +260,16 @@ class PAINeuronModule(nn.Module):
             np.array(self.this_output_dimensions)[2:] == -1
         ).all():  # Everything past 2 is a negative 1
             self.set_this_output_dimensions(self.this_output_dimensions[0:2])
+        if (
+            issubclass(type(start_module), nn.Conv1d)
+            or (
+                issubclass(type(start_module), GPA.PAISequential)
+                and issubclass(type(start_module.model[0]), nn.Conv1d)
+            )
+        ) and (
+            np.array(self.this_output_dimensions)[3:] == -1
+        ).all():  # Everything past 2 is a negative 1
+            self.set_this_output_dimensions(self.this_output_dimensions[0:3])
         GPA.pai_tracker.add_pai_neuron_module(self)
         if GPA.pc.get_perforated_backpropagation():
             MPB.set_neuron_parameters(self.main_module)

@@ -847,6 +847,7 @@ def load_system(
                 GPA.pai_tracker.member_vars["mode"],
             )
         )
+
     # Saves always take place before the call to start_epoch so call it here
     # when loading to correct off by 1 problems
     if (not switch_call) and (not load_from_manual_save):
@@ -1113,6 +1114,8 @@ def load_net_from_dict(net, state_dict):
         The loaded network.
 
     """
+    if(GPA.pc.get_verbose()):
+        print('loading net from dict')
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print(
@@ -1128,6 +1131,8 @@ def load_net_from_dict(net, state_dict):
 
         pdb.set_trace()
         sys.exit(-1)
+    if(GPA.pc.get_verbose()):
+        print('setting up arrays and simulating cycles for %d pai modules' % len(pai_modules))
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
         module_name = get_module_base_name(module)
@@ -1183,7 +1188,7 @@ def load_net_from_dict(net, state_dict):
                 print(
                     "\n3 - This can happen is if the model where you called initialize_pai\n"
                     "and the model within add_validation_score are not the same. \n"
-                    "Check if the module above and %s have the same prefix\n"
+                    "Check if the module above and .%s have the same prefix\n"
                     % first_key
                 )
                 print(
@@ -1195,7 +1200,13 @@ def load_net_from_dict(net, state_dict):
                     "if you are using an LSTM and forwarding hidden instead of otput\n"
                     "but your processors are set up to work with output"
                 )
-                
+                print("\n5 - if you are not properly calling backward at all."
+                    " If this is the first module in your network it is more"
+                    "likely this is the problem"
+                )
+                print("\n6 - You have converted a module that is in a frozen"
+                    " part of the network and thus no gradients are flowing"
+                )
                 import pdb
 
                 pdb.set_trace()
@@ -1296,6 +1307,11 @@ def deep_copy_pai(net):
     This is required because processors must be cleared before calling copy
 
     """
+
+    # Clear gradients before saving the model
+    if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and \
+        (GPA.pai_tracker.member_vars["optimizer_instance"] != []):
+        GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
     GPA.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
 
@@ -1540,3 +1556,17 @@ def change_learning_modes(net, folder, name, doing_pai):
     GPA.pai_tracker.member_vars["param_counts"].append(count_params(net))
 
     return net
+
+
+def find_param_name_by_id(model, param_id):
+    """
+    This is only used for debugging.
+    Return the fully-qualified parameter name (e.g. "layer1.conv.weight")
+    for the parameter whose id matches param_id. Returns None if not found.
+
+    This uses model.named_parameters(), which already recurses through submodules.
+    """
+    for name, p in model.named_parameters(recurse=True):
+        if id(p) == param_id:
+            return "." + name
+    return None

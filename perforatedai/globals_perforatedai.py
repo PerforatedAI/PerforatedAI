@@ -248,7 +248,7 @@ class PAIConfig:
         """
         if name.startswith("set_"):
             print(
-                f"Variable '{name[4:]}' does not exist without perforatedbp installed.  Ignoring set attempt."
+                f"Variable '{name[4:]}' does not exist.  Ignoring set attempt."
             )
             return lambda x: None
         else:
@@ -615,6 +615,12 @@ class PAIConfig:
             self, "weight_tying_experimental", self.weight_tying_experimental
         )
 
+        # This is a setting for huggingface for what metric to use for scoring
+        self.metric = 'eval_loss'
+        add_pai_config_var_functions(
+            self, "metric", self.metric
+        )
+
 
 class PAISequential(nn.Sequential):
     """Sequential module wrapper for PAI.
@@ -687,6 +693,8 @@ This will be populated with the PAI Tracker instance which handles
 the addition of dendrites during training. Initially an empty list.
 """
 pai_tracker = []
+
+pai_scaler = None
 
 # This will be set to true if perforated backpropagation is available
 # Do not just set this to True without the library and a license, it will cause errors
