@@ -20,6 +20,8 @@ MNIST handwritten digit recognition is a foundational computer vision task with 
 
 The project is well set up to run on Google Colab or Kaggle Notebooks.
 
+https://colab.research.google.com/drive/1JEfcbuaeFVqFL_hY2r3OtnYxQEcmbkG2#scrollTo=HV09IbwyNe-8
+
 **Run on Google Colab:**
 
 ```python
