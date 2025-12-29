@@ -133,8 +133,10 @@ parser.add_argument('--dendrite-weight-initialization-multiplier', type=float, d
 parser.add_argument('--dendrite-forward-function', type=str, default='tanh', choices=['relu','sigmoid','tanh'], dest='dendrite_forward_function')
 parser.add_argument('--dendrite-conversion', type=str, default='All Layers', choices=['Linear Only','All Layers'], dest='dendrite_conversion')
 parser.add_argument('--improved-dendritic-optimization', type=str, required=False, default="false", dest='improved_dendritic_optimization')
+parser.add_argument('--perforated-ai-login-email', type=str, required=False, default="", dest='perforated_ai_login_email')
 parser.add_argument('--perforated-ai-token', type=str, required=False, default="", dest='perforated_ai_token')
 parser.add_argument('--split-test', type=str, required=False, default="false", dest='split_test', help="Split test set into validation and test. If false, uses full test set for validation.")
+
 
 # Use parse_known_args to ignore any extra arguments Edge Impulse might pass
 args, unknown = parser.parse_known_args()
@@ -212,7 +214,7 @@ for i in range(20):
     
     layer_configs.append(config)
 
-os.environ["PAIEMAIL"] = "user@edgeimpulse.com"
+os.environ["PAIEMAIL"] = args.perforated_ai_login_email
 os.environ["PAITOKEN"] = args.perforated_ai_token
 
 os.makedirs(args.out_directory, exist_ok=True)

@@ -186,6 +186,18 @@
             "param": "improved-dendritic-optimization"
         },
         {
+            "name": "Perforated AI Login Email",
+            "value": "",
+            "type": "string",
+            "help": "Your email address for PerforatedAI login.",
+            "showIf": {
+                "parameter": "improved-dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "perforated-ai-login-email"
+        },
+        {
             "name": "Perforated AI Token",
             "value": "",
             "type": "string",
