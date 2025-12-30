@@ -147,6 +147,15 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
 
     print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
     
+    # Print dendrite values for PAIModules before validation score
+    from perforatedai.modules_perforatedai import PAINeuronModule
+    for name, module in model.named_modules():
+        if isinstance(module, PAINeuronModule):
+            print(f"Layer {name} dendrite_value[0]:")
+            module.dendrite_module.dendrite_values[0].print()
+        else:
+            print(f"Layer {name} is not a PAINeuronModule.")
+
     # Add validation score to PerforatedAI tracker and check for restructuring
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Val Acc 5")
     model, restructured, trainingComplete = GPA.pai_tracker.add_validation_score(metric_logger.acc1.global_avg, model)
@@ -758,7 +767,8 @@ def main(args, run=None):
     max_train_acc1 = 0
     max_params = 0
     dendrite_count = 0
-    
+    original_model = model
+
     while True:
         epoch += 1
 #    for epoch in range(args.start_epoch, args.epochs):
