@@ -164,13 +164,6 @@ mask_freq_bands_val = parse_augmentation_level(args.mask_freq_bands, low_val=1, 
 warp_time_val = str2bool(args.warp_time)
 auto_weight_val = str2bool(args.auto_weight_classes)
 
-print(f"Parsed augmentation settings:")
-print(f"  Noise std: {args.noise_std} -> {noise_std_val}")
-print(f"  Mask time bands: {args.mask_time_bands} -> {mask_time_bands_val}")
-print(f"  Mask freq bands: {args.mask_freq_bands} -> {mask_freq_bands_val}")
-print(f"  Warp time: {args.warp_time} -> {warp_time_val}")
-print(f"  Auto weight classes: {args.auto_weight_classes} -> {auto_weight_val}\n")
-
 # Parse layer configurations early (needed for data type detection)
 layer_configs = []
 for i in range(20):
@@ -725,14 +718,7 @@ def main(config):
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
     model = UPA.initialize_pai(model)
-    
-    # Re-verify max_dendrites after initialization
-    print(f"Max dendrites after initialize_pai: {GPA.pc.get_max_dendrites()}", flush=True)
-    if GPA.pc.get_max_dendrites() != (args.max_dendrites if str2bool(args.dendritic_optimization) else 0):
-        print(f"WARNING: Max dendrites changed during initialization! Re-setting to {args.max_dendrites}...", flush=True)
-        GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)
-        print(f"Max dendrites now: {GPA.pc.get_max_dendrites()}", flush=True)
-    
+        
     # Set output dimensions for Conv1d layers if they are being optimized with dendrites
     for layer in model.layers:
         if isinstance(layer, nn.Conv1d):
@@ -918,19 +904,6 @@ def main(config):
     # -------------------------
     # Print best_test_scores table
     # -------------------------
-    """
-    import pandas as pd
-    best_test_scores_path = os.path.join('PAI', 'PAIbest_test_scores.csv')
-    if os.path.exists(best_test_scores_path):
-        print("\n" + "="*60)
-        print("BEST TEST SCORES TABLE (from PAI/PAIbest_test_scores.csv)")
-        print("="*60)
-        df = pd.read_csv(best_test_scores_path)
-        print(df.to_string(index=False))
-        print("="*60 + "\n")
-    else:
-        print(f"\nNote: best_test_scores.csv not found at {best_test_scores_path}\n")
-    """
     from perforatedai import blockwise_perforatedai as BPA
     from perforatedai import clean_perforatedai as CPA
     model = BPA.blockwise_network(model)
@@ -1157,76 +1130,6 @@ def main(config):
             f.write(tflite_float_model)
         print(f"✓ Created float32 TFLite model: {tflite_float_path}")
         
-        # Then, create quantized int8 TFLite model (model_quantized_int8_io.tflite)
-        print("\nConverting to quantized TFLite (int8)...")
-        converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-        converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
-        converter_int8.representative_dataset = representative_dataset
-        converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-        # Edge Impulse uses float32 inputs/outputs with int8 weights internally
-        # Don't force int8 for inputs/outputs - let TFLite decide
-        # converter_int8.inference_input_type = tf.int8
-        # converter_int8.inference_output_type = tf.int8
-        
-        try:
-            tflite_int8_model = converter_int8.convert()
-            tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
-            with open(tflite_int8_path, 'wb') as f:
-                f.write(tflite_int8_model)
-            print(f"✓ Created int8 quantized model: {tflite_int8_path}")
-        except Exception as quant_error:
-            print(f"\n✗ INT8 QUANTIZATION FAILED")
-            print(f"Error: {quant_error}")
-            print("\nThis is the same error Edge Impulse encounters.")
-            print("The dendritic network likely produces activation ranges that are incompatible with int8 quantization.")
-            print("\nPossible solutions:")
-            print("  1. Skip dendritic optimization for Edge Impulse deployment")
-            print("  2. Add activation clipping in the dendritic modules")
-            print("  3. Use mixed precision (int8 weights, float32 activations)")
-            raise
-        
-        # Test int8 quantized model
-        print("\nTesting int8 quantized model...")
-        tflite_path = tflite_int8_path  # Use int8 path for testing
-        
-        # Inspect TFLite model before allocating tensors
-        try:
-            import flatbuffers
-            from tensorflow.lite.python import schema_py_generated as schema_fb
-            
-            with open(tflite_path, 'rb') as f:
-                buf = bytearray(f.read())
-            
-            model = schema_fb.Model.GetRootAsModel(buf, 0)
-            
-            print(f"\nTFLite Model Info:")
-            print(f"  Version: {model.Version()}")
-            print(f"  Subgraphs: {model.SubgraphsLength()}")
-            
-            subgraph = model.Subgraphs(0)
-            print(f"  Tensors: {subgraph.TensorsLength()}")
-            print(f"  Operators: {subgraph.OperatorsLength()}")
-            
-            # Check quantization parameters for each tensor
-            print(f"\nTensor Quantization Details:")
-            for i in range(subgraph.TensorsLength()):
-                tensor = subgraph.Tensors(i)
-                name = tensor.Name().decode('utf-8') if tensor.Name() else f"tensor_{i}"
-                quant = tensor.Quantization()
-                
-                if quant and quant.ScaleLength() > 0:
-                    scales = [quant.Scale(j) for j in range(quant.ScaleLength())]
-                    zero_points = [quant.ZeroPoint(j) for j in range(quant.ZeroPointLength())]
-                    print(f"  Tensor {i} ({name}): scale={scales}, zero_point={zero_points}")
-                    
-                    # Check for problematic quantization scales
-                    for scale in scales:
-                        if scale <= 0 or scale > 1e6:
-                            print(f"    ⚠️  WARNING: Tensor {i} has extreme scale: {scale}")
-            
-        except Exception as inspect_error:
-            print(f"Could not inspect TFLite model: {inspect_error}")
-        
         # Define test function for TFLite models
         def test_tflite(model_path, loader, dataset_name):
             interpreter = tf.lite.Interpreter(model_path=model_path)
@@ -1298,13 +1201,90 @@ def main(config):
         full_test_dataset = TensorDataset(X_test_full, Y_test_full)
         full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
         
-        # Test both float32 and int8 models
+        # Test float32 model first
         print("\nTesting float32 TFLite model (model.tflite)...")
         full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
         
-        print("\nTesting int8 TFLite model (model_quantized_int8_io.tflite)...")
-        full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
+        # Now attempt int8 conversion and testing in a separate try-except
+        full_test_acc_int8 = None
+        try:
+            # Create quantized int8 TFLite model (model_quantized_int8_io.tflite)
+            print("\nConverting to quantized TFLite (int8)...")
+            converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+            converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
+            converter_int8.representative_dataset = representative_dataset
+            converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+            # Edge Impulse uses float32 inputs/outputs with int8 weights internally
+            # Don't force int8 for inputs/outputs - let TFLite decide
+            # converter_int8.inference_input_type = tf.int8
+            # converter_int8.inference_output_type = tf.int8
+            
+            tflite_int8_model = converter_int8.convert()
+            tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
+            with open(tflite_int8_path, 'wb') as f:
+                f.write(tflite_int8_model)
+            print(f"✓ Created int8 quantized model: {tflite_int8_path}")
+            
+            # Test int8 quantized model
+            print("\nTesting int8 quantized model...")
+            tflite_path = tflite_int8_path  # Use int8 path for testing
+            # Test int8 quantized model
+            print("\nTesting int8 quantized model...")
+            tflite_path = tflite_int8_path  # Use int8 path for testing
+            
+            # Inspect TFLite model before allocating tensors
+            try:
+                import flatbuffers
+                from tensorflow.lite.python import schema_py_generated as schema_fb
+                
+                with open(tflite_path, 'rb') as f:
+                    buf = bytearray(f.read())
+                
+                model = schema_fb.Model.GetRootAsModel(buf, 0)
+                
+                print(f"\nTFLite Model Info:")
+                print(f"  Version: {model.Version()}")
+                print(f"  Subgraphs: {model.SubgraphsLength()}")
+                
+                subgraph = model.Subgraphs(0)
+                print(f"  Tensors: {subgraph.TensorsLength()}")
+                print(f"  Operators: {subgraph.OperatorsLength()}")
+                
+                # Check quantization parameters for each tensor
+                print(f"\nTensor Quantization Details:")
+                for i in range(subgraph.TensorsLength()):
+                    tensor = subgraph.Tensors(i)
+                    name = tensor.Name().decode('utf-8') if tensor.Name() else f"tensor_{i}"
+                    quant = tensor.Quantization()
+                    
+                    if quant and quant.ScaleLength() > 0:
+                        scales = [quant.Scale(j) for j in range(quant.ScaleLength())]
+                        zero_points = [quant.ZeroPoint(j) for j in range(quant.ZeroPointLength())]
+                        print(f"  Tensor {i} ({name}): scale={scales}, zero_point={zero_points}")
+                        
+                        # Check for problematic quantization scales
+                        for scale in scales:
+                            if scale <= 0 or scale > 1e6:
+                                print(f"    ⚠️  WARNING: Tensor {i} has extreme scale: {scale}")
+                
+            except Exception as inspect_error:
+                print(f"Could not inspect TFLite model: {inspect_error}")
+            
+            print("\nTesting int8 TFLite model (model_quantized_int8_io.tflite)...")
+            full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
+            
+        except Exception as quant_error:
+            print(f"\n✗ INT8 QUANTIZATION OR TESTING FAILED")
+            print(f"Error: {quant_error}")
+            print("\nThis is the same error Edge Impulse encounters.")
+            print("The dendritic network likely produces activation ranges that are incompatible with int8 quantization.")
+            print("\nPossible solutions:")
+            print("  1. Skip dendritic optimization for Edge Impulse deployment")
+            print("  2. Add activation clipping in the dendritic modules")
+            print("  3. Use mixed precision (int8 weights, float32 activations)")
+            traceback.print_exc()
         
+        # Print final comparison (will show float32 results even if int8 failed)
         print("\n" + "="*60)
         print("FINAL COMPARISON")
         print("="*60)
@@ -1315,7 +1295,10 @@ def main(config):
             print(f"PyTorch        - Val: {max_val_acc:.4f}")
             print(f"ONNX           - Val: {val_acc_onnx:.4f}")
         print(f"TFLite Float32 - Full: {full_test_acc_float:.4f}")
-        print(f"TFLite INT8    - Full: {full_test_acc_int8:.4f}")
+        if full_test_acc_int8 is not None:
+            print(f"TFLite INT8    - Full: {full_test_acc_int8:.4f}")
+        else:
+            print(f"TFLite INT8    - Full: FAILED (see error above)")
 
         print("="*60 + "\n")
         
@@ -1329,216 +1312,5 @@ def main(config):
         print("="*60 + "\n")
 
 
-    """
-    # Attempt to run onnx2tf (so EI won't need to re-run it)
-    saved_model_dir = os.path.join(args.out_directory, 'onnx2tf-out')
-    try:
-        cmd = [sys.executable, "-m", "onnx2tf", "-i", onnx_path, "-o", saved_model_dir]
-        print("[train] Running onnx2tf:", " ".join(cmd))
-        proc = _subprocess.run(cmd, stdout=_subprocess.PIPE, stderr=_subprocess.PIPE, text=True)
-        print("[train] onnx2tf stdout:\n", proc.stdout)
-        print("[train] onnx2tf stderr:\n", proc.stderr)
-        if proc.returncode == 0 and os.path.isdir(saved_model_dir):
-            print("[train] onnx2tf conversion succeeded, SavedModel at:", saved_model_dir)
-        else:
-            print("[train] onnx2tf conversion returned code", proc.returncode, "- continuing to create compat shim (EI may convert later).")
-    except Exception:
-        print("[train] Failed to invoke onnx2tf CLI; continuing and creating compat shim.")
-        traceback.print_exc()
-
-    # Create compat shim SavedModel at out/onnx2tf-out that exposes .layers (used by EI embeddings)
-    try:
-        # Import TF lazily so environments without TF can still run training portion
-        import tensorflow as tf
-    except Exception:
-        tf = None
-        print("[train] TensorFlow not available in this environment; cannot create compat shim. If running inside EI, ensure TF is installed.")
-
-    if tf is not None:
-        try:
-            print("[compat-shim] Target SavedModel dir:", saved_model_dir)
-            loaded = None
-            if os.path.isdir(saved_model_dir):
-                try:
-                    loaded = tf.saved_model.load(saved_model_dir)
-                    print("[compat-shim] Loaded existing SavedModel from", saved_model_dir)
-                except Exception:
-                    print("[compat-shim] Failed to load existing SavedModel (will still create shim):")
-                    traceback.print_exc()
-            else:
-                print("[compat-shim] No existing SavedModel at", saved_model_dir, "- creating shim fallback.")
-
-            # Try to find a backend callable
-            backend_fn = None
-            if loaded is not None:
-                try:
-                    sigs = getattr(loaded, 'signatures', None)
-                    if sigs and 'serving_default' in sigs:
-                        backend_fn = sigs['serving_default']
-                        print("[compat-shim] Using signatures['serving_default'] as backend function.")
-                except Exception:
-                    pass
-
-            if backend_fn is None and loaded is not None:
-                try:
-                    candidate = tf.function(lambda x: loaded(x))
-                    il = int(input_length) if 'input_length' in locals() else 624
-                    _ = candidate.get_concrete_function(tf.TensorSpec([1, il], tf.float32))
-                    backend_fn = candidate
-                    print("[compat-shim] Using tf.function(lambda x: loaded(x)) as backend.")
-                except Exception:
-                    pass
-
-            if backend_fn is None and loaded is not None:
-                for name in dir(loaded):
-                    if name.startswith('_'):
-                        continue
-                    attr = getattr(loaded, name)
-                    if callable(attr):
-                        backend_fn = attr
-                        print(f"[compat-shim] Using callable attribute '{name}' from loaded SavedModel as backend.")
-                        break
-
-            if backend_fn is None:
-                print("[compat-shim] No backend callable found. Creating fallback backend that returns zeros.")
-                try:
-                    out_dim = int(num_classes)
-                except Exception:
-                    out_dim = 3
-
-                @tf.function(input_signature=[tf.TensorSpec([1, onnx_input_size], tf.float32)])
-                def backend_fn(x):
-                    return tf.zeros((1, out_dim), dtype=tf.float32)
-
-            # Determine output dim
-            out_dim = None
-            try:
-                test_inp = tf.constant(np.zeros((1, onnx_input_size), dtype=np.float32))
-                # Call backend and be robust to different return types (Tensor, np.array, dict, tuple, list, etc.)
-                try:
-                    test_out = backend_fn(test_inp)
-                except Exception:
-                    # Some callables may succeed but raise on first call signature; try a gentle fallback
-                    try:
-                        maybe = backend_fn(test_inp)
-                        test_out = maybe
-                    except Exception:
-                        test_out = None
-
-                # Normalize outputs: flatten nested structures (dict/list/tuple) and pick first element if needed
-                try:
-                    flat_outputs = tf.nest.flatten(test_out)
-                    if flat_outputs:
-                        candidate = flat_outputs[0]
-                    else:
-                        candidate = None
-                except Exception:
-                    # tf.nest.flatten may throw if test_out is None or unexpected; fall back to simple checks
-                    if isinstance(test_out, dict):
-                        vals = list(test_out.values())
-                        candidate = vals[0] if vals else None
-                    elif isinstance(test_out, (list, tuple)):
-                        candidate = test_out[0] if test_out else None
-                    else:
-                        candidate = test_out
-
-                if candidate is not None:
-                    # Ensure candidate is a tensor-like object we can inspect
-                    try:
-                        to = tf.convert_to_tensor(candidate)
-                    except Exception:
-                        # If candidate is a mapping (unlikely after flatten) attempt to get its first value
-                        if isinstance(candidate, dict):
-                            vals = list(candidate.values())
-                            if vals:
-                                to = tf.convert_to_tensor(vals[0])
-                            else:
-                                to = None
-                        else:
-                            to = None
-
-                    if to is not None:
-                        out_shape = to.shape
-                        if len(out_shape) >= 2:
-                            out_dim = int(out_shape[-1])
-                        else:
-                            out_dim = int(out_shape[0])
-                        print("[compat-shim] Detected output dim:", out_dim)
-                    else:
-                        print("[compat-shim] Candidate output not convertible to tensor; will use fallback.")
-                else:
-                    print("[compat-shim] No candidate output obtained from backend; will use fallback.")
-            except Exception:
-                print("[compat-shim] Could not infer output dim; will use fallback if needed.")
-                traceback.print_exc()
-
-            if out_dim is None:
-                try:
-                    out_dim = int(num_classes)
-                except Exception:
-                    out_dim = 3
-                print("[compat-shim] Using fallback output dim:", out_dim)
-
-            # Define LayerContainer and compat module
-            class LayerContainer(tf.Module):
-                def __init__(self):
-                    super().__init__()
-                    self.layer_0 = tf.keras.layers.Layer(name='compat_dummy_layer')
-                def __len__(self):
-                    return 1
-                def __getitem__(self, idx):
-                    if idx == 0:
-                        return getattr(self, 'layer_0')
-                    raise IndexError
-
-            class CompatModule(tf.Module):
-                def __init__(self, backend_callable, output_dim, input_size):
-                    super().__init__()
-                    self.layers = LayerContainer()
-                    self._backend = backend_callable
-                    self._output_dim = output_dim
-                    self._input_size = input_size
-
-                @tf.function(input_signature=[tf.TensorSpec([1, None], tf.float32)])
-                def serving_default(self, x):
-                    # Reshape input if needed to match expected size
-                    x = tf.reshape(x, [1, self._input_size])
-                    try:
-                        res = self._backend(x)
-                    except Exception:
-                        res = self._backend(x)
-                    if isinstance(res, dict):
-                        res = list(res.values())[0]
-                    res_t = tf.convert_to_tensor(res, dtype=tf.float32)
-                    try:
-                        res_t = tf.reshape(res_t, [1, self._output_dim])
-                    except Exception:
-                        pass
-                    return res_t
-
-            compat = CompatModule(backend_fn, out_dim, onnx_input_size)
-
-            # Overwrite existing SavedModel dir
-            try:
-                if os.path.isdir(saved_model_dir):
-                    shutil.rmtree(saved_model_dir)
-                    print("[compat-shim] Removed existing SavedModel dir to be replaced with compat shim.")
-            except Exception:
-                print("[compat-shim] Failed to remove existing SavedModel dir; continuing.")
-
-            try:
-                tf.saved_model.save(compat, saved_model_dir, signatures={'serving_default': compat.serving_default})
-                print("[compat-shim] Saved compat shim at:", saved_model_dir)
-                print("[compat-shim] Now tf.saved_model.load(saved_model_dir) will return an object with .layers.")
-            except Exception:
-                print("[compat-shim] Failed to save compat shim:")
-                traceback.print_exc()
-
-        except Exception:
-            print("[compat-shim] Unexpected error during shim creation:")
-            traceback.print_exc()
-    else:
-        print("[train] TensorFlow not present — compat shim not created.")
-    """
 if __name__ == "__main__":
     main(args)
