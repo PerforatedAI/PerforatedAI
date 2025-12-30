@@ -23,6 +23,7 @@ Test:  Acc@1 73.040 Acc@5 91.420
 18_thin
 Test:  Acc@1 61.660 Acc@5 85.200
 
+current sweep whrtmlct
 
 """
 
