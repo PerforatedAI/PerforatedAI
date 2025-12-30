@@ -146,15 +146,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     metric_logger.synchronize_between_processes()
 
     print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
-    
-    # Print dendrite values for PAIModules before validation score
-    from perforatedai.modules_perforatedai import PAINeuronModule
-    for name, module in model.named_modules():
-        if isinstance(module, PAINeuronModule):
-            print(f"Layer {name} dendrite_value[0]:")
-            module.dendrite_module.dendrite_values[0].print()
-        else:
-            print(f"Layer {name} is not a PAINeuronModule.")
 
     # Add validation score to PerforatedAI tracker and check for restructuring
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Val Acc 5")
@@ -697,7 +688,18 @@ def main(args, run=None):
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     
-    model = UPA.initialize_pai(model)
+    # Build run name with priority ordering
+    excluded = ['method', 'metric', 'parameters']
+    priorities = ['dendrite_mode', 'model_arch']
+    # Add priority keys first
+    name_parts = [str(wandb.config[k]) for k in priorities if k in wandb.config]
+    # Add remaining keys in default order
+    remaining_keys = [k for k in parameters_dict.keys() if k not in excluded and k not in priorities]
+    name_parts.extend(str(wandb.config[k]) for k in remaining_keys if k in wandb.config)
+    name_str = "_".join(name_parts)
+    run.name = name_str
+
+    model = UPA.initialize_pai(model, save_name=run.name)
 
     model.to(device)
 
