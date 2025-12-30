@@ -23,6 +23,7 @@ Test:  Acc@1 73.040 Acc@5 91.420
 18_thin
 Test:  Acc@1 61.660 Acc@5 85.200
 
+current sweep whrtmlct
 
 """
 
@@ -150,7 +151,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Val Acc 5")
     model, restructured, trainingComplete = GPA.pai_tracker.add_validation_score(metric_logger.acc1.global_avg, model)
     
-    return metric_logger.acc1.global_avg, restructured, trainingComplete
+    return model, metric_logger.acc1.global_avg, restructured, trainingComplete
 
 
 def _get_cache_path(filepath):
@@ -548,7 +549,7 @@ def main(args, run=None):
     GPA.pc.set_verbose(False)
     GPA.pc.set_max_dendrites(3)
     
-    # Apply wandb config to PAI settings if available
+    # Apply wandb config to PAI settings if available, otherwise use command-line args
     if run is not None:
         config = run.config
         
@@ -589,6 +590,42 @@ def main(args, run=None):
         print(f"PAI config: improvement_threshold={config.improvement_threshold}, "
               f"init_mult={config.candidate_weight_initialization_multiplier}, "
               f"forward_fn={config.pai_forward_function}, dendrite_mode={config.dendrite_mode}")
+    else:
+        # Use command-line args for PAI settings
+        if args.improvement_threshold == 0:
+            thresh = [0.01, 0.001, 0.0001, 0]
+        elif args.improvement_threshold == 1:
+            thresh = [0.001, 0.0001, 0]
+        elif args.improvement_threshold == 2:
+            thresh = [0]
+        GPA.pc.set_improvement_threshold(thresh)
+        
+        GPA.pc.set_candidate_weight_initialization_multiplier(args.candidate_weight_init_mult)
+        
+        # Decode pai_forward_function from string
+        if args.pai_forward_function == "sigmoid":
+            pai_forward_function = torch.sigmoid
+        elif args.pai_forward_function == "relu":
+            pai_forward_function = torch.relu
+        elif args.pai_forward_function == "tanh":
+            pai_forward_function = torch.tanh
+        else:
+            pai_forward_function = torch.sigmoid
+        GPA.pc.set_pai_forward_function(pai_forward_function)
+        
+        # Set dendrite mode
+        if args.dendrite_mode == 0:
+            GPA.pc.set_max_dendrites(0)
+        elif args.dendrite_mode == 1:
+            GPA.pc.set_max_dendrites(3)
+            GPA.pc.set_perforated_backpropagation(False)
+        elif args.dendrite_mode == 2:
+            GPA.pc.set_max_dendrites(3)
+            GPA.pc.set_perforated_backpropagation(True)
+        
+        print(f"PAI config: improvement_threshold={args.improvement_threshold}, "
+              f"init_mult={args.candidate_weight_init_mult}, "
+              f"forward_fn={args.pai_forward_function}, dendrite_mode={args.dendrite_mode}")
     
     mixup_cutmix = get_mixup_cutmix(
         mixup_alpha=args.mixup_alpha, cutmix_alpha=args.cutmix_alpha, num_classes=num_classes, use_v2=args.use_v2
@@ -731,7 +768,7 @@ def main(args, run=None):
         # This is done in the pai backend now
         # lr_scheduler.step()
         
-        acc1, restructured, trainingComplete = evaluate(model, criterion, data_loader_test, device=device)
+        model, acc1, restructured, trainingComplete = evaluate(model, criterion, data_loader_test, device=device)
         
         # Get training accuracy from PAI tracker extra scores
         train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get("Train Acc 1", 0)
@@ -953,6 +990,16 @@ def get_args_parser(add_help=True):
     parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
     parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
+    
+    # PerforatedAI parameters
+    parser.add_argument("--improvement-threshold", default=0, type=int, choices=[0, 1, 2], 
+                        help="PAI improvement threshold mode: 0=[0.01,0.001,0.0001,0], 1=[0.001,0.0001,0], 2=[0]")
+    parser.add_argument("--candidate-weight-init-mult", default=0.1, type=float,
+                        help="PAI candidate weight initialization multiplier (default: 0.1)")
+    parser.add_argument("--pai-forward-function", default="sigmoid", type=str, choices=["sigmoid", "relu", "tanh"],
+                        help="PAI forward function (default: sigmoid)")
+    parser.add_argument("--dendrite-mode", default=2, type=int, choices=[0, 1, 2],
+                        help="Dendrite mode: 0=no dendrites, 1=GD dendrites, 2=PB dendrites (default: 2)")
     
     # Wandb sweep parameters
     parser.add_argument("--sweep-id", type=str, default="main", help='Sweep ID to join, or "main" to create new sweep')
