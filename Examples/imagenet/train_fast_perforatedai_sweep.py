@@ -288,7 +288,6 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             "mode": "max",
             "factor": 0.1,
             "patience": 10,
-            "verbose": True,
         }
     else:
         raise RuntimeError(
@@ -297,7 +296,8 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         )
 
     # If warmup is needed, create main scheduler manually and wrap with warmup using SequentialLR
-    if warmup_epochs_remaining > 0:
+    # Note: ReduceLROnPlateau cannot be used with SequentialLR, so skip warmup for it
+    if warmup_epochs_remaining > 0 and args.lr_scheduler != "reducelronplateau":
         # Set scheduler to SequentialLR for PerforatedAI
         GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.SequentialLR)
         
@@ -308,8 +308,6 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             main_scheduler_class = torch.optim.lr_scheduler.CosineAnnealingLR
         elif args.lr_scheduler == "exponentiallr":
             main_scheduler_class = torch.optim.lr_scheduler.ExponentialLR
-        elif args.lr_scheduler == "reducelronplateau":
-            main_scheduler_class = torch.optim.lr_scheduler.ReduceLROnPlateau
         
         # Determine warmup scheduler class and args
         if args.lr_warmup_method == "linear":
