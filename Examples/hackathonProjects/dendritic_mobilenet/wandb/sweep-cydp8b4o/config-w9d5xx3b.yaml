@@ -1,0 +1,10 @@
+wandb_version: 1
+
+batch_size:
+  value: 64
+dendrite_count:
+  value: 8
+epochs:
+  value: 2
+learning_rate:
+  value: 0.0006929273639851633
