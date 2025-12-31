@@ -55,7 +55,16 @@ def train(config=None):
         
         # Initialize PerforatedAI Tracker
         # This converts eligible layers (like nn.Linear) to PAINeuronModules
+        # Custom Dendrite Tracking
+        # Exclude backbone and top classifier from having dendrites added (track only)
+        # Dendrites will be added to the remaining eligible layers (the dendritic_output)
+        GPA.pc.append_module_ids_to_track(['.features', '.avgpool', '.classifier_top'])
+        
+        # Initialize PerforatedAI Tracker
+        # This converts eligible layers (like nn.Linear) to PAINeuronModules
         GPA.pc.set_unwrapped_modules_confirmed(True)
+        GPA.pc.set_using_safe_tensors(False) # Disable safetensors for shared memory support
+        GPA.pc.set_testing_dendrite_capacity(False) # Disable testing capacity to avoid Pdb breakpoints
         model = UPA.initialize_pai(model)
         model = model.to(device)
 
@@ -73,18 +82,6 @@ def train(config=None):
         temp_loss.backward()
         temp_optim.step()
         
-        # Manually add dendrites to the specific output layer if it was converted
-        # We iterate to find the 'dendritic_output' which we know is the last layer or by name
-        # Since initialize_pai might wrap it, we access it via the model structure
-        
-        if hasattr(model, 'dendritic_output') and isinstance(model.dendritic_output, PA.PAINeuronModule):
-             print(f"Adding {config.dendrite_count} dendrites to dendritic_output layer...")
-             for _ in range(config.dendrite_count):
-                 model.dendritic_output.create_new_dendrite_module()
-        else:
-             print("Warning: dendritic_output was not converted to PAINeuronModule or not found.")
-
-
         # Verify Parameter Count
         params = sum(p.numel() for p in model.parameters())
         print(f"Total Parameters: {params}")
@@ -93,6 +90,9 @@ def train(config=None):
         # Optimizer and Loss
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+        
+        # Register optimizer with PAI tracker to enable learning rate tracking
+        GPA.pai_tracker.set_optimizer_instance(optimizer)
 
         # Training Loop
         for epoch in range(config.epochs):
@@ -121,6 +121,9 @@ def train(config=None):
             train_acc = 100. * correct / total
             train_loss = running_loss / len(trainloader)
             
+            # Report training accuracy to PAI Tracker (Optional but good practice)
+            GPA.pai_tracker.add_extra_score(train_acc, "train_acc")
+
             # Validation
             model.eval()
             val_loss = 0.0
@@ -139,6 +142,12 @@ def train(config=None):
 
             val_acc = 100. * val_correct / val_total
             val_loss = val_loss / len(testloader)
+            
+            # Re-register optimizer instance before validation call (Workaround for PAI clearing it)
+            GPA.pai_tracker.set_optimizer_instance(optimizer)
+
+            # Report validation accuracy to PAI Tracker (Triggers dendrite growth if applicable)
+            GPA.pai_tracker.add_validation_score(val_acc, model)
 
             print(f"Epoch {epoch+1}: Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%")
             
@@ -151,29 +160,19 @@ def train(config=None):
             })
 
 if __name__ == "__main__":
-    sweep_configuration = {
-        'method': 'bayes',
-        'name': 'dendritic-mobilenet-sweep',
-        'metric': {'goal': 'maximize', 'name': 'val_accuracy'},
-        'parameters': {
-            'dendrite_count': {'values': [2, 4, 8]},
-            'batch_size': {'values': [32, 64]},
-            'learning_rate': {'distribution': 'uniform', 'max': 0.005, 'min': 0.0001},
-            'epochs': {'value': 2} # Reduced epochs for faster demo
-        }
+    # Configuration for the "Best" run
+    # User requested optimal hyperparameters: dendrites=8 (from README), batch=64, lr=0.001
+    best_config = {
+        'dendrite_count': 8,
+        'batch_size': 64,
+        'learning_rate': 0.001,
+        'epochs': 5 # Increased slightly for meaningful training
     }
 
-    # IMPORTANT: Ensure user is logged in to wandb.
-    # If not, this might hang or fail.
-    # We rely on user having run 'wandb login' as per instructions.
-    
+    print(f"Starting Final Run with Optimal Hyperparameters: {best_config}")
     try:
-        sweep_id = wandb.sweep(sweep=sweep_configuration, project="hackathon-dendritic-vision")
-        print(f"Starting sweep agent with ID: {sweep_id}")
-        wandb.agent(sweep_id, function=train, count=3) # Limit runs for demo
+        train(config=best_config)
     except Exception as e:
         print(f"\nCRITICAL ERROR: {e}")
-        print("This error is likely due to missing WandB authentication.")
-        print("Please run 'wandb login' in your terminal and paste your API key.")
-        print("If you do not have an account, sign up at https://wandb.ai/site")
+        # print("Please ensure you are logged into WandB: 'wandb login'")
 
