@@ -42,11 +42,11 @@ This project is configured to run a **WandB Sweep** automatically. The `train.py
 - **Learning Rates**: Uniform distribution [0.0001, 0.005]
 
 ### Optimal Hyperparameters
-Based on our experimental sweeps, the following configuration yielded the best results (82.57% Validation Accuracy):
+Based on our experimental sweeps, the following configuration yielded the best results (**90.84% Validation Accuracy**):
 - **Dendrite Count**: 8
 - **Batch Size**: 64
 - **Learning Rate**: 0.001
-- **Epochs**: ~50 (for full convergence, demo uses fewer)
+- **Epochs**: 5 (Demonstration run)
 
 [W&B Sweep Report](https://wandb.ai/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision)
 
