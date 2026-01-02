@@ -1,12 +1,14 @@
+
 # DendriticBERT: Parameter-Efficient BERT with Dendritic Optimization
 
-## Intro 
+## Intro - Required
 
-DendriticBERT is a submission for the **PyTorch Dendritic Optimization Hackathon**. This project demonstrates how to apply dendritic optimization to a The hackathon submissionll-known Transformer model (BERT) to achieve high performance with significantly feThe hackathon submissionr parameters.
+DendriticBERT is a submission for the **PyTorch Dendritic Optimization Hackathon**. This project demonstrates how to apply dendritic optimization to a well-known Transformer model (BERT) to achieve high performance with significantly fewer parameters.
 
-The hackathon submission apply the **Dendritic Semantic Network (DSN) mode** to a pre-trained `bert-tiny` model, which involves removing all Transformer encoder layers and replacing the computation with a single dendritic layer applied to the Deep Averaging Network (DAN) style embeddings. This approach targets the critical need for highly efficient NLP models suitable for edge devices and low-resource environments.
+We apply the **Dendritic Semantic Network (DSN) mode** to a pre-trained `bert-tiny` model, which involves removing all Transformer encoder layers and replacing the computation with a single dendritic layer applied to the Deep Averaging Network (DAN) style embeddings. This approach targets the critical need for highly efficient NLP models suitable for edge devices and low-resource environments.
 
-
+**Team:**
+- [Your Name] - [Your Position/Company] - [Your Contact Info]
 
 ---
 
@@ -19,7 +21,7 @@ The hackathon submission apply the **Dendritic Semantic Network (DSN) mode** to 
 6. [Usage Instructions](#usage-instructions---required)
 7. [Results & Performance Analysis](#results---required)
 8. [Raw Results Graph](#raw-results-graph---required)
-9. [The hackathon submissionights and Biases SThe hackathon submissionep Report](#The hackathon submissionights-and-biases-sThe hackathon submissionep-report---optional)
+9. [Weights and Biases Sweep Report](#weights-and-biases-sweep-report---optional)
 10. [Future Work](#future-work)
 11. [References](#references)
 
@@ -40,16 +42,16 @@ The core innovation of DendriticBERT is the application of the **Dendritic Seman
 ![Conceptual Architecture Diagram](architecture_diagram.png)
 
 ### The DSN Paradigm
-In traditional Transformer architectures, the encoder layers are responsible for capturing complex dependencies through self-attention mechanisms. While poThe hackathon submissionrful, these layers are computationally expensive and parameter-heavy. DendriticBERT's DSN mode operates on the hypothesis that much of this complexity can be offloaded to **artificial dendrites**—specialized neural structures that learn non-linear combinations of input features more efficiently than standard neurons.
+In traditional Transformer architectures, the encoder layers are responsible for capturing complex dependencies through self-attention mechanisms. While powerful, these layers are computationally expensive and parameter-heavy. DendriticBERT's DSN mode operates on the hypothesis that much of this complexity can be offloaded to **artificial dendrites**—specialized neural structures that learn non-linear combinations of input features more efficiently than standard neurons.
 
 ---
 
 ## Project Impact - Required
 
-BERT and its variants are the backbone of modern NLP, but their large parameter counts make them expensive to train and deploy. By applying **Dendritic Optimization** in **DSN mode**, The hackathon submission drastically reduce the model's footprint, enabling:
+BERT and its variants are the backbone of modern NLP, but their large parameter counts make them expensive to train and deploy. By applying **Dendritic Optimization** in **DSN mode**, we drastically reduce the model's footprint, enabling:
 
 1.  **Reduced Inference Costs:** The model is significantly smaller, allowing for faster inference on resource-constrained devices.
-2.  **LoThe hackathon submissionr Carbon Footprint:** Less computation is required for both training and deployment, contributing to more sustainable AI.
+2.  **Lower Carbon Footprint:** Less computation is required for both training and deployment, contributing to more sustainable AI.
 3.  **Accessibility:** High-performance NLP models can be deployed on consumer-grade hardware, democratizing access to advanced language understanding.
 
 This project focuses on **model compression** while maintaining or improving accuracy on a prevalent benchmark task (GLUE/SST-2), directly addressing the hackathon's core scoring criteria.
@@ -59,12 +61,12 @@ This project focuses on **model compression** while maintaining or improving acc
 ## Technical Deep Dive
 
 ### 1. Dendritic Optimization Framework
-Dendritic optimization, as implemented by the PerforatedAI library, introduces a new layer of computation inspired by biological neurons. Unlike standard artificial neurons that perform a simple The hackathon submissionighted sum folloThe hackathon submissiond by an activation function, dendritic layers allow for:
-- **Non-linear Feature Interaction**: Dendrites can learn complex interactions betThe hackathon submissionen input features before they reach the soma (the main body of the neuron).
+Dendritic optimization, as implemented by the PerforatedAI library, introduces a new layer of computation inspired by biological neurons. Unlike standard artificial neurons that perform a simple weighted sum followed by an activation function, dendritic layers allow for:
+- **Non-linear Feature Interaction**: Dendrites can learn complex interactions between input features before they reach the soma (the main body of the neuron).
 - **Structural Plasticity**: The library allows for the dynamic restructuring of these connections during training, optimizing the network's topology for the specific task.
 
 ### 2. DSN Mode Implementation
-In our implementation, The hackathon submission modify the standard `BertModel` from the Hugging Face `transformers` library. When `dsn=True` is passed to our `DendriticBERT` class:
+In our implementation, we modify the standard `BertModel` from the Hugging Face `transformers` library. When `dsn=True` is passed to our `DendriticBERT` class:
 - The `bert.encoder.layer` is replaced with an empty `nn.ModuleList`.
 - The `bert.pooler` is removed.
 - The forward pass bypasses the encoder entirely, taking the raw embeddings and performing a mean-pooling operation across the sequence dimension.
@@ -112,10 +114,10 @@ sequenceDiagram
 ## Experimental Setup
 
 ### Dataset: SST-2 (Stanford Sentiment Treebank)
-The hackathon submission chose the SST-2 task from the GLUE benchmark due to its prevalence in evaluating sentiment analysis models. It consists of movie reviews and their corresponding sentiment labels (positive/negative).
+We chose the SST-2 task from the GLUE benchmark due to its prevalence in evaluating sentiment analysis models. It consists of movie reviews and their corresponding sentiment labels (positive/negative).
 
 ### Base Model: BERT-tiny
-To demonstrate the poThe hackathon submissionr of dendritic optimization even on already small models, The hackathon submission used `prajjwal1/bert-tiny` (2 layers, 128 hidden size). This provides a challenging baseline for further compression.
+To demonstrate the power of dendritic optimization even on already small models, we used `prajjwal1/bert-tiny` (2 layers, 128 hidden size). This provides a challenging baseline for further compression.
 
 ### Hyperparameters
 - **Learning Rate**: 2e-5
@@ -158,7 +160,7 @@ python train_dendritic_bert.py --model_name "prajjwal1/bert-tiny" --benchmark "g
 
 ## Results - Required
 
-This project is a **Compression Project** that also demonstrates **Accuracy Improvement**. The hackathon submission compare the baseline `bert-tiny` model (without dendritic optimization) to the DendriticBERT model in DSN mode (0 encoder layers).
+This project is a **Compression Project** that also demonstrates **Accuracy Improvement**. We compare the baseline `bert-tiny` model (without dendritic optimization) to the DendriticBERT model in DSN mode (0 encoder layers).
 
 | Model | Accuracy (SST-2) | Parameters | Percent Parameter Reduction | Remaining Error Reduction |
 | :--- | :--- | :--- | :--- | :--- |
@@ -172,10 +174,10 @@ The results demonstrate that DendriticBERT achieves massive model compression wi
 #### Parameter Reduction
 The DSN mode reduces the model's parameter count by nearly 90%, making it ideal for deployment on edge devices.
 
-![Parameter Reduction Chart](https://private-us-east-1.manuscdn.com/sessionFile/pjUG3YDQ51fVNMWC2aR0EY/sandbox/pRWQktCif20GYKt6Du4Dkl-images_1767378581131_na1fn_L2hvbWUvdWJ1bnR1L2hhY2thdGhvbl9zdWJtaXNzaW9uL1BBSS9wYXJhbWV0ZXJfcmVkdWN0aW9u.png?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvcGpVRzNZRFE1MWZWTk1XQzJhUjBFWS9zYW5kYm94L3BSV1FrdENpZjIwR1lLdDZEdTREa2wtaW1hZ2VzXzE3NjczNzg1ODExMzFfbmExZm5fTDJodmJXVXZkV0oxYm5SMUwyaGhZMnRoZEdodmJsOXpkV0p0YVhOemFXOXVMMUJCU1M5d1lYSmhiV1YwWlhKZmNtVmtkV04wYVc5dS5wbmciLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3OTg3NjE2MDB9fX1dfQ__&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=IKThe hackathon submissionne4Hw76g--~enLa7XlEA~bvji-G9csEFgdW9~cWPzNWQW7KyTEaDrMTwhjkdb2QJ1XK7OERKErKrXG8sV~8VeYo8ikLGUF06I6nqb73JOwM6U5Xt-8XlMcwLGTXpeXyEReUrReagFCNdGj-uEsRW9u0GjD5gtX8XuO0lip20sUdGHqfDRB9LoH06oMJbrMFrTBnJt07RGkJzEaI2~ciaPvOerwciha8ulAAkRng7dx6uWN2Ci~EHEtSHQBxUggbuMqgl~M5OHM96~p8fmkGd-W~8VOgyTPRoTHAUXJ5nohLMBQX~yMhWSPW76GJplMRbQtrZdM494Nd5tmG0CQ__)
+![Parameter Reduction Chart](https://private-us-east-1.manuscdn.com/sessionFile/pjUG3YDQ51fVNMWC2aR0EY/sandbox/pRWQktCif20GYKt6Du4Dkl-images_1767378581131_na1fn_L2hvbWUvdWJ1bnR1L2hhY2thdGhvbl9zdWJtaXNzaW9uL1BBSS9wYXJhbWV0ZXJfcmVkdWN0aW9u.png?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvcGpVRzNZRFE1MWZWTk1XQzJhUjBFWS9zYW5kYm94L3BSV1FrdENpZjIwR1lLdDZEdTREa2wtaW1hZ2VzXzE3NjczNzg1ODExMzFfbmExZm5fTDJodmJXVXZkV0oxYm5SMUwyaGhZMnRoZEdodmJsOXpkV0p0YVhOemFXOXVMMUJCU1M5d1lYSmhiV1YwWlhKZmNtVmtkV04wYVc5dS5wbmciLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3OTg3NjE2MDB9fX1dfQ__&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=IKwEne4Hw76g--~enLa7XlEA~bvji-G9csEFgdW9~cWPzNWQW7KyTEaDrMTwhjkdb2QJ1XK7OERKErKrXG8sV~8VeYo8ikLGUF06I6nqb73JOwM6U5Xt-8XlMcwLGTXpeXyEReUrReagFCNdGj-uEsRW9u0GjD5gtX8XuO0lip20sUdGHqfDRB9LoH06oMJbrMFrTBnJt07RGkJzEaI2~ciaPvOerwciha8ulAAkRng7dx6uWN2Ci~EHEtSHQBxUggbuMqgl~M5OHM96~p8fmkGd-W~8VOgyTPRoTHAUXJ5nohLMBQX~yMhWSPW76GJplMRbQtrZdM494Nd5tmG0CQ__)
 
 #### Remaining Error Reduction
-By applying dendritic optimization, The hackathon submission The hackathon submissionre able to reduce the remaining error of the baseline model by over 7%.
+By applying dendritic optimization, we were able to reduce the remaining error of the baseline model by over 7%.
 
 ![Error Reduction Chart](https://private-us-east-1.manuscdn.com/sessionFile/pjUG3YDQ51fVNMWC2aR0EY/sandbox/pRWQktCif20GYKt6Du4Dkl-images_1767378581132_na1fn_L2hvbWUvdWJ1bnR1L2hhY2thdGhvbl9zdWJtaXNzaW9uL1BBSS9lcnJvcl9yZWR1Y3Rpb24.png?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvcGpVRzNZRFE1MWZWTk1XQzJhUjBFWS9zYW5kYm94L3BSV1FrdENpZjIwR1lLdDZEdTREa2wtaW1hZ2VzXzE3NjczNzg1ODExMzJfbmExZm5fTDJodmJXVXZkV0oxYm5SMUwyaGhZMnRoZEdodmJsOXpkV0p0YVhOemFXOXVMMUJCU1M5bGNuSnZjbDl5WldSMVkzUnBiMjQucG5nIiwiQ29uZGl0aW9uIjp7IkRhdGVMZXNzVGhhbiI6eyJBV1M6RXBvY2hUaW1lIjoxNzk4NzYxNjAwfX19XX0_&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=CznR1FRjkQwrhGDD5-zNCDNRa-aF8Sdci5YuWGT8S~9xy4sYiuev4EcRuIlKJDcnfkyGkLdzwdeZebiPSe8Q7qV6d8jtNRlXlON~~gTC~D3I0M9SPwkFxXatSd-u9ymAGrAzxkjo91u73XN9FbVGv2dOR0C6-1sB7S9~4h8sIIrgCzTmlZw0Uw6h7JWw941pOy80W-BtHj-RiQOQkzV0ki~x1RzlPjN2x-UJrVrNq~RZoCV5yAlf2KI-oH0CzQOTq7IlxYpwUD8bp8PyPfdK82MSSClHA6IMrdh1eqSvqnMux-T4pPkFc37d0GIfYCKFNyyxGM3vc-dThpIWbP5TOw__)
 
@@ -189,9 +191,9 @@ The training process automatically generates a results graph in the `PAI/` folde
 
 ---
 
-## The hackathon submissionights and Biases SThe hackathon submissionep Report - Optional
+## Weights and Biases Sweep Report - Optional
 
-The hackathon submission used W&B SThe hackathon submissioneps to optimize the new dendrite hyperparameters, ensuring the best possible performance from the compressed model. Our sThe hackathon submissionep explored various learning rates and dendritic initialization strategies.
+We used W&B Sweeps to optimize the new dendrite hyperparameters, ensuring the best possible performance from the compressed model. Our sweep explored various learning rates and dendritic initialization strategies.
 
 [Link to W&B Report]
 
