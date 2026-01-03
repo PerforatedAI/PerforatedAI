@@ -15,6 +15,7 @@ import random
 import numpy as np
 import time
 import os
+import gc
 
 # PAI imports (optional - only used when --use-dendrites is set)
 GPA = None
@@ -301,7 +302,7 @@ def preprocess_and_cache(dataset_name, split, processor, cache_dir, max_samples=
     return cache_path
 
 
-def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_per_epoch, epochs, use_dendrites=False):
+def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_per_epoch, epochs, device, use_dendrites=False):
     """Create AdamW optimizer and cosine scheduler with warmup."""
     decay_params = []
     no_decay_params = []
@@ -314,13 +315,18 @@ def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_
         else:
             decay_params.append(param)
 
+    # Use fused AdamW for CUDA (faster)
+    use_fused = device.type == "cuda"
     optimizer = AdamW(
         [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": no_decay_params, "weight_decay": 0.0},
         ],
         lr=lr,
+        fused=use_fused,
     )
+    if use_fused:
+        print("Using fused AdamW optimizer")
 
     num_training_steps = steps_per_epoch * epochs
     num_warmup_steps = int(num_training_steps * warmup_ratio)
@@ -438,8 +444,14 @@ def train(
         train_dataset = CachedDataset(train_cache)
         val_dataset = CachedDataset(val_cache)
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            num_workers=4, pin_memory=True, persistent_workers=True, prefetch_factor=4
+        )
+        val_loader = DataLoader(
+            val_dataset, batch_size=batch_size, shuffle=False,
+            num_workers=4, pin_memory=True, persistent_workers=True, prefetch_factor=4
+        )
 
         steps_per_epoch = len(train_loader)
         print(f"Using cached data: {len(train_dataset)} train, {len(val_dataset)} val samples")
@@ -457,6 +469,7 @@ def train(
         warmup_ratio=warmup_ratio,
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
+        device=device,
         use_dendrites=use_dendrites,
     )
 
@@ -554,6 +567,14 @@ def train(
 
             if restructured:
                 print("Model restructured by PAI, recreating optimizer...")
+                # Log model size after restructuring
+                num_params = sum(p.numel() for p in model.parameters())
+                print(f"Model parameters after restructuring: {num_params:,}")
+                # Free old model/optimizer memory to prevent slowdown
+                gc.collect()
+                if device.type == "cuda":
+                    torch.cuda.empty_cache()
+                    print(f"GPU memory freed. Allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
                 # Use the original epochs value for scheduler (not remaining epochs)
                 # since we're running indefinitely until PAI stops us
                 optimizer, scheduler = create_optimizer_and_scheduler(
@@ -563,6 +584,7 @@ def train(
                     warmup_ratio=warmup_ratio,
                     steps_per_epoch=steps_per_epoch,
                     epochs=epochs,  # Use original value, not remaining
+                    device=device,
                     use_dendrites=use_dendrites,
                 )
 
@@ -612,6 +634,8 @@ def main():
     if device.type == "cuda":
         print(f"GPU: {torch.cuda.get_device_name(0)}")
         print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+        torch.backends.cudnn.benchmark = True
+        print("cuDNN benchmark enabled")
     elif device.type == "mps":
         print("Using Apple Metal GPU (MPS)")
 
@@ -632,6 +656,8 @@ def main():
         configure_pai_dimensions(model)
 
     model.to(device)
+    num_params = sum(p.numel() for p in model.parameters())
+    print(f"Model parameters: {num_params:,}")
 
     if args.train:
         print(f"\nStarting training on '{args.dataset}'...")
