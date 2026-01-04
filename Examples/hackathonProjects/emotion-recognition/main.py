@@ -206,7 +206,8 @@ def main(run=None):
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_verbose(False)
     GPA.pc.set_unwrapped_modules_confirmed(True)
-    
+    GPA.pc.set_n_epochs_to_switch(25)
+
     # Set wandb run name
     if run is not None:
         dropout_val = getattr(config, 'dropout', 0.3)
@@ -275,7 +276,10 @@ def main(run=None):
     print("Starting Training with Dendritic Optimization")
     print("="*60 + "\n")
     
-    for epoch in range(1, args.epochs + 1):
+    epoch = -1
+    #for epoch in range(1, args.epochs + 1):
+    while True:
+        epoch += 1
         # Train
         train_acc = train(args, model, device, train_loader, optimizer, epoch)
         
