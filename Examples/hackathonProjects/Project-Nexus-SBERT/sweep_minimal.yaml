@@ -1,0 +1,25 @@
+program: src/train_nexus.py
+method: grid
+metric:
+  name: val_spearman
+  goal: maximize
+parameters:
+  lr:
+    values: [1e-5, 2e-5, 5e-5]
+  batch_size:
+    values: [16, 32]
+  epochs:
+    value: 6
+  save_dir:
+    value: experiments/sweep_runs_buffer
+  use_dendrites: 
+    values: [true, false]
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - ${args_no_boolean_flags}
+  - "--epochs"
+  - "6"
+  - "--save_dir"
+  - "experiments/sweep_runs_buffer" 
