@@ -1,0 +1,7 @@
+dendritic:
+  enabled: true
+  num_branches: 4
+
+demo:
+  mode: safe
+  max_samples: 16
