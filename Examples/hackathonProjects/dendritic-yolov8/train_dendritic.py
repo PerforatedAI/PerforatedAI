@@ -8,12 +8,9 @@ Uses add_validation_score() for proper dendrite restructuring.
 """
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from ultralytics import YOLO
-from ultralytics.data import build_dataloader, build_yolo_dataset
-from ultralytics.utils import LOGGER
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
