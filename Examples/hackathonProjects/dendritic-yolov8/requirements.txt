@@ -1,0 +1,17 @@
+# Dendritic YOLOv8 - PerforatedAI Hackathon
+# Requirements
+
+# Core dependencies
+torch>=2.0.0
+ultralytics>=8.0.0
+perforatedai==3.0.7
+
+# Logging and visualization
+wandb
+matplotlib
+pandas
+seaborn
+
+# Optional: Jupyter support
+jupyter
+ipywidgets

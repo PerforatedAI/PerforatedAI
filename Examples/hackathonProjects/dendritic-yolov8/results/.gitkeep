@@ -1,0 +1,5 @@
+# This directory will contain generated results:
+# - comparison_chart.png
+# - hackathon_results.json
+# - baseline_results.json
+# - dendritic_results.json
