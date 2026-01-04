@@ -99,14 +99,11 @@ dendritic-yolov8/
 
 ## 📜 Technical Notes
 
-### PyTorch 2.6+ Compatibility
-```python
-# Required patch for checkpoint loading
-_orig_load = torch.load
-def torch_load_unsafe(*args, **kwargs):
-    kwargs["weights_only"] = False
-    return _orig_load(*args, **kwargs)
-torch.load = torch_load_unsafe
+### ⚠️ PyTorch Version Requirement
+**CRITICAL**: Use PyTorch < 2.6 to avoid `weights_only=True` unpickling errors with YOLO checkpoints.
+
+```bash
+pip install "torch==2.4.1" "torchvision==0.19.1" "ultralytics==8.2.0"
 ```
 
 ### Skip Input Stem
@@ -133,6 +130,12 @@ model, restructured, complete = GPA.pai_tracker.add_validation_score(score, mode
 if restructured:
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 ```
+
+## 🔗 Submission Links
+
+- **GitHub PR**: [PR to PerforatedAI/PerforatedAI](https://github.com/PerforatedAI/PerforatedAI/pull/XXX) *(update after creating PR)*
+- **W&B Project**: [Dendritic-YOLOv8-Hackathon](https://wandb.ai/wildhash/Dendritic-YOLOv8-Hackathon)
+- **Devpost**: [PyTorch Dendritic Optimization Hackathon](https://pytorch-dendritic-optimization.devpost.com/)
 
 ## 📝 License
 
