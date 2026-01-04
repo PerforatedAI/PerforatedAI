@@ -1,62 +1,166 @@
-# 🧠 Dendritic YOLOv8: Edge-Ready Object Detection
+# Dendritic YOLOv8# Dendritic YOLOv8 - Edge Object Detection Optimization# 🧠 Dendritic YOLOv8: Edge-Ready Object Detection
 
-> **PerforatedAI Dendritic Optimization Hackathon Submission**
 
-## 🎯 Challenge
+
+## Intro
+
+
+
+PerforatedAI Dendritic Optimization Hackathon submission applying dendritic structures to YOLOv8n for edge deployment optimization.## Intro> **PerforatedAI Dendritic Optimization Hackathon Submission**
+
+
+
+**Team:** [Will Wild]
+
+
+
+## Project ImpactThis hackathon submission applies PerforatedAI's dendritic optimization to YOLOv8n for improved edge deployment efficiency. YOLOv8 is the industry-leading real-time object detection model.## 🎯 Challenge
+
+
+
+YOLOv8 is deployed across mobile apps, industrial IoT, autonomous vehicles, and security systems. Edge deployment faces memory, compute, and power constraints.
+
+
 
 YOLOv8 delivers state-of-the-art object detection performance but requires significant compute resources for real-time inference on edge devices. Deployment on embedded systems, mobile devices, and IoT platforms remains challenging due to:
 
-- **Memory constraints**: 3.15M parameters require substantial RAM
+- Smaller models for resource-constrained devices
+
+- Faster inference for real-time edge detection
+
+- Lower power consumption for mobile battery life
+
+[Will Wild] - [human in the loop] - [woakwild@gmail.com]- **Memory constraints**: 3.15M parameters require substantial RAM
+
+## Usage Instructions
+
 - **Compute requirements**: High FLOP count limits inference speed on edge hardware
-- **Power consumption**: Intensive computation drains battery on mobile devices
 
-## 💡 Solution
+**Installation:**
 
-We applied **PerforatedAI's dendritic optimization** to YOLOv8n's backbone architecture. This biologically-inspired approach:
+```bash## Project Impact- **Power consumption**: Intensive computation drains battery on mobile devices
 
-1. **Adds dendritic structures** to convolutional layers, enabling more efficient feature processing
-2. **Dynamically restructures** the network during training to optimize parameter usage
-3. **Maintains accuracy** while reducing computational overhead
+pip install -r requirements.txt
+
+```
+
+
+
+**Run with dendrites:**YOLOv8 is deployed across mobile apps, industrial IoT, autonomous vehicles, and security systems. Edge deployment faces memory, compute, and power constraints.## 💡 Solution
+
+```bash
+
+python train_dendritic.py --epochs 5 --wandb
+
+```
+
+Improving YOLOv8 efficiency enables:We applied **PerforatedAI's dendritic optimization** to YOLOv8n's backbone architecture. This biologically-inspired approach:
+
+**Or use the Colab notebook:**
+
+Open `notebooks/dendritic_yolov8_clean.ipynb` in Google Colab with GPU runtime.- **Smaller models** for resource-constrained devices
+
+
+
+## Results- **Faster inference** for real-time edge detection1. **Adds dendritic structures** to convolutional layers, enabling more efficient feature processing
+
+
+
+| Metric | Baseline | Dendritic | Change |- **Lower power consumption** for mobile battery life2. **Dynamically restructures** the network during training to optimize parameter usage
+
+|--------|----------|-----------|--------|
+
+| Parameters | 3.16M | 2.84M | -10.1% |3. **Maintains accuracy** while reducing computational overhead
+
+| mAP50-95 | 0.484 | 0.479 | -1.0% |
+
+## Usage Instructions
+
+**Percent Parameter Reduction:** 10.1%
 
 ### Key Implementation Details
 
+## Raw Results Graph
+
+**Installation:**
+
+![PerforatedAI Results Graph](./PAI/PAI.png)
+
 - Applied dendritic optimization to all backbone layers except `model.0` (input stem)
-- Used Adam optimizer with ReduceLROnPlateau scheduler through PerforatedAI tracker
-- Trained on COCO128 dataset for quick iteration and validation
+
+```bash- Used Adam optimizer with ReduceLROnPlateau scheduler through PerforatedAI tracker
+
+pip install -r requirements.txt- Trained on COCO128 dataset for quick iteration and validation
+
+```
 
 ## 📊 Results
 
-| Metric | Baseline | Dendritic | Delta |
-|--------|----------|-----------|-------|
-| **Parameters** | 3.16M | 2.84M | **-10.1%** ✅ |
-| **mAP50** | 0.723 | 0.716 | -0.8% |
-| **mAP50-95** | 0.457 | 0.452 | -1.0% |
-| **Inference (ms)** | 45.2ms | 38.7ms | **-14.4%** ✅ |
+**Run baseline (no dendrites):**
 
-### Key Findings
-- ✅ **10.1% Parameter Reduction** - Smaller model footprint for edge deployment
-- ✅ **14.4% Faster Inference** - Better real-time performance  
+| Metric | Baseline | Dendritic | Delta |
+
+```bash|--------|----------|-----------|-------|
+
+python yolov8_original.py| **Parameters** | 3.16M | 2.84M | **-10.1%** ✅ |
+
+```| **mAP50** | 0.723 | 0.716 | -0.8% |
+
+| **mAP50-95** | 0.457 | 0.452 | -1.0% |
+
+**Run with dendrites:**| **Inference (ms)** | 45.2ms | 38.7ms | **-14.4%** ✅ |
+
+
+
+```bash### Key Findings
+
+PAIPASSWORD=your_token python yolov8_perforatedai.py- ✅ **10.1% Parameter Reduction** - Smaller model footprint for edge deployment
+
+```- ✅ **14.4% Faster Inference** - Better real-time performance  
+
 - ⚠️ **Minimal Accuracy Trade-off** - Only 0.8% mAP50 decrease (acceptable for edge)
+
+## Results
 
 ## 💼 Business Impact
 
-### Edge Deployment Enablement
-- **Reduced memory footprint** allows deployment on resource-constrained devices
-- **Faster inference** enables real-time detection on edge hardware
+| Model | Parameters | mAP50-95 | Inference (ms) |
+
+|-------|-----------|----------|----------------|### Edge Deployment Enablement
+
+| Baseline YOLOv8n | 3.16M | 0.484 | 45.2 |- **Reduced memory footprint** allows deployment on resource-constrained devices
+
+| Dendritic YOLOv8n | 2.84M | 0.479 | 38.7 |- **Faster inference** enables real-time detection on edge hardware
+
 - **Lower power consumption** extends battery life on mobile devices
 
-### Use Cases
-- 📱 **Mobile Applications**: Real-time object detection in smartphone apps
-- 🏭 **Industrial IoT**: Quality inspection on embedded controllers
+**Key Improvements:**
+
+- **10.1% Parameter Reduction** (3.16M → 2.84M)### Use Cases
+
+- **14.4% Faster Inference** (45.2ms → 38.7ms)- 📱 **Mobile Applications**: Real-time object detection in smartphone apps
+
+- **1.0% accuracy trade-off** (acceptable for edge)- 🏭 **Industrial IoT**: Quality inspection on embedded controllers
+
 - 🚗 **Autonomous Systems**: Vision processing on edge compute modules
-- 🏠 **Smart Home**: Security camera analytics on local hardware
 
-## 🚀 Quick Start
+**Percent Parameter Reduction:** 10.1%- 🏠 **Smart Home**: Security camera analytics on local hardware
 
-### Prerequisites
+
+
+## Raw Results Graph - REQUIRED## 🚀 Quick Start
+
+
+
+![PerforatedAI Results Graph](./PAI/PAI.png)### Prerequisites
+
 ```bash
-pip install ultralytics wandb perforatedai==3.0.7
+
+## W&B Reportpip install ultralytics wandb perforatedai==3.0.7
+
 ```
+
+[W&B Sweep Report](https://wandb.ai/YOUR_USERNAME/Dendritic-YOLOv8-Hackathon)
 
 ### Run Baseline Training
 ```bash
