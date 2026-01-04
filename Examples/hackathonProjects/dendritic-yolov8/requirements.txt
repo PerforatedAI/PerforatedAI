@@ -1,0 +1,9 @@
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+wandb>=0.15.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+Pillow>=9.5.0
+PyYAML>=6.0
+scipy>=1.10.0
