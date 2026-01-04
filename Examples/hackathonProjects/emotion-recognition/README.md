@@ -50,10 +50,10 @@ python download_data.py
 
 ```bash
 # Standard training with PerforatedAI dendrites and W&B logging
-python main.py --data_dir ./data/ravdess --epochs 50
+python main.py --data_dir ./data/ravdess --epochs 100
 
 # Run W&B hyperparameter sweep
-python main.py --sweep --count 10
+python main.py --use-wandb --sweep-id main --count 10
 
 # Disable W&B logging
 python main.py --data_dir ./data/ravdess --no-wandb
@@ -63,29 +63,31 @@ python main.py --data_dir ./data/ravdess --no-wandb
 
 ## Results - Required
 
-This project demonstrates that **Dendritic Optimization improves emotion recognition accuracy** on the RAVDESS dataset. Dendrites are **dynamically added** during training based on improvement thresholds.
+This project demonstrates that **Dendritic Optimization significantly improves emotion recognition accuracy** on the RAVDESS dataset. Dendrites are **dynamically added** during training based on improvement thresholds.
 
 ### Dynamic Dendrite Addition
 
 | Switch | Epoch | Parameters | Change |
 |--------|-------|------------|--------|
 | 0 | 0 | 422,728 | Initial model |
-| 2 | 20 | 845,112 | **+1 Dendrite added** |
-| 4 | 27 | 1,269,344 | **+1 Dendrite added** |
+| 1 | 19 | 845,112 | **+1 Dendrite added** |
+| 2 | 30 | 1,269,344 | **+1 Dendrite added** |
+| 3 | 52 | 1,694,808 | **+1 Dendrite added** |
 
 ### Accuracy Comparison
 
 | Model | Param Count | Best Validation Accuracy | Notes |
 |-------|-------------|--------------------------|-------|
-| Traditional CNN | 422,728 | 50.00% | Baseline without dendrites |
-| Dendritic CNN (1 dendrite) | 845,112 | **52.59%** | With PerforatedAI optimization |
-| Dendritic CNN (2 dendrites) | 1,269,344 | 49.14% | Additional capacity testing |
+| Traditional CNN | 422,728 | 53.45% | Baseline without dendrites |
+| Dendritic CNN (1 dendrite) | 845,112 | 59.48% | With PerforatedAI optimization |
+| **Dendritic CNN (2 dendrites)** | **1,269,344** | **63.79%** | **Best result!** |
+| Dendritic CNN (3 dendrites) | 1,694,808 | 54.31% | Over-capacity |
 
 ### Remaining Error Reduction
 
-$$RER = \frac{52.59 - 50.00}{100 - 50.00} \times 100 = \textbf{5.18\%}$$
+$$RER = \frac{63.79 - 53.45}{100 - 53.45} \times 100 = \textbf{22.2\%}$$
 
-The dendritic optimization reduced the remaining error by **5.18%**, demonstrating that artificial dendrites can improve emotion recognition from speech spectrograms.
+The dendritic optimization reduced the remaining error by **22.2%**, demonstrating that artificial dendrites significantly improve emotion recognition from speech spectrograms.
 
 ---
 
@@ -99,22 +101,21 @@ The PerforatedAI library automatically generates this graph during training, sav
 
 ## Weights and Biases Sweep Report - Optional
 
-All training metrics, including dynamic dendrite additions, are logged to Weights & Biases:
+All training metrics, including dynamic dendrite additions, are logged to Weights & Biases with proper **Arch** and **Final** logging:
 
 [**View W&B Dashboard →**](https://wandb.ai/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai)
 
 Tracked metrics include:
-- Training/Validation accuracy per epoch
-- Loss curves
-- Dendrite addition events  
-- Parameter count over time
-- Learning rate schedule
+- ValAcc, TrainAcc per epoch
+- Param Count and Dendrite Count over time
+- **Arch Max Val/Train** - Best accuracy per architecture when dendrites are added
+- **Final Max Val/Train** - Global best accuracy at training complete
 
 ---
 
 ## Additional Files
 
-- `main.py` - Main training script with PerforatedAI + W&B integration
+- `main.py` - Main training script with PerforatedAI + W&B integration (follows official example pattern)
 - `model.py` - CNN and ResNet model architectures
 - `dataset.py` - RAVDESS dataset loader with spectrogram conversion
 - `download_data.py` - Helper script to download RAVDESS dataset

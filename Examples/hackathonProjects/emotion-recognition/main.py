@@ -1,22 +1,18 @@
 """
 Emotion Recognition Training with PerforatedAI Dendritic Optimization
-With Weights & Biases Integration for Experiment Tracking
+With Weights & Biases Integration - Following Official Example Pattern
 
 Usage:
     # Standard training with dendrites and W&B logging
-    python main.py --data_dir ./data/ravdess --epochs 50
+    python main.py --data_dir ./data/ravdess --epochs 100
     
     # Run W&B hyperparameter sweep
-    python main.py --data_dir ./data/ravdess --sweep --count 10
-    
-    # Quick test with synthetic data (no dataset required)
-    python main.py --synthetic --epochs 10
+    python main.py --use-wandb --sweep-id main --count 10
     
     # Disable W&B logging
     python main.py --data_dir ./data/ravdess --no-wandb
 """
 
-import os
 import argparse
 import torch
 import torch.nn as nn
@@ -24,6 +20,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
+from types import SimpleNamespace
 
 # Weights & Biases
 import wandb
@@ -33,15 +30,14 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
 from model import get_model
-from dataset import get_data_loaders, create_synthetic_dataset, IDX_TO_EMOTION
+from dataset import get_data_loaders, create_synthetic_dataset
 
 
-def train(args, model, device, train_loader, optimizer, epoch, use_wandb=True):
+def train(args, model, device, train_loader, optimizer, epoch):
     """Train for one epoch."""
     model.train()
     correct = 0
     total = 0
-    running_loss = 0.0
     
     pbar = tqdm(train_loader, desc=f'Epoch {epoch} Training')
     for batch_idx, (data, target) in enumerate(pbar):
@@ -56,21 +52,19 @@ def train(args, model, device, train_loader, optimizer, epoch, use_wandb=True):
         pred = output.argmax(dim=1, keepdim=True)
         correct += pred.eq(target.view_as(pred)).sum().item()
         total += target.size(0)
-        running_loss += loss.item()
         
         pbar.set_postfix({'loss': f'{loss.item():.4f}', 'acc': f'{100.*correct/total:.2f}%'})
     
     train_acc = 100.0 * correct / len(train_loader.dataset)
-    avg_loss = running_loss / len(train_loader)
     
     # Add training score to PAI tracker
     GPA.pai_tracker.add_extra_score(train_acc, "train")
     model.to(device)
     
-    return train_acc, avg_loss
+    return train_acc
 
 
-def test(model, device, test_loader, optimizer, scheduler, args, use_wandb=True):
+def test(model, device, test_loader, optimizer, scheduler, args):
     """Evaluate model on validation/test data."""
     model.eval()
     test_loss = 0
@@ -87,9 +81,9 @@ def test(model, device, test_loader, optimizer, scheduler, args, use_wandb=True)
     test_loss /= len(test_loader.dataset)
     val_acc = 100.0 * correct / len(test_loader.dataset)
     
-    print(f'\nValidation: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({val_acc:.2f}%)\n')
+    print(f'\nTest set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({val_acc:.0f}%)\n')
     
-    # Add validation score to PAI tracker - this may restructure the model with new dendrites
+    # Add validation score to PAI tracker - this may restructure the model with dendrites
     model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
         val_acc, model
     )
@@ -107,10 +101,11 @@ def test(model, device, test_loader, optimizer, scheduler, args, use_wandb=True)
             model, optimArgs, schedArgs
         )
     
-    return model, optimizer, scheduler, training_complete, val_acc, test_loss, restructured
+    return model, optimizer, scheduler, training_complete, val_acc, restructured
 
 
-def main(config=None):
+def main(run=None):
+    """Main training function - can be called standalone or from W&B sweep."""
     parser = argparse.ArgumentParser(description='Emotion Recognition with PerforatedAI + W&B')
     
     # Data arguments
@@ -122,12 +117,10 @@ def main(config=None):
     # Model arguments
     parser.add_argument('--model', type=str, default='cnn',
                         choices=['cnn', 'resnet'], help='Model architecture')
-    parser.add_argument('--dropout', type=float, default=0.3,
-                        help='Dropout rate')
     
     # Training arguments
-    parser.add_argument('--epochs', type=int, default=100,
-                        help='Number of training epochs')
+    parser.add_argument('--epochs', type=int, default=10000,
+                        help='Number of training epochs (PAI will auto-stop)')
     parser.add_argument('--batch_size', type=int, default=32,
                         help='Batch size')
     parser.add_argument('--lr', type=float, default=0.001,
@@ -146,49 +139,87 @@ def main(config=None):
     # W&B arguments
     parser.add_argument('--no-wandb', action='store_true',
                         help='Disable Weights & Biases logging')
-    parser.add_argument('--sweep', action='store_true',
-                        help='Run W&B hyperparameter sweep')
+    parser.add_argument('--use-wandb', action='store_true',
+                        help='Enable W&B sweep mode')
+    parser.add_argument('--sweep-id', type=str, default='main',
+                        help='Sweep ID to join, or "main" to create new sweep')
     parser.add_argument('--count', type=int, default=10,
-                        help='Number of sweep runs')
+                        help='Number of sweep runs to perform')
     parser.add_argument('--project', type=str, default='emotion-recognition-pai',
                         help='W&B project name')
     
     args = parser.parse_args()
     
-    # Override with sweep config if provided
-    if config is not None:
-        for key, value in config.items():
-            if hasattr(args, key):
-                setattr(args, key, value)
-    
-    use_wandb = not args.no_wandb
-    
-    # Initialize W&B
-    if use_wandb and config is None:  # Don't re-init if already in sweep
-        wandb.init(
-            project=args.project,
-            config={
-                'model': args.model,
-                'dropout': args.dropout,
-                'lr': args.lr,
-                'batch_size': args.batch_size,
-                'weight_decay': args.weight_decay,
-                'epochs': args.epochs,
-                'optimizer': 'Adam',
-                'scheduler': 'StepLR',
-                'gamma': args.gamma,
-                'dendrite_type': 'GD',
-            },
-            name=f"emotion-{args.model}-lr{args.lr}-bs{args.batch_size}"
+    # Get config from wandb run or use defaults
+    if run is not None:
+        config = run.config
+    else:
+        config = SimpleNamespace(
+            dropout=0.3,
+            weight_decay=args.weight_decay,
+            improvement_threshold=1,
+            candidate_weight_initialization_multiplier=0.01,
+            pai_forward_function=0,
+            dendrite_mode=1,
         )
     
-    # Set random seed
-    torch.manual_seed(args.seed)
+    # Set PAI configuration
+    # Decode improvement_threshold
+    if hasattr(config, 'improvement_threshold'):
+        if config.improvement_threshold == 0:
+            thresh = [0.01, 0.001, 0.0001, 0]
+        elif config.improvement_threshold == 1:
+            thresh = [0.001, 0.0001, 0]
+        elif config.improvement_threshold == 2:
+            thresh = [0]
+        else:
+            thresh = [0.001, 0.0001, 0]
+    else:
+        thresh = [0.001, 0.0001, 0]
+    GPA.pc.set_improvement_threshold(thresh)
+    
+    # Set candidate weight initialization
+    cwim = getattr(config, 'candidate_weight_initialization_multiplier', 0.01)
+    GPA.pc.set_candidate_weight_initialization_multiplier(cwim)
+    
+    # Decode pai_forward_function
+    pff = getattr(config, 'pai_forward_function', 0)
+    if pff == 0:
+        pai_forward_function = torch.sigmoid
+    elif pff == 1:
+        pai_forward_function = torch.relu
+    elif pff == 2:
+        pai_forward_function = torch.tanh
+    else:
+        pai_forward_function = torch.sigmoid
+    GPA.pc.set_pai_forward_function(pai_forward_function)
+    
+    # Set dendrite mode
+    dendrite_mode = getattr(config, 'dendrite_mode', 1)
+    if dendrite_mode == 0:
+        GPA.pc.set_max_dendrites(0)
+    else:
+        GPA.pc.set_max_dendrites(5)
+    
+    # Other PAI settings
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_weight_decay_accepted(True)
+    GPA.pc.set_verbose(False)
+    GPA.pc.set_unwrapped_modules_confirmed(True)
+    
+    # Set wandb run name
+    if run is not None:
+        dropout_val = getattr(config, 'dropout', 0.3)
+        wd_val = getattr(config, 'weight_decay', args.weight_decay)
+        name_str = f"Dendrites-{dendrite_mode}_dropout{dropout_val}_wd{wd_val}"
+        run.name = name_str
     
     # Device setup
     use_cuda = torch.cuda.is_available()
     device = torch.device('cuda' if use_cuda else 'cpu')
     print(f"Using device: {device}")
+    
+    torch.manual_seed(args.seed)
     
     # Load data
     if args.synthetic:
@@ -204,193 +235,193 @@ def main(config=None):
     
     # Create model
     num_classes = 8  # 8 emotions in RAVDESS
+    dropout = getattr(config, 'dropout', 0.3)
     model = get_model(
         model_type=args.model,
         num_classes=num_classes,
-        dropout_rate=args.dropout
+        dropout_rate=dropout
     )
     model = model.to(device)
-    
-    # Configure PAI settings
-    GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.set_weight_decay_accepted(True)
-    GPA.pc.set_verbose(False)
-    GPA.pc.set_max_dendrites(5)
-    GPA.pc.set_improvement_threshold([0.001, 0.0001, 0])
-    GPA.pc.set_candidate_weight_initialization_multiplier(0.01)
-    GPA.pc.set_pai_forward_function(torch.sigmoid)
-    GPA.pc.set_unwrapped_modules_confirmed(True)
     
     # Initialize PAI - this wraps the model with dendritic capabilities
     print("Initializing PerforatedAI dendrites...")
     model = UPA.initialize_pai(model, save_name=args.save_name)
     model = model.to(device)
     
-    # Watch model with W&B
-    if use_wandb:
-        wandb.watch(model, log='all', log_freq=100)
-    
     # Setup optimizer and scheduler using PAI tracker
     GPA.pai_tracker.set_optimizer(optim.Adam)
     GPA.pai_tracker.set_scheduler(StepLR)
     
+    weight_decay = getattr(config, 'weight_decay', args.weight_decay)
     optimArgs = {
         'params': model.parameters(),
         'lr': args.lr,
-        'weight_decay': args.weight_decay,
+        'weight_decay': weight_decay,
     }
     schedArgs = {'step_size': 1, 'gamma': args.gamma}
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
-    # Training loop
-    best_val_acc = 0.0
-    dendrites_added = 0
+    # Initialize tracking variables for architecture logging (per official example)
+    dendrite_count = 0
+    max_val = 0
+    max_train = 0
+    max_params = 0
+    
+    global_max_val = 0
+    global_max_train = 0
+    global_max_params = 0
     
     print("\n" + "="*60)
-    print("Starting Training with Dendritic Optimization + W&B Logging")
+    print("Starting Training with Dendritic Optimization")
     print("="*60 + "\n")
     
     for epoch in range(1, args.epochs + 1):
         # Train
-        train_acc, train_loss = train(args, model, device, train_loader, optimizer, epoch, use_wandb)
+        train_acc = train(args, model, device, train_loader, optimizer, epoch)
         
         # Validate and potentially restructure model with new dendrites
-        model, optimizer, scheduler, training_complete, val_acc, val_loss, restructured = test(
-            model, device, val_loader, optimizer, scheduler, args, use_wandb
+        model, optimizer, scheduler, training_complete, val_acc, restructured = test(
+            model, device, val_loader, optimizer, scheduler, args
         )
         
-        # Get current dendrite count and param count
-        current_dendrites = GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
-        param_count = UPA.count_params(model)
+        # Update max values for current architecture
+        if val_acc > max_val:
+            max_val = val_acc
+            max_train = train_acc
+            max_params = UPA.count_params(model)
         
-        print(f"Epoch {epoch}: Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%, Dendrites: {current_dendrites}")
+        # Update global max values
+        if val_acc > global_max_val:
+            global_max_val = val_acc
+            global_max_train = train_acc
+            global_max_params = UPA.count_params(model)
         
-        # Log to W&B
-        if use_wandb:
-            log_data = {
-                'epoch': epoch,
-                'train_acc': train_acc,
-                'train_loss': train_loss,
-                'val_acc': val_acc,
-                'val_loss': val_loss,
-                'param_count': param_count,
-                'dendrites_added': current_dendrites,
-                'learning_rate': optimizer.param_groups[0]['lr'],
-            }
-            wandb.log(log_data)
-        
-        if restructured:
-            dendrites_added = current_dendrites
-            print(f"  -> 🌳 DENDRITE ADDED! Total dendrites: {current_dendrites}, Params: {param_count:,}")
-            if use_wandb:
-                wandb.log({
-                    'dendrite_added_epoch': epoch,
-                    'dendrite_count': current_dendrites,
-                    'params_after_dendrite': param_count,
-                })
-        
-        # Track best
-        if val_acc > best_val_acc:
-            best_val_acc = val_acc
-            torch.save(model.state_dict(), 'best_model.pth')
-            print(f"  -> 💾 New best model saved! (Val Acc: {val_acc:.2f}%)")
-            if use_wandb:
-                wandb.run.summary['best_val_acc'] = val_acc
-                wandb.run.summary['best_epoch'] = epoch
+        # Log to wandb
+        if run is not None:
+            run.log({
+                'ValAcc': val_acc,
+                'TrainAcc': train_acc,
+                'Param Count': UPA.count_params(model),
+                'Dendrite Count': GPA.pai_tracker.member_vars['num_dendrites_added'],
+            })
+            
+            # Log architecture maximums when dendrites are added
+            if restructured:
+                if GPA.pai_tracker.member_vars['mode'] == 'n' and (
+                    dendrite_count != GPA.pai_tracker.member_vars['num_dendrites_added']
+                ):
+                    # Reset architecture-level tracking
+                    run.log({
+                        'Arch Max Val': max_val,
+                        'Arch Max Train': max_train,
+                        'Arch Param Count': max_params,
+                        'Arch Dendrite Count': GPA.pai_tracker.member_vars['num_dendrites_added'] - 1,
+                    })
+                    dendrite_count = GPA.pai_tracker.member_vars['num_dendrites_added']
+                    # Reset max values for new architecture
+                    max_val = 0
+                    max_train = 0
+                    max_params = 0
+                    print(f"  -> 🌳 DENDRITE ADDED! Total: {dendrite_count}")
+        else:
+            # Console logging when not using wandb
+            current_dendrites = GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
+            print(f"Epoch {epoch}: Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%, Dendrites: {current_dendrites}")
+            
+            if restructured and current_dendrites != dendrite_count:
+                dendrite_count = current_dendrites
+                print(f"  -> 🌳 DENDRITE ADDED! Total: {dendrite_count}, Params: {UPA.count_params(model):,}")
         
         # Check if PAI training is complete
         if training_complete:
+            # Log final architecture max
+            if run is not None:
+                run.log({
+                    'Arch Max Val': max_val,
+                    'Arch Max Train': max_train,
+                    'Arch Param Count': max_params,
+                    'Arch Dendrite Count': GPA.pai_tracker.member_vars['num_dendrites_added'],
+                })
+                # Log final global max
+                run.log({
+                    'Final Max Val': global_max_val,
+                    'Final Max Train': global_max_train,
+                    'Final Param Count': global_max_params,
+                    'Final Dendrite Count': GPA.pai_tracker.member_vars['num_dendrites_added'],
+                })
+            
             print("\n" + "="*60)
             print("PerforatedAI training complete!")
+            print(f"Final Max Val: {global_max_val:.2f}%")
+            print(f"Final Max Train: {global_max_train:.2f}%")
+            print(f"Final Dendrite Count: {GPA.pai_tracker.member_vars['num_dendrites_added']}")
+            print(f"Final Param Count: {global_max_params:,}")
             print("="*60)
             break
     
-    # Final test evaluation
-    print("\nFinal Test Evaluation:")
-    model.eval()
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(target.view_as(pred)).sum().item()
-    
-    test_acc = 100.0 * correct / len(test_loader.dataset)
-    
-    print(f"\n{'='*60}")
-    print(f"FINAL RESULTS")
-    print(f"{'='*60}")
-    print(f"Best Validation Accuracy: {best_val_acc:.2f}%")
-    print(f"Test Accuracy: {test_acc:.2f}%")
-    print(f"Total Dendrites Added: {current_dendrites}")
-    print(f"Total Parameters: {param_count:,}")
-    print(f"{'='*60}")
     print(f"\nResults graph saved to: {args.save_name}/{args.save_name}.png")
     
-    # Log final results to W&B
-    if use_wandb:
-        wandb.run.summary['test_acc'] = test_acc
-        wandb.run.summary['total_dendrites'] = current_dendrites
-        wandb.run.summary['final_params'] = param_count
-        wandb.finish()
-    
-    return test_acc
+    return global_max_val
+
+
+def get_parameters_dict():
+    """Return the parameters dictionary for the sweep."""
+    parameters_dict = {
+        'dropout': {'values': [0.2, 0.3, 0.4]},
+        'weight_decay': {'values': [0, 0.0001, 0.001]},
+        'improvement_threshold': {'values': [0, 1, 2]},
+        'candidate_weight_initialization_multiplier': {'values': [0.1, 0.01]},
+        'pai_forward_function': {'values': [0, 1, 2]},
+        'dendrite_mode': {'values': [0, 1]},  # 0 = no dendrites, 1 = GD dendrites
+    }
+    return parameters_dict
 
 
 def run_sweep():
-    """Run W&B hyperparameter sweep."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--project', type=str, default='emotion-recognition-pai')
-    parser.add_argument('--count', type=int, default=10)
-    args, _ = parser.parse_known_args()
-    
-    # Define sweep configuration
-    sweep_config = {
-        'method': 'bayes',
-        'metric': {'name': 'val_acc', 'goal': 'maximize'},
-        'parameters': {
-            'lr': {
-                'distribution': 'log_uniform_values',
-                'min': 1e-5,
-                'max': 1e-2
-            },
-            'dropout': {
-                'values': [0.2, 0.3, 0.4, 0.5]
-            },
-            'batch_size': {
-                'values': [16, 32, 64]
-            },
-            'weight_decay': {
-                'distribution': 'log_uniform_values',
-                'min': 1e-6,
-                'max': 1e-3
-            },
-            'model': {
-                'values': ['cnn', 'resnet']
-            }
-        }
-    }
-    
-    # Create sweep
-    sweep_id = wandb.sweep(sweep_config, project=args.project)
-    print(f"\n✨ Created sweep: {sweep_id}")
-    print(f"View at: https://wandb.ai/{args.project}/{sweep_id}\n")
-    
-    # Run sweep agent
-    def sweep_train():
-        with wandb.init() as run:
-            config = dict(wandb.config)
-            main(config=config)
-    
-    wandb.agent(sweep_id, sweep_train, count=args.count)
+    """Wrapper function for wandb sweep."""
+    try:
+        with wandb.init() as wandb_run:
+            main(wandb_run)
+    except Exception:
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
     import sys
     
-    # Check if running sweep
-    if '--sweep' in sys.argv:
-        run_sweep()
+    # Parse minimal args for sweep control
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--use-wandb', action='store_true')
+    parser.add_argument('--sweep-id', type=str, default='main')
+    parser.add_argument('--count', type=int, default=10)
+    parser.add_argument('--project', type=str, default='emotion-recognition-pai')
+    parser.add_argument('--no-wandb', action='store_true')
+    args, _ = parser.parse_known_args()
+    
+    if args.use_wandb and not args.no_wandb:
+        # W&B sweep mode
+        wandb.login()
+        project = args.project
+        
+        sweep_config = {'method': 'random'}
+        metric = {'name': 'Final Max Val', 'goal': 'maximize'}
+        sweep_config['metric'] = metric
+        parameters_dict = get_parameters_dict()
+        sweep_config['parameters'] = parameters_dict
+        
+        if args.sweep_id == 'main':
+            sweep_id = wandb.sweep(sweep_config, project=project)
+            print(f"\nInitialized sweep: {sweep_id}")
+            print(f"Use --sweep-id {sweep_id} to join on other machines.\n")
+            wandb.agent(sweep_id, run_sweep, count=args.count)
+        else:
+            wandb.agent(args.sweep_id, run_sweep, count=args.count, project=project)
     else:
-        main()
+        # Standard training without sweep
+        if not args.no_wandb:
+            wandb.init(project=args.project, name='emotion-recognition-training')
+            main(wandb.run)
+            wandb.finish()
+        else:
+            main()
