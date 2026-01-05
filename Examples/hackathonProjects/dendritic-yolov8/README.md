@@ -46,16 +46,16 @@ Open `notebooks/dendritic_yolov8_clean.ipynb` in Google Colab with L4/T4 GPU run
 
 ## Results - Required
 
-This project demonstrates that Dendritic Optimization can compress YOLOv8n while maintaining detection accuracy. Comparing the baseline model to the dendritic model:
+This project explores applying Dendritic Optimization to YOLOv8n. Results from training on COCO128 dataset with 3 epochs:
 
-| Model | Parameters | mAP50-95 | Notes |
-|-------|------------|----------|-------|
-| YOLOv8n Baseline | 3.16M | 0.484 | Standard training |
-| YOLOv8n Dendritic | 2.84M | 0.479 | With PerforatedAI dendrites |
+| Model | Parameters | mAP50 | mAP50-95 | Notes |
+|-------|------------|-------|----------|-------|
+| YOLOv8n Baseline | 3.16M | 0.655 | 0.488 | Standard training |
+| YOLOv8n Dendritic | 6.30M | 0.661 | 0.488 | With PerforatedAI dendrites |
 
-**Percent Parameter Reduction:** 10.1%
+**mAP50 Improvement:** +1.0% (0.655 → 0.661)
 
-**Analysis:** Dendrites reduced model size by 10.1% (from 3.16M to 2.84M parameters) with only a 1% decrease in mAP50-95. This trade-off is favorable for edge deployment where memory constraints are critical.
+**Analysis:** In this initial experiment, the dendritic model showed a slight accuracy improvement in mAP50 while maintaining mAP50-95. The parameter count increased due to added dendritic structures. Longer training runs or hyperparameter tuning may be needed to achieve the restructuring phase where parameter reduction typically occurs.
 
 ## Raw Results Graph - Required
 
