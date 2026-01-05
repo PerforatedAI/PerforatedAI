@@ -35,7 +35,7 @@ def set_seed(seed):
     print(f"Random seed set to {seed}")
 
 
-def init_pai():
+def init_pai(max_dendrites=4):
     """Initialize PAI imports."""
     global GPA, UPA
     from perforatedai import globals_perforatedai as _GPA
@@ -44,6 +44,8 @@ def init_pai():
     UPA = _UPA
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_unwrapped_modules_confirmed(True)
+    GPA.pc.set_max_dendrites(max_dendrites)
+    print(f"PAI max dendrites set to {max_dendrites}")
 
 
 def load_processor():
@@ -626,6 +628,7 @@ def main():
     parser.add_argument("--queue-size", type=int, default=8, help="Prefetch queue size")
     # PAI options
     parser.add_argument("--use-dendrites", action="store_true", help="Enable PerforatedAI dendrites")
+    parser.add_argument("--max-dendrites", type=int, default=4, help="Maximum dendrites to add (default: 4)")
     parser.add_argument("--save-name", type=str, default="vit_rvlcdip", help="Save name for PAI outputs")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
@@ -657,7 +660,7 @@ def main():
 
     if args.use_dendrites:
         print("Initializing PerforatedAI...")
-        init_pai()
+        init_pai(max_dendrites=args.max_dendrites)
         #GPA.pc.set_output_dimensions([-1, -1, 0])
         GPA.pc.set_testing_dendrite_capacity(False)
         model = UPA.initialize_pai(
