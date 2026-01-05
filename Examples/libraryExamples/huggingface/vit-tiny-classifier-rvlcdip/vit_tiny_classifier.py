@@ -315,16 +315,18 @@ def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_
         else:
             decay_params.append(param)
 
-    # Don't use fused AdamW - incompatible with channels-last memory format
+    # Use fused AdamW for CUDA (faster)
+    use_fused = device.type == "cuda"
     optimizer = AdamW(
         [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": no_decay_params, "weight_decay": 0.0},
         ],
         lr=lr,
-        fused=False,
+        fused=use_fused,
     )
-    print("Using AdamW optimizer")
+    if use_fused:
+        print("Using fused AdamW optimizer")
 
     num_training_steps = steps_per_epoch * epochs
     num_warmup_steps = int(num_training_steps * warmup_ratio)
@@ -668,9 +670,6 @@ def main():
         configure_pai_dimensions(model)
 
     model.to(device)
-    if device.type == "cuda":
-        model = model.to(memory_format=torch.channels_last)
-        print("Using channels-last memory format")
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters: {num_params:,}")
 
