@@ -5,8 +5,7 @@ This project enhances a **MobileNetV3-Small** computer vision model by integrati
 
 Developed for the **Perforated AI Dendritic Optimization Hackathon**, this project demonstrates how adding artificial dendrites to standard PyTorch models can potentially improve accuracy or parameter efficiency ("smarter, smaller, cheaper") for edge vision tasks.
 
-## Team
-- **Rorry Brenner**: Founder, Perforated AI - [LinkedIn](https://www.linkedin.com/in/rorrybrenner) - rorry@perforatedai.com
+
 
 ## Project Impact
 Optimizing computer vision models for edge devices is critical for applications where bandwidth, privacy, or latency are constraints. By demonstrating that dendritic integration can improve accuracy without a proportional increase in computational cost (or maintain accuracy with fewer parameters), this project paves the way for smarter IoT devices, efficient surveillance systems, and responsive autonomous agents that can run complex vision tasks locally.
