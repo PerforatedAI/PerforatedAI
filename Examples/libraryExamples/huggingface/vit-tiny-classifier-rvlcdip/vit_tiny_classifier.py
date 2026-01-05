@@ -647,7 +647,9 @@ def main():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
         print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         torch.backends.cudnn.benchmark = True
-        print("cuDNN benchmark enabled")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print("cuDNN benchmark enabled, TF32 enabled")
     elif device.type == "mps":
         print("Using Apple Metal GPU (MPS)")
 
@@ -668,6 +670,9 @@ def main():
         configure_pai_dimensions(model)
 
     model.to(device)
+    if device.type == "cuda":
+        model = model.to(memory_format=torch.channels_last)
+        print("Using channels-last memory format")
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters: {num_params:,}")
 
