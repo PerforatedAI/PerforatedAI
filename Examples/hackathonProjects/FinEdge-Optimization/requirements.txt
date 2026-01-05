@@ -1,0 +1,8 @@
+torch>=2.0.0
+transformers
+perforatedai
+datasets
+seaborn
+scikit-learn
+pandas
+numpy
