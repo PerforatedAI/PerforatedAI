@@ -570,11 +570,23 @@ def train(
                 # Log model size after restructuring
                 num_params = sum(p.numel() for p in model.parameters())
                 print(f"Model parameters after restructuring: {num_params:,}")
+
+                # Explicitly delete old optimizer and scaler to free GPU memory
+                del optimizer
+                del scheduler
+                if scaler is not None:
+                    del scaler
+
                 # Free old model/optimizer memory to prevent slowdown
                 gc.collect()
                 if device.type == "cuda":
                     torch.cuda.empty_cache()
-                    print(f"GPU memory freed. Allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+                    torch.cuda.synchronize()
+                    print(f"GPU memory: {torch.cuda.memory_allocated() / 1e9:.2f} GB allocated, "
+                          f"{torch.cuda.memory_reserved() / 1e9:.2f} GB reserved")
+
+                # Recreate scaler (important - old scaler holds stale tensor references)
+                scaler = GradScaler("cuda") if device.type == "cuda" else None
                 # Use the original epochs value for scheduler (not remaining epochs)
                 # since we're running indefinitely until PAI stops us
                 optimizer, scheduler = create_optimizer_and_scheduler(
