@@ -315,18 +315,16 @@ def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_
         else:
             decay_params.append(param)
 
-    # Use fused AdamW for CUDA (faster)
-    use_fused = device.type == "cuda"
+    # Don't use fused AdamW - incompatible with channels-last memory format
     optimizer = AdamW(
         [
             {"params": decay_params, "weight_decay": weight_decay},
             {"params": no_decay_params, "weight_decay": 0.0},
         ],
         lr=lr,
-        fused=use_fused,
+        fused=False,
     )
-    if use_fused:
-        print("Using fused AdamW optimizer")
+    print("Using AdamW optimizer")
 
     num_training_steps = steps_per_epoch * epochs
     num_warmup_steps = int(num_training_steps * warmup_ratio)
