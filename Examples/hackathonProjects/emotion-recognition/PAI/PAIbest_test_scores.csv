@@ -1,3 +1,7 @@
 Param Counts,Max Valid Scores,Max Test Scores
+<<<<<<< HEAD
 422728,86.41975308641975,86.41975308641975
 845112,91.35802469135803,91.35802469135803
+=======
+422728,61.206896551724135,61.206896551724135
+>>>>>>> 05ec1b4 (Fix improvement_threshold and update README with configuration notes and new W&B run)

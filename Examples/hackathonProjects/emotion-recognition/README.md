@@ -91,6 +91,21 @@ The dendritic optimization reduced the remaining error by **22.2%**, demonstrati
 
 ---
 
+## Configuration Notes
+
+The following PerforatedAI settings were tuned to achieve optimal results:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `improvement_threshold` | `2` (→ `[0]`) | Stricter threshold - only adds dendrites after true plateau, preventing early addition |
+| `max_dendrites` | `5` | Maximum dendrites allowed |
+| `pai_forward_function` | `sigmoid` | Activation function for dendrite gating |
+| `candidate_weight_initialization_multiplier` | `0.01` | Weight initialization for new dendrites |
+
+> **Note**: Setting `improvement_threshold=2` was key to addressing oscillation-triggered early stopping (Graph Problem 3 in PAI docs). This ensures dendrites are only added when the model has truly plateaued.
+
+---
+
 ## Raw Results Graph - Required
 
 The PerforatedAI library automatically generates this graph during training, saved to `PAI/PAI.png`.
@@ -103,7 +118,7 @@ The PerforatedAI library automatically generates this graph during training, sav
 
 All training metrics, including dynamic dendrite additions, are logged to Weights & Biases with proper **Arch** and **Final** logging:
 
-[**View W&B Dashboard →**](https://wandb.ai/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai)
+[**View W&B Dashboard →**](https://wandb.ai/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai/runs/li82ltpt)
 
 Tracked metrics include:
 - ValAcc, TrainAcc per epoch
