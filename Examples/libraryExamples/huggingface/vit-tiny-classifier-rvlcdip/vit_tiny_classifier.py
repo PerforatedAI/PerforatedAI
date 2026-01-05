@@ -573,22 +573,18 @@ def train(
                 num_params = sum(p.numel() for p in model.parameters())
                 print(f"Model parameters after restructuring: {num_params:,}")
 
-                # Explicitly delete old optimizer and scaler to free GPU memory
+                # Explicitly delete old optimizer to free GPU memory
+                # NOTE: Keep scaler - its learned loss scale is model-independent
                 del optimizer
                 del scheduler
-                if scaler is not None:
-                    del scaler
 
-                # Free old model/optimizer memory to prevent slowdown
+                # Free old optimizer memory to prevent slowdown
                 gc.collect()
                 if device.type == "cuda":
                     torch.cuda.empty_cache()
                     torch.cuda.synchronize()
                     print(f"GPU memory: {torch.cuda.memory_allocated() / 1e9:.2f} GB allocated, "
                           f"{torch.cuda.memory_reserved() / 1e9:.2f} GB reserved")
-
-                # Recreate scaler (important - old scaler holds stale tensor references)
-                scaler = GradScaler("cuda") if device.type == "cuda" else None
                 # Use the original epochs value for scheduler (not remaining epochs)
                 # since we're running indefinitely until PAI stops us
                 optimizer, scheduler = create_optimizer_and_scheduler(
@@ -650,9 +646,7 @@ def main():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
         print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
         torch.backends.cudnn.benchmark = True
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
-        print("cuDNN benchmark enabled, TF32 enabled")
+        print("cuDNN benchmark enabled")
     elif device.type == "mps":
         print("Using Apple Metal GPU (MPS)")
 
