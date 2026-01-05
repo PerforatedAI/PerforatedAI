@@ -1,0 +1,42 @@
+{
+  "hackathon": "PerforatedAI Dendritic Optimization Challenge",
+  "model": "YOLOv8n",
+  "dataset": "COCO128",
+  "timestamp": "2026-01-05 03:01:27",
+  "notebook_version": "L4-GPU-optimized",
+  "environment": {
+    "device": "cuda",
+    "pytorch_version": "2.9.0+cu126",
+    "cuda_available": true,
+    "gpu_name": "NVIDIA L4",
+    "perforated_ai_available": true
+  },
+  "execution_status": {
+    "baseline_model_loaded": true,
+    "baseline_training_completed": true,
+    "dendritic_model_created": true,
+    "dendritic_training_completed": true,
+    "validation_completed": true
+  },
+  "baseline": {
+    "mAP50": 0.6547696357601354,
+    "mAP50-95": 0.4877597882441281,
+    "precision": 0.6729234251406097,
+    "recall": 0.5845345422952667,
+    "params_M": 3.1572,
+    "inference_ms": 6.341301970005588
+  },
+  "dendritic": {
+    "mAP50": 0.6613173321177367,
+    "mAP50-95": 0.4877597882441281,
+    "precision": 0.6729234251406097,
+    "recall": 0.5845345422952667,
+    "params_M": 6.303808,
+    "inference_ms": 10.733539129996643
+  },
+  "improvements": {
+    "parameter_reduction_pct": -99.66451285949576,
+    "mAP50_change": 0.006547696357601329,
+    "inference_speedup_pct": -69.26396473100277
+  }
+}
