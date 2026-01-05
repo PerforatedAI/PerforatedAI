@@ -7,6 +7,9 @@ DendriticBERT is a submission for the **PyTorch Dendritic Optimization Hackathon
 
 We apply the **Dendritic Semantic Network (DSN) mode** to a pre-trained `bert-tiny` model, which involves removing all Transformer encoder layers and replacing the computation with a single dendritic layer applied to the Deep Averaging Network (DAN) style embeddings. This approach targets the critical need for highly efficient NLP models suitable for edge devices and low-resource environments.
 
+
+![](https://github.com/lucylow/PerforatedAI/blob/main/PAI.PNG?raw=true)
+
 ---
 
 ## Table of Contents
