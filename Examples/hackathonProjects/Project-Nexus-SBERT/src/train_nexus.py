@@ -112,7 +112,8 @@ def train(config=None):
         
         # Configure Switch Behavior
         # Ideally, we want to ensure it doesn't switch too aggressively
-        GPA.pc.set_n_epochs_to_switch(6) 
+        print(f"⏳ Forcing {config.warmup_epochs}-epoch warmup before Dendritic Switch...")
+        GPA.pc.set_n_epochs_to_switch(config.warmup_epochs) 
         
         # Initialize PAI on ONLY the adapter layer (model[2])
         model[2] = UPA.initialize_pai(
@@ -125,11 +126,6 @@ def train(config=None):
         
         # Register optimizer with PAI tracker
         GPA.pai_tracker.member_vars["optimizer_instance"] = optimizer
-        
-        # FORCE DELAY: Ensure we have at least 6 epochs of baseline data before switching
-        # This guarantees the "Raw Graph" has a visible "Before" section (Red line vs Green line)
-        print("⏳ Forcing 6-epoch warmup before Dendritic Switch...")
-        GPA.pc.set_n_epochs_to_switch(6)
         
     else:
         print("⚠️ Running in BASELINE mode.")
@@ -270,11 +266,12 @@ def train(config=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Project NEXUS Training")
     parser.add_argument("--use_dendrites", action="store_true", help="Enable Dendritic Optimization")
-    parser.add_argument("--epochs", type=int, default=30, help="Training epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
-    parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate (Lowered to prevent overfitting)")
-    parser.add_argument("--weight_decay", type=float, default=0.1, help="Weight decay (Increased to prevent overfitting)")
-    parser.add_argument("--save_dir", type=str, default="../experiments/default", help="Output directory")
+    parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
+    parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay")
+    parser.add_argument("--warmup_epochs", type=int, default=6, help="Epochs before allowing dendrites to spawn")
+    parser.add_argument("--save_dir", type=str, default="experiments/default_run", help="Directory to save output")
     parser.add_argument("--wandb_project", type=str, default="project-nexus-sbert", help="W&B project name")
     args = parser.parse_args()
     
