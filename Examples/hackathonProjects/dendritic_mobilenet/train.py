@@ -60,12 +60,26 @@ def train(config=None):
         # Dendrites will be added to the remaining eligible layers (the dendritic_output)
         GPA.pc.append_module_ids_to_track(['.features', '.avgpool', '.classifier_top'])
         
+        # Construct dynamic run name
+        # Exclude 'epochs' and internal keys from the name to keep it concise but descriptive
+        name_parts = [f"dendrites-{config.dendrite_count}"]
+        for k, v in config.items():
+            if k not in ['dendrite_count', 'epochs'] and not k.startswith('_'):
+                 name_parts.append(f"{k}-{v}")
+        name_str = "_".join(name_parts)
+        
+        # Update WandB run name
+        wandb.run.name = name_str
+
         # Initialize PerforatedAI Tracker
         # This converts eligible layers (like nn.Linear) to PAINeuronModules
         GPA.pc.set_unwrapped_modules_confirmed(True)
         GPA.pc.set_using_safe_tensors(False) # Disable safetensors for shared memory support
         GPA.pc.set_testing_dendrite_capacity(False) # Disable testing capacity to avoid Pdb breakpoints
-        model = UPA.initialize_pai(model)
+        
+        # Initialize PAI with the same name so the graph file matches the WandB run name
+        # The graph will be saved as PAI/{name_str}.png
+        model = UPA.initialize_pai(model, save_name=name_str)
         model = model.to(device)
 
         # Trigger PAI initialization (shape inference) with a dummy forward/backward pass
@@ -147,7 +161,19 @@ def train(config=None):
             GPA.pai_tracker.set_optimizer_instance(optimizer)
 
             # Report validation accuracy to PAI Tracker (Triggers dendrite growth if applicable)
-            GPA.pai_tracker.add_validation_score(val_acc, model)
+            # functionality to allow dynamic dendrite addition
+            model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+            model = model.to(device) # Ensure model is on device immediately after potential update
+            
+            if restructured:
+                print("Model restructured (dendrites added). Re-initializing optimizer...")
+                optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+                # Re-register new optimizer
+                GPA.pai_tracker.set_optimizer_instance(optimizer)
+            
+            if training_complete:
+                print("Training complete as determined by PAI Tracker.")
+                break
 
             print(f"Epoch {epoch+1}: Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%")
             
