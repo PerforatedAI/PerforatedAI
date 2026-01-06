@@ -125,7 +125,7 @@ def main(run=None):
                         help='Batch size')
     parser.add_argument('--lr', type=float, default=0.001,
                         help='Learning rate')
-    parser.add_argument('--gamma', type=float, default=0.95,
+    parser.add_argument('--gamma', type=float, default=0.98,
                         help='Learning rate decay')
     parser.add_argument('--weight_decay', type=float, default=1e-4,
                         help='Weight decay')
@@ -157,7 +157,7 @@ def main(run=None):
         config = SimpleNamespace(
             dropout=0.3,
             weight_decay=args.weight_decay,
-            improvement_threshold=2,
+            improvement_threshold=1,
             candidate_weight_initialization_multiplier=0.01,
             pai_forward_function=0,
             dendrite_mode=1,

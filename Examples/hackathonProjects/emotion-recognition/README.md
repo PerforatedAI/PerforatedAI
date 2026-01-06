@@ -70,24 +70,24 @@ This project demonstrates that **Dendritic Optimization significantly improves e
 | Switch | Epoch | Parameters | Change |
 |--------|-------|------------|--------|
 | 0 | 0 | 422,728 | Initial model |
-| 1 | 19 | 845,112 | **+1 Dendrite added** |
-| 2 | 30 | 1,269,344 | **+1 Dendrite added** |
-| 3 | 52 | 1,694,808 | **+1 Dendrite added** |
+| 1 | 63 | 845,112 | **+1 Dendrite added** |
+| 2 | 224 | 1,269,344 | **+1 Dendrite added** |
+| 3 | 372 | 1,694,808 | **+1 Dendrite added** |
 
 ### Accuracy Comparison
 
 | Model | Param Count | Best Validation Accuracy | Notes |
 |-------|-------------|--------------------------|-------|
-| Traditional CNN | 422,728 | 53.45% | Baseline without dendrites |
-| Dendritic CNN (1 dendrite) | 845,112 | 59.48% | With PerforatedAI optimization |
-| **Dendritic CNN (2 dendrites)** | **1,269,344** | **63.79%** | **Best result!** |
-| Dendritic CNN (3 dendrites) | 1,694,808 | 54.31% | Over-capacity |
+| Traditional CNN | 422,728 | 66.67% | Baseline without dendrites |
+| Dendritic CNN (1 dendrite) | 845,112 | 73.16% | With PerforatedAI optimization |
+| **Dendritic CNN (2 dendrites)** | **1,269,344** | **73.59%** | **Best result!** |
+| Dendritic CNN (3 dendrites) | 1,694,808 | 56.71% | Over-capacity |
 
 ### Remaining Error Reduction
 
-$$RER = \frac{63.79 - 53.45}{100 - 53.45} \times 100 = \textbf{22.2\%}$$
+$$RER = \frac{73.59 - 66.67}{100 - 66.67} \times 100 = \textbf{20.8\%}$$
 
-The dendritic optimization reduced the remaining error by **22.2%**, demonstrating that artificial dendrites significantly improve emotion recognition from speech spectrograms.
+The dendritic optimization reduced the remaining error by **20.8%**, demonstrating that artificial dendrites significantly improve emotion recognition from speech spectrograms.
 
 ---
 

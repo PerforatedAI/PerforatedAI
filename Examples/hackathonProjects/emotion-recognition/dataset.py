@@ -119,7 +119,7 @@ class RAVDESSDataset(Dataset):
         return audio
 
 
-def load_ravdess_data(data_dir, test_size=0.2, val_size=0.1, random_state=42):
+def load_ravdess_data(data_dir, test_size=0.2, val_size=0.2, random_state=42):
     """
     Load RAVDESS dataset and split into train/val/test sets.
     
