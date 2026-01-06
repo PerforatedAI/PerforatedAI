@@ -10,6 +10,9 @@ We apply the **Dendritic Semantic Network (DSN) mode** to a pre-trained `bert-ti
 
 ![](https://github.com/lucylow/PerforatedAI/blob/main/PAI.PNG?raw=true)
 
+The PAI.png graph serves as the primary verification of the dendritic optimization process, illustrating the dynamic restructuring of the network and the resulting performance gains. Specifically, the Best Test Scores plot demonstrates how the dendritic layer achieves superior accuracy compared to the baseline, while the Parameter Efficiency metric quantifies the massive model compression achieved through DSN mode.
+
+
 ---
 
 ## Table of Contents
