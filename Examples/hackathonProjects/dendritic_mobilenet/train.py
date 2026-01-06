@@ -41,11 +41,13 @@ def train(config=None):
         
         trainset = torchvision.datasets.CIFAR10(root=data_root, train=True,
                                                 download=True, transform=transform_train)
+        
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=config.batch_size,
                                                   shuffle=True, num_workers=0) # num_workers=0 for safety on Windows
 
         testset = torchvision.datasets.CIFAR10(root=data_root, train=False,
                                                download=True, transform=transform_test)
+        
         testloader = torch.utils.data.DataLoader(testset, batch_size=config.batch_size,
                                                  shuffle=False, num_workers=0)
 
@@ -192,8 +194,11 @@ if __name__ == "__main__":
         'dendrite_count': 8,
         'batch_size': 64,
         'learning_rate': 0.001,
-        'epochs': 5 # Increased slightly for meaningful training
+        'epochs': 15 
     }
+
+    # Set threshold for dendrite addition
+    GPA.pc.set_n_epochs_to_switch(3)
 
     print(f"Starting Final Run with Optimal Hyperparameters: {best_config}")
     try:
