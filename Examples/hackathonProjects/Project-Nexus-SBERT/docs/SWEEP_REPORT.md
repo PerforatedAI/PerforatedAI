@@ -1,5 +1,7 @@
 # W&B Sweep Report: Optimization of SBERT Adapter
 
+**Authors:** Aakanksha Singh and Mihir Phalke
+
 **A hyperparameter exploration for the Project NEXUS dendritic fine-tuning architecture.**
 
 ## Executive Summary
