@@ -56,11 +56,16 @@ def main():
         model.parameters(),
         lr=LR,
     )
-
+    # ========================
+    # DATA
+    # ========================
+    train_loader, val_loader = get_dataloaders(DATA_DIR)
+    steps_per_epoch = len(train_loader)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        T_max=NUM_EPOCHS,
+        T_max=NUM_EPOCHS * steps_per_epoch
     )
+
 
     # ========================
     # LOSS & METRICS (MATCH)
@@ -81,10 +86,7 @@ def main():
 
     scaler = torch.amp.GradScaler("cuda")
 
-    # ========================
-    # DATA
-    # ========================
-    train_loader, val_loader = get_dataloaders(DATA_DIR)
+
 
     # ========================
     # TRAIN LOOP
@@ -94,8 +96,9 @@ def main():
         epoch_loss = 0.0
 
         for batch in train_loader:
-            inputs = flatten_if_needed(batch["image"].cuda())
-            labels = flatten_if_needed(batch["label"].cuda())
+            inputs = flatten_if_needed(batch["image"]).to(DEVICE, non_blocking=True)
+            labels = flatten_if_needed(batch["label"]).to(DEVICE, non_blocking=True)
+
 
             optimizer.zero_grad(set_to_none=True)
 
@@ -106,13 +109,13 @@ def main():
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
+            # ✅ correct scheduler usage (once per epoch)
+            scheduler.step()
+
 
             epoch_loss += loss.item()
 
         epoch_loss /= len(train_loader)
-
-        # ✅ correct scheduler usage (once per epoch)
-        scheduler.step()
 
         # ========================
         # VALIDATION
@@ -133,7 +136,7 @@ def main():
                     val_outputs = sliding_window_inference(
                         val_inputs,
                         PATCH_SIZE,
-                        sw_batch_size=1,
+                        sw_batch_size=2,
                         predictor=model,
                     )
 
@@ -166,7 +169,7 @@ def main():
     # ========================
     torch.save(
         model.state_dict(),
-        "checkpoints/baseline/unet_baseline.pt"
+        "checkpoints/baseline/unet_baseline_new.pt"
     )
 
     wandb.finish()

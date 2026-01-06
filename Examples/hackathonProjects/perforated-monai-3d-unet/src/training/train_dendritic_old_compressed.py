@@ -32,6 +32,8 @@ RUN_NAME = "dendritic_unet"
 
 DATA_DIR = "datasets/monai"
 NUM_EPOCHS = 20
+#MAX_TOTAL_EPOCHS = 50  # or 50 if you want more room
+
 LR = 3e-5
 PATCH_SIZE = (96, 96, 96)
 NUM_CLASSES = 4
@@ -49,22 +51,18 @@ def main():
     os.makedirs("checkpoints/dendritic", exist_ok=True)
     wandb.init(project=PROJECT_NAME, name=RUN_NAME)
 
-    torch.backends.cudnn.benchmark = False
-    torch.cuda.set_device(0)
-
     # ============================================================
     # 🔴 PAI CONFIG — MUST BE SET *BEFORE* initialize_pai
     # ============================================================
     GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.set_n(4)
-    GPA.pc.set_max_dendrites(10)
+    GPA.pc.set_max_dendrites(2)
 
     GPA.pc.set_perforated_backpropagation(False)
     GPA.pc.set_module_names_to_convert(["Conv3d"])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_verbose(False)
-
+    GPA.pc.set_improvement_threshold(0.01)
 
     # ========================
     # MODEL
@@ -81,9 +79,10 @@ def main():
     # 🔴 tracker is created HERE
     model = UPA.initialize_pai(
         model,
-        save_name="PAI_MONAI",
+        save_name="PAI_MONAI_Compressed",
         maximizing_score=True,
     )
+    #model = torch.compile(model, mode="max-autotune") 
     GPA.pc.set_switch_mode("DOING_HISTORY")   
     # Required for Conv3D dendrites
     for m in model.modules():
@@ -99,9 +98,16 @@ def main():
         {"params": model.parameters(), "lr": LR},
     )
 
+    # ========================
+    # DATA
+    # ========================
+    train_loader, val_loader = get_dataloaders(DATA_DIR)
+    steps_per_epoch = len(train_loader)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=NUM_EPOCHS
+        optimizer,
+        T_max=NUM_EPOCHS * steps_per_epoch
     )
+
 
     # ========================
     # LOSS & METRICS
@@ -122,21 +128,20 @@ def main():
 
     post_pred = AsDiscrete(argmax=True, to_onehot=NUM_CLASSES)
 
-    # ========================
-    # DATA
-    # ========================
-    train_loader, val_loader = get_dataloaders(DATA_DIR)
+
 
     # ========================
     # TRAIN LOOP
     # ========================
-    for epoch in range(NUM_EPOCHS):
+    epoch = 0
+    while True:
         model.train()
         epoch_loss = 0.0
 
         for batch in train_loader:
-            inputs = flatten_if_needed(batch["image"].cuda())
-            labels = flatten_if_needed(batch["label"].cuda())
+            inputs = flatten_if_needed(batch["image"]).to(DEVICE, non_blocking=True)
+            labels = flatten_if_needed(batch["label"]).to(DEVICE, non_blocking=True)
+
 
             optimizer.zero_grad(set_to_none=True)
 
@@ -147,6 +152,7 @@ def main():
             loss.backward()
             optimizer.step()
             scheduler.step()
+
             epoch_loss += loss.item()
 
         epoch_loss /= len(train_loader)
@@ -159,8 +165,8 @@ def main():
 
         with torch.no_grad():
             for batch in val_loader:
-                inputs = flatten_if_needed(batch["image"].cuda())
-                labels = flatten_if_needed(batch["label"].cuda())
+                inputs = flatten_if_needed(batch["image"]).to(DEVICE, non_blocking=True)
+                labels = flatten_if_needed(batch["label"]).to(DEVICE, non_blocking=True)
 
                 if labels.ndim == 5:
                     labels = labels.squeeze(1)
@@ -170,7 +176,7 @@ def main():
                     outputs = sliding_window_inference(
                         inputs,
                         PATCH_SIZE,
-                        sw_batch_size=1,
+                        sw_batch_size=2,
                         predictor=model,
                     )
 
@@ -186,16 +192,16 @@ def main():
         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
             mean_dice, model
         )
-        model = model.to(DEVICE)
 
         if restructured and not training_complete:
             GPA.pai_tracker.set_optimizer(torch.optim.Adam)
             optimizer = GPA.pai_tracker.setup_optimizer(
-                model, {"params": model.parameters(), "lr": LR * 2}
+                model, {"params": model.parameters(), "lr": LR}
             )
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer, T_max=NUM_EPOCHS - epoch
+                optimizer, T_max=NUM_EPOCHS * steps_per_epoch
             )
+
             print("🧠 Dendrites grown → optimizer & scheduler reset")
 
         wandb.log({
@@ -210,18 +216,26 @@ def main():
         })
 
         print(
-            f"Epoch {epoch+1}/{NUM_EPOCHS} | "
+            f"Epoch {epoch+1} | "
             f"Loss {epoch_loss:.4f} | "
             f"Dice {mean_dice:.4f}"
         )
+
+        epoch += 1
+
+        # 🔴 HARD STOP (independent of PAI)
+   #     if epoch >= MAX_TOTAL_EPOCHS:
+   #         print(f"🛑 Hard stop reached at epoch {epoch}")
+   #         break
 
         if training_complete:
             print("✅ Training complete according to PAI tracker")
             break
 
+    model = model.to(DEVICE)        
     torch.save(
         model.state_dict(),
-        "checkpoints/dendritic/unet_dendritic_compressed.pt",
+        "checkpoints/dendritic/unet_dendritic_compressed_new.pt",
     )
     wandb.finish()
 

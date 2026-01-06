@@ -10,19 +10,19 @@ DEVICE = "cpu"   # no GPU needed
 # Paths to trained models
 MODELS = {
     "Baseline (Full)": {
-        "path": "checkpoints/baseline/unet_baseline.pt",
+        "path": "checkpoints/baseline/unet_baseline_new.pt",
         "channels": (32, 64, 128, 256),
     },
     "Dendritic (Full)": {
-        "path": "checkpoints/dendritic/unet_dendritic.pt",
+        "path": "checkpoints/dendritic/unet_dendritic_new.pt",
         "channels": (32, 64, 128, 256),
     },
     "Baseline (Compressed)": {
-        "path": "checkpoints/baseline/unet_baseline_compressed.pt",
+        "path": "checkpoints/baseline/unet_baseline_compressed_new.pt",
         "channels": (24, 40, 80, 160),
     },
     "Dendritic (Compressed)": {
-        "path": "checkpoints/dendritic/unet_dendritic_compressed.pt",
+        "path": "checkpoints/dendritic/unet_dendritic_compressed_new.pt",
         "channels": (24, 40, 80, 160),
     },
 }

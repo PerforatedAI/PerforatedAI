@@ -9,6 +9,12 @@ def seed_everything(seed=42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-seed_everything()
+    # Ensure deterministic behavior where possible
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
 
-torch.backends.cudnn.benchmark = True
+    # Fast + safe on Ampere+
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
+seed_everything()
