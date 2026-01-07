@@ -6,8 +6,8 @@ This folder contains a submission for the Perforated AI hackathon. The project d
 
 ### Team:
 
-- AI Researcher - [Your Name/Affiliation/Contact]
-- Software Engineer - [Your Name/Affiliation/Contact]
+- Shobhit
+- Agastya
 
 ## Project Impact - Required
 
@@ -141,10 +141,8 @@ The following bar chart provides a clear, condensed visualization of the accurac
 
 This graph clearly illustrates the gain from 92.84% (Baseline) to 93.70% (Dendritic).
 
-## Weights and Biases Sweep Report - Optional
+## Weights and Biases Sweep Report 
 
 A comprehensive Weights & Biases sweep report is available, detailing the outcomes of all experiments conducted during the hyperparameter search for the dendritically-optimized model. This report provides clear visuals, including parallel coordinates plots and summary tables, showing how different hyperparameters (including `dropout`, `weight_decay`, `improvement_threshold`, `pai_forward_function`, `dendrite_mode`, and `width`) influenced the model's validation accuracy, parameter count, and dendrite count.
 
-**Weights and Biases Report:** [Link to your specific wandb sweep report]
-
-This report is invaluable for understanding the sensitivity of the Dendritic Optimization process to its various parameters and for confirming the robustness of the best-found configuration.
+**Weights and Biases Report:** [Link](https://api.wandb.ai/links/shobhit1kapoor-university-of-texas-at-dall/2h2rv93d)
