@@ -9,7 +9,7 @@ To validate that our dendritic performance gains were systematic and not due to 
 
 ## Live Interactive Dashboard
 
-**[View the Bayesian Optimization Results (W&B)](https://wandb.ai/aakanksha-singh0205-kj-somaiya-school-of-engineering/PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src/sweeps/sv638g8j)**
+**[View the Bayesian Optimization Results (W&B)](https://wandb.ai/aakanksha-singh0205-kj-somaiya-school-of-engineering/PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src/sweeps/lzwt00l9)**
 
 ## Reproduce This Sweep
 
@@ -17,6 +17,6 @@ To validate that our dendritic performance gains were systematic and not due to 
 2.  **Login:** `wandb login`
 3.  **Run Agent:**
     ```bash
-    wandb agent aakanksha-singh0205-kj-somaiya-school-of-engineering/PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src/sweeps/sv638g8j
+    python -m wandb agent aakanksha-singh0205-kj-somaiya-school-of-engineering/PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src/lzwt00l9
     ```
 

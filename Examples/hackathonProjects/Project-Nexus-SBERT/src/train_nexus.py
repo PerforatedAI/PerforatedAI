@@ -115,10 +115,17 @@ def train(config=None):
         print(f"⏳ Forcing {config.warmup_epochs}-epoch warmup before Dendritic Switch...")
         GPA.pc.set_n_epochs_to_switch(config.warmup_epochs) 
         
+        # Generate unique save name to prevent overwrites during sweeps
+        if WANDB_AVAILABLE and wandb.run and wandb.run.id:
+            pai_save_name = f"PAI_{wandb.run.id}"
+        else:
+            import uuid
+            pai_save_name = f"PAI_{str(uuid.uuid4())[:8]}"
+            
         # Initialize PAI on ONLY the adapter layer (model[2])
         model[2] = UPA.initialize_pai(
             model[2], 
-            save_name="PAI" 
+            save_name=pai_save_name 
         )
         
         # Optimizer - use model.parameters() to train all layers
