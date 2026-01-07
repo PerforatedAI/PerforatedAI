@@ -1,0 +1,27 @@
+# ===== Core ML =====
+torch
+numpy
+
+# ===== Data handling / utilities =====
+pandas
+tqdm
+
+# ===== Metrics =====
+scikit-learn
+
+# ===== Experiment tracking =====
+wandb
+
+# ===== Hugging Face datasets (TravelPlanner) =====
+datasets
+
+# ===== NanoGPT common deps (often used for tokenization / GPT2 tooling) =====
+transformers
+tiktoken
+
+# ===== Dendritic Optimization framework (PerforatedAI) =====
+git+https://github.com/PerforatedAI/PerforatedAI.git
+# plots
+matplotlib
+seaborn 
+plotly
