@@ -1,6 +1,6 @@
 # Fin-Edge: High-Frequency Sentiment Analysis on the Edge 🚀
 
-![Project Banner](fin_edge_results.png)
+![Project Banner](PAI.png)
 
 
 ## 📉 The Problem
@@ -35,4 +35,4 @@ cd Fin-Edge
 pip install -r requirements.txt
 
 # 3. Run Inference
-python main.py
+python main-dendritic.py
