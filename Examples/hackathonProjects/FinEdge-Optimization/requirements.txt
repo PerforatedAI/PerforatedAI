@@ -1,5 +1,5 @@
 torch>=2.0.0
-transformers
+git+https://github.com/PerforatedAI/transformers.git
 perforatedai
 datasets
 seaborn
