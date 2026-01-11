@@ -12,4 +12,5 @@ test_run_dry_run/
 test_submission/
 final_test/
 final_test_run/
-PAI/
+PAI_*/
+docs/

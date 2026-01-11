@@ -8,18 +8,21 @@ parameters:
     values: [1e-5, 2e-5, 5e-5]
   batch_size:
     values: [16, 32]
+  warmup_epochs:
+    values: [2, 4]
   epochs:
-    value: 6
+    value: 8
+  use_dendrites:
+    value: true
   save_dir:
-    value: experiments/sweep_runs_buffer
-  use_dendrites: 
-    values: [true, false]
+    value: experiments/sweep_final
 command:
   - ${env}
   - ${interpreter}
   - ${program}
   - ${args_no_boolean_flags}
   - "--epochs"
-  - "6"
+  - "8"
+  - "--use_dendrites"
   - "--save_dir"
-  - "experiments/sweep_runs_buffer" 
+  - "experiments/sweep_final"

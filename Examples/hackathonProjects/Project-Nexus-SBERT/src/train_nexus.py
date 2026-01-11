@@ -279,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay")
     parser.add_argument("--warmup_epochs", type=int, default=6, help="Epochs before allowing dendrites to spawn")
     parser.add_argument("--save_dir", type=str, default="experiments/default_run", help="Directory to save output")
-    parser.add_argument("--wandb_project", type=str, default="project-nexus-sbert", help="W&B project name")
+    parser.add_argument("--wandb_project", type=str, default="PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src", help="W&B project name")
     args = parser.parse_args()
     
     # Configure W&B
