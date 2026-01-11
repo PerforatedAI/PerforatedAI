@@ -1,0 +1,48 @@
+{
+  "timestamp": "20251228_113941",
+  "num_tasks": 10,
+  "config": {
+    "lr": 0.001,
+    "alpha": 0.7,
+    "epochs_per_task": 3,
+    "batch_size": 128,
+    "hidden_size": 256,
+    "seed": 42
+  },
+  "results": {
+    "adam": {
+      "task_accuracies": [
+        0.0907,
+        0.1856,
+        0.328,
+        0.2626,
+        0.3027,
+        0.4605,
+        0.6077,
+        0.814,
+        0.9318,
+        0.9748
+      ],
+      "average_accuracy": 0.49584,
+      "backward_transfer": -0.5329555555555555,
+      "forgetting": 0.8872
+    },
+    "cap_v3": {
+      "task_accuracies": [
+        0.5967,
+        0.6866,
+        0.7237,
+        0.7252,
+        0.779,
+        0.781,
+        0.8009,
+        0.8221,
+        0.8411,
+        0.8587
+      ],
+      "average_accuracy": 0.7615000000000001,
+      "backward_transfer": -0.06607777777777776,
+      "forgetting": 0.1412
+    }
+  }
+}
