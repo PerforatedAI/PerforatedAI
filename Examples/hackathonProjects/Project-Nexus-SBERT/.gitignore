@@ -1,0 +1,16 @@
+experiments/
+__pycache__/
+*.pt
+*.bin
+*.pkl
+*.safetensors
+wandb/
+.env
+.vscode/
+test_run/
+test_run_dry_run/
+test_submission/
+final_test/
+final_test_run/
+PAI_*/
+docs/
