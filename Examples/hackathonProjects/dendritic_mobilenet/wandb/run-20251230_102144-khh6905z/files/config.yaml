@@ -1,0 +1,53 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            mv23fcwnfqos0qc923breoob75z3mgf7:
+                codePath: Examples\hackathonProjects\dendritic_mobilenet\train.py
+                codePathLocal: train.py
+                cpu_count: 12
+                cpu_count_logical: 16
+                disk:
+                    /:
+                        total: "209714147328"
+                        used: "20787834880"
+                email: raghunathsundar1@gmail.com
+                executable: D:\hackathon\dendritic-edge-vision-v3\.venv\Scripts\python.exe
+                git:
+                    commit: 21c164159009bf513ea434ed8fa722626b892130
+                    remote: https://github.com/raghunathsundar1/PerforatedAI.git
+                host: Raghunathpc
+                memory:
+                    total: "16890322944"
+                os: Windows-10-10.0.26100-SP0
+                program: D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet\train.py
+                python: CPython 3.11.5
+                root: D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet
+                startedAt: "2025-12-30T04:51:44.755628Z"
+                writerId: mv23fcwnfqos0qc923breoob75z3mgf7
+        m: []
+        python_version: 3.11.5
+        t:
+            "1":
+                - 1
+                - 41
+            "2":
+                - 1
+                - 41
+            "3":
+                - 2
+                - 14
+            "4": 3.11.5
+            "5": 0.23.1
+            "8":
+                - 3
+            "12": 0.23.1
+            "13": windows-amd64
+batch_size:
+    value: 32
+dendrite_count:
+    value: 4
+epochs:
+    value: 2
+learning_rate:
+    value: 0.0009877249602796827
