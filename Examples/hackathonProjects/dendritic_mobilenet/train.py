@@ -10,15 +10,33 @@ import wandb
 from tqdm import tqdm
 from model import DendriticVisionModel
 import os
+import argparse
 
-def train(config=None):
+def run_training(config=None, split_ratio=1.0, use_dendrites=True):
+    """
+    Args:
+        config (dict, optional): Configuration dictionary.
+        split_ratio (float): Percentage of training data to use (0.0 < ratio <= 1.0).
+        use_dendrites (bool): Whether to use Dendritic/PerforatedAI features.
+    """
+    
+    # Ensure config is a dict if not provided
+    if config is None:
+        config = {}
+        
     # Initialize a new wandb run
-    with wandb.init(config=config):
+    # Update config with experiment details
+    run_config = config.copy()
+    run_config['dataset_split'] = split_ratio
+    run_config['mode'] = 'dendritic' if use_dendrites else 'standard'
+
+    with wandb.init(config=run_config, reinit=True) as run:
         config = wandb.config
 
         # Set device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {device}")
+        print(f"Mode: {config.mode}, Split: {config.dataset_split*100}%")
 
         # Data Preparation
         transform_train = transforms.Compose([
@@ -35,12 +53,23 @@ def train(config=None):
         ])
 
         # Downloading to a local data folder (relative to this script or repo root)
-        # Using absolute path to avoid confusion with CWD
         data_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../data'))
         os.makedirs(data_root, exist_ok=True)
         
         trainset = torchvision.datasets.CIFAR10(root=data_root, train=True,
                                                 download=True, transform=transform_train)
+        
+        # Implement Dataset Splitting
+        if split_ratio < 1.0:
+            train_size = int(len(trainset) * split_ratio)
+            # Use fixed seed for reproducibility of splits
+            g_cpu = torch.Generator()
+            g_cpu.manual_seed(42) 
+            indices = torch.randperm(len(trainset), generator=g_cpu)[:train_size]
+            trainset = torch.utils.data.Subset(trainset, indices)
+            print(f"Training on subset: {len(trainset)} samples")
+        else:
+            print(f"Training on full dataset: {len(trainset)} samples")
         
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=config.batch_size,
                                                   shuffle=True, num_workers=0) # num_workers=0 for safety on Windows
@@ -52,51 +81,47 @@ def train(config=None):
                                                  shuffle=False, num_workers=0)
 
         # Model Initialization
-        print(f"Initializing model with dendrite_count={config.dendrite_count}...")
-        model = DendriticVisionModel(num_classes=10, dendrite_count=config.dendrite_count)
+        print(f"Initializing model...")
+        dendrite_count = config.dendrite_count if use_dendrites else 0
+        model = DendriticVisionModel(num_classes=10, dendrite_count=dendrite_count)
         
-        # Initialize PerforatedAI Tracker
-        # This converts eligible layers (like nn.Linear) to PAINeuronModules
-        # Custom Dendrite Tracking
-        # Exclude backbone and top classifier from having dendrites added (track only)
-        # Dendrites will be added to the remaining eligible layers (the dendritic_output)
-        GPA.pc.append_module_ids_to_track(['.features', '.avgpool', '.classifier_top'])
+        # PerforatedAI Initialization (Conditional)
+        name_str = f"{config.mode}_split-{int(config.dataset_split*100)}"
         
-        # Construct dynamic run name
-        # Exclude 'epochs' and internal keys from the name to keep it concise but descriptive
-        name_parts = [f"dendrites-{config.dendrite_count}"]
-        for k, v in config.items():
-            if k not in ['dendrite_count', 'epochs'] and not k.startswith('_'):
-                 name_parts.append(f"{k}-{v}")
-        name_str = "_".join(name_parts)
-        
-        # Update WandB run name
-        wandb.run.name = name_str
+        if use_dendrites:
+            # Construct dynamic run name
+            name_parts = [f"dendrites-{config.dendrite_count}"]
+            for k, v in config.items():
+                if k not in ['dendrite_count', 'epochs', 'dataset_split', 'mode'] and not k.startswith('_'):
+                     name_parts.append(f"{k}-{v}")
+            name_str = f"dendritic_{name_str}" # Prefix
 
-        # Initialize PerforatedAI Tracker
-        # This converts eligible layers (like nn.Linear) to PAINeuronModules
-        GPA.pc.set_unwrapped_modules_confirmed(True)
-        GPA.pc.set_using_safe_tensors(False) # Disable safetensors for shared memory support
-        GPA.pc.set_testing_dendrite_capacity(False) # Disable testing capacity to avoid Pdb breakpoints
+            # Custom Dendrite Tracking
+            GPA.pc.append_module_ids_to_track(['.features', '.avgpool', '.classifier_top'])
+            
+            GPA.pc.set_unwrapped_modules_confirmed(True)
+            GPA.pc.set_using_safe_tensors(False)
+            GPA.pc.set_testing_dendrite_capacity(False)
+            
+            # Initialize PAI
+            model = UPA.initialize_pai(model, save_name=name_str)
         
-        # Initialize PAI with the same name so the graph file matches the WandB run name
-        # The graph will be saved as PAI/{name_str}.png
-        model = UPA.initialize_pai(model, save_name=name_str)
+        wandb.run.name = name_str
         model = model.to(device)
 
-        # Trigger PAI initialization (shape inference) with a dummy forward/backward pass
-        print("Running dummy forward/backward pass to initialize PAI shapes...")
-        model.train() # Ensure train mode
-        dummy_input = torch.randn(2, 3, 224, 224).to(device) # Batch size 2
-        dummy_label = torch.randint(0, 10, (2,)).to(device)
-        
-        # Temp execution to trigger hooks
-        temp_optim = optim.SGD(model.parameters(), lr=0.001)
-        temp_optim.zero_grad()
-        dummy_out = model(dummy_input)
-        temp_loss = nn.CrossEntropyLoss()(dummy_out, dummy_label)
-        temp_loss.backward()
-        temp_optim.step()
+        # Trigger PAI initialization or just warmup
+        if use_dendrites:
+            print("Running dummy forward/backward pass to initialize PAI shapes...")
+            model.train()
+            dummy_input = torch.randn(2, 3, 224, 224).to(device)
+            dummy_label = torch.randint(0, 10, (2,)).to(device)
+            
+            temp_optim = optim.SGD(model.parameters(), lr=0.001)
+            temp_optim.zero_grad()
+            dummy_out = model(dummy_input)
+            temp_loss = nn.CrossEntropyLoss()(dummy_out, dummy_label)
+            temp_loss.backward()
+            temp_optim.step()
         
         # Verify Parameter Count
         params = sum(p.numel() for p in model.parameters())
@@ -107,8 +132,8 @@ def train(config=None):
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
         
-        # Register optimizer with PAI tracker to enable learning rate tracking
-        GPA.pai_tracker.set_optimizer_instance(optimizer)
+        if use_dendrites:
+            GPA.pai_tracker.set_optimizer_instance(optimizer)
 
         # Training Loop
         for epoch in range(config.epochs):
@@ -132,13 +157,13 @@ def train(config=None):
                 total += labels.size(0)
                 correct += predicted.eq(labels).sum().item()
                 
-                pbar.set_postfix({"Loss": running_loss/total, "Acc": 100.*correct/total})
+                pbar.set_postfix({"Loss": running_loss/max(total, 1), "Acc": 100.*correct/max(total, 1)})
 
             train_acc = 100. * correct / total
             train_loss = running_loss / len(trainloader)
             
-            # Report training accuracy to PAI Tracker (Optional but good practice)
-            GPA.pai_tracker.add_extra_score(train_acc, "train_acc")
+            if use_dendrites:
+                GPA.pai_tracker.add_extra_score(train_acc, "train_acc")
 
             # Validation
             model.eval()
@@ -159,24 +184,21 @@ def train(config=None):
             val_acc = 100. * val_correct / val_total
             val_loss = val_loss / len(testloader)
             
-            # Re-register optimizer instance before validation call (Workaround for PAI clearing it)
-            GPA.pai_tracker.set_optimizer_instance(optimizer)
-
-            # Report validation accuracy to PAI Tracker (Triggers dendrite growth if applicable)
-            # functionality to allow dynamic dendrite addition
-            model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
-            model = model.to(device) # Ensure model is on device immediately after potential update
-            
-            if restructured:
-                print("Model restructured (dendrites added). Re-initializing optimizer...")
-                optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
-                # Re-register new optimizer
+            # PAI Updates and Restructuring
+            if use_dendrites:
                 GPA.pai_tracker.set_optimizer_instance(optimizer)
+                model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+                model = model.to(device)
+                
+                if restructured:
+                    print("Model restructured (dendrites added). Re-initializing optimizer...")
+                    optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+                    GPA.pai_tracker.set_optimizer_instance(optimizer)
+                
+                if training_complete:
+                    print("Training complete as determined by PAI Tracker.")
+                    break
             
-            if training_complete:
-                print("Training complete as determined by PAI Tracker.")
-                break
-
             print(f"Epoch {epoch+1}: Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%")
             
             wandb.log({
@@ -186,24 +208,38 @@ def train(config=None):
                 "val_loss": val_loss,
                 "val_accuracy": val_acc
             })
+    
+    return val_acc
 
 if __name__ == "__main__":
-    # Configuration for the "Best" run
-    # User requested optimal hyperparameters: dendrites=8 (from README), batch=64, lr=0.001
-    best_config = {
+    parser = argparse.ArgumentParser(description="Run Dendritic or Standard MobileNet Training")
+    parser.add_argument('--mode', type=str, default='dendritic', choices=['dendritic', 'standard'], help="Training mode")
+    parser.add_argument('--split', type=float, default=1.0, help="Dataset split ratio (e.g. 0.5 for 50%)")
+    parser.add_argument('--epochs', type=int, default=15, help="Number of epochs")
+    
+    args = parser.parse_args()
+
+    # Optimal Configuration
+    base_config = {
         'dendrite_count': 8,
         'batch_size': 64,
         'learning_rate': 0.001,
-        'epochs': 15 
+        'epochs': args.epochs 
     }
+    
+    # Configure run based on args
+    use_dendrites = (args.mode == 'dendritic')
+    
+    # Set threshold for dendrite addition (only affects dendritic mode)
+    if use_dendrites:
+         GPA.pc.set_n_epochs_to_switch(3)
 
-    # Set threshold for dendrite addition
-    GPA.pc.set_n_epochs_to_switch(3)
-
-    print(f"Starting Final Run with Optimal Hyperparameters: {best_config}")
+    print(f"Starting Run: Mode={args.mode}, Split={args.split}")
     try:
-        train(config=best_config)
+        final_acc = run_training(config=base_config, split_ratio=args.split, use_dendrites=use_dendrites)
+        print(f"FINAL_RESULT: {final_acc}")
     except Exception as e:
         print(f"\nCRITICAL ERROR: {e}")
-        # print("Please ensure you are logged into WandB: 'wandb login'")
+        print("FINAL_RESULT: FAILED")
+
 
