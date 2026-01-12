@@ -1,0 +1,30 @@
+# Dockerfile for PAI Training
+# Build: docker build -f ml/Dockerfile.train -t tldr-pai-train .
+# Run: docker run --gpus all -e WANDB_API_KEY=$WANDB_API_KEY tldr-pai-train
+
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements-ml.txt .
+RUN pip install --no-cache-dir -r requirements-ml.txt
+
+# Install PerforatedAI (optional - may need custom install)
+RUN pip install perforatedai || echo "PerforatedAI not available via pip"
+
+# Copy project
+COPY . .
+
+# Set environment
+ENV PYTHONPATH=/workspace
+ENV WANDB_MODE=online
+
+# Default command
+CMD ["python", "-m", "ml.scripts.train_pl", "--config", "ml/configs/base_config.yaml"]
