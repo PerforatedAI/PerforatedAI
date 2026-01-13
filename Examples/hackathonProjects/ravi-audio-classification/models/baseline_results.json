@@ -1,0 +1,8 @@
+{
+  "model": "Baseline CNN",
+  "test_accuracy": 2.0,
+  "test_loss": 3.915412499354436,
+  "best_val_accuracy": 1.875,
+  "num_parameters": 14262002,
+  "epochs_trained": 11
+}

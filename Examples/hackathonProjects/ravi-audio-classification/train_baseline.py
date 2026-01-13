@@ -16,6 +16,7 @@ import pickle
 from utils.model import AudioCNN
 from utils.data_utils import load_preprocessed_data, create_dataloaders
 from utils.metrics import evaluate_model, plot_confusion_matrix
+import config
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -77,13 +78,13 @@ def train_baseline(args):
     """Main training function"""
     
     # Create directories
-    os.makedirs('models', exist_ok=True)
+    os.makedirs(config.MODELS_DIR, exist_ok=True)
     
-    # Setup device (M4 Mac uses MPS)
-    if torch.backends.mps.is_available():
+    # Setup device
+    if config.DEVICE['prefer_mps'] and torch.backends.mps.is_available():
         device = torch.device("mps")
         print("Using MPS (Metal GPU)")
-    elif torch.cuda.is_available():
+    elif config.DEVICE['prefer_cuda'] and torch.cuda.is_available():
         device = torch.device("cuda")
         print("Using CUDA GPU")
     else:
@@ -100,7 +101,12 @@ def train_baseline(args):
     
     # Create dataloaders
     print("Creating dataloaders...")
-    loaders = create_dataloaders(data_dict, batch_size=args.batch_size)
+    batch_size = args.batch_size if args.batch_size is not None else config.TRAINING['batch_size']
+    loaders = create_dataloaders(
+        data_dict, 
+        batch_size=batch_size,
+        num_workers=config.TRAINING['num_workers']
+    )
     
     print(f"Train batches: {len(loaders['train'])}")
     print(f"Val batches: {len(loaders['val'])}")
@@ -108,18 +114,32 @@ def train_baseline(args):
     
     # Initialize model
     print("\nInitializing model...")
-    model = AudioCNN(num_classes=50).to(device)
+    model = AudioCNN(num_classes=config.MODEL['num_classes']).to(device)
     print(f"Model parameters: {model.count_parameters():,}")
     
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='max', patience=5, factor=0.5, verbose=True
-    )
+    lr = args.lr if args.lr is not None else config.TRAINING['learning_rate']
+    weight_decay = args.weight_decay if args.weight_decay is not None else config.TRAINING['weight_decay']
+    
+    if config.OPTIMIZER['type'] == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    else:
+        raise ValueError(f"Unsupported optimizer: {config.OPTIMIZER['type']}")
+    
+    # Scheduler
+    if config.SCHEDULER['type'] == 'ReduceLROnPlateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode=config.SCHEDULER['mode'],
+            patience=config.SCHEDULER['patience'],
+            factor=config.SCHEDULER['factor']
+        )
+    else:
+        scheduler = None
     
     # MLflow tracking
-    mlflow.set_experiment("ESC-50-Baseline")
+    mlflow.set_experiment(config.MLFLOW['experiment_name'])
     
     with mlflow.start_run():
         # Log parameters
@@ -135,12 +155,16 @@ def train_baseline(args):
         })
         
         # Training loop
-        print(f"\nTraining for up to {args.epochs} epochs...")
+        max_epochs = args.epochs if args.epochs is not None else config.TRAINING['max_epochs']
+        patience = args.patience if args.patience is not None else config.TRAINING['patience']
+        best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
+        
+        print(f"\nTraining for up to {max_epochs} epochs...")
         best_val_acc = 0.0
         patience_counter = 0
         
-        for epoch in range(args.epochs):
-            print(f"\nEpoch {epoch + 1}/{args.epochs}")
+        for epoch in range(max_epochs):
+            print(f"\nEpoch {epoch + 1}/{max_epochs}")
             
             # Train
             train_loss, train_acc = train_epoch(
@@ -153,7 +177,8 @@ def train_baseline(args):
             )
             
             # Learning rate scheduling
-            scheduler.step(val_acc)
+            if scheduler is not None:
+                scheduler.step(val_acc)
             current_lr = optimizer.param_groups[0]['lr']
             
             # Print metrics
@@ -175,19 +200,20 @@ def train_baseline(args):
                 best_val_acc = val_acc
                 patience_counter = 0
                 print(f"New best validation accuracy: {best_val_acc:.2f}%")
-                torch.save(model.state_dict(), 'models/baseline_best.pt')
+                torch.save(model.state_dict(), best_model_path)
                 mlflow.log_metric('best_val_acc', best_val_acc)
             else:
                 patience_counter += 1
-                print(f"Patience: {patience_counter}/{args.patience}")
+                print(f"Patience: {patience_counter}/{patience}")
                 
-                if patience_counter >= args.patience:
+                if patience_counter >= patience:
                     print(f"\nEarly stopping triggered at epoch {epoch + 1}")
                     break
         
         # Load best model for final evaluation
         print("\nLoading best model for final evaluation...")
-        model.load_state_dict(torch.load('models/baseline_best.pt'))
+        best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
+        model.load_state_dict(torch.load(best_model_path))
         
         # Final test evaluation
         print("Evaluating on test set...")
@@ -205,13 +231,14 @@ def train_baseline(args):
         
         # Plot and save confusion matrix
         print("\nGenerating confusion matrix...")
+        cm_path = os.path.join(config.MODELS_DIR, 'baseline_confusion_matrix.png')
         cm = plot_confusion_matrix(
             test_results['labels'],
             test_results['predictions'],
             label_names=None,  # Too many classes for readable labels
-            save_path='models/baseline_confusion_matrix.png'
+            save_path=cm_path
         )
-        mlflow.log_artifact('models/baseline_confusion_matrix.png')
+        mlflow.log_artifact(cm_path)
         
         # Save results to JSON
         results = {
@@ -223,33 +250,38 @@ def train_baseline(args):
             'epochs_trained': epoch + 1
         }
         
-        with open('models/baseline_results.json', 'w') as f:
+        results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
+        with open(results_path, 'w') as f:
             json.dump(results, f, indent=2)
         
-        mlflow.log_artifact('models/baseline_results.json')
+        mlflow.log_artifact(results_path)
         mlflow.pytorch.log_model(model, "model")
         
         print("\nTraining complete!")
-        print(f"Best model saved to: models/baseline_best.pt")
-        print(f"Results saved to: models/baseline_results.json")
+        print(f"Best model saved to: {best_model_path}")
+        print(f"Results saved to: {results_path}")
         print(f"\nTo view MLflow results, run: mlflow ui")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train baseline CNN on ESC-50')
-    parser.add_argument('--data_dir', type=str, default='preprocessed',
-                        help='Directory with preprocessed data')
-    parser.add_argument('--batch_size', type=int, default=32,
-                        help='Batch size for training')
-    parser.add_argument('--lr', type=float, default=0.001,
-                        help='Learning rate')
-    parser.add_argument('--weight_decay', type=float, default=1e-4,
-                        help='Weight decay (L2 regularization)')
-    parser.add_argument('--epochs', type=int, default=100,
-                        help='Maximum number of epochs')
-    parser.add_argument('--patience', type=int, default=10,
-                        help='Early stopping patience')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help=f'Directory with preprocessed data (default: {config.OUTPUT_DIR})')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help=f'Batch size for training (default: {config.TRAINING["batch_size"]})')
+    parser.add_argument('--lr', type=float, default=None,
+                        help=f'Learning rate (default: {config.TRAINING["learning_rate"]})')
+    parser.add_argument('--weight_decay', type=float, default=None,
+                        help=f'Weight decay (default: {config.TRAINING["weight_decay"]})')
+    parser.add_argument('--epochs', type=int, default=None,
+                        help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
+    parser.add_argument('--patience', type=int, default=None,
+                        help=f'Early stopping patience (default: {config.TRAINING["patience"]})')
     
     args = parser.parse_args()
+    
+    # Use config defaults if args are None
+    if args.data_dir is None:
+        args.data_dir = config.OUTPUT_DIR
     
     train_baseline(args)
