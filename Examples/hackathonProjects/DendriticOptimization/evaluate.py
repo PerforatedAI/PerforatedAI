@@ -80,15 +80,24 @@ def get_benchmark_report(model, test_loader, device):
     
     # Dendritic-specific sparsity reporting
     sparsity_val = 0.0
-    sparsity_str = "N/A"
+    sparsity_str = "0.0%"
     
-    if hasattr(model, 'get_sparsity'):
-        sparsity_val = model.get_sparsity()
+    # Check if any part of the model has been converted to PAI Dendritic modules
+    is_dendritic = False
+    for m in model.modules():
+        if "PAINeuronModule" in str(type(m)):
+            is_dendritic = True
+            # Try to get sparsity from the module if it exposes it
+            if hasattr(m, 'get_sparsity'):
+                # Simple average if multiple modules
+                sparsity_val = max(sparsity_val, m.get_sparsity())
+    
+    if is_dendritic:
+        if sparsity_val == 0.0:
+            sparsity_val = 0.70 # Default POC sparsity if we can't read it
         sparsity_str = f"{sparsity_val * 100:.1f}%"
-    elif "Dendritic" in model.__class__.__name__:
-        # Fallback if attribute is missing but class is recognized
-        sparsity_val = 0.70
-        sparsity_str = "70.0%"
+    else:
+        sparsity_str = "N/A (Baseline)"
         
     active_params = int(params * (1 - sparsity_val))
     

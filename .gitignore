@@ -7,3 +7,6 @@ perforatedai.egg-info
 /build
 
 .DS_Store
+venv/
+**/PAI/
+**/data/
