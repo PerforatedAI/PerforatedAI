@@ -14,6 +14,7 @@ import mlflow.pytorch
 import pickle
 
 from utils.model import AudioCNN
+from utils.pretrained_model import CNN14ESC50
 from utils.data_utils import load_preprocessed_data, create_dataloaders
 from utils.metrics import evaluate_model, plot_confusion_matrix
 import config
@@ -112,9 +113,23 @@ def train_baseline(args):
     print(f"Val batches: {len(loaders['val'])}")
     print(f"Test batches: {len(loaders['test'])}")
     
-    # Initialize model
+    # Initialize model based on config
     print("\nInitializing model...")
-    model = AudioCNN(num_classes=config.MODEL['num_classes']).to(device)
+    model_type = config.MODEL['type']
+    
+    if model_type == 'AudioCNN':
+        model = AudioCNN(num_classes=config.MODEL['num_classes'])
+    elif model_type == 'CNN14':
+        model = CNN14ESC50(num_classes=config.MODEL['num_classes'])
+    elif model_type == 'SpeechBrain':
+        # Lazy import to avoid compatibility issues when not using SpeechBrain
+        from utils.pretrained_model import SpeechBrainESC50
+        model = SpeechBrainESC50(freeze_encoder=config.MODEL['freeze_encoder'])
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
+    
+    model = model.to(device)
+    print(f"Model type: {model_type}")
     print(f"Model parameters: {model.count_parameters():,}")
     
     # Loss and optimizer
@@ -138,26 +153,28 @@ def train_baseline(args):
     else:
         scheduler = None
     
+    # Training configuration
+    max_epochs = args.epochs if args.epochs is not None else config.TRAINING['max_epochs']
+    patience = args.patience if args.patience is not None else config.TRAINING['patience']
+    best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
+    
     # MLflow tracking
-    mlflow.set_experiment(config.MLFLOW['experiment_name'])
+    mlflow.set_experiment(config.MLFLOW['experiment_name'] + '-Baseline')
     
     with mlflow.start_run():
         # Log parameters
         mlflow.log_params({
-            'model': 'AudioCNN',
-            'batch_size': args.batch_size,
-            'learning_rate': args.lr,
-            'weight_decay': args.weight_decay,
-            'max_epochs': args.epochs,
-            'patience': args.patience,
+            'model': model_type,
+            'batch_size': batch_size,
+            'learning_rate': lr,
+            'weight_decay': weight_decay,
+            'max_epochs': max_epochs,
+            'patience': patience,
             'device': str(device),
             'num_parameters': model.count_parameters()
         })
         
         # Training loop
-        max_epochs = args.epochs if args.epochs is not None else config.TRAINING['max_epochs']
-        patience = args.patience if args.patience is not None else config.TRAINING['patience']
-        best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
         
         print(f"\nTraining for up to {max_epochs} epochs...")
         best_val_acc = 0.0
@@ -242,7 +259,7 @@ def train_baseline(args):
         
         # Save results to JSON
         results = {
-            'model': 'Baseline CNN',
+            'model': f'Baseline {model_type}',
             'test_accuracy': float(test_results['accuracy']),
             'test_loss': float(test_results['loss']),
             'best_val_accuracy': float(best_val_acc),

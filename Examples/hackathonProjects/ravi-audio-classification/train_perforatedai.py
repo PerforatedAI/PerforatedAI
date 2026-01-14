@@ -1,0 +1,464 @@
+"""
+Train CNN model WITH dendrites using PerforatedAI.
+Tracks experiments with MLflow and compares to baseline.
+"""
+import os
+import json
+import argparse
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
+import mlflow
+import mlflow.pytorch
+import pickle
+
+# PerforatedAI imports
+from perforatedai import globals_perforatedai as GPA
+from perforatedai import utils_perforatedai as UPA
+
+from utils.model import AudioCNN
+from utils.pretrained_model import CNN14ESC50
+from utils.data_utils import load_preprocessed_data, create_dataloaders
+from utils.metrics import evaluate_model, plot_confusion_matrix, calculate_error_reduction
+import config
+
+
+def train_epoch(model, dataloader, criterion, optimizer, device):
+    """Train for one epoch and return accuracy for PAI tracking"""
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    for inputs, labels in tqdm(dataloader, desc='Training', leave=False):
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        # Forward pass
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        
+        # Backward pass
+        loss.backward()
+        optimizer.step()
+        
+        # Statistics
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+    
+    epoch_loss = running_loss / len(dataloader)
+    epoch_acc = 100.0 * correct / total
+    
+    return epoch_loss, epoch_acc
+
+
+def validate(model, dataloader, criterion, device, optimizer, args):
+    """
+    Validate model and handle PAI restructuring.
+    Returns updated model, optimizer, scheduler, training_complete flag, and metrics.
+    """
+    model.eval()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    
+    with torch.no_grad():
+        for inputs, labels in tqdm(dataloader, desc='Validating', leave=False):
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            
+            running_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+    
+    val_loss = running_loss / len(dataloader)
+    val_acc = 100.0 * correct / total
+    
+    # Add validation score to PAI tracker - this may trigger restructuring
+    model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
+        val_acc, model
+    )
+    model.to(device)
+    
+    # If restructured, reset optimizer and scheduler
+    if restructured and not training_complete:
+        optimArgs = {
+            'params': model.parameters(),
+            'lr': args.lr,
+            'weight_decay': args.weight_decay
+        }
+        schedArgs = {
+            'mode': config.SCHEDULER['mode'],
+            'patience': config.SCHEDULER['patience'],
+            'factor': config.SCHEDULER['factor']
+        }
+        optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    
+    return model, optimizer, training_complete, restructured, val_loss, val_acc
+
+
+def train_perforatedai(args):
+    """Main training function with PerforatedAI dendrites"""
+    
+    # Create directories
+    os.makedirs(config.MODELS_DIR, exist_ok=True)
+    
+    # Setup device
+    if config.DEVICE['prefer_mps'] and torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using MPS (Metal GPU)")
+    elif config.DEVICE['prefer_cuda'] and torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Using CUDA GPU")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU")
+    
+    # Load preprocessed data
+    print("\nLoading preprocessed data...")
+    data_dict = load_preprocessed_data(args.data_dir)
+    
+    # Load label mapping
+    with open(os.path.join(args.data_dir, 'label_mapping.pkl'), 'rb') as f:
+        label_mapping = pickle.load(f)
+    
+    # Create dataloaders
+    print("Creating dataloaders...")
+    batch_size = args.batch_size if args.batch_size is not None else config.TRAINING['batch_size']
+    loaders = create_dataloaders(
+        data_dict, 
+        batch_size=batch_size,
+        num_workers=config.TRAINING['num_workers']
+    )
+    
+    print(f"Train batches: {len(loaders['train'])}")
+    print(f"Val batches: {len(loaders['val'])}")
+    print(f"Test batches: {len(loaders['test'])}")
+    
+    # ========================================================================
+    # PerforatedAI Configuration
+    # ========================================================================
+    print("\n" + "="*60)
+    print("Configuring PerforatedAI...")
+    print("="*60)
+    
+    # Get PAI config from config file or args
+    test_mode = args.test_mode if args.test_mode else config.PAI.get('test_mode', False)
+    max_dendrites = args.max_dendrites if args.max_dendrites != 5 else config.PAI.get('max_dendrites', 5)
+    verbose = args.verbose if args.verbose else config.PAI.get('verbose', True)
+    
+    # Set PAI global parameters
+    # Testing mode: False for real training, True to quickly test if setup works
+    GPA.pc.set_testing_dendrite_capacity(test_mode)
+    
+    # Confirm that unwrapped modules (like standalone BatchNorm) are intentional
+    # This skips the warning/breakpoint for BatchNorm layers not in Sequential blocks
+    GPA.pc.set_unwrapped_modules_confirmed(True)
+    
+    # Use Gradient Descent dendrites (open source method)
+    # Set to False for GD dendrites, True for Perforated Backpropagation (requires license)
+    GPA.pc.set_perforated_backpropagation(config.PAI.get('use_perforated_backprop', False))
+    
+    # Allow weight decay
+    GPA.pc.set_weight_decay_accepted(True)
+    
+    # Verbose output for debugging
+    GPA.pc.set_verbose(verbose)
+    
+    # Set improvement threshold (when to stop adding dendrites)
+    # Lower thresholds mean more dendrites can be added
+    GPA.pc.set_improvement_threshold(config.PAI.get('improvement_threshold', [0.001, 0.0001, 0]))
+    
+    # Set max dendrites (0 = unlimited, but usually 3-5 is enough)
+    GPA.pc.set_max_dendrites(max_dendrites)
+    
+    # Dendrite forward function
+    forward_func_name = config.PAI.get('forward_function', 'sigmoid')
+    forward_funcs = {'sigmoid': torch.sigmoid, 'relu': torch.relu, 'tanh': torch.tanh}
+    GPA.pc.set_pai_forward_function(forward_funcs.get(forward_func_name, torch.sigmoid))
+    
+    # Weight initialization for new dendrites
+    GPA.pc.set_candidate_weight_initialization_multiplier(
+        config.PAI.get('weight_init_multiplier', 0.01)
+    )
+    
+    print(f"Testing mode: {test_mode}")
+    print(f"Max dendrites: {max_dendrites}")
+    print(f"Perforated Backpropagation: {config.PAI.get('use_perforated_backprop', False)}")
+    
+    # ========================================================================
+    # Initialize Model with PAI
+    # ========================================================================
+    print("\nInitializing model...")
+    model_type = config.MODEL['type']
+    
+    if model_type == 'AudioCNN':
+        model = AudioCNN(num_classes=config.MODEL['num_classes'])
+    elif model_type == 'CNN14':
+        model = CNN14ESC50(num_classes=config.MODEL['num_classes'])
+    elif model_type == 'SpeechBrain':
+        from utils.pretrained_model import SpeechBrainESC50
+        model = SpeechBrainESC50(freeze_encoder=config.MODEL['freeze_encoder'])
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
+    
+    # Convert model to PAI model (adds dendrite capability to layers)
+    save_name = f"PAI_{model_type}"
+    model = UPA.initialize_pai(model, save_name=save_name)
+    
+    model = model.to(device)
+    print(f"Model type: {model_type}")
+    print(f"Initial parameters: {UPA.count_params(model):,}")
+    
+    # ========================================================================
+    # Setup Optimizer via PAI Tracker
+    # ========================================================================
+    criterion = nn.CrossEntropyLoss()
+    args.lr = args.lr if args.lr is not None else config.TRAINING['learning_rate']
+    args.weight_decay = args.weight_decay if args.weight_decay is not None else config.TRAINING['weight_decay']
+    
+    # Set optimizer and scheduler types in PAI tracker
+    GPA.pai_tracker.set_optimizer(optim.Adam)
+    GPA.pai_tracker.set_scheduler(optim.lr_scheduler.ReduceLROnPlateau)
+    
+    # Setup optimizer through PAI tracker
+    optimArgs = {
+        'params': model.parameters(),
+        'lr': args.lr,
+        'weight_decay': args.weight_decay
+    }
+    schedArgs = {
+        'mode': config.SCHEDULER['mode'],
+        'patience': config.SCHEDULER['patience'],
+        'factor': config.SCHEDULER['factor']
+    }
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    
+    # Training configuration
+    max_epochs = args.epochs if args.epochs is not None else config.TRAINING['max_epochs']
+    best_model_path = os.path.join(config.MODELS_DIR, 'pai_best.pt')
+    
+    # ========================================================================
+    # MLflow Tracking
+    # ========================================================================
+    mlflow.set_experiment(config.MLFLOW['experiment_name'] + '-PAI')
+    
+    with mlflow.start_run(run_name=f"PAI_{model_type}"):
+        # Log parameters
+        mlflow.log_params({
+            'model': f'PAI_{model_type}',
+            'batch_size': batch_size,
+            'learning_rate': args.lr,
+            'weight_decay': args.weight_decay,
+            'max_epochs': max_epochs,
+            'max_dendrites': args.max_dendrites,
+            'test_mode': args.test_mode,
+            'device': str(device),
+            'initial_parameters': UPA.count_params(model)
+        })
+        
+        # ====================================================================
+        # Training Loop (PAI controlled)
+        # ====================================================================
+        print(f"\nTraining with PerforatedAI (max {max_epochs} epochs)...")
+        print("Note: Training will continue until PAI determines convergence.")
+        
+        best_val_acc = 0.0
+        dendrite_count = 0
+        
+        for epoch in range(max_epochs):
+            current_dendrites = GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
+            print(f"\nEpoch {epoch + 1}/{max_epochs} (Dendrites: {current_dendrites})")
+            
+            # Train
+            train_loss, train_acc = train_epoch(
+                model, loaders['train'], criterion, optimizer, device
+            )
+            
+            # Track training accuracy with PAI
+            GPA.pai_tracker.add_extra_score(train_acc, 'Train')
+            model.to(device)
+            
+            # Validate (this handles PAI restructuring)
+            model, optimizer, training_complete, restructured, val_loss, val_acc = validate(
+                model, loaders['val'], criterion, device, optimizer, args
+            )
+            
+            # Get current learning rate
+            current_lr = optimizer.param_groups[0]['lr']
+            
+            # Print metrics
+            print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            print(f"Learning Rate: {current_lr:.6f}")
+            print(f"Parameters: {UPA.count_params(model):,}")
+            
+            # Log to MLflow
+            mlflow.log_metrics({
+                'train_loss': train_loss,
+                'train_acc': train_acc,
+                'val_loss': val_loss,
+                'val_acc': val_acc,
+                'learning_rate': current_lr,
+                'param_count': UPA.count_params(model),
+                'dendrite_count': current_dendrites
+            }, step=epoch)
+            
+            # Track best model
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                print(f"New best validation accuracy: {best_val_acc:.2f}%")
+                torch.save(model.state_dict(), best_model_path)
+                mlflow.log_metric('best_val_acc', best_val_acc)
+            
+            # Check if dendrites were added
+            if restructured:
+                new_dendrites = GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
+                if new_dendrites > dendrite_count:
+                    dendrite_count = new_dendrites
+                    print(f"\n*** DENDRITES ADDED! Now have {dendrite_count} dendrite(s) ***")
+                    print(f"New parameter count: {UPA.count_params(model):,}")
+                    mlflow.log_metric('dendrite_added_at_epoch', epoch)
+            
+            # Check if PAI says training is complete
+            if training_complete:
+                print(f"\nPAI training complete at epoch {epoch + 1}")
+                print("PAI determined that additional dendrites won't improve performance.")
+                break
+        
+        # ====================================================================
+        # Final Evaluation
+        # ====================================================================
+        print("\n" + "="*60)
+        print("Training Complete - Final Evaluation")
+        print("="*60)
+        
+        # Load best model for evaluation
+        print("\nLoading best model for final evaluation...")
+        try:
+            model.load_state_dict(torch.load(best_model_path), strict=False)
+        except Exception as e:
+            print(f"Warning: Could not load best model ({e})")
+            print("Using current model state instead...")
+        model.to(device)
+        
+        # Evaluate on test set
+        print("Evaluating on test set...")
+        test_results = evaluate_model(model, loaders['test'], criterion, device)
+        
+        print(f"\nFinal Test Results:")
+        print(f"Test Loss: {test_results['loss']:.4f}")
+        print(f"Test Accuracy: {test_results['accuracy']:.2f}%")
+        print(f"Final Parameter Count: {UPA.count_params(model):,}")
+        print(f"Total Dendrites Added: {GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)}")
+        
+        # Log final metrics
+        mlflow.log_metrics({
+            'final_test_loss': test_results['loss'],
+            'final_test_acc': test_results['accuracy'],
+            'final_param_count': UPA.count_params(model),
+            'total_dendrites': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
+        })
+        
+        # Plot confusion matrix
+        print("\nGenerating confusion matrix...")
+        cm_path = os.path.join(config.MODELS_DIR, 'pai_confusion_matrix.png')
+        cm = plot_confusion_matrix(
+            test_results['labels'],
+            test_results['predictions'],
+            label_names=None,
+            save_path=cm_path
+        )
+        mlflow.log_artifact(cm_path)
+        
+        # ====================================================================
+        # Compare with Baseline
+        # ====================================================================
+        baseline_results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
+        if os.path.exists(baseline_results_path):
+            print("\n" + "="*60)
+            print("Comparison with Baseline")
+            print("="*60)
+            
+            with open(baseline_results_path, 'r') as f:
+                baseline_results = json.load(f)
+            
+            baseline_acc = baseline_results['test_accuracy']
+            pai_acc = test_results['accuracy']
+            
+            improvement = pai_acc - baseline_acc
+            error_reduction = calculate_error_reduction(baseline_acc, pai_acc)
+            
+            print(f"\nBaseline Test Accuracy: {baseline_acc:.2f}%")
+            print(f"PAI Test Accuracy:      {pai_acc:.2f}%")
+            print(f"Improvement:            {improvement:+.2f}%")
+            print(f"Error Reduction:        {error_reduction:.2f}%")
+            
+            mlflow.log_metrics({
+                'baseline_test_acc': baseline_acc,
+                'accuracy_improvement': improvement,
+                'error_reduction': error_reduction
+            })
+        
+        # Save results
+        results = {
+            'model': f'PAI_{model_type}',
+            'test_accuracy': float(test_results['accuracy']),
+            'test_loss': float(test_results['loss']),
+            'best_val_accuracy': float(best_val_acc),
+            'num_parameters': UPA.count_params(model),
+            'epochs_trained': epoch + 1,
+            'dendrites_added': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
+        }
+        
+        results_path = os.path.join(config.MODELS_DIR, 'pai_results.json')
+        with open(results_path, 'w') as f:
+            json.dump(results, f, indent=2)
+        
+        mlflow.log_artifact(results_path)
+        mlflow.pytorch.log_model(model, "model")
+        
+        print(f"\nResults saved to: {results_path}")
+        print(f"Best model saved to: {best_model_path}")
+        print("\nTo view MLflow results, run: mlflow ui")
+        
+        # Check for PAI output graphs
+        pai_folder = os.path.join('.', 'PAI')
+        if os.path.exists(pai_folder):
+            print(f"\nPAI output graphs saved to: {pai_folder}")
+            for f in os.listdir(pai_folder):
+                if f.endswith('.png'):
+                    mlflow.log_artifact(os.path.join(pai_folder, f))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Train CNN with PerforatedAI dendrites on ESC-50')
+    parser.add_argument('--data_dir', type=str, default=None,
+                        help=f'Directory with preprocessed data (default: {config.OUTPUT_DIR})')
+    parser.add_argument('--batch_size', type=int, default=None,
+                        help=f'Batch size for training (default: {config.TRAINING["batch_size"]})')
+    parser.add_argument('--lr', type=float, default=None,
+                        help=f'Learning rate (default: {config.TRAINING["learning_rate"]})')
+    parser.add_argument('--weight_decay', type=float, default=None,
+                        help=f'Weight decay (default: {config.TRAINING["weight_decay"]})')
+    parser.add_argument('--epochs', type=int, default=None,
+                        help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
+    parser.add_argument('--max_dendrites', type=int, default=5,
+                        help='Maximum number of dendrites to add (default: 5)')
+    parser.add_argument('--test_mode', action='store_true',
+                        help='Enable PAI test mode (quick test with 3 dendrites)')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Enable verbose PAI output')
+    
+    args = parser.parse_args()
+    
+    # Use config defaults if args are None
+    if args.data_dir is None:
+        args.data_dir = config.OUTPUT_DIR
+    
+    train_perforatedai(args)
