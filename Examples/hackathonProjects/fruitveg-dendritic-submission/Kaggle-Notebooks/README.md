@@ -32,6 +32,9 @@ This project demonstrates that dendritic optimization can deliver meaningful acc
 
 ## Usage Instructions
 
+### Note
+During integration we encountered execution issues when enabling dendritic optimization, which left two viable paths using PerforatedAI’s standard gradient-descent dendrites (Path A) or enabling deeper perforated backpropagation (Path B). We chose Path A because it executed reliably, produced the required PerforatedAI results graph, and supported a clean, reproducible baseline comparison.
+
 The repository provides two runnable training scripts:
 
 - fruitveg_original.ipynb  
