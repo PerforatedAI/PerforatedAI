@@ -1,74 +1,8 @@
 """
-Pretrained model wrapper for ESC-50 classification.
-Uses SpeechBrain's CNN14 model pretrained on ESC-50.
+CNN14 model for ESC-50 audio classification.
+Optimized for use with PerforatedAI dendrites.
 """
-import torch
 import torch.nn as nn
-
-# Lazy import for SpeechBrain to avoid compatibility issues
-# from speechbrain.inference.classifiers import EncoderClassifier
-
-
-class SpeechBrainESC50(nn.Module):
-    """
-    Wrapper for SpeechBrain's pretrained CNN14 model for ESC-50.
-    
-    This model achieves ~82-90% accuracy on ESC-50 test set.
-    """
-    
-    def __init__(self, freeze_encoder=False):
-        super(SpeechBrainESC50, self).__init__()
-        
-        # Import here to avoid issues when not using this model
-        from speechbrain.inference.classifiers import EncoderClassifier
-        
-        # Load pretrained model from SpeechBrain
-        # Using the ESC-50 fine-tuned checkpoint
-        self.classifier = EncoderClassifier.from_hparams(
-            source="speechbrain/cnn14-esc50",
-            savedir="pretrained_models/cnn14-esc50"
-        )
-        
-        # Optionally freeze encoder layers for faster fine-tuning
-        if freeze_encoder:
-            for param in self.classifier.mods.parameters():
-                param.requires_grad = False
-    
-    def forward(self, x):
-        """
-        Forward pass through the model.
-        
-        Args:
-            x: Input tensor of shape (batch, 1, height, width) - mel-spectrograms
-               or (batch, time) - raw audio
-        
-        Returns:
-            Logits of shape (batch, 50)
-        """
-        # SpeechBrain expects audio waveforms, but we can also pass spectrograms
-        # For mel-spectrograms, we need to adapt the input
-        
-        # If input is spectrogram (batch, 1, mel_bins, time)
-        if len(x.shape) == 4:
-            # Remove channel dimension and transpose to (batch, time, mel_bins)
-            x = x.squeeze(1).transpose(1, 2)
-        
-        # Get predictions
-        # The classifier returns embeddings and predictions
-        out = self.classifier.encode_batch(x)
-        logits = self.classifier.mods.classifier(out)
-        
-        return logits
-    
-    def count_parameters(self):
-        """Count trainable parameters"""
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
-    
-    def get_embeddings(self, x):
-        """Get embeddings from the encoder (useful for visualization)"""
-        if len(x.shape) == 4:
-            x = x.squeeze(1).transpose(1, 2)
-        return self.classifier.encode_batch(x)
 
 
 class CNN14ESC50(nn.Module):

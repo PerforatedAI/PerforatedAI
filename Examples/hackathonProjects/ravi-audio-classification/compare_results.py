@@ -1,9 +1,10 @@
 """
 Compare baseline and PerforatedAI results.
-Generates comparison visualizations for hackathon submission.
+Generates comparison visualizations and copies PAI graphs for hackathon submission.
 """
 import os
 import json
+import shutil
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -167,15 +168,77 @@ def print_summary(results):
         print("-"*60)
 
 
+def copy_pai_graph():
+    """Copy PAI training graph to project root for submission."""
+    source = 'PAI_CNN14/PAI_CNN14.png'
+    dest = 'PAI_CNN14.png'
+    
+    if os.path.exists(source):
+        shutil.copy(source, dest)
+        print(f"\n✓ Copied PAI graph: {source} -> {dest}")
+        return True
+    else:
+        print(f"\n✗ Warning: PAI graph not found at {source}")
+        print("  Make sure you've run train_perforatedai.py first")
+        return False
+
+
+def save_metrics_summary(results):
+    """Save a text summary of metrics for easy reference."""
+    if 'baseline' not in results or 'pai' not in results:
+        return
+    
+    b = results['baseline']
+    p = results['pai']
+    
+    improvement = p['test_accuracy'] - b['test_accuracy']
+    error_reduction = calculate_error_reduction(b['test_accuracy'], p['test_accuracy'])
+    param_increase = ((p['num_parameters'] - b['num_parameters']) / b['num_parameters']) * 100
+    
+    summary = f"""ESC-50 Audio Classification Results
+{'='*60}
+
+BASELINE CNN14:
+  Test Accuracy:    {b['test_accuracy']:.2f}%
+  Val Accuracy:     {b['best_val_accuracy']:.2f}%
+  Parameters:       {b['num_parameters']:,}
+  Epochs Trained:   {b['epochs_trained']}
+
+PERFORATED AI CNN14:
+  Test Accuracy:    {p['test_accuracy']:.2f}%
+  Val Accuracy:     {p['best_val_accuracy']:.2f}%
+  Parameters:       {p['num_parameters']:,}
+  Epochs Trained:   {p['epochs_trained']}
+  Dendrites Added:  {p.get('dendrites_added', 0)}
+
+IMPROVEMENT:
+  Accuracy Improvement: {improvement:+.2f}%
+  Error Reduction:      {error_reduction:.2f}%
+  Parameter Increase:   {param_increase:+.1f}%
+"""
+    
+    with open('results_summary.txt', 'w') as f:
+        f.write(summary)
+    
+    print(f"\n✓ Saved metrics summary to: results_summary.txt")
+
+
 def main():
+    print("\n" + "="*60)
+    print("Generating Hackathon Submission Artifacts")
+    print("="*60)
+    
     # Ensure models directory exists
     os.makedirs(config.MODELS_DIR, exist_ok=True)
+    
+    # Copy PAI training graph (REQUIRED for submission)
+    copy_pai_graph()
     
     # Load results
     results = load_results()
     
     if not results:
-        print("No results found. Please train models first:")
+        print("\n✗ No results found. Please train models first:")
         print("  1. python train_baseline.py")
         print("  2. python train_perforatedai.py")
         return
@@ -185,13 +248,35 @@ def main():
     
     # Generate comparison plot if both results exist
     if 'baseline' in results and 'pai' in results:
+        # Save to models folder
         save_path = os.path.join(config.MODELS_DIR, 'comparison.png')
         plot_comparison(results, save_path)
         
-        # Also save for hackathon submission
+        # Save clean graph for hackathon submission (root directory)
         submission_path = 'Accuracy Improvement.png'
         plot_comparison(results, submission_path)
-        print(f"\nSubmission plot saved to: {submission_path}")
+        print(f"\n✓ Generated clean comparison graph: {submission_path}")
+        
+        # Save metrics summary
+        save_metrics_summary(results)
+        
+        print("\n" + "="*60)
+        print("Submission artifacts ready!")
+        print("="*60)
+        print("\nFiles for hackathon submission:")
+        print("  ✓ PAI_CNN14.png (required PAI training graph)")
+        print("  ✓ Accuracy Improvement.png (clean results graph)")
+        print("  ✓ results_summary.txt (metrics summary)")
+        print("  ✓ models/baseline_results.json")
+        print("  ✓ models/pai_results.json")
+        print("  ✓ models/baseline_confusion_matrix.png")
+        print("  ✓ models/pai_confusion_matrix.png")
+    else:
+        print("\n✗ Both baseline and PAI results needed for comparison")
+        if 'baseline' not in results:
+            print("  Missing: baseline_results.json (run train_baseline.py)")
+        if 'pai' not in results:
+            print("  Missing: pai_results.json (run train_perforatedai.py)")
 
 
 if __name__ == '__main__':

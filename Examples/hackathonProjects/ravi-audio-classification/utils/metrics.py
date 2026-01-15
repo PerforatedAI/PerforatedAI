@@ -1,6 +1,7 @@
 """
 Metrics and evaluation utilities
 """
+import torch
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 import matplotlib.pyplot as plt
@@ -119,10 +120,3 @@ def get_classification_report(y_true, y_pred, label_names=None):
         target_names=label_names if label_names else None,
         digits=3
     )
-
-
-# Import torch at the end to avoid issues if not needed
-try:
-    import torch
-except ImportError:
-    pass

@@ -1,6 +1,5 @@
 """
-Train baseline CNN model without dendrites.
-Tracks experiments with MLflow.
+Train baseline CNN14 model without dendrites on ESC-50.
 """
 import os
 import json
@@ -9,11 +8,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import mlflow
-import mlflow.pytorch
 import pickle
 
-from utils.model import AudioCNN
 from utils.pretrained_model import CNN14ESC50
 from utils.data_utils import load_preprocessed_data, create_dataloaders
 from utils.metrics import evaluate_model, plot_confusion_matrix
@@ -106,30 +102,17 @@ def train_baseline(args):
     loaders = create_dataloaders(
         data_dict, 
         batch_size=batch_size,
-        num_workers=config.TRAINING['num_workers']
+        num_workers=2
     )
     
     print(f"Train batches: {len(loaders['train'])}")
     print(f"Val batches: {len(loaders['val'])}")
     print(f"Test batches: {len(loaders['test'])}")
     
-    # Initialize model based on config
-    print("\nInitializing model...")
-    model_type = config.MODEL['type']
-    
-    if model_type == 'AudioCNN':
-        model = AudioCNN(num_classes=config.MODEL['num_classes'])
-    elif model_type == 'CNN14':
-        model = CNN14ESC50(num_classes=config.MODEL['num_classes'])
-    elif model_type == 'SpeechBrain':
-        # Lazy import to avoid compatibility issues when not using SpeechBrain
-        from utils.pretrained_model import SpeechBrainESC50
-        model = SpeechBrainESC50(freeze_encoder=config.MODEL['freeze_encoder'])
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
-    
+    # Initialize model
+    print("\nInitializing CNN14 model...")
+    model = CNN14ESC50(num_classes=config.MODEL['num_classes'])
     model = model.to(device)
-    print(f"Model type: {model_type}")
     print(f"Model parameters: {model.count_parameters():,}")
     
     # Loss and optimizer
@@ -158,126 +141,87 @@ def train_baseline(args):
     patience = args.patience if args.patience is not None else config.TRAINING['patience']
     best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
     
-    # MLflow tracking
-    mlflow.set_experiment(config.MLFLOW['experiment_name'] + '-Baseline')
+    # Training loop
+    print(f"\nTraining for up to {max_epochs} epochs...")
+    best_val_acc = 0.0
+    patience_counter = 0
     
-    with mlflow.start_run():
-        # Log parameters
-        mlflow.log_params({
-            'model': model_type,
-            'batch_size': batch_size,
-            'learning_rate': lr,
-            'weight_decay': weight_decay,
-            'max_epochs': max_epochs,
-            'patience': patience,
-            'device': str(device),
-            'num_parameters': model.count_parameters()
-        })
+    for epoch in range(max_epochs):
+        print(f"\nEpoch {epoch + 1}/{max_epochs}")
         
-        # Training loop
-        
-        print(f"\nTraining for up to {max_epochs} epochs...")
-        best_val_acc = 0.0
-        patience_counter = 0
-        
-        for epoch in range(max_epochs):
-            print(f"\nEpoch {epoch + 1}/{max_epochs}")
-            
-            # Train
-            train_loss, train_acc = train_epoch(
-                model, loaders['train'], criterion, optimizer, device
-            )
-            
-            # Validate
-            val_loss, val_acc = validate(
-                model, loaders['val'], criterion, device
-            )
-            
-            # Learning rate scheduling
-            if scheduler is not None:
-                scheduler.step(val_acc)
-            current_lr = optimizer.param_groups[0]['lr']
-            
-            # Print metrics
-            print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-            print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-            print(f"Learning Rate: {current_lr:.6f}")
-            
-            # Log to MLflow
-            mlflow.log_metrics({
-                'train_loss': train_loss,
-                'train_acc': train_acc,
-                'val_loss': val_loss,
-                'val_acc': val_acc,
-                'learning_rate': current_lr
-            }, step=epoch)
-            
-            # Save best model
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                patience_counter = 0
-                print(f"New best validation accuracy: {best_val_acc:.2f}%")
-                torch.save(model.state_dict(), best_model_path)
-                mlflow.log_metric('best_val_acc', best_val_acc)
-            else:
-                patience_counter += 1
-                print(f"Patience: {patience_counter}/{patience}")
-                
-                if patience_counter >= patience:
-                    print(f"\nEarly stopping triggered at epoch {epoch + 1}")
-                    break
-        
-        # Load best model for final evaluation
-        print("\nLoading best model for final evaluation...")
-        best_model_path = os.path.join(config.MODELS_DIR, 'baseline_best.pt')
-        model.load_state_dict(torch.load(best_model_path))
-        
-        # Final test evaluation
-        print("Evaluating on test set...")
-        test_results = evaluate_model(model, loaders['test'], criterion, device)
-        
-        print(f"\nFinal Test Results:")
-        print(f"Test Loss: {test_results['loss']:.4f}")
-        print(f"Test Accuracy: {test_results['accuracy']:.2f}%")
-        
-        # Log final metrics
-        mlflow.log_metrics({
-            'final_test_loss': test_results['loss'],
-            'final_test_acc': test_results['accuracy']
-        })
-        
-        # Plot and save confusion matrix
-        print("\nGenerating confusion matrix...")
-        cm_path = os.path.join(config.MODELS_DIR, 'baseline_confusion_matrix.png')
-        cm = plot_confusion_matrix(
-            test_results['labels'],
-            test_results['predictions'],
-            label_names=None,  # Too many classes for readable labels
-            save_path=cm_path
+        # Train
+        train_loss, train_acc = train_epoch(
+            model, loaders['train'], criterion, optimizer, device
         )
-        mlflow.log_artifact(cm_path)
         
-        # Save results to JSON
-        results = {
-            'model': f'Baseline {model_type}',
-            'test_accuracy': float(test_results['accuracy']),
-            'test_loss': float(test_results['loss']),
-            'best_val_accuracy': float(best_val_acc),
-            'num_parameters': model.count_parameters(),
-            'epochs_trained': epoch + 1
-        }
+        # Validate
+        val_loss, val_acc = validate(
+            model, loaders['val'], criterion, device
+        )
         
-        results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
-        with open(results_path, 'w') as f:
-            json.dump(results, f, indent=2)
+        # Learning rate scheduling
+        if scheduler is not None:
+            scheduler.step(val_acc)
+        current_lr = optimizer.param_groups[0]['lr']
         
-        mlflow.log_artifact(results_path)
-        mlflow.pytorch.log_model(model, "model")
+        # Print metrics
+        print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+        print(f"Learning Rate: {current_lr:.6f}")
         
-        print("\nTraining complete!")
-        print(f"Best model saved to: {best_model_path}")
-        print(f"Results saved to: {results_path}")
-        print(f"\nTo view MLflow results, run: mlflow ui")
+        # Save best model
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            patience_counter = 0
+            print(f"New best validation accuracy: {best_val_acc:.2f}%")
+            torch.save(model.state_dict(), best_model_path)
+        else:
+            patience_counter += 1
+            print(f"Patience: {patience_counter}/{patience}")
+            
+            if patience_counter >= patience:
+                print(f"\nEarly stopping triggered at epoch {epoch + 1}")
+                break
+    
+    # Load best model for final evaluation
+    print("\nLoading best model for final evaluation...")
+    model.load_state_dict(torch.load(best_model_path))
+    
+    # Final test evaluation
+    print("Evaluating on test set...")
+    test_results = evaluate_model(model, loaders['test'], criterion, device)
+    
+    print(f"\nFinal Test Results:")
+    print(f"Test Loss: {test_results['loss']:.4f}")
+    print(f"Test Accuracy: {test_results['accuracy']:.2f}%")
+    
+    # Plot and save confusion matrix
+    print("\nGenerating confusion matrix...")
+    cm_path = os.path.join(config.MODELS_DIR, 'baseline_confusion_matrix.png')
+    cm = plot_confusion_matrix(
+        test_results['labels'],
+        test_results['predictions'],
+        label_names=None,  # Too many classes for readable labels
+        save_path=cm_path
+    )
+    
+    # Save results to JSON
+    results = {
+        'model': 'Baseline CNN14',
+        'test_accuracy': float(test_results['accuracy']),
+        'test_loss': float(test_results['loss']),
+        'best_val_accuracy': float(best_val_acc),
+        'num_parameters': model.count_parameters(),
+        'epochs_trained': epoch + 1
+    }
+    
+    results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
+    with open(results_path, 'w') as f:
+        json.dump(results, f, indent=2)
+    
+    print("\nTraining complete!")
+    print(f"Best model saved to: {best_model_path}")
+    print(f"Results saved to: {results_path}")
 
 
 if __name__ == '__main__':
