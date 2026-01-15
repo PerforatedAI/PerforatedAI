@@ -16,7 +16,7 @@ All architectural changes related to dendrites are implemented using PerforatedA
 
 ## Project Impact
 
-Informal retail environments such as roadside fruit and vegetable stands operate under constraints that traditional POS systems are not designed for. Connectivity is unreliable, product catalogs are fluid, and workflows are informal by necessity.
+Informal retail serves billions of people, yet most POS systems assume internet access, literacy, and fixed catalogs that do not exist in street markets. This work treats the phone camera as the POS interface itself: vendors photograph produce, an on-device model recognizes items offline, and transactions occur without connectivity or predefined SKUs. The challenge is making vision models small and adaptable enough for local deployment, proving that the camera vendors already have can replace POS systems they cannot afford or maintain.
 
 A vision-based POS system lowers the barrier to entry dramatically. Vendors do not need SKUs or scanners. They already have smartphones. What they need is a model that is accurate, lightweight, and robust to real-world conditions such as uneven lighting, cluttered backgrounds, partial occlusion, and camera noise.
 
