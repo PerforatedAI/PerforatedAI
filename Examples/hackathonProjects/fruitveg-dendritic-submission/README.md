@@ -21,14 +21,21 @@ Informal retail environments such as roadside fruit and vegetable stands operate
 A vision-based POS system lowers the barrier to entry dramatically. Vendors do not need SKUs or scanners. They already have smartphones. What they need is a model that is accurate, lightweight, and robust to real-world conditions such as uneven lighting, cluttered backgrounds, partial occlusion, and camera noise.
 
 A vision-based POS system lowers the barrier to entry:
+
 	•	No SKUs or barcode scanners required
+	
 	•	Runs on commodity smartphones
+	
 	•	Minimal training overhead for vendors
 
 The core idea is practical. A mobile phone camera becomes the POS interface for informal vendors:
+
 	• scan inventory in 
+	
 	• scan sales out
+	
 	• This removes the need for barcodes, fixed infrastructure, or rigid product catalogs.
+	
 	• Automatic record keeping.
 
 This is where dendritic optimization becomes interesting. Rather than scaling up the backbone or increasing parameter count aggressively, dendrites offer a way to extract more expressive power from a compact architecture. For edge deployment, latency, cost, and battery constraints matter. Improving accuracy without bloating the model directly impacts feasibility in real deployments.
