@@ -39,6 +39,12 @@ The repository provides two runnable training scripts:
 - fruitveg_perforatedai_pathA.py  
   MobileNetV3-Small with dendritic optimization using PerforatedAI (Path A, GD dendrites)
 
+- Both notebooks runnable on Kaggle. (Kaggle-Notebooks)
+
+- Requirement.txt
+
+- PerforatedAI-generated results graph
+
 ### Installation
 
 pip install -r requirements.txt
@@ -54,6 +60,7 @@ python fruitveg_perforatedai_pathA.py --dendrite-mode 1
 ### Dataset Paths
 
 The default dataset paths are configured for Kaggle:
+
 https://www.kaggle.com/datasets/kritikseth/fruit-and-vegetable-image-recognition
 
 - /kaggle/input/fruit-and-vegetable-image-recognition/train  
