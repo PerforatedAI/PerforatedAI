@@ -54,6 +54,7 @@ python fruitveg_perforatedai_pathA.py --dendrite-mode 1
 ### Dataset Paths
 
 The default dataset paths are configured for Kaggle:
+https://www.kaggle.com/datasets/kritikseth/fruit-and-vegetable-image-recognition
 
 - /kaggle/input/fruit-and-vegetable-image-recognition/train  
 - /kaggle/input/fruit-and-vegetable-image-recognition/validation  
@@ -116,7 +117,7 @@ These files are provided for inspection and convenience. The full experiment is 
 
 ## Takeaway
 
-This experiment demonstrates that dendritic optimization can meaningfully improve compact vision models under realistic constraints. For applications like informal retail—where models must be small, robust, and deployable without infrastructure—this approach offers a promising alternative to brute-force scaling.
+This experiment demonstrates that dendritic optimization can meaningfully improve compact vision models under realistic constraints. For applications like informal retail, where models must be small, robust, and deployable without infrastructure—this approach offers a promising alternative to brute-force scaling.
 
 In future iterations, this work can extend to:
 	•	On-device incremental learning
