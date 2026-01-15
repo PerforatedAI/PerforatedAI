@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import pickle
 
 # PerforatedAI imports
 from perforatedai import globals_perforatedai as GPA
@@ -118,10 +117,6 @@ def train_perforatedai(args):
     # Load preprocessed data
     print("\nLoading preprocessed data...")
     data_dict = load_preprocessed_data(args.data_dir)
-    
-    # Load label mapping
-    with open(os.path.join(args.data_dir, 'label_mapping.pkl'), 'rb') as f:
-        label_mapping = pickle.load(f)
     
     # Create dataloaders
     print("Creating dataloaders...")

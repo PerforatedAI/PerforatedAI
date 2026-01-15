@@ -160,7 +160,7 @@ def print_summary(results):
         )
         param_increase = ((p['num_parameters'] - b['num_parameters']) / b['num_parameters']) * 100
         
-        print(f"\n" + "-"*60)
+        print("\n" + "-"*60)
         print("COMPARISON:")
         print(f"  Accuracy Improvement: {improvement:+.2f}%")
         print(f"  Error Reduction:      {error_reduction:.2f}%")
@@ -220,7 +220,7 @@ IMPROVEMENT:
     with open('results_summary.txt', 'w') as f:
         f.write(summary)
     
-    print(f"\n✓ Saved metrics summary to: results_summary.txt")
+    print("\n✓ Saved metrics summary to: results_summary.txt")
 
 
 def main():

@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
-import pickle
 
 from utils.pretrained_model import CNN14ESC50
 from utils.data_utils import load_preprocessed_data, create_dataloaders
@@ -91,10 +90,6 @@ def train_baseline(args):
     # Load preprocessed data
     print("\nLoading preprocessed data...")
     data_dict = load_preprocessed_data(args.data_dir)
-    
-    # Load label mapping
-    with open(os.path.join(args.data_dir, 'label_mapping.pkl'), 'rb') as f:
-        label_mapping = pickle.load(f)
     
     # Create dataloaders
     print("Creating dataloaders...")
