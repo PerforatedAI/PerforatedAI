@@ -1,8 +1,8 @@
 {
   "model": "Baseline CNN14",
-  "test_accuracy": 72.75,
-  "test_loss": 1.0269812872776618,
-  "best_val_accuracy": 86.25,
+  "test_accuracy": 70.0,
+  "test_loss": 1.2618401325665987,
+  "best_val_accuracy": 80.9375,
   "num_parameters": 1577394,
-  "epochs_trained": 78
+  "epochs_trained": 104
 }

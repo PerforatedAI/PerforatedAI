@@ -42,10 +42,10 @@ TRAINING = {
     'batch_size': 32,
     'learning_rate': 0.0001,  # Lower LR for fine-tuning pretrained model
     'weight_decay': 1e-5,  # Lower weight decay for pretrained models
-    'max_epochs': 100,  # Max epochs for both baseline and PAI
+    'max_epochs': 200,  # Max epochs for both baseline and PAI
     'patience': 15,  # Early stopping patience (increased for better models)
     'num_workers': 2,  # DataLoader workers
-    'pin_memory': True,
+    'pin_memory': False,  # Set to False for MPS (not supported on Apple Silicon)
 }
 
 # ============================================================================
