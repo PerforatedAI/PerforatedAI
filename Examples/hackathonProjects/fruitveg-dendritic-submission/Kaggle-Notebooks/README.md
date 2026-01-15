@@ -7,6 +7,7 @@ This repository contains a complete submission for the PyTorch Dendritic Optimiz
 
 I am the Lead AI Engineer at Quantilytix, and this project applies dendritic optimization to a grounded, real-world computer vision problem: fruit and vegetable recognition as a building block for street-level point-of-sale and inventory systems.
 
+### Project EdgeVision POS
 The core idea is simple and practical. A mobile phone camera becomes the POS interface for informal vendors. Incoming stock is scanned visually. Items are scanned again at the point of sale. Inventory and sales records are generated automatically, without barcodes, fixed infrastructure, or complex workflows.
 
 The submission includes two controlled experiments using the same backbone architecture:
@@ -44,9 +45,6 @@ This is where dendritic optimization becomes interesting. Rather than scaling up
 This project demonstrates that dendritic optimization can deliver meaningful accuracy gains in exactly this kind of constrained, real-world setting.
 
 ## Usage Instructions
-
-### Note
-During integration we encountered execution issues when enabling dendritic optimization, which left two viable paths using PerforatedAI’s standard gradient-descent dendrites (Path A) or enabling deeper perforated backpropagation (Path B). We chose Path A because it executed reliably, produced the required PerforatedAI results graph, and supported a clean, reproducible baseline comparison.
 
 The repository provides two runnable training scripts:
 
