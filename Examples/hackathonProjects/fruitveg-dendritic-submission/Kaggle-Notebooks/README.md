@@ -34,10 +34,10 @@ This project demonstrates that dendritic optimization can deliver meaningful acc
 
 The repository provides two runnable training scripts:
 
-- fruitveg_original.py  
+- fruitveg_original.ipynb  
   Baseline MobileNetV3-Small without dendrites
 
-- fruitveg_perforatedai_pathA.py  
+- fruitveg_perforatedai.ipynb
   MobileNetV3-Small with dendritic optimization using PerforatedAI (Path A, GD dendrites)
 
 ### Installation
@@ -69,34 +69,18 @@ The dendritic training script uses PerforatedAI’s required APIs, including:
 
 This submission is accuracy-focused, with a direct baseline versus dendritic comparison using the same architecture and training setup.
 
-### Validation Accuracy
+| Metric | Traditional (no dendrites) | Dendritic (PerforatedAI Path A, GD dendrites) |
+|--------|---------------------------|-----------------------------------------------|
+| **Validation Accuracy** | 95.16% (MobileNetV3-Small fine-tuned) | 97.44% (Four dendrites added) |
+| **Test Accuracy** | 95.26% | 97.49% |
+| **Error Rate** | 4.84% | 2.56% |
+| **Remaining Error Reduction (RER)** | — | 47.1% |
 
-Traditional (no dendrites):  
-95.16%  
-MobileNetV3-Small fine-tuned
+**RER Calculation:**
+- Baseline error: 100 - 95.16 = 4.84
+- Dendritic error: 100 - 97.44 = 2.56
+- RER: (4.84 - 2.56) / 4.84 = **47.1%**
 
-Dendritic (PerforatedAI Path A, GD dendrites):  
-97.44%  
-Four dendrites added
-
-### Test Accuracy
-
-Traditional model:  
-95.26%
-
-Dendritic model:  
-97.49%
-
-### Remaining Error Reduction (RER)
-
-Baseline error:  
-100 - 95.16 = 4.84
-
-Dendritic error:  
-100 - 97.44 = 2.56
-
-Remaining Error Reduction:  
-(4.84 - 2.56) / 4.84 = 47.1%
 
 In practical terms, dendritic optimization eliminated approximately 47% of the baseline model’s remaining validation error without changing the backbone architecture.
 
