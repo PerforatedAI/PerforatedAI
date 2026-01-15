@@ -106,7 +106,7 @@ The PerforatedAI-generated results graph is included as part of the submission a
 
 The graph is generated automatically by the PerforatedAI library and saved at:
 
-![PerforatedAI Results Graph](./PAI.png)
+![PerforatedAI Results Graph](../PAI.png)
 
 
 ## Weights and Biases Sweep Report
