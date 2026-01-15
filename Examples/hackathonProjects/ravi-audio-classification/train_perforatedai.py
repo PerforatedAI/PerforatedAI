@@ -229,6 +229,23 @@ def train_perforatedai(args):
             GPA.pai_tracker.add_extra_score(train_acc, 'Train')
             model.to(device)
             
+            # Evaluate on test set (for tracking only, not for training decisions)
+            model.eval()
+            test_correct = 0
+            test_total = 0
+            with torch.no_grad():
+                for inputs, labels in loaders['test']:
+                    inputs, labels = inputs.to(device), labels.to(device)
+                    outputs = model(inputs)
+                    _, predicted = outputs.max(1)
+                    test_total += labels.size(0)
+                    test_correct += predicted.eq(labels).sum().item()
+            test_acc = 100.0 * test_correct / test_total
+            
+            # Track test score BEFORE validation (per API recommendation)
+            GPA.pai_tracker.add_test_score(test_acc, 'Test Accuracy')
+            model.to(device)
+            
             # Validate (this handles PAI restructuring)
             model, optimizer, training_complete, restructured, val_loss, val_acc = validate(
                 model, loaders['val'], criterion, device, optimizer, args
@@ -240,6 +257,7 @@ def train_perforatedai(args):
             # Print metrics
             print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
             print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            print(f"Test Acc: {test_acc:.2f}%")
             print(f"Learning Rate: {current_lr:.6f}")
             print(f"Parameters: {UPA.count_params(model):,}")
             
@@ -339,7 +357,7 @@ def train_perforatedai(args):
     
     print(f"\nResults saved to: {results_path}")
     print(f"Best model saved to: {best_model_path}")
-    print(f"PAI output graphs saved to: PAI_CNN14/PAI_CNN14.png")
+    print("PAI output graphs saved to: PAI_CNN14/PAI_CNN14.png")
 
 
 if __name__ == '__main__':

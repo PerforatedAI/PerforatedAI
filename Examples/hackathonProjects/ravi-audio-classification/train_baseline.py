@@ -186,7 +186,7 @@ def train_baseline(args):
     print("Evaluating on test set...")
     test_results = evaluate_model(model, loaders['test'], criterion, device)
     
-    print(f"\nFinal Test Results:")
+    print("\nFinal Test Results:")
     print(f"Test Loss: {test_results['loss']:.4f}")
     print(f"Test Accuracy: {test_results['accuracy']:.2f}%")
     
