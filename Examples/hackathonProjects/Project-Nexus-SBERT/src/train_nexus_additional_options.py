@@ -101,8 +101,34 @@ def train(config=None):
         activation_function=nn.Identity() 
     )
     
+    # Add dropout and noise for regularization
+    print(f"🎲 Adding Dropout (p={config.dropout}) for regularization...")
+    if config.noise_std > 0:
+        print(f"🔊 Adding Gaussian Noise (std={config.noise_std}) for regularization...")
+    
+    # Wrap dense layer with dropout and noise - applies during training only
+    class RegularizationWrapper(nn.Module):
+        def __init__(self, module, dropout_rate, noise_std):
+            super().__init__()
+            self.module = module
+            self.dropout = nn.Dropout(p=dropout_rate)
+            self.noise_std = noise_std
+        
+        def forward(self, features):
+            output = self.module(features)
+            if 'sentence_embedding' in output:
+                # Apply dropout
+                output['sentence_embedding'] = self.dropout(output['sentence_embedding'])
+                # Add Gaussian noise during training only
+                if self.training and self.noise_std > 0:
+                    noise = torch.randn_like(output['sentence_embedding']) * self.noise_std
+                    output['sentence_embedding'] = output['sentence_embedding'] + noise
+            return output
+    
+    dense_model_with_dropout = RegularizationWrapper(dense_model, config.dropout, config.noise_std)
+    
     # Combine modules
-    model = SentenceTransformer(modules=[word_embedding_model, pooling_model, dense_model])
+    model = SentenceTransformer(modules=[word_embedding_model, pooling_model, dense_model_with_dropout])
     model.to(DEVICE)
 
     # 2. Dendritic Injection
@@ -160,6 +186,17 @@ def train(config=None):
     epoch = -1
     metrics = []
     
+    # Track max values per architecture (resets on dendrite switch)
+    max_val_score = 0
+    max_train_loss = float('inf')
+    max_params = 0
+    dendrite_count = 0
+    
+    # Track global max values (never reset)
+    global_max_val_score = 0
+    global_max_train_loss = float('inf')
+    global_max_params = 0
+    
     while True:
         epoch += 1
         
@@ -186,6 +223,8 @@ def train(config=None):
             
             loss_value = train_loss(features, labels)
             loss_value.backward()
+            # Gradient clipping to prevent exploding gradients and reduce overfitting
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             total_loss += loss_value.item()
 
@@ -219,16 +258,32 @@ def train(config=None):
         if config.use_dendrites:
             GPA.pai_tracker.add_extra_score(train_score*100, 'Train Spearman')
         
+        # Update max values if current epoch is better
+        if score > max_val_score:
+            max_val_score = score
+            max_train_loss = avg_loss
+            if config.use_dendrites:
+                max_params = UPA.count_params(model[2])
+            else:
+                max_params = sum(p.numel() for p in model.parameters())
+            global_max_val_score = score
+            global_max_train_loss = avg_loss
+            global_max_params = max_params
+        
         print(f"📊 Epoch {epoch} | Loss: {avg_loss:.4f} | Spearman: {score:.4f}")
         
-        # W&B Logging
+        # W&B Logging - Epoch level
         if WANDB_AVAILABLE:
             try:
-                wandb.log({
+                log_dict = {
                     "epoch": epoch,
-                    "train_loss": avg_loss,
-                    "val_spearman": score
-                })
+                    "Epoch Train Loss": avg_loss,
+                    "Epoch Val Spearman": score,
+                    "Epoch Param Count": UPA.count_params(model[2]) if config.use_dendrites else sum(p.numel() for p in model.parameters())
+                }
+                if config.use_dendrites:
+                    log_dict["Epoch Dendrite Count"] = GPA.pai_tracker.member_vars["num_dendrites_added"]
+                wandb.log(log_dict)
             except:
                 pass
 
@@ -251,7 +306,7 @@ def train(config=None):
 
         # Dendritic Evolution Logic
         if config.use_dendrites:
-            model[2], restructured, training_complete = GPA.pai_tracker.add_validation_score(score * 100, model[2])
+            model[2].module, restructured, training_complete = GPA.pai_tracker.add_validation_score(score * 100, model[2].module)
             
             if restructured:
                 print(">>> ⚡ DENDRITES ACTIVATED! Architecture Evolved. ⚡ <<<")
@@ -260,20 +315,79 @@ def train(config=None):
                 # Re-register optimizer with PAI tracker
                 GPA.pai_tracker.member_vars["optimizer_instance"] = optimizer
                 
-                if WANDB_AVAILABLE:
-                    try:
-                        wandb.log({"dendrite_restructure": epoch})
-                    except:
-                        pass
+                # Log architecture-level metrics when dendrite switches
+                # This happens when entering 'n' mode AND dendrite count has increased
+                if (GPA.pai_tracker.member_vars["mode"] == 'n' and 
+                    (dendrite_count != GPA.pai_tracker.member_vars["num_dendrites_added"])):
+                    print(f'📈 Logging Arch metrics for Dendrite {GPA.pai_tracker.member_vars["num_dendrites_added"]-1}')
+                    print(f'   Max Val Spearman: {max_val_score:.4f}')
+                    print(f'   Max Train Loss: {max_train_loss:.4f}')
+                    print(f'   Param Count: {max_params}')
+                    
+                    dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
+                    
+                    if WANDB_AVAILABLE:
+                        try:
+                            wandb.log({
+                                "dendrite_restructure": epoch,
+                                "Arch Max Val Spearman": max_val_score,
+                                "Arch Max Train Loss": max_train_loss,
+                                "Arch Param Count": max_params,
+                                "Arch Dendrite Count": GPA.pai_tracker.member_vars["num_dendrites_added"] - 1
+                            })
+                        except:
+                            pass
                 
             if training_complete:
                 print("🏆 Training Complete per PAI.")
                 break
         
         # Save Checkpoints
-        if epoch > 0:
-            save_path = f"{config.save_dir}/checkpoint_epoch_{epoch}"
-            model.save(save_path)
+#        if epoch > 0:
+#            save_path = f"{config.save_dir}/checkpoint_epoch_{epoch}"
+#            model.save(save_path)
+    
+    # Log final architecture metrics if in dendritic mode and hit max dendrites
+    if config.use_dendrites:
+        max_dendrites_config = GPA.pc.get_max_dendrites()
+        current_dendrites = GPA.pai_tracker.member_vars["num_dendrites_added"]
+        
+        # Log Arch metrics one more time if we stopped at max dendrites or in non-dendritic mode
+        if (config.dendrite_mode == 0 if hasattr(config, 'dendrite_mode') else False) or max_dendrites_config == current_dendrites:
+            print(f'📈 Logging final Arch metrics')
+            if WANDB_AVAILABLE:
+                try:
+                    wandb.log({
+                        "Arch Max Val Spearman": max_val_score,
+                        "Arch Max Train Loss": max_train_loss,
+                        "Arch Param Count": max_params,
+                        "Arch Dendrite Count": current_dendrites
+                    })
+                except:
+                    pass
+    
+    # Log Final summary metrics
+    print("\n" + "="*60)
+    print("🏆 FINAL RESULTS SUMMARY")
+    print("="*60)
+    print(f"Final Max Val Spearman:  {global_max_val_score:.4f}")
+    print(f"Final Max Train Loss:    {global_max_train_loss:.4f}")
+    print(f"Final Param Count:       {global_max_params}")
+    if config.use_dendrites:
+        print(f"Final Dendrite Count:    {GPA.pai_tracker.member_vars['num_dendrites_added']}")
+    print("="*60 + "\n")
+    
+    if WANDB_AVAILABLE:
+        try:
+            wandb.log({
+                "Final Max Val Spearman": global_max_val_score,
+                "Final Max Train Loss": global_max_train_loss,
+                "Final Param Count": global_max_params
+            })
+            if config.use_dendrites:
+                wandb.log({"Final Dendrite Count": GPA.pai_tracker.member_vars["num_dendrites_added"]})
+        except:
+            pass
     
     # Final save
     final_path = f"{config.save_dir}/final_model"
@@ -304,6 +418,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=2e-5, help="Learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay")
     parser.add_argument("--warmup_epochs", type=int, default=6, help="Epochs before allowing dendrites to spawn")
+    parser.add_argument("--dropout", type=float, default=0.3, help="Dropout rate for regularization")
+    parser.add_argument("--noise_std", type=float, default=0.0, help="Gaussian noise std for embedding regularization (try 0.01-0.05)")
     parser.add_argument("--save_dir", type=str, default="experiments/default_run", help="Directory to save output")
     parser.add_argument("--wandb_project", type=str, default="PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src", help="W&B project name")
     args = parser.parse_args()
