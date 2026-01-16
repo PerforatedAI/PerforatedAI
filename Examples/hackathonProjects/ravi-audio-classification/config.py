@@ -37,7 +37,7 @@ TRAINING = {
     'batch_size': 32,
     'learning_rate': 0.0001,
     'weight_decay': 1e-5,
-    'max_epochs': 200,
+    'max_epochs': 25,
     'patience': 15,  # Early stopping patience
 }
 
