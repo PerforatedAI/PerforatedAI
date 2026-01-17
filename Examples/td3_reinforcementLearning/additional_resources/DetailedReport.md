@@ -4,8 +4,8 @@
 
 Here's a [wandb report](https://api.wandb.ai/links/nmesac1019-carnegie-mellon-university/i3qyt4i6) that goes over the results in more depth!
 
-## Future Work: Ablation Study
-Due to time constraints, we were not able to fully perform an ablation study to see the effect of dendrites on model compression, and we leave this to future work.
+## Future Work: Model Compression
+Due to time constraints, we were not able to fully perform a study to see the effect of dendrites on model compression, and we leave this to future work.
 
 ## Impact and Importance
 Deep Reinforcement Learning (DRL) has two major paradigms: Model Free and Model Based Methods. Model Free methods, such as TD3, learn a policy directly from the environment and do not try to model the environment itself. Model Based Methods jointly learn a policy to act in the environment and a model of the environment, commonly known as world models. This model is typically used to either provide synthetic data for efficient policy training, to decrease the dimensionality of the observation space, or to enable planning. All of these uses serve to improve the policy network's sample efficiency and generalization. Artificial Dendrite Networks (ADNs) are useful for DRL in both of these paradigms due to their ability to increase expected return and enable model compression without sacrificing accuracy. These properties are particularly valuable for world models, where maintaining accuracy is critical to avoid the policy exploiting model errors, and for policies, where compression enables more efficient learning under compute constraints.
