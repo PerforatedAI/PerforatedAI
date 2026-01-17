@@ -34,10 +34,6 @@ Validation scores of original and dendrite-optimized networks:
 
 !["Return Improvement Graph"](avg_return_improvement.png "Average Return Improvement")
 
-Model compression of the original network, a network with 50% of the original width, and a network with 50% of the original width plus dendrites:
-
-!["Model Compression Graph"](model_compression.png "Model Compression")
-
 Exact graph that gets generated within the output folder:
 
 !["PAI Output"](PAI.png "PAI Output")
@@ -46,5 +42,5 @@ Exact graph that gets generated within the output folder:
 
 Within the additional_resources folder, the following are provided:
 
- 1. A deep dive into both the results and the reason why Dendritic Optimization would be useful for Deep Reinforcement Learning.
+ 1. A deep dive into the results and the reason why Dendritic Optimization would be useful for Deep Reinforcement Learning.
  2. A short explanation on how to use multiple optimizers with Perforated AI.

@@ -10,6 +10,7 @@
 Imports
 """
 import os
+os.environ['MUJOCO_GL'] = 'egl'
 import copy
 import torch
 import wandb
@@ -87,49 +88,6 @@ class Pair(nn.Module):
         self.actor  = actor
         self.critic = critic
 
-
-"""
-Explanation for multiple optimizers
-
-1. Why don't you add multiple optimizer/scheduler support?
-    - The PAI code base assumes a single optimizer/scheduler. There are actually type hints in the tracker file that imply
-    support for multiple optimizers and schedulers, but it doesn't quite work out that way. PAI manages much of its
-    state globally, and as a result, even if we had multiple optimizers and schedulers attached to the pai_tracker object,
-    they would reduce to all being the same optimizer and scheduler. This is because the optimizers and schedulers would update
-    based on the same logic and on the same global state, of which there is only 1. Theoretically, the code base could be rewritten
-    to natively support multiple optimizers/schedulers, but that was out of scope for me. Furthermore, I believe it would be inefficient
-    as I will detail below a much more effective way of achieving the same goal.
-
-2. Why don't you just duplicate the tracker logic in a seperate class?
-    - I spent a long time attempting this, but its actually redundant. The global state that PAI manages is a mix of
-    open source and closed source functions and statistics. These functions are critical, as they related to the dendrites and
-    the optimization of them. This means that you cannot fully rewrite the tracker to be local. One might simply make the
-    compromise of calling the global state functions where necessary to make a local rewrite possible. This seems reasonable,
-    but there is a catch. Assume we have 2 networks for an RL task, an Actor and a Critic, and we want to maximize reward. 
-    We can setup the optimizer to have seperate LR's for each network, so the only difference would be the Scheduler. However,
-    the Scheduler specifically would rely on shared global statistics that both the Actor and Critic would use to step their own
-    Schedulers. However, this means that by using the same global statistics for the Actor and Critic, the schedulers would
-    step at the same time and by the same factor because they use the same statistics to determine how to update the LR!
-    As a result, there is no real point in manage 2 seperate schedulers, and it would be easier to just leverage the PAI scheduler!
-
-3. So how do I manage multiple optimizers / schedulers?
-    - Managing multiple optimizers + schedulers is quite easy once you understand how PAI handles all the logic and how 
-    PyTorch manages optimizers and schedulers. The outline is as follows:
-        1. Initialize the optimizer to have seperate param groups for each model.
-        2. Ensure the main network of interest (ex: Actor in an Actor-Critic setup) is the last param group passed to the optimizer.
-            a. This is due to a programming quirk in the PAI library, where they iterate through the library and use the last
-            param_group's learning rate for various purposes. This just ensures the most important network's information is being tracked.
-        3. Setup 2 helper functions so that gradients are disabled / cleared for one model when we step the other model.
-            a. This might seem annoying and redundant, but its the easiest way to let PAI manage the LR for us.
-
-    - Something to note is that we have implicitly assumed we are using the same optimizer and schedulers for both models, not mixing
-    and matching. I did not attempt this in all my efforts, but if you wanted to mix and match, it wouldn't be too difficult all things considered.
-    If your scheduler is not ReduceLROnPlateau, PAI wouldn't be super helpful as a lot of its logic is built around that type of scheduler.
-    If you want to use different optimizers, I would just manage the optimizer myself, and whenever there is a new LR after a restructuring call,
-    I would update my optimizer as necessary.
-"""
-
-
 #
 """
 Twin Delayed DDPG (TD3)
@@ -194,7 +152,8 @@ class TD3:
         exploration_noise=0.1,
         batch_size=128,
         warmup_steps=5000,
-        dendrites=False,
+        threshold=0.01,
+        threshold_raw=10
     ):
         self.device = device
 
@@ -210,7 +169,7 @@ class TD3:
         self.batch_size = batch_size
         self.warmup_steps = warmup_steps
         self.lr = lr
-        self.dendrites = dendrites
+        self.hidden_dim = hidden_dim
 
         # Training State
         self.total_steps = 0
@@ -227,7 +186,14 @@ class TD3:
 
         # Perforated AI Initialization
         pai_model = Pair(actor, critic)
-        pai_model = UPA.initialize_pai(pai_model, doing_pai=dendrites)
+        pai_model = UPA.initialize_pai(
+            pai_model, 
+            save_name=f'alt_PAI_{hidden_dim}',
+        )
+
+        # NOTE: Adjusting these values is RL task dependent
+        GPA.pc.set_improvement_threshold(threshold)
+        GPA.pc.set_improvement_threshold_raw(threshold_raw)
 
         self.actor     = pai_model.actor
         self.critic    = pai_model.critic
@@ -243,7 +209,7 @@ class TD3:
                 {"params": list(pai_model.actor.parameters()), "lr": lr}           
             ]
         }
-        schedArgs = {'mode':'max', 'patience': 5} # We want to maximize the avg_return
+        schedArgs = {'mode':'max', 'patience': 2} # We want to maximize the avg_return
 
         optimizer, _    = GPA.pai_tracker.setup_optimizer(pai_model, optimArgs, schedArgs)
         self.actor_opt  = optimizer
@@ -271,22 +237,22 @@ class TD3:
 
     def save(self, filename):
         # Critics
-        torch.save(self.critic.state_dict(), filename + "_critic.pt")
-        torch.save(self.critic_opt.state_dict(), filename + "_critic_opt.pt")
+        torch.save(self.critic.state_dict(), filename + "_critic_" + "_pai_" + f"{self.hidden_dim}" + ".pt")
+        torch.save(self.critic_opt.state_dict(), filename + "_critic_opt_" + "_pai_" + f"{self.hidden_dim}" + ".pt")
 
         # Actor
-        torch.save(self.actor.state_dict(), filename + "_actor.pt")
-        torch.save(self.actor_opt.state_dict(), filename + "_actor_opt.pt")
+        torch.save(self.actor.state_dict(), filename + "_actor_" + "_pai_" + f"{self.hidden_dim}" + ".pt")
+        torch.save(self.actor_opt.state_dict(), filename + "_actor_opt_" + "_pai_" + f"{self.hidden_dim}" + ".pt")
 
     def load(self, filename):
         # Critics
-        self.critic.load_state_dict(torch.load(filename + "_critic.pt"))
+        self.critic.load_state_dict(torch.load(filename + "_critic_" + "_pai_" + f"{self.hidden_dim}" + ".pt"))
+        self.critic_opt.load_state_dict(torch.load(filename + "_critic_opt_" + "_pai_" + f"{self.hidden_dim}" + ".pt"))
         self.target_critic = copy.deepcopy(self.critic)
-        self.critic_opt.load_state_dict(torch.load(filename + "_critic_opt.pt"))
 
         # Actor
-        self.actor.load_state_dict(torch.load(filename + "_actor.pt"))
-        self.actor_opt.load_state_dict(torch.load(filename + "_actor_opt.pt"))
+        self.actor.load_state_dict(torch.load(filename + "_actor_" + "_pai_" + f"{self.hidden_dim}" + ".pt"))
+        self.actor_opt.load_state_dict(torch.load(filename + "_actor_opt_" + "_pai_" + f"{self.hidden_dim}" + ".pt"))
         self.target_actor = copy.deepcopy(self.actor)
 
     @torch.no_grad()
@@ -490,7 +456,9 @@ def run(args):
     PAI Setup
     """
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)  # When to switch between PAI and regular learning
-    GPA.pc.set_verbose(False)
+    GPA.pc.set_n_epochs_to_switch(args.n_epochs_to_switch)
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_verbose(True)
 
 
     #
@@ -528,7 +496,6 @@ def run(args):
             "delay": args.delay,
             "noise_clip": args.noise_clip,
             "exploration_noise": args.exploration_noise,
-            "dendrites": args.dendrites,
         }
     )
 
@@ -549,7 +516,8 @@ def run(args):
             exploration_noise=args.exploration_noise, # Noise to help policy explore
             batch_size=args.batch_size,
             warmup_steps=args.warmup_steps,
-            dendrites=args.dendrites,
+            threshold=args.threshold,
+            threshold_raw=args.threshold_raw
         )
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -710,8 +678,9 @@ def run(args):
                 print(f"New best model saved! Return: {mean_r:.1f}")
 
             # Perform Perforated AI Validation
+            # NOTE: We use the LCB (mean - std) to measure performance => Helps stabilize performance
             pai_model, restructured, pai_training_complete = (
-                GPA.pai_tracker.add_validation_score(mean_r, agent.pai_model)
+                GPA.pai_tracker.add_validation_score(mean_r - std_r, agent.pai_model)
             )
             agent.pai_model = pai_model
             agent.actor     = pai_model.actor
@@ -721,15 +690,11 @@ def run(args):
             agent.target_actor   = UPA.deep_copy_pai(agent.actor)
             agent.target_critic  = UPA.deep_copy_pai(agent.critic)
 
-            # Only use pai output if dendrites are enabled
-            pai_training_complete = (pai_training_complete and agent.dendrites)
-
             if pai_training_complete:
                 print("PAI determined training is complete after: " + str(total_steps) + " steps")
                 break
             elif restructured:
-                if agent.dendrites:
-                    print("Model was restructured by Perforated AI")
+                print("Model was restructured by Perforated AI")
 
                 # Reset optimizer with the same parameters used initially
                 optimArgs = {
@@ -738,7 +703,7 @@ def run(args):
                         {"params": list(pai_model.actor.parameters()), "lr": agent.lr}           
                     ]
                 }
-                schedArgs = {'mode':'max', 'patience': 5}
+                schedArgs = {'mode':'max', 'patience': 2}
 
                 optimizer, _    = GPA.pai_tracker.setup_optimizer(pai_model, optimArgs, schedArgs)
                 agent.actor_opt  = optimizer
@@ -782,8 +747,9 @@ def run(args):
         
         print("Final evaluation...")
         with torch.no_grad():
+            # NOTE: Increase the number of eval episodes for the final evaluation
             mean_r, std_r = evaluate_policy(
-                    agent, args.domain_name, args.task_name, args.eval_episodes, 68000
+                    agent, args.domain_name, args.task_name, 2 * args.eval_episodes, 68000
                 )
         print(f"Final performance: {mean_r:.1f} ± {std_r:.1f}")
         log["eval_mean"].append(mean_r)
@@ -798,6 +764,29 @@ def run(args):
         wandb.run.summary["final_mean_return"] = mean_r
         wandb.run.summary["final_std_return"] = std_r
 
+        # Record a final video
+        print(f"Recording final video...")
+        name = f"{args.video_prefix}_best"
+        try:
+            with torch.no_grad():
+                path = record_eval_video(
+                    agent, 
+                    video_dir=args.video_dir, 
+                    video_name=name,
+                    domain_name=args.domain_name, 
+                    task_name=args.task_name, 
+                    seed=68000,
+                    ep_idx=ep_idx
+                )
+            print(f"Video saved: {path}")
+            wandb.log({
+                "video/best": wandb.Video(path, fps=30, format="mp4")
+            }, step=total_steps)
+        except Exception as e:
+            print(f"Video recording failed: {e}")
+            import traceback
+            traceback.print_exc()
+
     # Final cleanup and saving
     print(f"\nTraining completed! Total steps: {total_steps}")
     print(f"Total updates: {updates_performed - 1}")
@@ -807,8 +796,13 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Dendrite Augmented Twin Delayed DDPG (TD3)")
 
-    # Dendrite Flag
-    parser.add_argument("--dendrites", action="store_true", help="Enable PAI Dendrites")
+    # Dendrite Params
+    parser.add_argument("--threshold", type=float, default=0.01,
+                        help="The relative amount a model has to improve by for tracking dendrites")
+    parser.add_argument("--raw_threshold", type=float, default=10,
+                        help="The raw amount a model has to improve by for tracking dendrites")
+    parser.add_argument("--n_epochs_to_switch", type=int, default=4,
+                        help="The number of no improvement epochs before restructuring")
 
     # Environment
     parser.add_argument("--domain_name", type=str, default='cheetah',
@@ -817,7 +811,7 @@ if __name__ == '__main__':
                         help="Environment Task Name")
 
     # Training
-    parser.add_argument("--total_steps", type=int, default=500000,
+    parser.add_argument("--total_steps", type=int, default=2000000,
                    help="Total environment steps")
     parser.add_argument("--seed", type=int, default=8008,
                    help="Random seed")
@@ -827,11 +821,11 @@ if __name__ == '__main__':
                    help="Learning rate")
     parser.add_argument("--gamma", type=float, default=0.99,
                    help="Discount factor")
-    parser.add_argument("--batch_size", type=int, default=128,
+    parser.add_argument("--batch_size", type=int, default=256,
                    help="Batch size")
-    parser.add_argument("--buffer_size", type=int, default=100000,
+    parser.add_argument("--buffer_size", type=int, default=1000000,
                    help="Replay buffer size")
-    parser.add_argument("--warmup_steps", type=int, default=5000,
+    parser.add_argument("--warmup_steps", type=int, default=10000,
                    help="Steps before starting updates")
     parser.add_argument("--hidden_dim", type=int, default=256,
                    help="Hidden Dimension for Actors+Critics")
@@ -841,7 +835,7 @@ if __name__ == '__main__':
                    help="Target network soft update rate")
     parser.add_argument("--policy_noise", type=float, default=0.2,
                    help="TD3 target policy smoothing noise std")
-    parser.add_argument("--delay", type=float, default=2,
+    parser.add_argument("--delay", type=int, default=2,
                    help="TD3 target policy delay")
     parser.add_argument("--noise_clip", type=float, default=0.5,
                    help="TD3 target policy noise clip")
