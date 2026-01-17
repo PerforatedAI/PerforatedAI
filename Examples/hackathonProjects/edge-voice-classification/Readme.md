@@ -81,26 +81,6 @@ This project demonstrates that Dendritic Optimization improves voice recognition
 - Training: 100 epochs, Adam optimizer, ReduceLROnPlateau scheduler
 - Dataset: Google Speech Commands V2 (10 classes, 4,074 test samples per scenario)
 
-### Remaining Error Reduction
-
-**Clean Audio:**
-- Error reduced from 19.93% → 14.78%
-- **Remaining Error Reduction: 25.8%**
-
-**Low Volume (Most Challenging):**
-- Error reduced from 36.70% → 29.26%
-- **Remaining Error Reduction: 20.3%**
-
-**Noisy Environment:**
-- Error reduced from 26.53% → 18.53%
-- **Remaining Error Reduction: 30.2%** ✅ **Best improvement!**
-
-**Challenging (Both):**
-- Error reduced from 44.40% → 37.60%
-- **Remaining Error Reduction: 15.3%**
-
-**Average Remaining Error Reduction: 22.9%**
-
 ### Model Compression for Edge Deployment
 
 While this is primarily an accuracy improvement project, we also demonstrate edge deployment feasibility:
