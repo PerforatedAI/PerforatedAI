@@ -54,20 +54,8 @@ The project compares two architectures side-by-side using the MNIST and CIFAR-10
 
 ## Results & Observations
 
-### Performance Comparison (Typical Results)
-
-| Metric | Baseline | Dendritic (PAI) |
-| :--- | :--- | :--- |
-| **Accuracy** | ~98.0% | ~98.1% |
-| **Total Params** | 269,322 | 269,322 |
-| **Active Params** | 269,322 (100%) | **~80,796 (~30%)** |
-| **Sparsity** | 0% | **~70%** |
-| **Inference Latency** | 1.0x | **0.6x (Faster)** |
-
-*Note: Results may vary slightly based on random seed and hardware.*
-
-### Visuals
-The training process automatically generates an optimization graph showing the validation accuracy alongside the sparsity progression.
+### Dendritic Optimization Dynamics
+The training process automatically generates an optimization graph showing the validation accuracy alongside the sparsity progression. This graph illustrates the transition from dense learning to dendritic optimization. As the model identifies salient features, it dynamically "perforates" the network, maintaining or even improving accuracy while significantly reducing the number of active parameters.
 
 ![PerforatedAI Optimization Graph](PAI/PAI.png)
 
