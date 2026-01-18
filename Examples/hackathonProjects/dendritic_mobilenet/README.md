@@ -61,19 +61,7 @@ This project is configured to run a **WandB Sweep** automatically. The `train.py
 
 *Note: Baseline accuracy is from the model before dendritic switching. Dendritic results are from our actual hackathon training runs.*
 
-### Variable Dataset Split Benchmark
-We evaluated the model's performance on smaller subsets of CIFAR-10 to test data efficiency.
 
-**Benchmark Results (1 Epoch):**
-| Split % | Standard Acc | Dendritic Acc | Delta |
-| :--- | :--- | :--- | :--- |
-| **10%** | 73.31% | **75.52%** | **+2.21%** |
-| **25%** | **86.03%** | 78.86% | -7.17% |
-| **50%** | 84.13% | **88.45%** | **+4.32%** |
-| **75%** | **87.75%** | 82.74% | -5.01% |
-| **100%** | **89.07%** | 88.64% | -0.43% |
-
-*Note: Due to time constraints, the split benchmark was run for 1 epoch. The data demonstrates that Dendritic models can achieve higher accuracy with less data in certain regimes (e.g., 10% and 50% splits).*
 
 ### Remaining Error Reduction
 Moving from 89.23% accuracy (10.77% error) to 91.42% accuracy (8.58% error) represents a significant reduction in error.
