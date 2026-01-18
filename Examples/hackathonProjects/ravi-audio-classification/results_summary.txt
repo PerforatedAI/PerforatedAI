@@ -1,0 +1,20 @@
+ESC-50 Audio Classification Results
+============================================================
+
+BASELINE CNN14:
+  Test Accuracy:    68.50%
+  Val Accuracy:     80.31%
+  Parameters:       1,577,394
+  Epochs Trained:   123
+
+PERFORATED AI CNN14:
+  Test Accuracy:    71.00%
+  Val Accuracy:     80.94%
+  Parameters:       4,733,392
+  Epochs Trained:   200
+  Dendrites Added:  2
+
+IMPROVEMENT:
+  Accuracy Improvement: +2.50%
+  Error Reduction:      7.94%
+  Parameter Increase:   +200.1%

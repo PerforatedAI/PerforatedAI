@@ -4,6 +4,8 @@ Train baseline CNN14 model without dendrites on ESC-50.
 import os
 import json
 import argparse
+import random
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,6 +15,17 @@ from utils.pretrained_model import CNN14ESC50
 from utils.data_utils import load_preprocessed_data, create_dataloaders
 from utils.metrics import evaluate_model, plot_confusion_matrix
 import config
+
+
+def set_seed(seed):
+    """Set random seeds for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -72,7 +85,12 @@ def validate(model, dataloader, criterion, device):
 
 def train_baseline(args):
     """Main training function"""
-    
+
+    # Set random seed for reproducibility
+    seed = config.PREPROCESSING['random_state']
+    set_seed(seed)
+    print(f"Random seed set to {seed} for reproducibility")
+
     # Create directories
     os.makedirs(config.MODELS_DIR, exist_ok=True)
     

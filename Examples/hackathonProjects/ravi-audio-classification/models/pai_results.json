@@ -1,0 +1,11 @@
+{
+  "model": "PAI_CNN14",
+  "test_accuracy": 71.0,
+  "test_loss": 1.245991519519261,
+  "best_val_accuracy": 80.9375,
+  "num_parameters": 4733392,
+  "epochs_trained": 200,
+  "dendrites_added": 2,
+  "data_fraction": 1.0,
+  "train_samples": 1280
+}
