@@ -71,8 +71,8 @@ We conducted two distinct experimental phases to evaluate the **Perforated AI (P
 
 | **Exploration Strategy** | **Growth Analysis** |
 | :---: | :---: |
-| ![Epsilon Decay](results/epsilon.png) | ![PAI Growth](results/pai_performance.png) |
-| *Figure 3: Epsilon Decay over Time* | *Figure 4: Structural Expansion* |
+| ![Epsilon Decay](results/epsilon.png) | 
+| *Figure 3: Epsilon Decay over Time* | 
 
 
 In our initial short-horizon tests, we focused on "Learning Efficiency"—the speed at which an agent can navigate a simple obstacle course without collisions.
