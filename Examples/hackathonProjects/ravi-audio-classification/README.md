@@ -12,18 +12,25 @@ Ravi Rai - ML/AI Engineer - https://www.linkedin.com/in/ravibrai/
 
 ## Project Impact
 
-Environmental sound classification is useful for numerous real-world applications including smart cities (detecting traffic patterns, emergency vehicles), wildlife monitoring (identifying species by calls), healthcare (detecting distress sounds, fall detection for elderly care), and assistive technology for hearing-impaired individuals. Improved accuracy in sound classification ensures better reliability in detecting critical sounds like alarms, glass breaking, or baby crying, which can trigger appropriate responses in automated safety and monitoring systems. Even small improvements in accuracy can significantly impact the reliability of these systems in high-stakes scenarios. A 15% error reduction means 15% fewer missed detections or false alarms in safety-critical applications.
+Environmental sound classification is useful for numerous real-world applications like smart cities (detecting traffic patterns, emergency vehicles), wildlife monitoring (identifying species by calls), and healthcare (detecting distress sounds, fall detection for elderly care). These systems are sometimes deployed on resource-constrained edge devices like IoT sensors, smart speakers, and hearing aids. As such, accuracy improvements on smaller models are beneficial, as opposed to large transformer models or similer. By improving the accuracy of smaller CNN models with dendrites, we can boost competitive performance on edge devices while maintaining real-time, low-power operation. For example, a 15% error reduction means 15% fewer missed detections or false alarms in safety-critical applications or high-stakes environments.
 
-## Usage Instructions - Required
+## Usage Instructions
 
-Installation:
+### Installation:
 
 ```bash
+# Install PerforatedAI from repository root
+cd /path/to/PerforatedAI
+uv pip install -e .
+
+# Install project dependencies
 cd Examples/hackathonProjects/ravi-audio-classification
-pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
-Dataset Download:
+### Dataset Download:
+
+Make sure you are still in `Examples/hackathonProjects/ravi-audio-classification` first before running these.
 
 ```bash
 mkdir -p data && cd data
@@ -32,16 +39,20 @@ unzip esc50.zip && mv ESC-50-master ESC-50 && rm esc50.zip
 cd ..
 ```
 
-Verify Setup (optional):
+Alternatively, you can download the dataset here: https://github.com/karolpiczak/ESC-50?tab=readme-ov-file and just unzip into `Examples/hackathonProjects/ravi-audio-classification/data`.
+
+### Verify Setup (optional):
+
+This might be helpful to make sure everything works, and verify your local GPU is available if you have one (note: training may take a while to run if no GPU is avialable - it takes about 1 hour on Apple's M4 Pro chip.)
 
 ```bash
 python verify_setup.py
 ```
 
-Run:
+### How to Run:
 
 ```bash
-# Step 1: Preprocess audio to mel-spectrograms (~2 minutes)
+# Step 1: Preprocess audio to mel-spectrograms (~1 minutes)
 python preprocess.py
 
 # Step 2: Train baseline model (~1-2 hours)
@@ -54,9 +65,9 @@ python train_perforatedai.py
 python compare_results.py
 ```
 
-## Results - Required
+## Results
 
-This ESC-50 project shows that Dendritic Optimization can improve accuracy on environmental sound classification. Comparing the best traditional model to the best dendritic model:
+This ESC-50 project shows that adding dendrites can improve accuracy on environmental sound classification. Comparing the best baseline model to the best dendritic model:
 
 | Model        | Test Accuracy | Validation Accuracy | Parameters | Notes |
 |--------------|---------------|---------------------|------------|-------|
@@ -65,9 +76,9 @@ This ESC-50 project shows that Dendritic Optimization can improve accuracy on en
 
 This provides a **Remaining Error Reduction of 15.25%**.
 
-The error dropped from 29.5% to 25.0%, meaning dendrites eliminated 15.25% of the original classification errors. This is a significant improvement on ESC-50, which is known to be a challenging environmental sound classification benchmark with 50 classes.
+The error dropped from 29.5% to 25.0%, meaning dendrites eliminated 15.25% of the original classification errors. This is a significant improvement on ESC-50, which is a fair challenge given 50 different classes in the dataset.
 
-## Raw Results Graph - Required
+### Raw Results Graph
 
 ![PAI Training Output](./PAI_CNN14.png)
 

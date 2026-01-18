@@ -15,7 +15,7 @@ from tqdm import tqdm
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
-from utils.pretrained_model import CNN14ESC50
+from utils.model import CNN14ESC50
 from utils.data_utils import load_preprocessed_data, create_dataloaders
 from utils.metrics import evaluate_model, plot_confusion_matrix, calculate_error_reduction
 import config
