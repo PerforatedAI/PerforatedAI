@@ -49,13 +49,21 @@ def load_data():
             label=float(row['score']) / 5.0
         ))
         
-    evaluator = EmbeddingSimilarityEvaluator(
+    val_evaluator = EmbeddingSimilarityEvaluator(
         [x['sentence1'] for x in dataset['validation']],
         [x['sentence2'] for x in dataset['validation']],
         [float(x['score'])/5.0 for x in dataset['validation']],
         name='sts-dev'
     )
-    return train_examples, evaluator
+    
+    train_evaluator = EmbeddingSimilarityEvaluator(
+        [x['sentence1'] for x in dataset['train']],
+        [x['sentence2'] for x in dataset['train']],
+        [float(x['score'])/5.0 for x in dataset['train']],
+        name='sts-train'
+    )
+    
+    return train_examples, val_evaluator, train_evaluator
 
 def train(config=None):
     # Initialize W&B if available
@@ -139,7 +147,7 @@ def train(config=None):
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
     # 3. Training Loop
-    train_examples, evaluator = load_data()
+    train_examples, val_evaluator, train_evaluator = load_data()
     train_dataloader = DataLoader(
         train_examples, 
         shuffle=True, 
@@ -170,30 +178,46 @@ def train(config=None):
         for i, batch in enumerate(train_dataloader):
             optimizer.zero_grad()
             features, labels = batch
+            
+            # Move batch data to device
+            features = [{k: v.to(DEVICE) if isinstance(v, torch.Tensor) else v 
+                        for k, v in feature.items()} for feature in features]
+            labels = labels.to(DEVICE)
+            
             loss_value = train_loss(features, labels)
             loss_value.backward()
             optimizer.step()
             total_loss += loss_value.item()
 
-        # Validation
+        # Validation - move to CPU for evaluation to avoid device mismatch
         model.eval()
         with torch.no_grad():
-            raw_score = evaluator(model)
+            # Temporarily move model to CPU for evaluation
+            model.to('cpu')
+            raw_val_score = val_evaluator(model)
+            raw_train_score = train_evaluator(model)
+            # Move back to training device
+            model.to(DEVICE)
         
-        if isinstance(raw_score, dict):
-            score = raw_score.get("sts-dev_spearman_cosine")
+        if isinstance(raw_val_score, dict):
+            score = raw_val_score.get("sts-dev_spearman_cosine")
             if score is None:
-                score = next(iter(raw_score.values()))
+                score = next(iter(raw_val_score.values()))
         else:
-            score = raw_score
+            score = raw_val_score
+            
+        if isinstance(raw_train_score, dict):
+            train_score = raw_train_score.get("sts-train_spearman_cosine")
+            if train_score is None:
+                train_score = next(iter(raw_train_score.values()))
+        else:
+            train_score = raw_train_score
 
         avg_loss = total_loss / len(train_dataloader)
         
-        # Track training SCORE for PAI visualization (Rorry's suggestion - makes overfitting visible)
-        # Note: For accurate training score, you should evaluate on training data here
-        # For now, using validation score as a proxy - see train_nexus_v2.py for full implementation
+        # Track training spearman score for PAI visualization
         if config.use_dendrites:
-            GPA.pai_tracker.add_extra_score(score * 100, 'Train Score')
+            GPA.pai_tracker.add_extra_score(train_score*100, 'Train Spearman')
         
         print(f"📊 Epoch {epoch} | Loss: {avg_loss:.4f} | Spearman: {score:.4f}")
         
