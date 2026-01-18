@@ -66,12 +66,12 @@ We conducted two distinct experimental phases to evaluate the **Perforated AI (P
 
 | **Benchmark: PAI vs. Baselines** | **Stability Profile (Double DQN)** |
 | :---: | :---: |
-| ![q_value](results/q_value.png) | ![Stability Profile](results/double_dqn_profile.png) |
+| ![q_value](results/q_value.png) | ![Stability Profile](results/pai_loss_plot.png) |
 | *Figure 1: Short-term  Comparison* | *Figure 2: Stability Analysis* |
 
 | **Exploration Strategy** | **Growth Analysis** |
 | :---: | :---: |
-| ![Epsilon Decay](results/epsilon.png) | ![PAI Growth](results/pai_deep_analysis.png) |
+| ![Epsilon Decay](results/epsilon.png) | ![PAI Growth](results/pai_performance.png) |
 | *Figure 3: Epsilon Decay over Time* | *Figure 4: Structural Expansion* |
 
 
