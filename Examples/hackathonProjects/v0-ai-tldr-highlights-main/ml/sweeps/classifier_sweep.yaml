@@ -1,0 +1,36 @@
+# W&B Sweep Configuration for Sentence Classifier Training
+# Run with: wandb sweep ml/sweeps/classifier_sweep.yaml
+
+program: ml/experiments/run_classifier.py
+method: grid  # Grid search for smaller parameter space
+metric:
+  name: accuracy
+  goal: maximize
+
+parameters:
+  experiment_type:
+    values: ["A", "B", "C"]  # Run all three for comparison
+  
+  model_name:
+    values:
+      - "bert-base-uncased"
+      - "sentence-transformers/all-MiniLM-L6-v2"
+  
+  learning_rate:
+    values: [1e-5, 2e-5, 5e-5]
+  
+  n_epochs_to_switch:
+    values: [5, 10]
+  
+  p_epochs_to_switch:
+    values: [3, 5]
+  
+  dendrite_capacity:
+    values: [8, 16]
+  
+  batch_size:
+    values: [16, 32]
+
+early_terminate:
+  type: hyperband
+  min_iter: 200
