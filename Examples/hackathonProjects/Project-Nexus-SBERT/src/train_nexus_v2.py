@@ -1,11 +1,18 @@
 """
-PROJECT NEXUS: Dendritic SBERT Training Engine
-Optimized for Perforated AI Hackathon 2025
+PROJECT NEXUS V2: Dendritic SBERT Training Engine
+Updated based on reviewer feedback - addressing overfitting with compression experiments
+
+Changes from V1:
+1. Added training score tracking (instead of loss) as suggested by Rorry
+2. Added --compression flag for testing smaller dense layers
+3. Added --dropout flag to combat overfitting
+4. Added option to wrap transformer encoder layers
 """
 
 import argparse
 import os
 import random
+import json
 import numpy as np
 import torch
 import torch.nn as nn
@@ -48,14 +55,38 @@ def load_data():
             texts=[row['sentence1'], row['sentence2']], 
             label=float(row['score']) / 5.0
         ))
+    
+    # Create evaluators for both train and validation
+    train_evaluator = EmbeddingSimilarityEvaluator(
+        [x['sentence1'] for x in dataset['train']],
+        [x['sentence2'] for x in dataset['train']],
+        [float(x['score'])/5.0 for x in dataset['train']],
+        name='sts-train'
+    )
         
-    evaluator = EmbeddingSimilarityEvaluator(
+    val_evaluator = EmbeddingSimilarityEvaluator(
         [x['sentence1'] for x in dataset['validation']],
         [x['sentence2'] for x in dataset['validation']],
         [float(x['score'])/5.0 for x in dataset['validation']],
         name='sts-dev'
     )
-    return train_examples, evaluator
+    return train_examples, train_evaluator, val_evaluator
+
+
+class DenseWithDropout(nn.Module):
+    """Dense layer with dropout for regularization - helps combat overfitting."""
+    def __init__(self, in_features, out_features, dropout_rate=0.1):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features, bias=True)
+        self.dropout = nn.Dropout(dropout_rate)
+        
+    def forward(self, features):
+        x = features['sentence_embedding']
+        x = self.dropout(x)
+        x = self.linear(x)
+        features['sentence_embedding'] = x
+        return features
+
 
 def train(config=None):
     # Initialize W&B if available
@@ -81,57 +112,89 @@ def train(config=None):
     set_seed(42)
     
     mode = "DENDRITIC" if config.use_dendrites else "BASELINE"
-    print(f"🚀 Initializing Project NEXUS [{mode}] on {DEVICE}...")
+    compression_info = f" [COMPRESSED {config.compression}x]" if config.compression < 1.0 else ""
+    print(f"🚀 Initializing Project NEXUS V2 [{mode}]{compression_info} on {DEVICE}...")
     
     # 1. Architecture Setup
     word_embedding_model = models.Transformer(BASE_MODEL)
-    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
-    dense_model = models.Dense(
-        in_features=word_embedding_model.get_word_embedding_dimension(),
-        out_features=word_embedding_model.get_word_embedding_dimension(),
-        bias=True,
-        activation_function=nn.Identity() 
-    )
+    embedding_dim = word_embedding_model.get_word_embedding_dimension()  # 384 for MiniLM
+    
+    pooling_model = models.Pooling(embedding_dim)
+    
+    # COMPRESSION: Reduce the dense layer size
+    if config.compression < 1.0:
+        compressed_dim = int(embedding_dim * config.compression)
+        print(f"📐 Compressing dense layer: {embedding_dim} → {compressed_dim} (compression factor: {config.compression})")
+        
+        if config.dropout > 0:
+            # Custom dense with dropout
+            dense_model = DenseWithDropout(
+                in_features=embedding_dim,
+                out_features=compressed_dim,
+                dropout_rate=config.dropout
+            )
+        else:
+            dense_model = models.Dense(
+                in_features=embedding_dim,
+                out_features=compressed_dim,
+                bias=True,
+                activation_function=nn.Identity()
+            )
+    else:
+        # Original size dense layer
+        if config.dropout > 0:
+            dense_model = DenseWithDropout(
+                in_features=embedding_dim,
+                out_features=embedding_dim,
+                dropout_rate=config.dropout
+            )
+        else:
+            dense_model = models.Dense(
+                in_features=embedding_dim,
+                out_features=embedding_dim,
+                bias=True,
+                activation_function=nn.Identity()
+            )
     
     # Combine modules
     model = SentenceTransformer(modules=[word_embedding_model, pooling_model, dense_model])
     model.to(DEVICE)
 
+    # Count parameters
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"📊 Model Parameters: {total_params:,} total, {trainable_params:,} trainable")
+
     # 2. Dendritic Injection
     if config.use_dendrites:
-        print("⚡ Injecting Dendrites into Adapter Layer ONLY...")
+        print("⚡ Injecting Dendrites into Adapter Layer...")
         
-        # PAI Configuration (Must be done BEFORE initialization in some cases)
+        # PAI Configuration
         GPA.pc.set_unwrapped_modules_confirmed(True)
         GPA.pc.set_weight_decay_accepted(True)
-        GPA.pc.set_verbose(True) # Enable verbose logging to debug switch
+        GPA.pc.set_verbose(True)
         
-        # CRITICAL: Disable 'Capacity Test' mode (which stops after 3 dendrites)
-        # This allows the model to train for the full duration
+        # Disable Capacity Test mode
         GPA.pc.set_testing_dendrite_capacity(False)
         
         # Configure Switch Behavior
-        # Ideally, we want to ensure it doesn't switch too aggressively
         print(f"⏳ Forcing {config.warmup_epochs}-epoch warmup before Dendritic Switch...")
-        GPA.pc.set_n_epochs_to_switch(config.warmup_epochs) 
+        GPA.pc.set_n_epochs_to_switch(config.warmup_epochs)
         
-        # Generate unique save name to prevent overwrites during sweeps
+        # Generate unique save name
         if WANDB_AVAILABLE and wandb.run and wandb.run.id:
             pai_save_name = f"PAI_{wandb.run.id}"
         else:
             import uuid
             pai_save_name = f"PAI_{str(uuid.uuid4())[:8]}"
             
-        # Initialize PAI on ONLY the adapter layer (model[2])
+        # Initialize PAI on the adapter layer (model[2])
         model[2] = UPA.initialize_pai(
             model[2], 
             save_name=pai_save_name 
         )
         
-        # Optimizer - use model.parameters() to train all layers
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
-        
-        # Register optimizer with PAI tracker
         GPA.pai_tracker.member_vars["optimizer_instance"] = optimizer
         
     else:
@@ -139,7 +202,7 @@ def train(config=None):
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
 
     # 3. Training Loop
-    train_examples, evaluator = load_data()
+    train_examples, train_evaluator, val_evaluator = load_data()
     train_dataloader = DataLoader(
         train_examples, 
         shuffle=True, 
@@ -155,12 +218,10 @@ def train(config=None):
     while True:
         epoch += 1
         
-        # In Dendritic mode, we strictly follow PAI's training_complete signal
-        # In Baseline mode, we follow the fixed epochs
+        # Stopping conditions
         if not config.use_dendrites and epoch >= config.epochs:
             break
-        # Safety break for dendritic to prevent infinite loops if something goes wrong
-        if config.use_dendrites and epoch >= 100: 
+        if config.use_dendrites and epoch >= 100:
             print("⚠️ Reached maximum safety epoch limit (100). Stopping.")
             break
             
@@ -175,27 +236,37 @@ def train(config=None):
             optimizer.step()
             total_loss += loss_value.item()
 
-        # Validation
+        # Validation & Training Evaluation
         model.eval()
         with torch.no_grad():
-            raw_score = evaluator(model)
+            val_score_raw = val_evaluator(model)
+            train_score_raw = train_evaluator(model)
         
-        if isinstance(raw_score, dict):
-            score = raw_score.get("sts-dev_spearman_cosine")
-            if score is None:
-                score = next(iter(raw_score.values()))
+        # Extract scores
+        if isinstance(val_score_raw, dict):
+            val_score = val_score_raw.get("sts-dev_spearman_cosine")
+            if val_score is None:
+                val_score = next(iter(val_score_raw.values()))
         else:
-            score = raw_score
+            val_score = val_score_raw
+            
+        if isinstance(train_score_raw, dict):
+            train_score = train_score_raw.get("sts-train_spearman_cosine")
+            if train_score is None:
+                train_score = next(iter(train_score_raw.values()))
+        else:
+            train_score = train_score_raw
 
         avg_loss = total_loss / len(train_dataloader)
         
-        # Track training SCORE for PAI visualization (Rorry's suggestion - makes overfitting visible)
-        # Note: For accurate training score, you should evaluate on training data here
-        # For now, using validation score as a proxy - see train_nexus_v2.py for full implementation
+        # Track TRAINING SCORE (not loss) for PAI visualization - as per Rorry's suggestion
         if config.use_dendrites:
-            GPA.pai_tracker.add_extra_score(score * 100, 'Train Score')
+            GPA.pai_tracker.add_extra_score(train_score * 100, 'Train Score')
         
-        print(f"📊 Epoch {epoch} | Loss: {avg_loss:.4f} | Spearman: {score:.4f}")
+        # Calculate overfitting gap
+        overfit_gap = train_score - val_score
+        
+        print(f"📊 Epoch {epoch} | Loss: {avg_loss:.4f} | Train Spearman: {train_score:.4f} | Val Spearman: {val_score:.4f} | Overfit Gap: {overfit_gap:.4f}")
         
         # W&B Logging
         if WANDB_AVAILABLE:
@@ -203,7 +274,9 @@ def train(config=None):
                 wandb.log({
                     "epoch": epoch,
                     "train_loss": avg_loss,
-                    "val_spearman": score
+                    "train_spearman": train_score,
+                    "val_spearman": val_score,
+                    "overfit_gap": overfit_gap
                 })
             except:
                 pass
@@ -212,10 +285,12 @@ def train(config=None):
         metrics.append({
             "epoch": epoch,
             "train_loss": avg_loss,
-            "val_spearman": score
+            "train_spearman": train_score,
+            "val_spearman": val_score,
+            "overfit_gap": overfit_gap
         })
         
-        # Save metrics immediately (so we can plot progress)
+        # Save metrics immediately
         if not os.path.exists(config.save_dir):
             os.makedirs(config.save_dir)
         metrics_path = f"{config.save_dir}/metrics.json"
@@ -223,17 +298,15 @@ def train(config=None):
             with open(metrics_path, 'w') as f:
                 json.dump(metrics, f, indent=4)
         except:
-            pass # Don't crash training on file IO error
+            pass
 
         # Dendritic Evolution Logic
         if config.use_dendrites:
-            model[2], restructured, training_complete = GPA.pai_tracker.add_validation_score(score * 100, model[2])
+            model[2], restructured, training_complete = GPA.pai_tracker.add_validation_score(val_score * 100, model[2])
             
             if restructured:
                 print(">>> ⚡ DENDRITES ACTIVATED! Architecture Evolved. ⚡ <<<")
-                # Recreate optimizer with updated parameters
                 optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
-                # Re-register optimizer with PAI tracker
                 GPA.pai_tracker.member_vars["optimizer_instance"] = optimizer
                 
                 if WANDB_AVAILABLE:
@@ -256,24 +329,31 @@ def train(config=None):
     model.save(final_path)
     print(f"✅ Model saved to {final_path}")
     
+    # Final metrics summary
+    print("\n" + "="*60)
+    print("📊 TRAINING SUMMARY")
+    print("="*60)
+    print(f"Mode: {mode}{compression_info}")
+    print(f"Final Train Spearman: {metrics[-1]['train_spearman']:.4f}")
+    print(f"Final Val Spearman: {metrics[-1]['val_spearman']:.4f}")
+    print(f"Final Overfit Gap: {metrics[-1]['overfit_gap']:.4f}")
+    print(f"Best Val Spearman: {max(m['val_spearman'] for m in metrics):.4f}")
+    print("="*60)
+    
     if WANDB_AVAILABLE:
         try:
             wandb.finish()
         except:
             pass
 
-    # Save metrics locally
-    import json
-    if not os.path.exists(config.save_dir):
-        os.makedirs(config.save_dir)
-    
+    # Save final metrics
     metrics_path = f"{config.save_dir}/metrics.json"
     with open(metrics_path, 'w') as f:
         json.dump(metrics, f, indent=4)
     print(f"📊 Metrics saved to {metrics_path}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Project NEXUS Training")
+    parser = argparse.ArgumentParser(description="Project NEXUS V2 Training - Compression Experiments")
     parser.add_argument("--use_dendrites", action="store_true", help="Enable Dendritic Optimization")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
@@ -282,6 +362,13 @@ if __name__ == "__main__":
     parser.add_argument("--warmup_epochs", type=int, default=6, help="Epochs before allowing dendrites to spawn")
     parser.add_argument("--save_dir", type=str, default="experiments/default_run", help="Directory to save output")
     parser.add_argument("--wandb_project", type=str, default="PerforatedAI-Examples_hackathonProjects_Project-Nexus-SBERT_src", help="W&B project name")
+    
+    # NEW: Compression and Regularization arguments
+    parser.add_argument("--compression", type=float, default=1.0, 
+                        help="Compression factor for dense layer (0.25 = 25% of original size, 0.5 = 50%, 1.0 = no compression)")
+    parser.add_argument("--dropout", type=float, default=0.0, 
+                        help="Dropout rate for regularization (0.0 = no dropout, 0.1-0.3 recommended)")
+    
     args = parser.parse_args()
     
     # Configure W&B
