@@ -54,14 +54,18 @@ The project compares two architectures side-by-side using the MNIST and CIFAR-10
 
 ## Results & Observations
 
-This project shows that Dendritic Optimization can improve accuracy on CIFAR-10. Comparing the best traditional model to the best dendritic model below:
+### Remaining Error Reduction
 
-| Model        | Final Validation Score |  Notes  |
-|--------------|------------------------| ------- |
-| Baseline     | 72.2%                  | Standard CNN |
-| Dendritic    | 73.5%                  | 65.0% Sparsity |
+This project demonstrates that Dendritic Optimization improves accuracy on **MNIST**.
 
-This provides a Remaining Error Reduction of **4.7%**.
+Comparing the BaselineModel and the DendriticModel (PAI):
+
+| Model        | Final Validation Accuracy | Notes |
+|--------------|---------------------------|-------|
+| Baseline     | 97.4%                     | Standard CNN |
+| Dendritic    | 97.7%                     | 70% Sparsity |
+
+This corresponds to a **Remaining Error Reduction (RER) of 11.5%**, computed directly from the raw metrics in `PAI/metrics.json`.
 
 ### Dendritic Optimization Dynamics
 The training process automatically generates an optimization graph showing the validation accuracy alongside the sparsity progression. This graph illustrates the transition from dense learning to dendritic optimization. As the model identifies salient features, it dynamically "perforates" the network, maintaining or even improving accuracy while significantly reducing the number of active parameters.
