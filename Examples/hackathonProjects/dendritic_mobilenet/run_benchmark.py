@@ -23,7 +23,7 @@ def run_benchmark(epochs=15):
     
     current_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{pai_root}{os.pathsep}{current_pythonpath}"
-    env["WANDB_MODE"] = "offline"
+    env["WANDB_MODE"] = "online"
     
     # Header
     print(f"Running Benchmark with {epochs} epochs/run")
