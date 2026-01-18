@@ -53,11 +53,9 @@ The error dropped from 21.31% to 3.92%, meaning dendrites eliminated 81.5% of th
 - Loss: Binary Cross Entropy
 - Dendrite Addition: After 25 epochs of baseline training
 
-## Raw Results Graph - Required
+## Raw Results Graph 
 
-![PAI Results](PAI/PAI.png)
-
-*(This graph will be generated automatically when running train.py with PAI)*
+![PAI Results](PAI.png)
 
 ## Additional Files
 
@@ -67,4 +65,5 @@ The error dropped from 21.31% to 3.92%, meaning dendrites eliminated 81.5% of th
 - `app.py` - Streamlit interactive demo
 - `requirements.txt` - Dependencies
 - `test_setup.py` - Setup verification script
+
 
