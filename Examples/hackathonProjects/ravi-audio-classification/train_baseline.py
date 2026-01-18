@@ -17,15 +17,19 @@ from utils.metrics import evaluate_model, plot_confusion_matrix
 import config
 
 
-def set_seed(seed):
+def set_seed(seed=42):
     """Set random seeds for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)
+    if torch.backends.mps.is_available():
+        # MPS backend doesn't support deterministic operations yet
+        pass
+    else:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+    print(f"Random seed set to {seed} for reproducibility")
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -85,12 +89,10 @@ def validate(model, dataloader, criterion, device):
 
 def train_baseline(args):
     """Main training function"""
-
+    
     # Set random seed for reproducibility
-    seed = config.PREPROCESSING['random_state']
-    set_seed(seed)
-    print(f"Random seed set to {seed} for reproducibility")
-
+    set_seed(config.PREPROCESSING['random_state'])
+    
     # Create directories
     os.makedirs(config.MODELS_DIR, exist_ok=True)
     
@@ -107,12 +109,7 @@ def train_baseline(args):
     
     # Load preprocessed data
     print("\nLoading preprocessed data...")
-    data_fraction = args.data_fraction if args.data_fraction is not None else 1.0
-    data_dict = load_preprocessed_data(
-        args.data_dir,
-        data_fraction=data_fraction,
-        random_state=config.PREPROCESSING['random_state']
-    )
+    data_dict = load_preprocessed_data(args.data_dir)
     
     # Create dataloaders
     print("Creating dataloaders...")
@@ -230,9 +227,7 @@ def train_baseline(args):
         'test_loss': float(test_results['loss']),
         'best_val_accuracy': float(best_val_acc),
         'num_parameters': model.count_parameters(),
-        'epochs_trained': epoch + 1,
-        'data_fraction': data_fraction,
-        'train_samples': len(data_dict['train'][1])
+        'epochs_trained': epoch + 1
     }
     
     results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
@@ -258,9 +253,7 @@ if __name__ == '__main__':
                         help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
     parser.add_argument('--patience', type=int, default=None,
                         help=f'Early stopping patience (default: {config.TRAINING["patience"]})')
-    parser.add_argument('--data_fraction', type=float, default=None,
-                        help='Fraction of training data to use (default: 1.0 = 100%)')
-
+    
     args = parser.parse_args()
     
     # Use config defaults if args are None

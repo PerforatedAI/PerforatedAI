@@ -21,15 +21,19 @@ from utils.metrics import evaluate_model, plot_confusion_matrix, calculate_error
 import config
 
 
-def set_seed(seed):
+def set_seed(seed=42):
     """Set random seeds for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)
+    if torch.backends.mps.is_available():
+        # MPS backend doesn't support deterministic operations yet
+        pass
+    else:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+    print(f"Random seed set to {seed} for reproducibility")
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device):
@@ -112,12 +116,10 @@ def validate(model, dataloader, criterion, device, optimizer, args):
 
 def train_perforatedai(args):
     """Main training function with PerforatedAI dendrites"""
-
+    
     # Set random seed for reproducibility
-    seed = config.PREPROCESSING['random_state']
-    set_seed(seed)
-    print(f"Random seed set to {seed} for reproducibility")
-
+    set_seed(config.PREPROCESSING['random_state'])
+    
     # Create directories
     os.makedirs(config.MODELS_DIR, exist_ok=True)
     
@@ -134,12 +136,7 @@ def train_perforatedai(args):
     
     # Load preprocessed data
     print("\nLoading preprocessed data...")
-    data_fraction = args.data_fraction if args.data_fraction is not None else 1.0
-    data_dict = load_preprocessed_data(
-        args.data_dir,
-        data_fraction=data_fraction,
-        random_state=config.PREPROCESSING['random_state']
-    )
+    data_dict = load_preprocessed_data(args.data_dir)
     
     # Create dataloaders
     print("Creating dataloaders...")
@@ -371,9 +368,7 @@ def train_perforatedai(args):
         'best_val_accuracy': float(best_val_acc),
         'num_parameters': UPA.count_params(model),
         'epochs_trained': epoch + 1,
-        'dendrites_added': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0),
-        'data_fraction': data_fraction,
-        'train_samples': len(data_dict['train'][1])
+        'dendrites_added': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
     }
     
     results_path = os.path.join(config.MODELS_DIR, 'pai_results.json')
@@ -399,9 +394,7 @@ if __name__ == '__main__':
                         help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
     parser.add_argument('--max_dendrites', type=int, default=5,
                         help='Maximum number of dendrites to add (default: 5)')
-    parser.add_argument('--data_fraction', type=float, default=None,
-                        help='Fraction of training data to use (default: 1.0 = 100%)')
-
+    
     args = parser.parse_args()
     
     # Use config defaults if args are None

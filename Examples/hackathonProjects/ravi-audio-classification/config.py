@@ -34,7 +34,7 @@ MODEL = {
 # Training Configuration
 # ============================================================================
 TRAINING = {
-    'batch_size': 64,
+    'batch_size': 32,
     'learning_rate': 0.0001,
     'weight_decay': 1e-5,
     'max_epochs': 200,
