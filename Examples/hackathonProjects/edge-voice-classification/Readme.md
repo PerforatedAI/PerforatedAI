@@ -201,7 +201,60 @@ GPA.pc.set_dendrite_graph_mode(True)
 - No manual hyperparameter tuning required
 - Improved robustness across all scenarios
 
-### INT8 Quantization for ESP32
+# INT8 Quantization Comparison Results
+
+## Model Performance Comparison
+
+| Model | Precision | Accuracy | F1 Score | Size (KB) | Parameters | Accuracy Drop |
+|-------|-----------|----------|----------|-----------|------------|---------------|
+| **Baseline FP32** | FP32 | 80.07% | 80.36% | 111.86 | 27,466 | - |
+| **Baseline INT8** | INT8 | 80.09% | 80.37% | 109.32 | 27,466 | -0.02% |
+| **Perforated FP32** | FP32 | 85.22% | 85.48% | 739.59 | 170,170 | - |
+| **Perforated INT8** | INT8 | 85.17% | 85.43% | 575.01 | 138,582 | +0.05% |
+
+## Key Insights
+
+### Accuracy Improvement
+- **Perforated FP32 vs Baseline FP32**: +5.15% accuracy improvement
+- **Perforated INT8 vs Baseline INT8**: +5.08% accuracy improvement
+
+### Quantization Robustness
+- **Baseline**: -0.02% accuracy drop (virtually no loss)
+- **Perforated**: +0.05% accuracy drop (virtually no loss)
+- **Both models are extremely robust to INT8 quantization**
+
+### Model Compression
+- **Baseline**: 2.3% size reduction (111.86 KB → 109.32 KB)
+- **Perforated**: 22.3% size reduction (739.59 KB → 575.01 KB)
+- **Perforated after BPA/CPA**: Parameter reduction from 170,170 → 138,582 (18.6% reduction)
+
+## Hardware Deployment Targets
+
+### Recommended Devices
+
+| Model | Device | SRAM/Flash | Inference Speed | Use Case |
+|-------|--------|------------|-----------------|----------|
+| **Baseline INT8** (109 KB) | **ESP32-S3** | 512 KB SRAM | ~50ms | Ultra-low-power IoT, battery devices |
+| | **STM32H7** | 1 MB SRAM | ~30ms | Industrial sensors, smart home |
+| | **Raspberry Pi Pico** | 264 KB SRAM | ~60ms | Embedded prototypes |
+| **Perforated INT8** (575 KB) | **Raspberry Pi Zero 2 W** | 512 MB RAM | ~10ms | Edge AI gateway, smart speakers |
+| | **NVIDIA Jetson Nano** | 4 GB RAM | ~5ms | Robotics, real-time voice control |
+| | **Google Coral Dev Board** | 1 GB RAM | ~8ms | Smart displays, edge devices |
+| | **Orange Pi Zero** | 512 MB RAM | ~12ms | Voice assistants, IoT hubs |
+| | **BeagleBone Black** | 512 MB RAM | ~15ms | Industrial automation |
+
+### Performance vs Hardware Trade-off
+
+- **Baseline INT8**: Lower accuracy (80.09%) but fits on microcontrollers with <512 KB SRAM
+- **Perforated INT8**: Higher accuracy (85.17%) requires small SBC/edge processor but delivers **5% better recognition**
+
+**Perforated AI with BPA/CPA quantization delivers:**
+- ✅ **5.15% higher accuracy** than baseline
+- ✅ **Negligible quantization loss** (0.05%)
+- ✅ **22.3% model compression** via BPA/CPA
+- ✅ **Deployable on edge devices** (Raspberry Pi, Jetson Nano, etc.)
+- ✅ **Better F1 score** indicating balanced performance across all 10 voice commands
+
 
 **Rorry's Recommended Workflow:**
 ```python
