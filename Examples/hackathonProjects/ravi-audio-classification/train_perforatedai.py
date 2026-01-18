@@ -116,7 +116,12 @@ def train_perforatedai(args):
     
     # Load preprocessed data
     print("\nLoading preprocessed data...")
-    data_dict = load_preprocessed_data(args.data_dir)
+    data_fraction = args.data_fraction if args.data_fraction is not None else 1.0
+    data_dict = load_preprocessed_data(
+        args.data_dir,
+        data_fraction=data_fraction,
+        random_state=config.PREPROCESSING['random_state']
+    )
     
     # Create dataloaders
     print("Creating dataloaders...")
@@ -348,7 +353,9 @@ def train_perforatedai(args):
         'best_val_accuracy': float(best_val_acc),
         'num_parameters': UPA.count_params(model),
         'epochs_trained': epoch + 1,
-        'dendrites_added': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
+        'dendrites_added': GPA.pai_tracker.member_vars.get('num_dendrites_added', 0),
+        'data_fraction': data_fraction,
+        'train_samples': len(data_dict['train'][1])
     }
     
     results_path = os.path.join(config.MODELS_DIR, 'pai_results.json')
@@ -374,7 +381,9 @@ if __name__ == '__main__':
                         help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
     parser.add_argument('--max_dendrites', type=int, default=5,
                         help='Maximum number of dendrites to add (default: 5)')
-    
+    parser.add_argument('--data_fraction', type=float, default=None,
+                        help='Fraction of training data to use (default: 1.0 = 100%)')
+
     args = parser.parse_args()
     
     # Use config defaults if args are None

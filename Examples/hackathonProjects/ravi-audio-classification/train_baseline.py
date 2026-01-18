@@ -89,7 +89,12 @@ def train_baseline(args):
     
     # Load preprocessed data
     print("\nLoading preprocessed data...")
-    data_dict = load_preprocessed_data(args.data_dir)
+    data_fraction = args.data_fraction if args.data_fraction is not None else 1.0
+    data_dict = load_preprocessed_data(
+        args.data_dir,
+        data_fraction=data_fraction,
+        random_state=config.PREPROCESSING['random_state']
+    )
     
     # Create dataloaders
     print("Creating dataloaders...")
@@ -207,7 +212,9 @@ def train_baseline(args):
         'test_loss': float(test_results['loss']),
         'best_val_accuracy': float(best_val_acc),
         'num_parameters': model.count_parameters(),
-        'epochs_trained': epoch + 1
+        'epochs_trained': epoch + 1,
+        'data_fraction': data_fraction,
+        'train_samples': len(data_dict['train'][1])
     }
     
     results_path = os.path.join(config.MODELS_DIR, 'baseline_results.json')
@@ -233,7 +240,9 @@ if __name__ == '__main__':
                         help=f'Maximum number of epochs (default: {config.TRAINING["max_epochs"]})')
     parser.add_argument('--patience', type=int, default=None,
                         help=f'Early stopping patience (default: {config.TRAINING["patience"]})')
-    
+    parser.add_argument('--data_fraction', type=float, default=None,
+                        help='Fraction of training data to use (default: 1.0 = 100%)')
+
     args = parser.parse_args()
     
     # Use config defaults if args are None
