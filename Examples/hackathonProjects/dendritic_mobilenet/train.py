@@ -187,7 +187,9 @@ def run_training(config=None, split_ratio=1.0, use_dendrites=True):
             # PAI Updates and Restructuring
             if use_dendrites:
                 GPA.pai_tracker.set_optimizer_instance(optimizer)
+                print(f"DEBUG: Calling add_validation_score with val_acc={val_acc}")
                 model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+                print(f"DEBUG: add_validation_score returned restructured={restructured}, training_complete={training_complete}")
                 model = model.to(device)
                 
                 if restructured:
@@ -216,14 +218,17 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, default='dendritic', choices=['dendritic', 'standard'], help="Training mode")
     parser.add_argument('--split', type=float, default=1.0, help="Dataset split ratio (e.g. 0.5 for 50%)")
     parser.add_argument('--epochs', type=int, default=15, help="Number of epochs")
+    parser.add_argument('--lr', type=float, default=0.001, help="Learning Rate")
+    parser.add_argument('--batch_size', type=int, default=64, help="Batch Size")
+    parser.add_argument('--dendrites', type=int, default=8, help="Dendrite Count")
     
     args = parser.parse_args()
 
     # Optimal Configuration
     base_config = {
-        'dendrite_count': 8,
-        'batch_size': 64,
-        'learning_rate': 0.001,
+        'dendrite_count': args.dendrites,
+        'batch_size': args.batch_size,
+        'learning_rate': args.lr,
         'epochs': args.epochs 
     }
     
@@ -233,12 +238,15 @@ if __name__ == "__main__":
     # Set threshold for dendrite addition (only affects dendritic mode)
     if use_dendrites:
          GPA.pc.set_n_epochs_to_switch(3)
+         GPA.pc.set_max_dendrites(args.dendrites)
 
-    print(f"Starting Run: Mode={args.mode}, Split={args.split}")
+    print(f"Starting Run: Mode={args.mode}, Split={args.split}, LR={args.lr}, Dendrites={args.dendrites}")
     try:
         final_acc = run_training(config=base_config, split_ratio=args.split, use_dendrites=use_dendrites)
         print(f"FINAL_RESULT: {final_acc}")
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"\nCRITICAL ERROR: {e}")
         print("FINAL_RESULT: FAILED")
 
