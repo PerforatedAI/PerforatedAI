@@ -146,3 +146,10 @@ This graph clearly illustrates the gain from 92.84% (Baseline) to 93.70% (Dendri
 A comprehensive Weights & Biases sweep report is available, detailing the outcomes of all experiments conducted during the hyperparameter search for the dendritically-optimized model. This report provides clear visuals, including parallel coordinates plots and summary tables, showing how different hyperparameters (including `dropout`, `weight_decay`, `improvement_threshold`, `pai_forward_function`, `dendrite_mode`, and `width`) influenced the model's validation accuracy, parameter count, and dendrite count.
 
 **Weights and Biases Report:** [Link](https://api.wandb.ai/links/shobhit1kapoor-university-of-texas-at-dall/2h2rv93d)
+
+## Use Cases & Business Value
+This project demonstrates how Dendritic Optimization can be applied to solve real-world retail challenges:
+
+- Mobile Visual Search: Enhances image classification accuracy for retail apps, helping users find products via camera search and reducing lost sales due to mismatches.
+- Edge AI Deployment: Optimizes the trade-off between accuracy and model size, allowing high-performance visual search to run on-device (smartphones, scanners) without cloud latency.
+- Cold-Start Scenarios: Leverages bio-inspired architectures to generalize better on limited data, enabling faster deployment of new fashion lines with fewer training examples.
