@@ -78,6 +78,8 @@ This provides a **Remaining Error Reduction of 15.25%**.
 
 The error dropped from 29.5% to 25.0%, meaning dendrites eliminated 15.25% of the original classification errors. This is a significant improvement on ESC-50, which is a fair challenge given 50 different classes in the dataset.
 
+**Note:** Human accuracy on ESC-50 is 81.3%. State-of-the-art models use larger models or transformers (95%+) that are pretrained as well on audio classification tasks. Our smaller CNN14 trained from scratch achieves 70.5%, improved to 75% with dendrites - approaching human-level while remaining suitable for edge deployment.
+
 ### Raw Results Graph
 
 ![PAI Training Output](./PAI_CNN14.png)
@@ -88,17 +90,15 @@ The graph shows the complete training progression:
 - **Second vertical blue line (~epoch 130):** Second dendrite attempted
 - **Training continues to epoch 200:** PAI completes training cycle
 
-The top-left subplot shows validation scores (orange/blue lines) and training scores (green line). The clear performance jump after the first dendrite demonstrates the effectiveness of dendritic optimization.
-
-## Clean Results Graph - Optional
+### Clean Results Graph
 
 ![Accuracy Improvement](./Accuracy%20Improvement.png)
 
 This visualization compares the final test accuracy and error reduction between baseline and dendritic models. The 15.25% error reduction demonstrates that dendrites eliminated over 15% of the remaining classification errors.
 
-## Additional Files
+### Additional Details:
 
-Code Structure:
+#### Code Architecture
 
 ```
 ravi-audio-classification/
@@ -114,14 +114,14 @@ ravi-audio-classification/
 └── utils/
     ├── data_utils.py           # Dataset loading utilities
     ├── metrics.py              # Evaluation metrics
-    └── pretrained_model.py     # CNN14 model architecture
+    └── model.py                # CNN14 model architecture
 ```
 
-Model Architecture:
+#### Model Architecture:
 
 The CNN14 architecture uses Sequential blocks (Conv2d + BatchNorm2d + ReLU + AvgPool2d) which are optimal for PerforatedAI integration. This design allows dendrites to be added cleanly to convolutional blocks while preserving batch normalization behavior.
 
-Dataset Details:
+#### Dataset Details:
 
 - **Dataset:** ESC-50 (Environmental Sound Classification - 50 classes)
 - **Size:** 2,000 audio clips (40 clips per class)
@@ -131,7 +131,7 @@ Dataset Details:
 - **Splits:** Train (1,280), Validation (320), Test (400)
 - **Standard test fold:** Fold 5 (as per ESC-50 benchmark)
 
-Technical Notes:
+#### Technical Notes:
 
 - Uses Adam optimizer with ReduceLROnPlateau scheduler
 - Baseline uses early stopping (patience=15)
