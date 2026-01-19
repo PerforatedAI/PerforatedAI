@@ -30,7 +30,8 @@ This work shows that **Dendritic NeuroResNet** behaves as a *self-regularizing a
 
 ## Experimental Setup
 
-* **Dataset:** RAF-DB (Real-world Affective Faces Database)
+* **Dataset:** [RAF-DB (Real-world Affective Faces Database)](http://www.whdeng.cn/RAF/model1.html)
+*(Alternative mirror available on [Kaggle](https://www.kaggle.com/datasets/shuvoalok/raf-db-dataset))*
 * **Backbone:** ResNet-50
 * **Optimizer:** Standard SGD / Adam (baseline-consistent)
 * **Training Horizon:** 50 epochs
