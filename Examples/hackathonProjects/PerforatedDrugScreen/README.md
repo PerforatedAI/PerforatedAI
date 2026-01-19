@@ -124,3 +124,63 @@ When running the Perforated AI library, output graphs are automatically generate
 
 ![Perforated AI output graph](./PAI/PAI.png)
 
+## Ray-Based Execution
+
+### Ray Baseline Run
+
+```bash
+python bbbp_ray_perforated.py   --epochs 40   --hidden_dim 64   --num_layers 4   --seed 0   --wandb   --wandb_project PerforatedDrugScreen   --wandb_run_name BBBP_RAY_baseline_hd64_L4_seed0
+```
+
+### Ray + Dendritic Optimization
+
+```bash
+python bbbp_ray_perforated.py   --doing_pai   --epochs 40   --hidden_dim 64   --num_layers 4   --seed 0   --wandb   --wandb_project PerforatedDrugScreen   --wandb_run_name BBBP_RAY_dendrites_hd64_L4_seed0
+```
+
+---
+
+## Results Summary
+
+### Ray Execution Results
+
+| Model | Best Val AUC | Test AUC @ Best Val | Parameters |
+|------|-------------:|--------------------:|-----------:|
+| GIN Baseline (Ray) | 0.9217 | 0.8858 | 34,497 |
+| GIN + Dendrites (Ray) | **0.9220** | **0.9083** | 103,044 |
+
+Dendritic optimization improves **test-set generalization**, not just validation score.
+
+---
+
+## Key Ray & Systems Insights
+
+- Ray confirms **deterministic and reproducible training behavior**
+- Dendritic optimization exhibits a **two-phase regime**:
+  1. Conventional training
+  2. Validation-triggered structural adaptation
+- Dendrites activate **only when learning saturates**
+- Structural adaptation is **sequential by nature**, not embarrassingly parallel
+- Ray is used here for **orchestration, reproducibility, and observability**, not brute-force scaling
+
+This reflects realistic usage in research platforms and production ML systems.
+
+---
+
+## PerforatedAI Proof Artifact
+
+Dendritic restructuring produces an explicit architectural graph:
+
+```
+PAI/PAI2.png
+```
+
+This file is generated only after dendrites are added and serves as proof of correct PerforatedAI execution.
+
+---
+
+## Takeaway
+
+Dendritic optimization acts as a **validation-driven architectural search mechanism**, improving generalization on a real drug discovery benchmark where conventional GNNs saturate.
+
+Ray enables clear visibility into this behavior and provides a reproducible systems-level execution environment.
