@@ -1,131 +1,80 @@
+# CIFAR-10 ShuffleNetV2 with Dendritic Optimization
 
-# CIFAR-10 — ShuffleNet with Perforated AI Dendrites
+## Intro -
 
-This project explores the application of **Perforated AI (PAI) dendritic growth**
-to improve **accuracy–efficiency tradeoffs** on the CIFAR-10 image classification benchmark.
+This project explores the use of **Perforated AI’s dendritic architecture** for image classification on the CIFAR-10 dataset.  
+I apply dendrites to a lightweight **ShuffleNetV2** model to study how adaptive capacity can improve learning once a model begins to plateau.
 
-The work follows the official PerforatedAI workflow and demonstrates correct dendrite
-integration, training behavior, and graph outputs.
+This submission follows the official PerforatedAI workflow using `initialize_pai` and `add_validation_score`, and is structured exactly as required for the hackathon.
 
----
+**Team:**
 
-## Dataset
-
-**CIFAR-10**
-- 60,000 RGB images (32×32)
-- 10 object classes
-- Standard train/test split
-- Well-suited for efficiency-focused vision experiments
+Vishal Warke – Independent Researcher / Engineer  
 
 ---
 
-## Model Architecture
+## Project Impact - Required
 
-### Backbone
-- **ShuffleNetV2** (lightweight CNN designed for efficiency)
+CIFAR-10 is a standard benchmark for image classification, especially for evaluating models intended for edge or resource‑constrained environments.  
+ShuffleNetV2 is widely used in such settings due to its efficiency, but its compact size can limit accuracy once training saturates.
 
-### Experimental Variants
+This project demonstrates how dendritic optimization can:
+- Improve learning dynamics after validation accuracy plateaus  
+- Add capacity only when needed, rather than scaling the entire network  
+- Preserve the efficiency benefits of compact architectures  
 
-| Model | Description |
-|------|------------|
-| A | Larger baseline CNN (no dendrites) |
-| B | Compressed ShuffleNet (no dendrites) |
-| C | Compressed ShuffleNet + PAI dendrites |
-
+These properties are especially relevant for deployment on edge devices, mobile platforms, and real‑time vision systems.
 
 ---
 
-## Regularization Methods
+## Usage Instructions
 
-To reduce overfitting and improve generalization, the following techniques were applied:
+### Installation
 
-### 1. Data Augmentation
-- Random cropping with padding
-- Random horizontal flipping
-- Dataset normalization
-
-**Effect:** Encourages invariance and prevents memorization.
-
----
-
-### 2. Label Smoothing
-
-```python
-criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+```bash
+git clone https://github.com/PerforatedAI/PerforatedAI.git
+cd PerforatedAI
+pip install -e .
+pip install -r requirements.txt
 ```
 
-**Effect:**
-- Reduces overconfident predictions
-- Narrows training–validation accuracy gap
-- Stabilizes learning after dendrite growth
+### Run
 
----
+Open and run the notebook:
 
-### 3. Weight Decay (L2 Regularization)
-
-```python
-weight_decay = 5e-4
+```bash
+Dentrites_Hackathon_CIFAR_10.ipynb
 ```
 
-**Effect:**
-- Penalizes large weights
-- Encourages simpler representations
-- Reduces overfitting in later epochs
+---
+
+## Results - Required
+
+| Model                       | Final Validation Accuracy |
+|-----------------------------|---------------------------|
+| ShuffleNetV2 (no dendrites) | ~77–78%                   |
+| ShuffleNetV2 + Dendrites    | ~79–80%                   |
+
+**Remaining Error Reduction:** ~8–10%
 
 ---
 
-### 4. Architectural Regularization
-- Dropout in classifier layers
-- Balanced capacity prior to dendrite growth
+## Raw Results Graph - Required
+
+![Perforated AI Raw Output Graph](./PAI.png)
 
 ---
 
-## Training Configuration
+## Clean Results Graph
 
-- Optimizer: SGD with momentum (PAI-managed)
-- Scheduler: CosineAnnealingLR
-- Learning Rate: 0.1
-- Batch Size: 128
-- Epoch Control: `while True` loop (PAI-controlled stopping)
+![Accuracy Improvement](./Accuracy_Improvement.png)
+
+![Validation Accuracy Delta](./Accuracy_Delta.png)
 
 ---
 
-## PAI Graph Outputs
+## Additional Files
 
-PAI automatically generates diagnostic plots in:
-
-```
-PAI/PAI.png
-```
-
-These include:
-- Training and validation accuracy curves
-- Dendrite addition markers (vertical lines)
-- Learning rate schedule
-- Epoch timing comparison
-
----
-
-## Interpreting the Graphs
-
-- Dendrites are added after validation performance plateaus
-- Training accuracy increases sharply after dendrite addition
-- Validation accuracy improves steadily with reduced overfitting
-- Parameter growth is controlled and justified by performance gains
-
----
-
-## Key Observations
-
-- Dendrites improve **capacity efficiency**
-- Regularization is essential for stable dendritic learning
-- Automatic stopping prevents unnecessary training
-- Graphs confirm correct dendrite behavior
-
----
-
-## Conclusion
-
-This project demonstrates a complete and correct application of Perforated AI dendrites
-on CIFAR-10, with improved efficiency, controlled overfitting, and interpretable
-training dynamics.
+- Dentrites_Hackathon_CIFAR_10.ipynb  
+- Accuracy_Improvement.png  
+- Accuracy_Delta.png  
