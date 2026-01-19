@@ -1,9 +1,17 @@
+# --- System & Python Trash ---
+.DS_Store
+__pycache__/
+*.pyc
 myvenv
-
-data
-PB
 perforatedai.egg-info
-**/__pycache__
 /build
 
-.DS_Store
+# --- Project Specific Ignored Folders ---
+train/
+test/
+wandb/
+
+# --- Large Files ---
+*.pt
+*.pth
+*.onnx
