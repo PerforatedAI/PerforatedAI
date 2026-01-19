@@ -64,7 +64,7 @@ The optimizer identified that 81% of the baseline model's capacity was redundant
 
 ## Raw Results Graph - Required
 
-![Perforated AI Training Results](./PAI.png)
+![Perforated AI Training Results](PAI/PAI.png)
 
 ## Clean Results Graph - Optional
 
