@@ -126,6 +126,14 @@ When running the Perforated AI library, output graphs are automatically generate
 
 ## Ray-Based Execution
 
+## RAY-Installation in Conda environment
+
+We can directly run this command in the conda environment to install RAY library.
+
+```bash
+pip install -U "ray[default]"
+```
+
 ### Ray Baseline Run
 
 ```bash
