@@ -1,76 +1,68 @@
-# Project Med-Edge: Dendritic Optimization for Portable Dermatology
+# Project Med-Edge: Perforated AI for Portable Dermatology
 
-**Enabling skin cancer screening on low-cost microcontrollers through intelligent neural architecture growth**
-
----
-
-## The Challenge
-
-Skin cancer is the most common cancer globally, yet dermatologists are scarce in rural and low-resource settings. While AI models can assist with diagnosis, deploying them requires expensive hardware and cloud connectivity—both unavailable in remote clinics.
-
-**The question:** Can we create a medical-grade skin lesion classifier that runs on ultra-low-cost microcontrollers while maintaining diagnostic accuracy?
+**Enabling skin lesion classification on constrained edge hardware using dynamic dendritic growth.**
 
 ---
 
-## The Approach
+## Limit
 
-We developed **DermoNet-Edge**, a Micro-CNN designed for the DermaMNIST dataset (7-class skin lesion classification, 28×28 images). Using Perforated AI's dendritic optimization, we improved classification accuracy while maintaining edge-deployable model sizes.
+Deploying medical AI to rural low-resource settings faces a hardware bottleneck. Modern CNNs require computational resources unavailable on the cheap microcontrollers ($2-5) feasible for large-scale deployment.
 
-**Key Innovation:** We used a regularized architecture with two dropout layers (matching the MNIST example) and proper PAI configuration to achieve clean training curves with minimal overfitting.
+**Goal:** Engineer a skin lesion classifier capable of running on an ESP32-class microcontroller while maintaining accepted accuracy standards.
 
 ---
 
-## The Results
+## Approach
 
-| Model | Val Accuracy | Parameters | Error Reduction |
-|-------|--------------|------------|-----------------|
+We developed **DermoNet-Edge**, a custom Micro-CNN for the DermaMNIST dataset. We leveraged Perforated AI (PAI) to dynamically allocate capacity only where needed, optimizing the trade-off between accuracy and parameter count.
+
+**Key Technical Decisions:**
+*   **Dual-Dropout Regularization:** Implemented 0.25 (conv) and 0.5 (fc) dropout to enforcing strict generalization (Train ≈ Val).
+*   **Constrained Baseline:** Started with a minimal 15k parameter backbone to force efficient feature learning.
+*   **PAI Integration:** Used dendritic growth to recover accuracy lost by strict model constraints.
+
+---
+
+## Results
+
+| Configuration | Val Accuracy | Parameters | RER |
+|:---|:---:|:---:|:---:|
 | **Baseline** | 76.57% | 15,229 | - |
 | **Dendritic (PAI)** | **77.87%** | 63,201 | **5.55%** |
 
-**Remaining Error Reduction (RER):** 5.55%  
-**Dendrites Added:** 3  
-**Overfitting Gap:** 0.22% (Train: 78.09%, Val: 77.87%)
+*   **Remaining Error Reduction (RER):** 5.55%
+*   **Overfitting Gap:** 0.22% (Virtually eliminated)
+*   **Dendrites Added:** 3
 
 ### Perforated AI Training Graph
 
 ![PAI.png - Dendritic training visualization](./PAI/PAI.png)
 
-*The graph shows: (1) Training progression with dendrite additions (vertical lines), (2) Learning rate decay with resets after dendrite additions (sawtooth pattern), (3) Layer-wise dendrite evaluations, and (4) Training times.*
+*The graph demonstrates valid saturation detection (vertical lines) and effective learning rate resets, confirming PAI's active role in training dynamics.*
 
 ---
 
-## Business Impact
+## Impact
 
-### Hardware Enablement
-- **Target hardware:** ESP32-S3 or similar ARM Cortex-M7
-- **Memory footprint:** ~247KB (63k parameters × 4 bytes)
-- **Inference time:** <200ms on embedded CPU
+### Hardware Targets
+*   **MCU:** ESP32-S3 or ARM Cortex-M7
+*   **Storage:** ~247KB model size (Fits within 384KB+ SRAM)
+*   **Latency:** <200ms inference on embedded CPU
 
-### Use Case Unlocked
-> "A village health worker in rural areas can screen patients for skin cancer using a portable device. The AI runs entirely on-device—no internet, no cloud, no privacy concerns."
-
-### Economic Impact
-- **Cost per screening:** $0.00 (vs $50-200 for specialist consultation)
-- **Scalability:** Deployable to rural health centers globally
-- **Accessibility:** Works offline in areas with zero connectivity
+### Value Proposition
+This architecture enables offline, battery-powered diagnostic tools for community health workers. By eliminating cloud dependencies, we reduce patient screening costs to near-zero while preserving data privacy.
 
 ---
 
-## Implementation Experience
+## Implementation Notes
 
-**What worked:**
-- Using **two dropout layers** (0.25 after conv, 0.5 after fc1) following the MNIST example
-- **No data augmentation** for training (same as MNIST example) to avoid Val > Train
-- **Proper PAI optimizer/scheduler setup** using `GPA.pai_tracker.setup_optimizer()`
+**Configuration:**
+*   **Dropout:** 0.25 (post-conv), 0.5 (post-dense)
+*   **Augmentation:** None (Ensures valid baseline comparison)
+*   **PAI Setup:** `setup_optimizer()` used for proper LR scheduling
 
-**Time investment:**
-- Initial setup: 2 hours
-- Baseline training: 10 minutes
-- Dendritic training: 15 minutes
-- Total: ~3 hours from idea to results
-
-**Key insight:**  
-> "PAI not only improved accuracy but also reduced overfitting. The baseline had a 3.78% train-val gap, while the dendritic model had only 0.22% gap—showing that dendrites learned generalizable features."
+**Key Observation:**
+PAI successfully identified saturation points in the baseline model. While the baseline suffered from a 3.78% generalization gap, the dendritic model maintained tight convergence (0.22% gap), suggesting dendrites captured robust, generalizable features rather than memorizing noise.
 
 ---
 
