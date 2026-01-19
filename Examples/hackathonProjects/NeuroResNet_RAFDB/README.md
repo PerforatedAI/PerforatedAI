@@ -109,11 +109,6 @@ This experiment tracks:
 * Dendritic growth events
 * Parameter count over time
 
-🔗 **W&B Dashboard:**
-`[INSERT YOUR WANDB LINK HERE]`
-
----
-
 ## Team
 
 * **Richard Wijaya Harianto**
