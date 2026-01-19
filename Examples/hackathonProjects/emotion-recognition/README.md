@@ -50,10 +50,10 @@ python download_data.py
 
 ```bash
 # Standard training with PerforatedAI dendrites and W&B logging
-python main.py --data_dir ./data/ravdess --epochs 100
+python main.py --data_dir ./data/ravdess --epochs 50
 
 # Run W&B hyperparameter sweep
-python main.py --use-wandb --sweep-id main --count 10
+python main.py --sweep --count 10
 
 # Disable W&B logging
 python main.py --data_dir ./data/ravdess --no-wandb
@@ -63,46 +63,34 @@ python main.py --data_dir ./data/ravdess --no-wandb
 
 ## Results - Required
 
-This project demonstrates that **Dendritic Optimization significantly improves emotion recognition accuracy** on the RAVDESS dataset. Dendrites are **dynamically added** during training based on improvement thresholds.
+This project demonstrates that **Dendritic Optimization improves emotion recognition accuracy** on the RAVDESS dataset. Dendrites are **dynamically added** during training based on improvement thresholds.
+
+### Latest Training Run (January 19, 2026)
+
+| Phase | Epoch | Parameters | Best Validation Accuracy |
+|-------|-------|------------|--------------------------|
+| Pre-Dendrite | 0-37 | 422,728 | 53.25% |
+| Post-Dendrite | 38-75 | 845,112 | **65.00%** |
 
 ### Dynamic Dendrite Addition
 
-| Switch | Epoch | Parameters | Change |
-|--------|-------|------------|--------|
-| 0 | 0 | 422,728 | Initial model |
-| 1 | 63 | 845,112 | **+1 Dendrite added** |
-| 2 | 224 | 1,269,344 | **+1 Dendrite added** |
-| 3 | 372 | 1,694,808 | **+1 Dendrite added** |
+The model successfully triggered dendrite addition at **Epoch 37** after detecting consistent improvement patterns. The PAI diagram shows:
+- 🌳 **14,848 dendrites added** during the switch
+- Clear validation score improvement after dendrite addition
+- Learning rate reset for optimal dendrite training
 
 ### Accuracy Comparison
 
 | Model | Param Count | Best Validation Accuracy | Notes |
 |-------|-------------|--------------------------|-------|
-| Traditional CNN | 422,728 | 66.67% | Baseline without dendrites |
-| Dendritic CNN (1 dendrite) | 845,112 | 73.16% | With PerforatedAI optimization |
-| **Dendritic CNN (2 dendrites)** | **1,269,344** | **73.59%** | **Best result!** |
-| Dendritic CNN (3 dendrites) | 1,694,808 | 56.71% | Over-capacity |
+| Traditional CNN (Baseline) | 422,728 | 53.25% | Before dendrite addition |
+| Dendritic CNN (+1 dendrite) | 845,112 | **65.00%** | After PerforatedAI optimization |
 
 ### Remaining Error Reduction
 
-$$RER = \frac{73.59 - 66.67}{100 - 66.67} \times 100 = \textbf{20.8\%}$$
+$$RER = \frac{65.00 - 53.25}{100 - 53.25} \times 100 = \textbf{25.13\%}$$
 
-The dendritic optimization reduced the remaining error by **20.8%**, demonstrating that artificial dendrites significantly improve emotion recognition from speech spectrograms.
-
----
-
-## Configuration Notes
-
-The following PerforatedAI settings were tuned to achieve optimal results:
-
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `improvement_threshold` | `2` (→ `[0]`) | Stricter threshold - only adds dendrites after true plateau, preventing early addition |
-| `max_dendrites` | `5` | Maximum dendrites allowed |
-| `pai_forward_function` | `sigmoid` | Activation function for dendrite gating |
-| `candidate_weight_initialization_multiplier` | `0.01` | Weight initialization for new dendrites |
-
-> **Note**: Setting `improvement_threshold=2` was key to addressing oscillation-triggered early stopping (Graph Problem 3 in PAI docs). This ensures dendrites are only added when the model has truly plateaued.
+The dendritic optimization reduced the remaining error by **25.13%**, demonstrating significant improvement in emotion recognition through artificial dendrites.
 
 ---
 
@@ -116,21 +104,22 @@ The PerforatedAI library automatically generates this graph during training, sav
 
 ## Weights and Biases Sweep Report - Optional
 
-All training metrics, including dynamic dendrite additions, are logged to Weights & Biases with proper **Arch** and **Final** logging:
+All training metrics, including dynamic dendrite additions, are logged to Weights & Biases:
 
-[**View W&B Dashboard →**](https://wandb.ai/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai/runs/li82ltpt)
+[**View W&B Dashboard →**](https://wandb.ai/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai)
 
 Tracked metrics include:
-- ValAcc, TrainAcc per epoch
-- Param Count and Dendrite Count over time
-- **Arch Max Val/Train** - Best accuracy per architecture when dendrites are added
-- **Final Max Val/Train** - Global best accuracy at training complete
+- Training/Validation accuracy per epoch
+- Loss curves
+- Dendrite addition events  
+- Parameter count over time
+- Learning rate schedule
 
 ---
 
 ## Additional Files
 
-- `main.py` - Main training script with PerforatedAI + W&B integration (follows official example pattern)
+- `main.py` - Main training script with PerforatedAI + W&B integration
 - `model.py` - CNN and ResNet model architectures
 - `dataset.py` - RAVDESS dataset loader with spectrogram conversion
 - `download_data.py` - Helper script to download RAVDESS dataset
