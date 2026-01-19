@@ -1,6 +1,6 @@
 # Bank Lead Scoring with Dendritic Optimization
 
-## Intro - Required
+## Intro
 
 **Description:**
 
@@ -8,16 +8,16 @@ This project demonstrates the application of Dendritic Optimization to a real-wo
 
 **Team:**
 
-Farooq - Software Engineer
+Farooq - Software Engineer -
 Email: farooqj072@gmail.com
 LinkedIn: https://linkedin.com/in/theavidstallion
 Web: https://devfarooq.me
 
-## Project Impact - Required
+## Project Impact
 
 Standard deep learning models for tabular data in banking are often over-parameterized (700,000+ parameters), making them too slow for low-power edge devices and too expensive to run on cloud infrastructure for millions of transactions. An optimized lead scoring model matters because it enables real-time AI inference on agent tablets, reducing operational costs by an estimated 40% through better lead prioritization. This allows banks to focus resources on high-value prospects while maintaining prediction quality, eliminating the need for expensive cloud-based inference and enabling zero-latency decisions at the point of customer contact.
 
-## Usage Instructions - Required
+## Usage Instructions
 
 **Installation:**
 ```bash
@@ -46,7 +46,7 @@ python build_demo.py
 python run_demo.py
 ```
 
-## Results - Required
+## Results
 
 This bank lead scoring project demonstrates that Dendritic Optimization can achieve massive parameter reduction while retaining business-critical accuracy. Comparing the standard baseline model to the dendritic optimized model:
 
@@ -62,30 +62,29 @@ This bank lead scoring project demonstrates that Dendritic Optimization can achi
 
 The optimizer identified that 81% of the baseline model's capacity was redundant, as shown in `PAI/PAI_beforeSwitch_128best_test_scores.csv`. We achieved comparable business value with 1/5th the original size, making the model deployable on low-power edge devices.
 
-## Raw Results Graph - Required
+## Raw Results Graph
 
 ![Perforated AI Training Results](PAI/PAI.png)
 
-## Clean Results Graph - Optional
+## Clean Results Graph
 
 ![W&B Optimization Process](./wandb_results.png)
 
 The chart demonstrates the Dendritic Optimization process compared to standard training. The green line shows the standard model training once and stopping (static), while the purple line shows the dendritic model actively searching for efficient architectures, adding neurons (spikes) and refining weights (dips) to find the optimal parameter-to-accuracy ratio.
 
-## Weights and Biases Sweep Report - Optional
+## Weights and Biases Sweep Report
 
 [View Full Interactive W&B Report](https://api.wandb.ai/links/theavidstallion-axio-systems/lv3aj40e)
 
 The W&B report demonstrates comprehensive experimentation with the dendritic optimization process, showing how the architecture search dynamically discovered the optimal 135k-parameter model structure.
 
-## Additional Files - Required
+## Additional Files
 
 **Code Structure:**
 - `setup_data.py` - Generates the banking dataset
 - `train.py` - Main training script with dendritic optimization
 - `build_demo.py` - Reconstructs the optimized architecture in pure PyTorch
 - `run_demo.py` - Demo application for lead prioritization
-- `requirements.txt` - Python dependencies
 
 **Zero-Dependency Deployment:**
 
