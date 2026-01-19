@@ -1,0 +1,24 @@
+# Core Dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+pyyaml>=6.0
+tqdm>=4.65.0
+
+# Data Processing
+opencv-python>=4.7.0
+
+# PerforatedAI (install from parent directory)
+# pip install -e ../../../
+
+# Optional: Real Waymo Dataset Support
+# waymo-open-dataset-tf-2-11-0>=1.6.0  # Uncomment if using real dataset
+# tensorflow>=2.11.0  # Required for Waymo dataset
+
+# Optional: 3D Detection Libraries (for advanced usage)
+# Open3D>=0.16.0  # Point cloud visualization
+# spconv-cu118>=2.3.0  # Sparse convolutions (requires CUDA)
+
+# Development Tools
+black>=23.0.0
+pytest>=7.3.0
