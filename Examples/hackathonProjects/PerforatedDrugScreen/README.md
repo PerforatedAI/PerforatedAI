@@ -172,7 +172,7 @@ This reflects realistic usage in research platforms and production ML systems.
 Dendritic restructuring produces an explicit architectural graph:
 
 ```
-PAI/PAI2.png
+PAI2/PAI2.png
 ```
 
 This file is generated only after dendrites are added and serves as proof of correct PerforatedAI execution.
