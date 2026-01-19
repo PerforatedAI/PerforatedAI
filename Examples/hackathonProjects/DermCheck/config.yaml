@@ -1,0 +1,80 @@
+# Data Configuration
+data:
+  dataset: ham10000
+  root_dir: ./data/HAM10000
+  image_size: 224
+  num_classes: 7
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+# Model Configuration
+model:
+  classification:
+    backbone: densenet121  # densenet121, resnet50, efficientnet-b0
+    pretrained: true
+    dropout: 0.5
+  segmentation:
+    architecture: unet  # unet, attention_unet
+    encoder: resnet34
+    pretrained: true
+
+# Training Configuration
+training:
+  task: both  # classification, segmentation, or both
+  epochs: 100
+  batch_size: 16
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  patience: 20
+  device: ""  # Auto-detect (use "cpu" or "cuda:0" to force)
+
+# PerforatedAI Configuration
+pai:
+  enabled: true
+  forward_function: sigmoid
+  weight_init_multiplier: 0.01
+  improvement_threshold: 0.001
+  maximizing_score: true
+  testing_dendrite_capacity: false
+  save_name: PAI_DermCheck
+
+# Optimizer Configuration
+optimizer:
+  type: Adam
+  scheduler: ReduceLROnPlateau
+  scheduler_kwargs:
+    mode: max
+    patience: 5
+    factor: 0.5
+
+# Augmentation
+augmentation:
+  enabled: true
+  rotation: 20
+  flip_prob: 0.5
+  color_jitter: 0.2
+  gaussian_noise: 0.01
+
+# Evaluation Metrics
+metrics:
+  classification:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - auc_roc
+  segmentation:
+    - dice_score
+    - iou
+    - hausdorff_distance
+
+# Payment Configuration (polar.sh)
+payment:
+  enabled: false
+  polar_api_url: "https://api.polar.sh"
+  btc_wallet: "145U3n87FxXRC1nuDNDVXLZjyLzGhphf9Y"
+  bsc_wallet: "0x23f0c8637de985b848b380aeba7b4cebbcfb2c47"
+  license_tiers:
+    clinical_trial: 99
+    practice: 499
