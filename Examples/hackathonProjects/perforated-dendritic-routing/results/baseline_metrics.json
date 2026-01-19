@@ -1,0 +1,7 @@
+{
+  "model": "demo_baseline",
+  "loss": 1.0,
+  "perplexity": 2.72,
+  "parameters": 1000000,
+  "mode": "eval_only"
+}
