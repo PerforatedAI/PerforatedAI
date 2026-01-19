@@ -29,7 +29,7 @@ The chart below demonstrates the Dendritic Optimization process.
 * **Green Line:** The standard model trains once and stops (Static).
 * **Purple Line:** The Dendritic model actively searches for efficient architectures, adding neurons (spikes) and refining weights (dips) to find the optimal ratio.
 
-**[📄 Click here to view the full interactive W&B Report](YOUR_WB_REPORT_URL_HERE)**
+**[📄 Click here to view the full interactive W&B Report](https://api.wandb.ai/links/theavidstallion-axio-systems/lv3aj40e)**
 
 ![W&B Report](wandb_results.png)
 
