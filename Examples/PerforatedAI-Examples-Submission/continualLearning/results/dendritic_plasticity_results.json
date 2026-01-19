@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Baseline",
+    "params": 269322,
+    "task1_after_task1": 98.7935395991438,
+    "task1_final": 0.0,
+    "task2_final": 98.12795721045052,
+    "avg_final": 49.06397860522526,
+    "forgetting": 98.7935395991438
+  },
+  {
+    "name": "Baseline + Replay",
+    "params": 269322,
+    "task1_after_task1": 99.22163845106051,
+    "task1_final": 2.8215606149056236,
+    "task2_final": 98.10738531166426,
+    "avg_final": 50.46447296328494,
+    "forgetting": 96.40007783615489
+  },
+  {
+    "name": "SelectivePlasticity",
+    "params": 269322,
+    "task1_after_task1": 93.65635337614322,
+    "task1_final": 0.0,
+    "task2_final": 88.3974490845505,
+    "avg_final": 44.19872454227525,
+    "forgetting": 93.65635337614322
+  },
+  {
+    "name": "SP + Replay",
+    "params": 269322,
+    "task1_after_task1": 93.65635337614322,
+    "task1_final": 0.0,
+    "task2_final": 88.27401769183295,
+    "avg_final": 44.137008845916476,
+    "forgetting": 93.65635337614322
+  },
+  {
+    "name": "PAI (Dendrites)",
+    "params": 538644,
+    "task1_after_task1": 99.02704806382565,
+    "task1_final": 0.0,
+    "task2_final": 98.16910100802303,
+    "avg_final": 49.08455050401152,
+    "forgetting": 99.02704806382565
+  },
+  {
+    "name": "PAI + Replay",
+    "params": 538644,
+    "task1_after_task1": 99.31893364467795,
+    "task1_final": 2.957773885970033,
+    "task2_final": 98.35424809709936,
+    "avg_final": 50.65601099153469,
+    "forgetting": 96.36115975870793
+  },
+  {
+    "name": "DendriticPlasticity",
+    "params": 538644,
+    "task1_after_task1": 93.55905818252579,
+    "task1_final": 0.01945903872348706,
+    "task2_final": 88.68545566755812,
+    "avg_final": 44.3524573531408,
+    "forgetting": 93.5395991438023
+  },
+  {
+    "name": "DendriticPlasticity + Replay",
+    "params": 538644,
+    "task1_after_task1": 94.16228838295388,
+    "task1_final": 0.0,
+    "task2_final": 88.50030857848179,
+    "avg_final": 44.250154289240896,
+    "forgetting": 94.16228838295388
+  }
+]
