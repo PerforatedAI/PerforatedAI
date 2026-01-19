@@ -31,3 +31,5 @@ Traditional   98.20%                     Baseline CNN without dendrites
 Dendritic     100.00%                    Guardian-Pulse Optimised Model
 
 Remaining Error Reduction: The dendritic optimisation reduced the error rate from 1.8% to 0.0%. This represents a 100% Remaining Error Reduction.
+
+![Raw Results Graph](Guardian_PAI/Guardian_PAI.png)
