@@ -1,0 +1,56 @@
+data:
+  # Waymo dataset paths (leave empty for demo mode)
+  train_path: "data/waymo_open_dataset/training"
+  val_path: "data/waymo_open_dataset/validation"
+  num_classes: 3  # Vehicle, Pedestrian, Cyclist
+  num_points_per_cloud: 200000
+  point_cloud_range: [-75.2, -75.2, -2, 75.2, 75.2, 4]  # [x_min, y_min, z_min, x_max, y_max, z_max]
+
+model:
+  type: "PointPillar"  # Options: PointPillar, SECOND, PV-RCNN
+  voxel_size: [0.16, 0.16, 4]
+  max_voxels: [16000, 40000]  # [train, test]
+  
+training:
+  epochs: 20
+  batch_size: 4
+  learning_rate: 0.001
+  weight_decay: 0.01
+  
+  # Loss weights
+  loss_weights:
+    cls_loss: 1.0
+    box_loss: 2.0
+    dir_loss: 0.2
+
+optimizer:
+  type: "AdamW"
+  scheduler: "OneCycleLR"
+  scheduler_kwargs:
+    pct_start: 0.4
+    div_factor: 10
+    final_div_factor: 10000
+
+pai:
+  enabled: true
+  perforated_backpropagation: false  # Set to true if you have PerforatedBP license
+  
+  # Dendritic growth parameters
+  pai_layers: [0]  # Which layers to apply PAI (0 = auto-select)
+  dendrites_per_layer: 3
+  validation_frequency: 1  # Validate every N epochs
+  
+  # Thresholds for dendrite addition
+  improvement_threshold: 0.01  # Add dendrites if improvement < this
+  max_restructures: 5  # Maximum number of dendritic additions
+  
+  # Tracking
+  track_metrics: true
+  save_graphs: true
+  output_dir: "PAI_DendriticDrive"
+
+demo:
+  enabled: false  # Set to true via --demo flag
+  num_samples: 100
+  points_per_sample: 10000
+  add_noise: true
