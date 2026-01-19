@@ -8,8 +8,8 @@ This hackathon submission demonstrates the power of **dendritic optimization** a
 
 ### Team
 
-**Vijay** - Developer/ML Engineer  
-_Contact: [Your contact info - optional]_
+**Shreyas** - CS Student
+Linkedin: https://www.linkedin.com/in/shreyas-nikam-a474b2361/
 
 ---
 
