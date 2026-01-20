@@ -1,5 +1,5 @@
 import torch.nn as nn
-from perforatedai.nn import PerforatedConv2d
+from perforatedai.nn.perforated_conv import PerforatedConv2d
 
 class DendriticCNN(nn.Module):
     def __init__(self):
