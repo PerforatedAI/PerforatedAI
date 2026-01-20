@@ -31,16 +31,17 @@ Traditional (No Dendrites) 85.71% Baseline ResNet18 CIFAR-10
 
 <img width="615" height="457" alt="Screenshot (522)" src="https://github.com/user-attachments/assets/1a325958-975d-4127-8e91-4b5f3ccc7e48" />
 
-Dendritic (PerforatedAI) 86.97% ResNet18 + Dendritic Optimization
-<img width="1355" height="594" alt="Screenshot (521)" src="https://github.com/user-attachments/assets/6f17ad37-9f13-449e-9e2c-4ecad55587e7" />
+Dendritic (PerforatedAI) 93.48% ResNet18 + Dendritic Optimization
+
+<img width="1355" height="656" alt="Screenshot (523)" src="https://github.com/user-attachments/assets/388a1114-8d6a-4c5a-8612-d54c212bdc80" />
 
 Remaining Error Reduction:
 
 Baseline Error = 100 - 85.71 = 14.29
-Dendritic Error = 100 - 86.97 = 13.03
-Remaining Error Reduction = (14.29 - 13.03) / 14.29 × 100 = 8.81%
+Dendritic Error = 100 - 93.48 = 6.52
+Remaining Error Reduction = (14.29 - 6.52) / 14.29 × 100 = 54.37%
 
-This provides a Remaining Error Reduction of 8.81%.
+This provides a Remaining Error Reduction of 54.37%
 
 **Raw Results Graph** - 
 <img width="2800" height="1400" alt="PAI" src="https://github.com/user-attachments/assets/7d78e269-730e-47f5-9a94-ab44266950e1" />
