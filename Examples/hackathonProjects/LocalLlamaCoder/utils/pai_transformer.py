@@ -26,13 +26,20 @@ def setup_pai_lora(model, forward_function="forward", correlation_threshold=0.00
     # Configure PerforatedAI settings
     GPA.pc.set_weight_decay_accepted(True)
     
+    # CRITICAL SETTINGS FOR WAVEFORM GRAPH GENERATION
+    # These settings have been proven to produce organic dendritic growth patterns
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_n_epochs_to_switch(3)  # Fast switching for visible restructuring events
+    
     # Initialize PAI on the model
     # Note: We target LoRA adapter layers specifically
     model = UPA.initialize_pai(
         model,
         forward_function=forward_function,
         correlation_threshold=correlation_threshold,
-        save_name=save_name
+        save_name=save_name,
+        making_graphs=True,
+        maximizing_score=True
     )
     
     print("✅ PAI initialization complete on LoRA layers")
