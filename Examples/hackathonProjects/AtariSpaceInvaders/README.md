@@ -32,5 +32,10 @@ Run Dendritic model with:
 [AtariSpaceInvadersPerforatedAI.ipynb](AtariSpaceInvadersPerforatedAI.ipynb)
 
 ## Results 
+| Param Counts | Max Valid Scores       |  Max Test Scores  |
+|--------------|------------------------| ------- |
+| 132854       | 44.578151983832164     | 44.578151983832164 |
 
 ## Raw Results Graph
+
+![](PAI/PAI.png)
