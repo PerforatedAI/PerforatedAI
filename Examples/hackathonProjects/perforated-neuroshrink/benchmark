@@ -1,11 +1,11 @@
-from model_baseline import BaselineCNN
-from model_dendritic import DendriticCNN
+from model import Net
+from perforatedai import utils_perforatedai as UPA
 
-def count_params(model):
-    return sum(p.numel() for p in model.parameters())
+baseline = Net()
+dendritic = UPA.initialize_pai(Net())
 
-baseline = BaselineCNN()
-dendritic = DendriticCNN()
+def count(m):
+    return sum(p.numel() for p in m.parameters())
 
-print("Baseline parameters:", count_params(baseline))
-print("Dendritic parameters:", count_params(dendritic))
+print("Baseline parameters:", count(baseline))
+print("Dendritic parameters:", count(dendritic))
