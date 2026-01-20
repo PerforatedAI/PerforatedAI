@@ -66,15 +66,15 @@ This structure allows the network to learn logical operations (`AND`, `OR`, `NOT
 ```mermaid
 graph TD
     subgraph "Dendritic Model (Proposed)"
-    Input[Input Features (5)] --> D1[Dendritic Layer 1]
+    Input["Input Features (5)"] --> D1[Dendritic Layer 1]
     D1 -- "Sparse Branches" --> Soma1[Integration / Mixing]
     Soma1 --> D2[Dendritic Layer 2]
     D2 -- "Refinement" --> Output[Risk Score]
     end
 
     subgraph "Standard MLP (Baseline)"
-    Input2[Input Features (5)] --> Dense1[Dense Layer (64)]
-    Dense1 -- "Dense Connection" --> Dense2[Dense Layer (32)]
+    Input2["Input Features (5)"] --> Dense1["Dense Layer (64)"]
+    Dense1 -- "Dense Connection" --> Dense2["Dense Layer (32)"]
     Dense2 --> Output2[Risk Score]
     end
 
