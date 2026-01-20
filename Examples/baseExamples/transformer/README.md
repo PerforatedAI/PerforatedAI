@@ -90,3 +90,28 @@ This shows an example output of an experiment with 128 width, 2 layers, and drop
 
 ![ExampleOutput](dendritic_128d_2l_dropout25.png "Example Output")
 
+Perplexity metrics as dendrites are added:
+
+| Param Count | Val Perplexity/100 |
+|-------------|--------------------|
+| 3,362,064  | 0.941487          |
+| 3,759,888  | 0.903227          |
+| 4,164,624  | 0.898944          |
+| 4,573,968  | 0.883500          |
+| 4,987,920  | 0.878257          |
+| 5,406,480  | 0.870242          |
+| 5,829,648  | 0.867079          |
+| 6,257,424  | 0.864259          |
+| 6,689,808  | 0.864074          |
+| 7,126,800  | 0.858331          |
+| 7,568,400  | 0.855874          |
+| 8,014,608  | 0.853706          |
+| 8,465,424  | 0.852553          |
+| 8,920,848  | 0.852192          |
+| 9,380,880  | 0.851571          |
+| 9,845,520  | 0.848186          |
+| 10,314,768 | 0.841401          |
+
+Take note on this graph, it does seem like the training scores would be going down anyway without dendrites.  However, at each dendritic addition you can see the extended blue lines showing the validation scores that were calculated before loading the previously best model and adding dendrites to that one.  It is clear that the dendritic addition is in fact what is enabling the increased training scores too actually improve validation error, and not just overfit the data.  From the starting point reducing perplexity from .941 to .841 is an **11%** improvement in perplexity.
+
+
