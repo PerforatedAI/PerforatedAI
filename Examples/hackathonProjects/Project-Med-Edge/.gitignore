@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+venv/
+env/
+.env
+
+# Data and Models
+data/
+checkpoints/
+*.pth
+*.pt
+
+# Logs and Artifacts
+wandb/
+results/
+logs/
+
+# OS specific
+.DS_Store
+Thumbs.db
