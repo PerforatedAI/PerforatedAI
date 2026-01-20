@@ -53,7 +53,7 @@ This bank lead scoring project demonstrates that Dendritic Optimization can achi
 | Model | Accuracy | Parameters | Notes |
 |-------|----------|------------|-------|
 | Standard Baseline | 65.5% | ~710,000 | 1024-512-256 layer architecture |
-| Dendritic Optimized | ~64.0% | 135,426 | 256-64 layer architecture discovered by PAI |
+| Dendritic Optimized | ~65.4% | 135,426 | 256-64 layer architecture discovered by PAI |
 
 **Compression Results:**
 - **Percent Parameter Reduction: 81%**
@@ -66,11 +66,13 @@ The optimizer identified that 81% of the baseline model's capacity was redundant
 
 ![Perforated AI Training Results](PAI/PAI.png)
 
+The mandatory PAI output graph above demonstrates the stabilized optimization process. By implementing a 10-epoch fixed interval (DOING_FIXED_SWITCH), the architecture now converges properly between growth phases. Notice the distinct white spaces between the vertical blue lines, proving that the model is no longer restructuring every epoch.
+
 ## Clean Results Graph
 
 ![W&B Optimization Process](./wandb_results.png)
 
-The chart demonstrates the Dendritic Optimization process compared to standard training. The green line shows the standard model training once and stopping (static), while the purple line shows the dendritic model actively searching for efficient architectures, adding neurons (spikes) and refining weights (dips) to find the optimal parameter-to-accuracy ratio.
+This chart compares the static Standard Baseline (Green) against our dynamic Dendritic model (Purple). The 'zig-zag' pattern in the stabilized purple line represents the library successfully identifying and pruning redundant capacity, reducing the model size by 81% while maintaining original accuracy.
 
 ## Weights and Biases Sweep Report
 
