@@ -69,22 +69,11 @@ These graphs are **automatically generated from the actual training logs** when 
 
 #### A. Raw Results Graph (`PAI.png`)
 _Shows the training loss and validation accuracy curves over time._
-![Raw Results Graph](PAI_updated.png)
+![Raw Results Graph](PAI/PAI.png)
 
 #### B. Clean Results Graph (`Accuracy_Improvement.png`)
 _A direct side-by-side comparison of the final model accuracy._
 ![Accuracy Improvement](Accuracy_Improvement.png)
-
-#### C. Training Progression Gallery
-_Detailed view of training dynamics at different stages._
-
-| Stage | Graph |
-| :--- | :--- |
-| **Final Run (PAI.png)** | ![Final Run](PAI/PAI.png) |
-| **No Improve Run** | ![No Improve](PAI/PAI_20.01.2026.10.43.39_noImprove_lr_0.png) |
-| **Before Switch (Ep 0)** | ![Before Switch 0](PAI/PAI_beforeSwitch_0.png) |
-| **Before Switch (Ep 2)** | ![Before Switch 2](PAI/PAI_beforeSwitch_2.png) |
-| **Before Switch (Ep 4)** | ![Before Switch 4](PAI/PAI_beforeSwitch_4.png) |
 
 ---
 
