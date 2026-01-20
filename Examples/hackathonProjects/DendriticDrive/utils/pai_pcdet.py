@@ -91,6 +91,9 @@ def setup_pai_pcdet(model, config):
     GPA.pc.set_perforated_backpropagation(config['pai']['perforated_backpropagation'])
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_unwrapped_modules_confirmed(True)
+    # Critical settings for waveform graph generation
+    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_n_epochs_to_switch(3)
     
     # Set output dimensions for 2D features [B, C]
     GPA.pc.set_output_dimensions([-1, 0])
