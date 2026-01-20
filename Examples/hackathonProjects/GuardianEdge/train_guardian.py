@@ -61,12 +61,8 @@ def train_guardian(config, args):
         # CRITICAL: Configure PAI settings BEFORE initialization
         # Fix for YOLO's normalization layers and shared activation pointers
         GPA.pc.set_unwrapped_modules_confirmed(True)
-        
-        # YOLO shares activation modules across layers - tell PAI to ignore these duplicates
-        GPA.pc.append_module_names_to_not_save([
-            '.model.1.act', '.model.2.act', '.model.4.act', 
-            '.model.6.act', '.model.8.act', '.model.9.act'
-        ])
+        GPA.pc.set_weight_decay_accepted(True)  # YOLO uses weight decay 
+        GPA.pc.append_module_names_to_not_save(['.base_model'])
         
         # Configure PAI settings
         GPA.pc.set_testing_dendrite_capacity(config['pai']['testing_dendrite_capacity'])
