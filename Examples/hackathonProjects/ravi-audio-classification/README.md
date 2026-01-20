@@ -72,7 +72,7 @@ This ESC-50 project shows that adding dendrites can improve accuracy on environm
 | Model        | Test Accuracy | Validation Accuracy | Parameters | Notes |
 |--------------|---------------|---------------------|------------|-------|
 | Traditional  | 70.50%        | 80.31%              | 1,577,394  | Baseline CNN14, early stopping at epoch 116 |
-| Dendritic    | 75.00%        | 85.00%              | 4,733,392  | CNN14 + 2 dendrites, 200 epochs |
+| Dendritic    | 75.00%        | 85.00%              | 3,153,878  | CNN14 + 1 dendrites, 200 epochs |
 
 This provides a **Remaining Error Reduction of 15.25%**.
 
