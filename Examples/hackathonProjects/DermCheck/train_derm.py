@@ -11,6 +11,24 @@ from monai.losses import DiceLoss
 from tqdm import tqdm
 from pathlib import Path
 
+class TinyCNN(nn.Module):
+    def __init__(self, in_channels=3, out_channels=7):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Flatten()
+        )
+        self.classifier = nn.Linear(32 * 56 * 56, out_channels)
+        
+    def forward(self, x):
+        x = self.features(x)
+        return self.classifier(x)
+
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 from utils.pai_monai import setup_pai_monai, configure_tracker
@@ -29,7 +47,10 @@ def train(config, args):
     print(f"Using device: {device}")
     
     # 1. Setup Models
-    if args.task == 'classification' or args.task == 'both':
+    if args.tiny:
+        print("Initializing TinyCNN for fast CPU training...")
+        model = TinyCNN(in_channels=3, out_channels=config['data']['num_classes'])
+    elif args.task == 'classification' or args.task == 'both':
         print("Initializing Classification Model (DenseNet121)...")
         model = DenseNet121(spatial_dims=2, in_channels=3, out_channels=config['data']['num_classes'])
     elif args.task == 'segmentation':
@@ -87,28 +108,32 @@ def train(config, args):
             train_loss += loss.item()
             pbar.set_postfix({'loss': loss.item()})
             
-        # Validation
+        # Validation (Real Telemetry from Pseudo-Labels)
         model.eval()
-        val_score = 0
+        correct = 0
+        total = 0
         with torch.no_grad():
             for batch in val_loader:
                 images = batch['image'].to(device)
+                labels = batch['label'].to(device)
                 outputs = model(images)
-                # Simple score for PAI: accuracy or 1-Dice
-                val_score += 1.0 # Placeholder: actual metric should be calculated
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
         
-        val_score /= len(val_loader)
-        print(f"Validation Score: {val_score:.4f}")
+        val_score = correct / total
+        print(f"Validation Accuracy: {val_score:.4f}")
         
         # PAI Tracker Update
         if config['pai']['enabled']:
+            # Pass the real score to PAI tracker
             model, restructured, complete = GPA.pai_tracker.add_validation_score(val_score, model)
             if restructured:
-                print("Model Restructured: Dendrites added!")
+                print("🌿 REAL DENDRITE ADDITION DETECTED! Model Restructured.")
                 model = model.to(device)
                 optimizer, scheduler = configure_tracker(model, config)
             if complete:
-                print("PAI Training Complete!")
+                print("PAI Training Complete! Convergence Achieved.")
                 break
                 
     # Save Model
@@ -123,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--task', type=str, default='classification', choices=['classification', 'segmentation', 'both'])
     parser.add_argument('--epochs', type=int, default=None)
     parser.add_argument('--batch-size', type=int, default=None)
+    parser.add_argument('--tiny', action='store_true', help='Use a fast TinyCNN for CPU demo')
     args = parser.parse_args()
     
     config = load_config()
