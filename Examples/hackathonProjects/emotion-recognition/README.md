@@ -65,32 +65,33 @@ python main.py --data_dir ./data/ravdess --no-wandb
 
 This project demonstrates that **Dendritic Optimization improves emotion recognition accuracy** on the RAVDESS dataset. Dendrites are **dynamically added** during training based on improvement thresholds.
 
-### Latest Training Run (January 19, 2026)
+### Latest Training Run
 
 | Phase | Epoch | Parameters | Best Validation Accuracy |
 |-------|-------|------------|--------------------------|
-| Pre-Dendrite | 0-37 | 422,728 | 53.25% |
-| Post-Dendrite | 38-75 | 845,112 | **65.00%** |
+| Pre-Dendrite | 0-80 | 422,728 | 66.67% |
+| Post-Dendrite 1 | 81-222 | 845,112 | 73.16% |
+| Post-Dendrite 2 | 223-306 | 1,269,344 | **73.59%** |
 
 ### Dynamic Dendrite Addition
 
-The model successfully triggered dendrite addition at **Epoch 37** after detecting consistent improvement patterns. The PAI diagram shows:
-- 🌳 **14,848 dendrites added** during the switch
-- Clear validation score improvement after dendrite addition
-- Learning rate reset for optimal dendrite training
+The model successfully triggered **3 dendrite additions** at epochs **81**, **223**, and **307**. The PAI diagram shows:
+- 🌳 Multiple dendrite layers added progressively
+- Clear validation score improvement after first two dendrite additions
+- Learning rate resets for optimal dendrite training at each switch
 
 ### Accuracy Comparison
 
 | Model | Param Count | Best Validation Accuracy | Notes |
 |-------|-------------|--------------------------|-------|
-| Traditional CNN (Baseline) | 422,728 | 53.25% | Before dendrite addition |
-| Dendritic CNN (+1 dendrite) | 845,112 | **65.00%** | After PerforatedAI optimization |
+| Traditional CNN (Baseline) | 422,728 | 66.67% | Before dendrite addition |
+| Dendritic CNN (+2 dendrites) | 1,269,344 | **73.59%** | Peak after PerforatedAI optimization |
 
 ### Remaining Error Reduction
 
-$$RER = \frac{65.00 - 53.25}{100 - 53.25} \times 100 = \textbf{25.13\%}$$
+$$RER = \frac{73.59 - 66.67}{100 - 66.67} \times 100 = \textbf{20.76\%}$$
 
-The dendritic optimization reduced the remaining error by **25.13%**, demonstrating significant improvement in emotion recognition through artificial dendrites.
+The dendritic optimization reduced the remaining error by **20.76%**, demonstrating significant improvement in emotion recognition through artificial dendrites.
 
 ---
 
