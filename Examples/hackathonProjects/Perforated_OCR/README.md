@@ -73,7 +73,7 @@ Examples/hackathonProjects/Perforated_Scripts/
 
 ### Run Baseline Model (No Dendrites)
 
-![Baseline Model](./Examples/hackathonProjects/Perforated_OCR/baseline_results.png)
+![Baseline Model](./baseline_results.png)
 
 ```bash
 python trOCR_original.py
