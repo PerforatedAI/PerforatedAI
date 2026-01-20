@@ -130,7 +130,12 @@ def train_yolo(args, config, run=None):
 def train_yolo_custom_loop(args, config, run=None):
     """
     Custom training loop with full PAI integration.
-    This is the recommended approach for hackathon to show dendritic optimization clearly.
+
+    This produces the correct PAI graph output (matching Dendrite Recommendations.pdf):
+    - Green line: Training scores (from add_extra_score)
+    - Orange line: Validation scores (from add_validation_score)
+    - Blue/Red lines: What would have happened without dendrites
+    - Vertical bars: Epochs where dendrites were added
     """
 
     # Set PAI configuration
@@ -185,13 +190,22 @@ def train_yolo_custom_loop(args, config, run=None):
     # Extract the model
     model = yolo.model
 
-    # Initialize PAI
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    # Initialize PAI with graph generation enabled
+    # The save_name determines the output path: PAI/{save_name}.png
+    import os
+    os.makedirs('PAI', exist_ok=True)
+
+    model = UPA.initialize_pai(
+        model,
+        save_name=args.save_name,
+        maximizing_score=True,  # We're maximizing mAP, not minimizing loss
+        making_graphs=True
+    )
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
 
-    # Setup optimizer
+    # Setup optimizer through PAI tracker
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
 
@@ -206,15 +220,24 @@ def train_yolo_custom_loop(args, config, run=None):
     # Tracking variables
     best_map = 0
     global_best_map = 0
-    global_best_params = 0
+    global_best_params = UPA.count_params(model)
+    baseline_params = global_best_params
 
-    # Training loop using YOLO's built-in trainer but with PAI callbacks
-    for epoch in range(args.epochs):
+    print(f"\nBaseline parameters: {baseline_params:,}")
+    print(f"Training until PAI signals completion...")
+
+    # Training loop - continue until PAI says training is complete
+    # This is critical for proper dendrite optimization
+    epoch = 0
+    training_complete = False
+
+    while not training_complete and epoch < args.epochs:
         print(f"\n{'='*50}")
         print(f"Epoch {epoch + 1}/{args.epochs}")
         print(f"{'='*50}")
 
         # Train for one epoch using ultralytics
+        yolo.model = model
         results = yolo.train(
             data=args.data,
             epochs=1,
@@ -223,45 +246,63 @@ def train_yolo_custom_loop(args, config, run=None):
             device=device,
             project=args.project,
             name=run.name if run else args.name,
-            resume=epoch > 0,
+            exist_ok=True,
             verbose=False,
         )
+        model = yolo.model
 
-        # Validate
-        metrics = yolo.val()
-        map50_95 = float(metrics.box.map)
-        map50 = float(metrics.box.map50)
+        # Get training metrics from the epoch
+        # YOLO reports validation metrics during training
+        train_map50 = float(results.results_dict.get('metrics/mAP50(B)', 0))
 
-        print(f"Validation - mAP@0.5: {map50:.4f}, mAP@0.5:0.95: {map50_95:.4f}")
+        # IMPORTANT: Add TRAINING score to PAI tracker
+        # This creates the green line in the graph
+        GPA.pai_tracker.add_extra_score(train_map50 * 100, 'train')
 
-        # Add score to PAI tracker
+        # Validate separately
+        val_metrics = yolo.val(verbose=False)
+        val_map50_95 = float(val_metrics.box.map)
+        val_map50 = float(val_metrics.box.map50)
+
+        print(f"Training mAP@0.5: {train_map50:.4f}")
+        print(f"Validation mAP@0.5: {val_map50:.4f}, mAP@0.5:0.95: {val_map50_95:.4f}")
+
+        # IMPORTANT: Add VALIDATION score to PAI tracker
+        # This creates the orange line and may trigger dendrite addition
         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
-            map50_95 * 100,  # Convert to percentage
+            val_map50_95 * 100,  # Convert to percentage
             model
         )
         model = model.to(device)
+        yolo.model = model
 
         # Update tracking
-        if map50_95 > best_map:
-            best_map = map50_95
+        if val_map50_95 > best_map:
+            best_map = val_map50_95
 
-        if map50_95 > global_best_map:
-            global_best_map = map50_95
+        if val_map50_95 > global_best_map:
+            global_best_map = val_map50_95
             global_best_params = UPA.count_params(model)
 
         # Log to wandb
         if run is not None:
             run.log({
                 "epoch": epoch,
-                "mAP50": map50,
-                "mAP50-95": map50_95,
+                "train_mAP50": train_map50,
+                "val_mAP50": val_map50,
+                "val_mAP50-95": val_map50_95,
                 "params": UPA.count_params(model),
                 "dendrites": GPA.pai_tracker.member_vars.get("num_dendrites_added", 0),
             })
 
         # If restructured, reset optimizer
-        if restructured and not training_complete:
-            print(f"\n🌳 Model restructured! Dendrites added: {GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)}")
+        if restructured:
+            current_params = UPA.count_params(model)
+            dendrites_added = GPA.pai_tracker.member_vars.get('num_dendrites_added', 0)
+            print(f"\n>>> MODEL RESTRUCTURED - Dendrites added! <<<")
+            print(f"    Total dendrite sets: {dendrites_added}")
+            print(f"    Parameters: {baseline_params:,} -> {current_params:,} ({((current_params-baseline_params)/baseline_params)*100:+.1f}%)")
+
             optimArgs = {
                 'params': model.parameters(),
                 'lr': config.learning_rate,
@@ -270,13 +311,13 @@ def train_yolo_custom_loop(args, config, run=None):
             schedArgs = {'mode': 'max', 'patience': 5}
             optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
-            # Update YOLO model reference
-            yolo.model = model
-
         if training_complete:
-            print(f"\n✅ Training complete!")
+            print(f"\n{'='*60}")
+            print(f"TRAINING COMPLETE - PerforatedAI optimization finished!")
+            print(f"{'='*60}")
             print(f"Best mAP@0.5:0.95: {global_best_map:.4f}")
             print(f"Final params: {global_best_params:,}")
+            print(f"Parameter change: {((global_best_params-baseline_params)/baseline_params)*100:+.1f}%")
 
             if run is not None:
                 run.log({
@@ -284,9 +325,18 @@ def train_yolo_custom_loop(args, config, run=None):
                     "final_params": global_best_params,
                     "final_dendrites": GPA.pai_tracker.member_vars.get("num_dendrites_added", 0),
                 })
-            break
 
-    return metrics
+        epoch += 1
+
+    # Save final graphs
+    print(f"\nSaving PAI graphs to PAI/{args.save_name}.png...")
+    try:
+        GPA.pai_tracker.save_graphs()
+        print(f"Graphs saved successfully!")
+    except Exception as e:
+        print(f"Note: Graph saving encountered: {e}")
+
+    return val_metrics
 
 
 def get_parameters_dict():
