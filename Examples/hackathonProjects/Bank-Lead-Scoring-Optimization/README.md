@@ -28,6 +28,7 @@ We compared a standard PyTorch baseline against the stabilized architecture veri
 
 ![Perforated AI Optimization Log](PAI/PAI.png)
 This graph confirms the completion of our convergent architecture search. The system monitored performance until Epoch 81, verifying that our 81% compressed model achieved a stable performance plateau without requiring additional dendritic growth.
+The absence of excessive vertical lines (noisy switching) proves that the model was allowed to converge fully before the system mathematically verified the architecture search was complete.
 
 ## 5. Proof of Optimization (W&B Sweep)
 The charts below, captured from our latest Weights & Biases report, demonstrate the stabilized optimization process.
@@ -38,8 +39,6 @@ The charts below, captured from our latest Weights & Biases report, demonstrate 
 
 ![W&B Report](wandb_results.png)
 
-*Technical Note: The PAI Graph*
-Our final PAI.png reflects a Convergent Search. The absence of excessive vertical lines (noisy switching) proves that the model was allowed to converge fully before the system mathematically verified the architecture search was complete.
 
 ## 6. Zero-Dependency Deployment (Technical Implementation)
 To demonstrate real-world applicability, we implemented a **"Factory Pattern"**:
