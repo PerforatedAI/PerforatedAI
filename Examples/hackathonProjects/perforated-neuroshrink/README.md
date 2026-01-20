@@ -1,8 +1,75 @@
+Perforated NeuroShrink
 
-```bat
-cd F:\PerforatedAI
+Intro:
+Perforated NeuroShrink is a hackathon project demonstrating dendritic optimization using the official PerforatedAI framework.
+The project showcases the complete dendritic optimization lifecycle, including:
+
+Phase-1: Dendritic capacity injection
+Phase-2: Validation-driven adaptive restructuring
+
+Dendritic optimization is applied to a standard PyTorch convolutional neural network without modifying the model architecture, highlighting how PerforatedAI can be integrated into existing models with minimal code changes.
+This submission is included in the Examples/hackathonProjects folder as required and is fully reproducible.
+
+Team:
+Vishal Prakash — Student / Independent Researcher
+
+Project Impact:
+Neural networks are often over-parameterized, which increases computation cost, memory usage, and makes deployment on edge or low-resource hardware difficult.
+Dendritic optimization addresses this challenge by enabling adaptive computation and dynamic restructuring during training. By injecting dendritic capacity and restructuring the network based on validation feedback, PerforatedAI prepares models for reduced effective computation, future compression, and cost-efficient deployment.
+This approach is particularly relevant for edge AI, real-time inference systems, and scenarios where computational efficiency is critical.
+
+Usage Instructions:
+Installation
+
+Clone the PerforatedAI repository and install the framework in editable mode:
+git clone https://github.com/PerforatedAI/PerforatedAI.git
+cd PerforatedAI
 pip install -e .
 
-cd Examples\hackathonProjects\perforated-neuroshrink
-pip install -r requirements.txt
-python benchmark.py
+Run the Project
+Navigate to the project folder:
+cd Examples/hackathonProjects/perforated-neuroshrink
+
+Run the Phase-2 demonstration script:
+python train_phase2.py
+
+Results:
+This project focuses on framework correctness and adaptive behavior rather than claiming final accuracy or compression benchmarks.
+
+Summary of Observed Behavio:r
+Aspect	Observation
+Model Architecture	Standard CNN (unchanged)
+Phase-1 Dendrites	Successfully initialized
+Phase-2 Restructuring	Triggered via validation feedback
+Adaptive Behavior	Confirmed during runtime
+Framework API Used	Official initialize_pai
+Runtime Confirmation
+
+During training, the PerforatedAI tracker reports successful adaptive restructuring:
+>>> MODEL RESTRUCTURED (Phase 2 triggered)
+This confirms that the model undergoes validation-driven adaptive restructuring, demonstrating the intended two-phase dendritic optimization workflow.
+
+Demo Video
+A demo video showing:
+
+Phase-1 dendritic initialization
+
+Phase-2 adaptive restructuring
+
+Runtime confirmation logs
+
+is available here:
+
+YouTube Demo:
+https://youtu.be/jlF6NxEL4cY
+
+Additional Notes:
+This submission follows the official PerforatedAI hackathon project structure.
+The project uses the official PerforatedAI API without modifying internal library code.
+The demo emphasizes correct framework usage, reproducibility, and lifecycle understanding.
+The project is intended as a framework demonstration and case study, rather than a final performance benchmark.
+
+Future Work:
+Future extensions of this project could include systematic benchmarking of dendritic optimization across different architectures and datasets. This would allow quantitative evaluation of accuracy, parameter efficiency, and computational cost under controlled experimental settings.
+Additional work may explore hyperparameter sweeps using tools such as Weights & Biases to better understand the interaction between dendritic capacity, restructuring schedules, and training dynamics.
+Finally, integrating dendritic optimization into larger models or alternative frameworks could further demonstrate its applicability to real-world, resource-constrained deployment scenarios.
