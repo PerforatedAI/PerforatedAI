@@ -67,31 +67,30 @@ This project demonstrates that **Dendritic Optimization improves emotion recogni
 
 ### Latest Training Run
 
-| Phase | Epoch | Parameters | Best Validation Accuracy |
-|-------|-------|------------|--------------------------|
-| Pre-Dendrite | 0-80 | 422,728 | 66.67% |
-| Post-Dendrite 1 | 81-222 | 845,112 | 73.16% |
-| Post-Dendrite 2 | 223-306 | 1,269,344 | **73.59%** |
+| Phase | Parameters | Best Validation Accuracy |
+|-------|------------|--------------------------|
+| Pre-Dendrite (0 dendrites) | 422,728 | 66.67% |
+| Post-Dendrite (+1 dendrite) | 845,112 | **73.16%** |
 
 ### Dynamic Dendrite Addition
 
-The model successfully triggered **3 dendrite additions** at epochs **81**, **223**, and **307**. The PAI diagram shows:
-- 🌳 Multiple dendrite layers added progressively
-- Clear validation score improvement after first two dendrite additions
-- Learning rate resets for optimal dendrite training at each switch
+The model successfully triggered dendrite addition during training. The PAI diagram shows:
+- 🌳 Dendrites added when improvement plateaued
+- Clear validation score improvement after dendrite addition
+- Learning rate reset for optimal dendrite training
 
 ### Accuracy Comparison
 
 | Model | Param Count | Best Validation Accuracy | Notes |
 |-------|-------------|--------------------------|-------|
-| Traditional CNN (Baseline) | 422,728 | 66.67% | Before dendrite addition |
-| Dendritic CNN (+2 dendrites) | 1,269,344 | **73.59%** | Peak after PerforatedAI optimization |
+| Traditional CNN (Baseline) | 422,728 | 66.67% | 0 dendrites |
+| Dendritic CNN | 845,112 | **73.16%** | +1 dendrite |
 
 ### Remaining Error Reduction
 
-$$RER = \frac{73.59 - 66.67}{100 - 66.67} \times 100 = \textbf{20.76\%}$$
+$$RER = \frac{73.16 - 66.67}{100 - 66.67} \times 100 = \textbf{19.47\%}$$
 
-The dendritic optimization reduced the remaining error by **20.76%**, demonstrating significant improvement in emotion recognition through artificial dendrites.
+The dendritic optimization reduced the remaining error by **19.47%**, demonstrating significant improvement in emotion recognition through artificial dendrites.
 
 ---
 
