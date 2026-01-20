@@ -1,7 +1,4 @@
-Here is a **complete, clean, hackathon-ready `README.md`** written **exactly in the required format**, customized to **your project, dataset, and team**.
-You can copy-paste this directly into `Examples/hackathonProjects/Perforated_Scripts/README.md`.
 
----
 
 # **Perforated Scripts**
 
