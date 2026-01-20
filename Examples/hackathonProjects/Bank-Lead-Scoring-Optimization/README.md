@@ -60,7 +60,7 @@ This bank lead scoring project demonstrates that Dendritic Optimization can achi
 - **Performance Retention: ~100%** (only 0.1 percentage point difference from baseline)
 - **Deployment Impact:** Model size reduction enables edge deployment on tablets/ATMs with zero-lag inference
 
-The optimizer identified that 81% of the baseline model's capacity was redundant, as shown in `PAI/PAI_beforeSwitch_128best_test_scores.csv`. We achieved comparable business value with 1/5th the original size, making the model deployable on low-power edge devices.
+The optimizer identified that 81% of the baseline model's capacity was redundant, as shown in `PAI/PAI_beforeSwitch_0best_test_scores.csv`. We achieved comparable business value with 1/5th the original size, making the model deployable on low-power edge devices.
 
 ## Raw Results Graph
 
