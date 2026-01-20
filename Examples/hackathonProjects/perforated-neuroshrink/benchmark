@@ -1,0 +1,11 @@
+from model_baseline import BaselineCNN
+from model_dendritic import DendriticCNN
+
+def count_params(model):
+    return sum(p.numel() for p in model.parameters())
+
+baseline = BaselineCNN()
+dendritic = DendriticCNN()
+
+print("Baseline parameters:", count_params(baseline))
+print("Dendritic parameters:", count_params(dendritic))
