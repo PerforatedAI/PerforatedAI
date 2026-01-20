@@ -60,6 +60,8 @@ Runtime confirmation logs
 
 is available here:
 
+<img width="1623" height="809" alt="image" src="https://github.com/user-attachments/assets/9cc6987d-5f7a-4a1c-b27a-bcc16030835b" />
+
 YouTube Demo:
 https://youtu.be/jlF6NxEL4cY
 
