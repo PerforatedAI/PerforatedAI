@@ -57,7 +57,7 @@ This bank lead scoring project demonstrates that Dendritic Optimization can achi
 
 **Compression Results:**
 - **Percent Parameter Reduction: 81%**
-- **Performance Retention: 98%** (only 1.5 percentage point accuracy drop)
+- **Performance Retention: ~100%** (only 0.1 percentage point difference from baseline)
 - **Deployment Impact:** Model size reduction enables edge deployment on tablets/ATMs with zero-lag inference
 
 The optimizer identified that 81% of the baseline model's capacity was redundant, as shown in `PAI/PAI_beforeSwitch_128best_test_scores.csv`. We achieved comparable business value with 1/5th the original size, making the model deployable on low-power edge devices.
@@ -66,7 +66,7 @@ The optimizer identified that 81% of the baseline model's capacity was redundant
 
 ![Perforated AI Training Results](PAI/PAI.png)
 
-The mandatory PAI output graph above demonstrates the stabilized optimization process. By implementing a 10-epoch fixed interval (DOING_FIXED_SWITCH), the architecture now converges properly between growth phases. Notice the distinct white spaces between the vertical blue lines, proving that the model is no longer restructuring every epoch.
+The mandatory PAI output graph above demonstrates the stabilized optimization process. By implementing a 10-epoch fixed interval (DOING_FIXED_SWITCH), the architecture is now allowed to converge fully before the first growth phase occurs at epoch 10. The absence of vertical blue lines in these initial epochs confirms that the model is no longer prematurely restructuring.
 
 ## Clean Results Graph
 
