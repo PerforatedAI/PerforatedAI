@@ -1,6 +1,6 @@
 
 
-# **Perforated Scripts**
+# **Perforated OCR**
 
 ## Intro – Required
 
@@ -85,6 +85,8 @@ This runs the standard TrOCR model and logs baseline training loss.
 
 ### Run Dendritic Model (Perforated AI)
 
+![Perforated AI Output Graph](./PAI/PAI.png)
+
 ```bash
 python trOCR_perforatedai.py
 ```
@@ -129,7 +131,7 @@ It confirms that dendrites were correctly applied and optimized during training.
 
 A simplified visualization showing the accuracy improvement trend between the baseline and dendritic models.
 
-![Accuracy Improvement](./PAI/Accuracy%20Improvement.png)
+![Perforated AI Output Graph](./PAI/PAI.png)
 
 ---
 
