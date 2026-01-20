@@ -15,3 +15,7 @@ wandb/
 *.pt
 *.pth
 *.onnx
+.DS_Store
+venv/
+**/PAI/
+**/data/

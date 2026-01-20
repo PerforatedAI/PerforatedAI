@@ -1,0 +1,14 @@
+{"time":"2025-12-30T12:37:12.5195791+05:30","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2025-12-30T12:37:13.6980814+05:30","level":"INFO","msg":"stream: created new stream","id":"sanc8eyg"}
+{"time":"2025-12-30T12:37:13.6980814+05:30","level":"INFO","msg":"handler: started","stream_id":"sanc8eyg"}
+{"time":"2025-12-30T12:37:13.7027993+05:30","level":"INFO","msg":"stream: started","id":"sanc8eyg"}
+{"time":"2025-12-30T12:37:13.707908+05:30","level":"INFO","msg":"writer: started","stream_id":"sanc8eyg"}
+{"time":"2025-12-30T12:37:13.707908+05:30","level":"INFO","msg":"sender: started","stream_id":"sanc8eyg"}
+{"time":"2025-12-30T13:22:29.8644299+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/sanc8eyg/file_stream\": dial tcp 35.186.228.49:443: connectex: A socket operation was attempted to an unreachable network."}
+{"time":"2025-12-30T15:18:25.1698192+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/sanc8eyg/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2025-12-30T15:31:14.80203+05:30","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-12-30T15:31:15.6283225+05:30","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2025-12-30T15:31:15.6526828+05:30","level":"INFO","msg":"stream: closing","id":"sanc8eyg"}
+{"time":"2025-12-30T15:31:15.6530431+05:30","level":"INFO","msg":"handler: closed","stream_id":"sanc8eyg"}
+{"time":"2025-12-30T15:31:15.6534341+05:30","level":"INFO","msg":"sender: closed","stream_id":"sanc8eyg"}
+{"time":"2025-12-30T15:31:15.6534341+05:30","level":"INFO","msg":"stream: closed","id":"sanc8eyg"}
