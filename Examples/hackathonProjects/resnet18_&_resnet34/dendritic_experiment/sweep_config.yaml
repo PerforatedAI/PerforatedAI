@@ -1,0 +1,39 @@
+program: dendritic_experiment/sweep_train.py
+method: bayes
+metric:
+  name: efficiency_score
+  goal: minimize
+
+early_terminate:
+  type: hyperband
+  min_iter: 10
+  eta: 3
+  s: 2
+
+parameters:
+  improvement_threshold:
+    distribution: categorical
+    values: [0.001, 0.002, 0.003]
+  
+  patience_dendrite:
+    distribution: categorical
+    values: [6, 8, 10]
+  
+  max_dendrites:
+    distribution: categorical
+    values: [1, 2]
+  
+  targeted_layers:
+    distribution: categorical
+    values:
+      - "layer3"
+      - "layer4"
+      - "layer3,layer4"
+
+# Fixed parameters (not swept)
+  num_epochs:
+    value: 30
+  learning_rate:
+    value: 0.001
+  batch_size:
+    value: 128
