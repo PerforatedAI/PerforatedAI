@@ -118,7 +118,7 @@ This dual setup ensures both **quantitative benchmarking** and **correct dendrit
 
 **Artifact:**
 
-* `PAI/PAI.png` ✅ (Required by judges)
+* `PAI/PAI.png`
 
 ---
 
@@ -205,3 +205,4 @@ Produces:
 
 
 Just tell me what you want next.
+
