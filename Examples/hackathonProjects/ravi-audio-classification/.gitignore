@@ -1,0 +1,36 @@
+# Data
+data/ESC-50/
+preprocessed/
+*.npy
+
+# Models
+models/*.pt
+models/*.pth
+*.pt
+*.pth
+
+# MLflow
+mlruns/
+
+# PAI outputs (keep the final graph)
+PAI/*
+!PAI/PAI.png
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Streamlit
+.streamlit/
+
+# Jupyter
+*.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Large files
+*.wav
+*.mp3
