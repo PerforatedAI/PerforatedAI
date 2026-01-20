@@ -256,6 +256,11 @@ This section provides the mandatory results as specified in the [MNIST example](
 | Baseline YOLO (No Dendrites) | See PAI_GuardianEdge/PAIbest_test_scores.csv | TBD ms | From PAI tracking |
 | With PerforatedAI Dendrites | See PAI_GuardianEdge/PAIbest_test_scores.csv | TBD ms | Final optimized model |
 
+**Remaining Error Reduction**: TBD% (will be calculated after training completes)
+
+> [!NOTE]
+> Remaining Error Reduction is calculated as: `(Error_Baseline - Error_Dendritic) / Error_Baseline`.
+
 **Performance Improvements:**
 - **Inference Speed**: Dendritic optimization targets YOLO bottlenecks
 - **Model Efficiency**: Strategic neuron growth for edge deployment
