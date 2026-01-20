@@ -24,7 +24,7 @@ try:
     print("SUCCESS: PerforatedAI library found!")
 except ImportError:
     HAS_PAI = False
-    print("WARNING: PerforatedAI library STILL not found. Check folder name.")
+    print("WARNING: PerforatedAI library STILL not found.")
 
 # --- 1. SETUP ARGUMENTS ---
 parser = argparse.ArgumentParser()
@@ -44,15 +44,7 @@ def load_and_process(filename, fit_scaler=False, scaler=None):
         sys.exit(1)
         
     df = pd.read_csv(filename)
-    
-    if 'deposit' in df.columns:
-        target_col = 'deposit'
-    elif 'y' in df.columns:
-        target_col = 'y'
-    else:
-        print(f"CRITICAL ERROR: Target column not found.")
-        sys.exit(1)
-
+    target_col = 'deposit' if 'deposit' in df.columns else 'y'
     df_num = df.select_dtypes(include=['number']).fillna(0)
     X = df_num.drop(columns=[target_col], errors='ignore').values
     
@@ -68,9 +60,7 @@ def load_and_process(filename, fit_scaler=False, scaler=None):
     else:
         X = scaler.transform(X)
         
-    X_tensor = torch.tensor(X, dtype=torch.float32)
-    y_tensor = torch.tensor(y, dtype=torch.long)
-    return X_tensor, y_tensor, scaler
+    return torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.long), scaler
 
 X_train, y_train, scaler = load_and_process("train.csv", fit_scaler=True)
 X_test, y_test, _ = load_and_process("test.csv", fit_scaler=False, scaler=scaler)
@@ -97,16 +87,13 @@ model = BankModel(X_train.shape[1]).to(device)
 
 # --- 5. EXECUTION LOGIC ---
 if config.use_dendritic == 1:
-    print(">>> MODE: DENDRITIC OPTIMIZATION (FIXED INTERVAL)")
+    print(">>> MODE: DENDRITIC OPTIMIZATION (STABILIZED SEARCH)")
     
-    # Fixed to stop DOING_SWITCH_EVERY_TIME
-    GPA.pc.set_testing_dendrite_capacity(False)       # Turn off capacity test mode
-    GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH) # Set mode to Fixed Interval
-    GPA.pc.set_fixed_switch_num(10)                   # Force 10 epochs between switches
+    GPA.pc.set_testing_dendrite_capacity(False) 
+    GPA.pc.set_n_epochs_to_switch(15) # Wait longer to ensure stability [cite: 96]
     
     model = UPA.initialize_pai(model)
     
-    # Setup Tracker Optimizer/Scheduler
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     
@@ -115,9 +102,13 @@ if config.use_dendritic == 1:
     
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
+    # 5.1 INFINITE TRAINING LOOP [cite: 78]
     training_complete = False
-    while not training_complete:
+    epoch = -1
+    while not training_complete: # [cite: 78]
+        epoch += 1
         model.train()
+        train_correct, train_total = 0, 0
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             optimizer.zero_grad()
@@ -126,27 +117,36 @@ if config.use_dendritic == 1:
             loss.backward()
             optimizer.step()
             
+            _, predicted = torch.max(output.data, 1)
+            train_total += y_batch.size(0)
+            train_correct += (predicted == y_batch).sum().item()
+            
+        train_acc = train_correct / train_total
+
         model.eval()
-        correct, total = 0, 0
+        val_correct, val_total = 0, 0
         with torch.no_grad():
             for X_batch, y_batch in test_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
                 outputs = model(X_batch)
                 _, predicted = torch.max(outputs.data, 1)
-                total += y_batch.size(0)
-                correct += (predicted == y_batch).sum().item()
+                val_total += y_batch.size(0)
+                val_correct += (predicted == y_batch).sum().item()
         
-        val_acc = correct / total
-        wandb.log({"accuracy": val_acc})
-        print(f"Validation Acc: {val_acc}")
+        val_acc = val_correct / val_total
+        wandb.log({"val_accuracy": val_acc, "train_accuracy": train_acc})
+        print(f"Epoch {epoch} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
 
-        # Progress Architecture
+        # The system will automatically add the blue line when plateauing [cite: 41, 44]
         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
-        model.to(device)
         
+        model.to(device)
         if restructured:
             print(">>> NETWORK RESTRUCTURED: ADDING DENDRITES")
             optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+            
+        if training_complete: # [cite: 80]
+            break
 
 else:
     print(">>> MODE: STANDARD BASELINE")
@@ -155,6 +155,7 @@ else:
     
     for epoch in range(15):
         model.train()
+        train_correct, train_total = 0, 0 # Initialize counters
         for X_batch, y_batch in train_loader:
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             optimizer.zero_grad()
@@ -163,18 +164,28 @@ else:
             loss.backward()
             optimizer.step()
             
+            # Calculate training accuracy
+            _, predicted = torch.max(output.data, 1)
+            train_total += y_batch.size(0)
+            train_correct += (predicted == y_batch).sum().item()
+        
+        train_acc = train_correct / train_total
+
         model.eval()
-        correct, total = 0, 0
+        val_correct, val_total = 0, 0
         with torch.no_grad():
             for X_batch, y_batch in test_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
                 outputs = model(X_batch)
                 _, predicted = torch.max(outputs.data, 1)
-                total += y_batch.size(0)
-                correct += (predicted == y_batch).sum().item()
+                val_total += y_batch.size(0)
+                val_correct += (predicted == y_batch).sum().item()
         
-        val_acc = correct / total
-        wandb.log({"accuracy": val_acc})
-        print(f"Epoch {epoch} Acc: {val_acc}")
+        val_acc = val_correct / val_total
+        
+        # CRITICAL: Use identical keys to the dendritic block
+        wandb.log({"val_accuracy": val_acc, "train_accuracy": train_acc}) 
+        
+        print(f"Baseline Epoch {epoch} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
 
 print("Run Complete.")
