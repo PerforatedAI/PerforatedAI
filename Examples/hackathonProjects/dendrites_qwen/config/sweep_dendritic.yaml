@@ -1,0 +1,38 @@
+program: src/training/train_dendritic.py
+command:
+  - ${env}
+  - uv
+  - run
+  - python
+  - -m
+  - src.training.train_dendritic
+  - ${args}
+name: qwen-dendritic-sweep
+method: bayes
+metric:
+  goal: minimize
+  name: eval_loss
+parameters:
+  learning_rate:
+    distribution: uniform
+    min: 0.00001
+    max: 0.0005
+  per_device_train_batch_size:
+    values: [1, 2]
+  gradient_accumulation_steps:
+    values: [4, 8]
+  num_train_epochs:
+    values: [1, 2, 3]
+  num_dendrites:
+    values: [2, 3, 4]
+  dendrite_learning_rate_factor:
+    distribution: uniform
+    min: 0.5
+    max: 2.0
+  warmup_steps:
+    values: [50, 100, 200]
+early_terminate:
+  type: hyperband
+  min_iter: 3
+  eta: 3
+  s: 1
