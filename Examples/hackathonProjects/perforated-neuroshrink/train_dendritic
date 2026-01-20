@@ -1,27 +1,7 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from model_dendritic import DendriticCNN
+from model import Net
+from perforatedai import utils_perforatedai as UPA
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+model = Net()
+model = UPA.initialize_pai(model)
 
-loader = torch.utils.data.DataLoader(
-    datasets.MNIST(".", train=True, download=True,
-                   transform=transforms.ToTensor()),
-    batch_size=64, shuffle=True
-)
-
-model = DendriticCNN().to(device)
-optimizer = optim.Adam(model.parameters())
-loss_fn = nn.CrossEntropyLoss()
-
-for data, target in loader:
-    data, target = data.to(device), target.to(device)
-    optimizer.zero_grad()
-    loss = loss_fn(model(data), target)
-    loss.backward()
-    optimizer.step()
-    break
-
-print("Dendritic trained")
+print("Dendritic params:", sum(p.numel() for p in model.parameters()))
