@@ -1,0 +1,35 @@
+2026-01-20 02:26:00,222 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Configure stats pid to 421932
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/.config/wandb/settings
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/avi/DentricNewer/hack/wandb/settings
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'api_key': '***REDACTED***', 'entity': 'aviralsaxena1104-bits-pilani', 'project': 'DendriViT-Hackathon', 'sweep_id': 'yz6r1at6', 'root_dir': '/home/sankalp/avi/DentricNewer/hack', 'run_id': 'ehddboz4', 'sweep_param_path': '/home/sankalp/avi/DentricNewer/hack/wandb/sweep-yz6r1at6/config-ehddboz4.yaml'}
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'hack/train_dendritic.py', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py'}
+2026-01-20 02:26:00,223 INFO    MainThread:421932 [wandb_init.py:_log_setup():507] Logging user logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260120_022600-ehddboz4/logs/debug.log
+2026-01-20 02:26:00,224 INFO    MainThread:421932 [wandb_init.py:_log_setup():508] Logging internal logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260120_022600-ehddboz4/logs/debug-internal.log
+2026-01-20 02:26:00,224 INFO    MainThread:421932 [wandb_init.py:init():547] calling init triggers
+2026-01-20 02:26:00,224 INFO    MainThread:421932 [wandb_init.py:init():554] wandb.init called with sweep_config: {'batch_size': 64, 'dendrite_density': 0.4, 'epochs': 30, 'lr': 1.0001877672622883, 'weight_decay': 0.08594624364710075}
+config: {}
+2026-01-20 02:26:00,224 INFO    MainThread:421932 [wandb_init.py:init():596] starting backend
+2026-01-20 02:26:00,225 INFO    MainThread:421932 [wandb_init.py:init():600] setting up manager
+2026-01-20 02:26:00,234 INFO    MainThread:421932 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-01-20 02:26:00,236 INFO    MainThread:421932 [wandb_init.py:init():606] backend started and connected
+2026-01-20 02:26:00,250 INFO    MainThread:421932 [wandb_run.py:_config_callback():1282] config_cb None None {'batch_size': 64, 'dendrite_density': 0.4, 'epochs': 30, 'lr': 1.0001877672622883, 'weight_decay': 0.08594624364710075}
+2026-01-20 02:26:00,251 INFO    MainThread:421932 [wandb_init.py:init():697] updated telemetry
+2026-01-20 02:26:00,257 INFO    MainThread:421932 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-20 02:26:01,219 INFO    MainThread:421932 [wandb_run.py:_on_init():2180] communicating current version
+2026-01-20 02:26:01,735 INFO    MainThread:421932 [wandb_run.py:_on_init():2189] got version response upgrade_message: "wandb version 0.24.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2026-01-20 02:26:01,735 INFO    MainThread:421932 [wandb_init.py:init():781] starting run threads in backend
+2026-01-20 02:26:01,802 INFO    MainThread:421932 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-20 02:26:01,803 INFO    MainThread:421932 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-20 02:26:01,803 INFO    MainThread:421932 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-20 02:26:01,803 INFO    MainThread:421932 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-20 02:26:01,805 INFO    MainThread:421932 [wandb_init.py:init():822] run started, returning control to user process
+2026-01-20 03:36:24,876 INFO    MainThread:421932 [wandb_run.py:_finish():1894] finishing run aviralsaxena1104-bits-pilani/DendriViT-Hackathon/ehddboz4
+2026-01-20 03:36:24,876 INFO    MainThread:421932 [wandb_run.py:_atexit_cleanup():2128] got exitcode: 0
+2026-01-20 03:36:24,877 INFO    MainThread:421932 [wandb_run.py:_restore():2111] restore
+2026-01-20 03:36:24,877 INFO    MainThread:421932 [wandb_run.py:_restore():2117] restore done
+2026-01-20 03:36:35,649 INFO    MainThread:421932 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-20 03:36:35,651 INFO    MainThread:421932 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-20 03:36:35,661 INFO    MainThread:421932 [wandb_run.py:_footer_sync_info():3440] logging synced files

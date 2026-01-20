@@ -1,0 +1,28 @@
+program: train_dendritic.py
+command: 
+  - python
+  - ${program}
+  - --model=vit_base_patch16_224
+method: bayes
+project: DendriViT-Hackathhow to on  
+name: dendritic_sweep_day3
+
+parameters:
+  dendrite_density:
+    values: [0.1, 0.2, 0.3, 0.4]  # Core innovation
+  lr:
+    distribution: log_uniform
+    min: 1e-5
+    max: 1e-3
+  batch_size:
+    values: [32, 64]
+  weight_decay:
+    distribution: uniform
+    min: 0.01
+    max: 0.1
+  epochs:
+    value: 30  # Faster sweeps
+
+metric:
+  name: val_accuracy
+  goal: maximize

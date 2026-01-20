@@ -1,0 +1,27 @@
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Configure stats pid to 4057781
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/.config/wandb/settings
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/avi/DentricNewer/hack/wandb/settings
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2026-01-19 13:46:24,182 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 13:46:24,183 INFO    MainThread:4057781 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'hack/train_dendritic.py', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py'}
+2026-01-19 13:46:24,183 INFO    MainThread:4057781 [wandb_init.py:_log_setup():507] Logging user logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_134624-0u8abwja/logs/debug.log
+2026-01-19 13:46:24,183 INFO    MainThread:4057781 [wandb_init.py:_log_setup():508] Logging internal logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_134624-0u8abwja/logs/debug-internal.log
+2026-01-19 13:46:24,183 INFO    MainThread:4057781 [wandb_init.py:init():547] calling init triggers
+2026-01-19 13:46:24,183 INFO    MainThread:4057781 [wandb_init.py:init():554] wandb.init called with sweep_config: {}
+config: {}
+2026-01-19 13:46:24,184 INFO    MainThread:4057781 [wandb_init.py:init():596] starting backend
+2026-01-19 13:46:24,184 INFO    MainThread:4057781 [wandb_init.py:init():600] setting up manager
+2026-01-19 13:46:24,187 INFO    MainThread:4057781 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-01-19 13:46:24,189 INFO    MainThread:4057781 [wandb_init.py:init():606] backend started and connected
+2026-01-19 13:46:24,194 INFO    MainThread:4057781 [wandb_init.py:init():697] updated telemetry
+2026-01-19 13:46:24,201 INFO    MainThread:4057781 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 13:46:24,908 ERROR   MainThread:4057781 [wandb_init.py:init():756] encountered error: The API key you provided is either invalid or missing.  If the `WANDB_API_KEY` environment variable is set, make sure it is correct. Otherwise, to resolve this issue, you may try running the 'wandb login --relogin' command. If you are using a local server, make sure that you're using the correct hostname. If you're not sure, you can try logging in again using the 'wandb login --relogin --host [hostname]' command.(Error 401: Unauthorized)
+2026-01-19 13:46:25,191 ERROR   MainThread:4057781 [wandb_init.py:init():1165] The API key you provided is either invalid or missing.  If the `WANDB_API_KEY` environment variable is set, make sure it is correct. Otherwise, to resolve this issue, you may try running the 'wandb login --relogin' command. If you are using a local server, make sure that you're using the correct hostname. If you're not sure, you can try logging in again using the 'wandb login --relogin --host [hostname]' command.(Error 401: Unauthorized)
+Traceback (most recent call last):
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/wandb/sdk/wandb_init.py", line 1147, in init
+    run = wi.init()
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/wandb/sdk/wandb_init.py", line 762, in init
+    raise error
+wandb.errors.AuthenticationError: The API key you provided is either invalid or missing.  If the `WANDB_API_KEY` environment variable is set, make sure it is correct. Otherwise, to resolve this issue, you may try running the 'wandb login --relogin' command. If you are using a local server, make sure that you're using the correct hostname. If you're not sure, you can try logging in again using the 'wandb login --relogin --host [hostname]' command.(Error 401: Unauthorized)
+2026-01-19 13:46:26,197 WARNING MsgRouterThr:4057781 [router.py:message_loop():77] message_loop has been closed

@@ -1,0 +1,148 @@
+[INFO] Loading dataset...
+Loading dataset: wubingheng/vit-medical-image-classification...
+Downloading train data (attempt 1)...
+
+data/train/data-00000-of-00001.arrow:  20%|███████████████████▉                                                                               | 34.1M/169M [00:06<00:26, 5.03MB/s]
+data/train/data-00000-of-00001.arrow: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████| 169M/169M [00:08<00:00, 20.1MB/s]
+data/test/data-00000-of-00001.arrow: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████| 39.6M/39.6M [00:04<00:00, 9.00MB/s]
+/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/huggingface_hub/file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading arrow files...
+Dataset loaded: 3002 train, 375 val, 375 test
+Creating dataloaders...
+[INFO] Creating DENDRITIC ViT...
+preprocessor_config.json: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 160/160 [00:00<00:00, 325kB/s]
+config.json: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 502/502 [00:00<00:00, 1.13MB/s]
+
+model.safetensors:  37%|███████████████████████████████████████████▋                                                                           | 127M/346M [00:03<00:03, 64.3MB/s]
+[INFO] Baseline: 85,817,112 params
+[INFO] Injecting dendrites...
+model.safetensors: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 346M/346M [00:04<00:00, 71.6MB/s]
+Some weights of ViTForImageClassification were not initialized from the model checkpoint at google/vit-base-patch16-224-in21k and are newly initialized: ['classifier.bias', 'classifier.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/cuda/__init__.py:611: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+Running a test of Dendrite Capacity.
+[INFO] Dendritic model: 171,443,760 params (-99.8% reduction)
+✅ Trainable: 113,418,288 (131.9% of baseline)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🌳 Dendritic Training:  97%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████▏   | 91/94 [00:47<00:01,  2.02it/s]
+
+🌳 Dendritic Training: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 94/94 [00:49<00:00,  1.91it/s]
+Checkpoint saved to models/dendritic_best.pt
+
+
+
+
+
+
+
+
+
+
+
+
+
+🌳 Dendritic Training:  60%|██████████████████████████████████████████████████████████████████████▎                                               | 56/94 [00:29<00:19,  1.90it/s]
+Traceback (most recent call last):
+  File "/home/sankalp/avi/DentricNewer/hack/train_dendritic.py", line 51, in <module>
+    train_loss, train_acc = train_epoch(model, loaders['train'], optimizer, dendrite_config.DEVICE)
+  File "/home/sankalp/avi/DentricNewer/hack/train_dendritic.py", line 35, in train_epoch
+    for batch in tqdm(dataloader, desc="🌳 Dendritic Training"):
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/tqdm/std.py", line 1182, in __iter__
+    for obj in iterable:
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 630, in __next__
+    data = self._next_data()
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 674, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/sankalp/avi/DentricNewer/hack/data_loader.py", line 20, in __getitem__
+    example = self.dataset[idx]
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/arrow_dataset.py", line 2795, in __getitem__
+    return self._getitem(key)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/arrow_dataset.py", line 2780, in _getitem
+    formatted_output = format_table(
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 629, in format_table
+    return formatter(pa_table, query_type=query_type)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 396, in __call__
+    return self.format_row(pa_table)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 437, in format_row
+    row = self.python_features_decoder.decode_row(row)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 215, in decode_row
+    return self.features.decode_example(row) if self.features else row
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1917, in decode_example
+    return {
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1918, in <dictcomp>
+    column_name: decode_nested_example(feature, value, token_per_repo_id=token_per_repo_id)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1339, in decode_nested_example
+    return schema.decode_example(obj, token_per_repo_id=token_per_repo_id)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/image.py", line 185, in decode_example
+    image.load()  # to avoid "Too many open files" errors
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/PIL/ImageFile.py", line 269, in load
+    n, err_code = decoder.decode(b)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/sankalp/avi/DentricNewer/hack/train_dendritic.py", line 51, in <module>
+    train_loss, train_acc = train_epoch(model, loaders['train'], optimizer, dendrite_config.DEVICE)
+  File "/home/sankalp/avi/DentricNewer/hack/train_dendritic.py", line 35, in train_epoch
+    for batch in tqdm(dataloader, desc="🌳 Dendritic Training"):
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/tqdm/std.py", line 1182, in __iter__
+    for obj in iterable:
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 630, in __next__
+    data = self._next_data()
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 674, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/home/sankalp/avi/DentricNewer/hack/data_loader.py", line 20, in __getitem__
+    example = self.dataset[idx]
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/arrow_dataset.py", line 2795, in __getitem__
+    return self._getitem(key)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/arrow_dataset.py", line 2780, in _getitem
+    formatted_output = format_table(
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 629, in format_table
+    return formatter(pa_table, query_type=query_type)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 396, in __call__
+    return self.format_row(pa_table)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 437, in format_row
+    row = self.python_features_decoder.decode_row(row)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 215, in decode_row
+    return self.features.decode_example(row) if self.features else row
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1917, in decode_example
+    return {
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1918, in <dictcomp>
+    column_name: decode_nested_example(feature, value, token_per_repo_id=token_per_repo_id)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/features.py", line 1339, in decode_nested_example
+    return schema.decode_example(obj, token_per_repo_id=token_per_repo_id)
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/datasets/features/image.py", line 185, in decode_example
+    image.load()  # to avoid "Too many open files" errors
+  File "/home/sankalp/avi/DentricNewer/.venv/lib/python3.10/site-packages/PIL/ImageFile.py", line 269, in load
+    n, err_code = decoder.decode(b)
+KeyboardInterrupt

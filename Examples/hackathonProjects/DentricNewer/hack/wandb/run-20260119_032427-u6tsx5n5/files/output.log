@@ -1,0 +1,52 @@
+[INFO] Loading dataset...
+Loading dataset: wubingheng/vit-medical-image-classification...
+Downloading train data (attempt 1)...
+'(ProtocolError('Connection aborted.', ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)), '(Request ID: 971ee7f1-ed28-4863-9798-19a6d9377cb6)')' thrown while requesting HEAD https://huggingface.co/datasets/wubingheng/vit-medical-image-classification/resolve/main/data/train/data-00000-of-00001.arrow
+Retrying in 1s [Retry 1/5].
+Downloading test data...
+C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\huggingface_hub\file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Loading arrow files...
+Dataset loaded: 3002 train, 375 val, 375 test
+Creating dataloaders...
+[INFO] Creating DENDRITIC ViT...
+Some weights of ViTForImageClassification were not initialized from the model checkpoint at google/vit-base-patch16-224-in21k and are newly initialized: ['classifier.weight', 'classifier.bias']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+[INFO] Baseline: 85,817,112 params
+[INFO] Injecting dendrites...
+By default skipping base_model. See "Safetensors Errors" section of customization.md to include it.
+potentially found a norm Layer that wont be converted, this is not recommended: .vit.encoder.layer.0.layernorm_after
+Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time
+Type 'net' + enter to inspect your network and see what the module type containing this layer is.
+Then do one of the following:
+ - Add the module type to GPA.pc.get_module_names_to_convert() to wrap it entirely
+ - If the norm layer is part of a sequential wrap it and the previous layer in a PAISequential
+ - If you do not want to add dendrites to this module add the type to GPA.pc.get_module_names_to_track()
+--Call--
+> c:\users\aviral pc\dentricnew\.venv\lib\site-packages\torch\nn\modules\module.py(1682)__getattr__()
+-> def __getattr__(self, name: str) -> Any:
+potentially found a norm Layer that wont be converted, this is not recommended: .vit.encoder.layer.0.layernorm_before
+Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time
+Type 'net' + enter to inspect your network and see what the module type containing this layer is.
+Then do one of the following:
+ - Add the module type to GPA.pc.get_module_names_to_convert() to wrap it entirely
+ - If the norm layer is part of a sequential wrap it and the previous layer in a PAISequential
+ - If you do not want to add dendrites to this module add the type to GPA.pc.get_module_names_to_track()
+--Call--
+> c:\users\aviral pc\dentricnew\.venv\lib\site-packages\torch\nn\modules\module.py(1682)__getattr__()
+-> def __getattr__(self, name: str) -> Any:
+*** NameError: name 'net' is not defined
+*** SyntaxError: invalid syntax
+--KeyboardInterrupt--
+--KeyboardInterrupt--
+--KeyboardInterrupt--
+--KeyboardInterrupt--
+potentially found a norm Layer that wont be converted, this is not recommended: .vit.encoder.layer.1.layernorm_after
+Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time
+Type 'net' + enter to inspect your network and see what the module type containing this layer is.
+Then do one of the following:
+ - Add the module type to GPA.pc.get_module_names_to_convert() to wrap it entirely
+ - If the norm layer is part of a sequential wrap it and the previous layer in a PAISequential
+ - If you do not want to add dendrites to this module add the type to GPA.pc.get_module_names_to_track()
+--Call--
+> c:\users\aviral pc\dentricnew\.venv\lib\site-packages\torch\nn\modules\module.py(1682)__getattr__()

@@ -1,0 +1,29 @@
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Configure stats pid to 218868
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/.config/wandb/settings
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/avi/DentricNewer/hack/wandb/settings
+2026-01-19 22:28:42,204 WARNING MainThread:218868 [wandb_setup.py:_flush():76] Unknown environment variable: WANDB_SERVICE
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'api_key': '***REDACTED***', 'entity': 'aviralsaxena1104-bits-pilani', 'project': 'DendriViT-Hackathon', 'sweep_id': 'yz6r1at6', 'root_dir': '/home/sankalp/avi/DentricNewer/hack', 'run_id': '1u0m5674', 'sweep_param_path': '/home/sankalp/avi/DentricNewer/hack/wandb/sweep-yz6r1at6/config-1u0m5674.yaml'}
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 22:28:42,204 INFO    MainThread:218868 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'hack/train_dendritic.py', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py'}
+2026-01-19 22:28:42,205 INFO    MainThread:218868 [wandb_init.py:_log_setup():507] Logging user logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/logs/debug.log
+2026-01-19 22:28:42,205 INFO    MainThread:218868 [wandb_init.py:_log_setup():508] Logging internal logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/logs/debug-internal.log
+2026-01-19 22:28:42,205 INFO    MainThread:218868 [wandb_init.py:init():547] calling init triggers
+2026-01-19 22:28:42,205 INFO    MainThread:218868 [wandb_init.py:init():554] wandb.init called with sweep_config: {'batch_size': 64, 'dendrite_density': 0.1, 'epochs': 30, 'lr': 1.0006057440871416, 'weight_decay': 0.03638667710112595}
+config: {}
+2026-01-19 22:28:42,206 INFO    MainThread:218868 [wandb_init.py:init():596] starting backend
+2026-01-19 22:28:42,206 INFO    MainThread:218868 [wandb_init.py:init():600] setting up manager
+2026-01-19 22:28:42,218 INFO    MainThread:218868 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-01-19 22:28:42,220 INFO    MainThread:218868 [wandb_init.py:init():606] backend started and connected
+2026-01-19 22:28:42,234 INFO    MainThread:218868 [wandb_run.py:_config_callback():1282] config_cb None None {'batch_size': 64, 'dendrite_density': 0.1, 'epochs': 30, 'lr': 1.0006057440871416, 'weight_decay': 0.03638667710112595}
+2026-01-19 22:28:42,235 INFO    MainThread:218868 [wandb_init.py:init():697] updated telemetry
+2026-01-19 22:28:42,242 INFO    MainThread:218868 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 22:28:43,175 INFO    MainThread:218868 [wandb_run.py:_on_init():2180] communicating current version
+2026-01-19 22:28:43,453 INFO    MainThread:218868 [wandb_run.py:_on_init():2189] got version response upgrade_message: "wandb version 0.24.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2026-01-19 22:28:43,454 INFO    MainThread:218868 [wandb_init.py:init():781] starting run threads in backend
+2026-01-19 22:28:43,543 INFO    MainThread:218868 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-19 22:28:43,543 INFO    MainThread:218868 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-19 22:28:43,544 INFO    MainThread:218868 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-19 22:28:43,544 INFO    MainThread:218868 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-19 22:28:43,545 INFO    MainThread:218868 [wandb_init.py:init():822] run started, returning control to user process

@@ -1,0 +1,34 @@
+2026-01-19 18:53:01,251 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 18:53:01,251 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Configure stats pid to 27437
+2026-01-19 18:53:01,251 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/.config/wandb/settings
+2026-01-19 18:53:01,251 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/avi/DentricNewer/hack/wandb/settings
+2026-01-19 18:53:01,251 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'api_key': '***REDACTED***', 'entity': 'aviralsaxena1104-bits-pilani', 'project': 'DendriViT-Hackathon', 'sweep_id': 'hx4wzmtt', 'root_dir': '/home/sankalp/avi/DentricNewer/hack', 'run_id': 'yxk057he', 'sweep_param_path': '/home/sankalp/avi/DentricNewer/hack/wandb/sweep-hx4wzmtt/config-yxk057he.yaml'}
+2026-01-19 18:53:01,252 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 18:53:01,252 INFO    MainThread:27437 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'hack/train_dendritic.py', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py'}
+2026-01-19 18:53:01,252 INFO    MainThread:27437 [wandb_init.py:_log_setup():507] Logging user logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_185301-yxk057he/logs/debug.log
+2026-01-19 18:53:01,252 INFO    MainThread:27437 [wandb_init.py:_log_setup():508] Logging internal logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_185301-yxk057he/logs/debug-internal.log
+2026-01-19 18:53:01,252 INFO    MainThread:27437 [wandb_init.py:init():547] calling init triggers
+2026-01-19 18:53:01,253 INFO    MainThread:27437 [wandb_init.py:init():554] wandb.init called with sweep_config: {'batch_size': 32, 'dendrite_density': 0.4, 'epochs': 30, 'lr': 1.00018719826502, 'weight_decay': 0.05540577543184048}
+config: {}
+2026-01-19 18:53:01,253 INFO    MainThread:27437 [wandb_init.py:init():596] starting backend
+2026-01-19 18:53:01,253 INFO    MainThread:27437 [wandb_init.py:init():600] setting up manager
+2026-01-19 18:53:01,264 INFO    MainThread:27437 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-01-19 18:53:01,266 INFO    MainThread:27437 [wandb_init.py:init():606] backend started and connected
+2026-01-19 18:53:01,280 INFO    MainThread:27437 [wandb_run.py:_config_callback():1282] config_cb None None {'batch_size': 32, 'dendrite_density': 0.4, 'epochs': 30, 'lr': 1.00018719826502, 'weight_decay': 0.05540577543184048}
+2026-01-19 18:53:01,281 INFO    MainThread:27437 [wandb_init.py:init():697] updated telemetry
+2026-01-19 18:53:01,288 INFO    MainThread:27437 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 18:53:03,324 INFO    MainThread:27437 [wandb_run.py:_on_init():2180] communicating current version
+2026-01-19 18:53:08,329 INFO    MainThread:27437 [wandb_run.py:_on_init():2189] got version response 
+2026-01-19 18:53:08,329 INFO    MainThread:27437 [wandb_init.py:init():781] starting run threads in backend
+2026-01-19 18:53:08,468 INFO    MainThread:27437 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-19 18:53:08,469 INFO    MainThread:27437 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-19 18:53:08,469 INFO    MainThread:27437 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-19 18:53:08,470 INFO    MainThread:27437 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-19 18:53:08,471 INFO    MainThread:27437 [wandb_init.py:init():822] run started, returning control to user process
+2026-01-19 20:01:43,951 INFO    MainThread:27437 [wandb_run.py:_finish():1894] finishing run aviralsaxena1104-bits-pilani/DendriViT-Hackathon/yxk057he
+2026-01-19 20:01:43,952 INFO    MainThread:27437 [wandb_run.py:_atexit_cleanup():2128] got exitcode: 0
+2026-01-19 20:01:43,952 INFO    MainThread:27437 [wandb_run.py:_restore():2111] restore
+2026-01-19 20:01:43,952 INFO    MainThread:27437 [wandb_run.py:_restore():2117] restore done
+2026-01-19 20:01:55,504 INFO    MainThread:27437 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-19 20:01:55,504 INFO    MainThread:27437 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-19 20:01:55,509 INFO    MainThread:27437 [wandb_run.py:_footer_sync_info():3440] logging synced files

@@ -1,0 +1,171 @@
+2026-01-19 17:17:45 INFO open for scan: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/run-fli98ntd.wandb
+2026-01-19 17:17:46 INFO watching files in: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files
+2026-01-19 17:17:46 INFO run started: fli98ntd with start time 1768817629.491948
+2026-01-19 17:17:46 INFO saving file wandb-metadata.json with policy now
+2026-01-19 17:17:46 INFO saving file wandb-summary.json with policy end
+2026-01-19 17:17:46 INFO handling exit code: 0
+2026-01-19 17:17:46 INFO handling runtime: 2273
+2026-01-19 17:17:46 INFO saving file wandb-summary.json with policy end
+2026-01-19 17:17:46 INFO send defer
+2026-01-19 17:17:46 INFO handle sender defer: 0
+2026-01-19 17:17:46 INFO send defer: 1
+2026-01-19 17:17:46 INFO handle sender defer: 1
+2026-01-19 17:17:46 INFO send defer: 2
+2026-01-19 17:17:46 INFO handle sender defer: 2
+2026-01-19 17:17:46 INFO send defer: 3
+2026-01-19 17:17:46 INFO handle sender defer: 3
+2026-01-19 17:17:46 INFO send defer: 4
+2026-01-19 17:17:46 INFO handle sender defer: 4
+2026-01-19 17:17:46 INFO send defer: 5
+2026-01-19 17:17:46 INFO handle sender defer: 5
+2026-01-19 17:17:46 INFO send defer: 6
+2026-01-19 17:17:46 INFO handle sender defer: 6
+2026-01-19 17:17:47 INFO send defer: 7
+2026-01-19 17:17:47 INFO handle sender defer: 7
+2026-01-19 17:17:47 INFO file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/wandb-summary.json
+2026-01-19 17:17:47 INFO file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/config.yaml
+2026-01-19 17:17:47 INFO file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/output.log
+2026-01-19 17:17:47 INFO Uploaded file /tmp/tmpb_h5lolmwandb/8q9wqzhq-wandb-metadata.json
+2026-01-19 17:17:48 INFO file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/output.log
+2026-01-19 17:17:50 INFO send defer: 8
+2026-01-19 17:17:50 INFO handle sender defer: 8
+2026-01-19 17:17:50 INFO Attempting to build job artifact
+2026-01-19 17:17:50 INFO is repo sourced job
+2026-01-19 17:17:50 INFO adding wandb-job metadata file
+2026-01-19 17:17:50 INFO file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/output.log
+2026-01-19 17:17:50 INFO send defer: 9
+2026-01-19 17:17:53 INFO Uploaded file /home/sankalp/.local/share/wandb/artifacts/staging/tmp9magceqa
+2026-01-19 17:17:53 INFO Uploaded file /home/sankalp/.local/share/wandb/artifacts/staging/tmpce2h06r2
+2026-01-19 17:17:55 INFO sent artifact job-https___github.com_AviralDeshratna11_DentricNewer.git_hack_train_baseline.py - {'id': 'QXJ0aWZhY3Q6MjM4NDc5MjczMA==', 'digest': '199f7125833b24e81e03b42435639d97', 'state': 'PENDING', 'aliases': [], 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjgzMjI2NTAzMg==', 'latestArtifact': None}, 'version': 'latest'}
+2026-01-19 17:17:55 INFO handle sender defer: 9
+2026-01-19 17:17:55 INFO shutting down directory watcher
+2026-01-19 17:17:56 INFO scan: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files
+2026-01-19 17:17:56 INFO scan save: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/output.log output.log
+2026-01-19 17:17:56 INFO scan save: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/wandb-metadata.json wandb-metadata.json
+2026-01-19 17:17:56 INFO scan save: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/requirements.txt requirements.txt
+2026-01-19 17:17:56 INFO scan save: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/wandb-summary.json wandb-summary.json
+2026-01-19 17:17:56 INFO scan save: /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/config.yaml config.yaml
+2026-01-19 17:17:56 INFO send defer: 10
+2026-01-19 17:17:56 INFO handle sender defer: 10
+2026-01-19 17:17:56 INFO shutting down file pusher
+2026-01-19 17:17:56 INFO shutting down sender
+2026-01-19 17:17:56 INFO shutting down file pusher
+2026-01-19 17:17:56 INFO waiting for file pusher
+2026-01-19 17:17:57 INFO Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/output.log
+2026-01-19 17:17:57 INFO Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/requirements.txt
+2026-01-19 17:17:57 INFO Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/config.yaml
+2026-01-19 17:17:57 INFO Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/offline-run-20260119_154349-fli98ntd/files/wandb-summary.json
+2026-01-19 17:17:58 INFO send defer: 11
+2026-01-19 17:17:58 INFO file stream finish called
+2026-01-19 17:17:59 INFO file stream finish is done
+2026-01-19 17:43:09 INFO Running runs: []
+2026-01-19 17:43:10 INFO Agent received command: run
+2026-01-19 17:43:10 INFO Agent starting run with config:
+	batch_size: 32
+	dendrite_density: 0.2
+	epochs: 30
+	lr: 1.000492090562377
+	weight_decay: 0.02233212810486536
+2026-01-19 17:43:10 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 17:43:15 INFO Running runs: ['1tsp6pnn']
+2026-01-19 18:52:53 INFO Cleaning up finished run: 1tsp6pnn
+2026-01-19 18:52:54 INFO Agent received command: run
+2026-01-19 18:52:54 INFO Agent starting run with config:
+	batch_size: 32
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.00018719826502
+	weight_decay: 0.05540577543184048
+2026-01-19 18:52:54 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 18:52:59 INFO Running runs: ['yxk057he']
+2026-01-19 20:02:03 INFO Cleaning up finished run: yxk057he
+2026-01-19 20:02:04 INFO Agent received command: run
+2026-01-19 20:02:04 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.0004072442604328
+	weight_decay: 0.06685260893807891
+2026-01-19 20:02:04 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 20:02:09 INFO Running runs: ['8r472wm4']
+2026-01-19 21:29:21 INFO Cleaning up finished run: 8r472wm4
+2026-01-19 21:29:21 INFO Agent received command: run
+2026-01-19 21:29:21 INFO Agent starting run with config:
+	batch_size: 32
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.0005229132106213
+	weight_decay: 0.09683793969252792
+2026-01-19 21:29:21 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 21:29:26 INFO Running runs: ['fcyfwk7b']
+2026-01-19 22:03:22 INFO Running runs: []
+2026-01-19 22:03:23 INFO Agent received command: run
+2026-01-19 22:03:23 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.000675273694733
+	weight_decay: 0.04277745742856705
+2026-01-19 22:03:23 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 22:03:28 INFO Running runs: ['cddgo23z']
+2026-01-19 22:28:34 INFO Running runs: []
+2026-01-19 22:28:35 INFO Agent received command: run
+2026-01-19 22:28:35 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.1
+	epochs: 30
+	lr: 1.0006057440871416
+	weight_decay: 0.03638667710112595
+2026-01-19 22:28:35 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 22:28:40 INFO Running runs: ['1u0m5674']
+2026-01-19 22:40:41 INFO Running runs: []
+2026-01-19 22:40:42 INFO Agent received command: run
+2026-01-19 22:40:42 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.0003644093948785
+	weight_decay: 0.09166992178877224
+2026-01-19 22:40:42 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 22:40:47 INFO Running runs: ['z1yzqaos']
+2026-01-19 23:37:55 INFO Cleaning up finished run: z1yzqaos
+2026-01-19 23:37:56 INFO Agent received command: run
+2026-01-19 23:37:56 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.3
+	epochs: 30
+	lr: 1.0007532300852269
+	weight_decay: 0.07620827470859881
+2026-01-19 23:37:56 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-19 23:38:01 INFO Running runs: ['1i60dvf8']
+2026-01-20 01:07:44 INFO Cleaning up finished run: 1i60dvf8
+2026-01-20 01:07:45 INFO Agent received command: run
+2026-01-20 01:07:45 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.1
+	epochs: 30
+	lr: 1.0004272482567458
+	weight_decay: 0.08631312964286796
+2026-01-20 01:07:45 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-20 01:07:50 INFO Running runs: ['z8haprm8']
+2026-01-20 02:25:53 INFO Cleaning up finished run: z8haprm8
+2026-01-20 02:25:54 INFO Agent received command: run
+2026-01-20 02:25:54 INFO Agent starting run with config:
+	batch_size: 64
+	dendrite_density: 0.4
+	epochs: 30
+	lr: 1.0001877672622883
+	weight_decay: 0.08594624364710075
+2026-01-20 02:25:54 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-20 02:25:59 INFO Running runs: ['ehddboz4']
+2026-01-20 03:36:43 INFO Cleaning up finished run: ehddboz4
+2026-01-20 03:36:44 INFO Agent received command: run
+2026-01-20 03:36:44 INFO Agent starting run with config:
+	batch_size: 32
+	dendrite_density: 0.3
+	epochs: 30
+	lr: 1.000660925863058
+	weight_decay: 0.0962216389645697
+2026-01-20 03:36:44 INFO About to run command: python train_dendritic.py --model=vit_base_patch16_224
+2026-01-20 03:36:49 INFO Running runs: ['tj5ry0uh']
+2026-01-20 04:34:10 INFO Cleaning up finished run: tj5ry0uh

@@ -1,0 +1,44 @@
+{
+    "os": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.0",
+    "heartbeatAt": "2026-01-18T22:15:17.822384",
+    "startedAt": "2026-01-18T22:15:16.533821",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "C:\\Users\\AVIRAL PC\\DentricNew\\hack\\train_dendritic.py",
+    "codePath": "train_dendritic.py",
+    "host": "LAPTOP-S7A922A6",
+    "username": "AVIRAL PC",
+    "executable": "C:\\Users\\AVIRAL PC\\DentricNew\\.venv\\Scripts\\python.exe",
+    "cpu_count": 8,
+    "cpu_count_logical": 16,
+    "cpu_freq": {
+        "current": 2304.0,
+        "min": 0.0,
+        "max": 2304.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2304.0,
+            "min": 0.0,
+            "max": 2304.0
+        }
+    ],
+    "disk": {
+        "total": 728.5745277404785,
+        "used": 657.5014152526855
+    },
+    "gpu": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+            "memory_total": 4294967296
+        }
+    ],
+    "memory": {
+        "total": 15.744766235351562
+    }
+}

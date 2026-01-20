@@ -1,0 +1,28 @@
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Configure stats pid to 26992
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Loading settings from C:\Users\AVIRAL PC\.config\wandb\settings
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Loading settings from C:\Users\AVIRAL PC\DentricNew\hack\wandb\settings
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2026-01-19 02:04:05,965 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 02:04:05,966 INFO    MainThread:26992 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train_baseline.py', 'program': 'C:\\Users\\AVIRAL PC\\DentricNew\\hack\\train_baseline.py'}
+2026-01-19 02:04:05,966 INFO    MainThread:26992 [wandb_init.py:_log_setup():507] Logging user logs to C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_020405-m4rtjg46\logs\debug.log
+2026-01-19 02:04:05,966 INFO    MainThread:26992 [wandb_init.py:_log_setup():508] Logging internal logs to C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_020405-m4rtjg46\logs\debug-internal.log
+2026-01-19 02:04:05,966 INFO    MainThread:26992 [wandb_init.py:init():547] calling init triggers
+2026-01-19 02:04:05,966 INFO    MainThread:26992 [wandb_init.py:init():554] wandb.init called with sweep_config: {}
+config: {}
+2026-01-19 02:04:05,967 INFO    MainThread:26992 [wandb_init.py:init():596] starting backend
+2026-01-19 02:04:05,967 INFO    MainThread:26992 [wandb_init.py:init():600] setting up manager
+2026-01-19 02:04:05,969 INFO    MainThread:26992 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=spawn, using: spawn
+2026-01-19 02:04:05,971 INFO    MainThread:26992 [wandb_init.py:init():606] backend started and connected
+2026-01-19 02:04:05,977 INFO    MainThread:26992 [wandb_init.py:init():697] updated telemetry
+2026-01-19 02:04:05,978 INFO    MainThread:26992 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 02:04:07,032 INFO    MainThread:26992 [wandb_run.py:_on_init():2180] communicating current version
+2026-01-19 02:04:07,392 INFO    MainThread:26992 [wandb_run.py:_on_init():2189] got version response upgrade_message: "wandb version 0.24.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2026-01-19 02:04:07,392 INFO    MainThread:26992 [wandb_init.py:init():781] starting run threads in backend
+2026-01-19 02:04:07,460 INFO    MainThread:26992 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-19 02:04:07,460 INFO    MainThread:26992 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-19 02:04:07,461 INFO    MainThread:26992 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-19 02:04:07,461 INFO    MainThread:26992 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-19 02:04:07,461 INFO    MainThread:26992 [wandb_init.py:init():822] run started, returning control to user process
+2026-01-19 02:04:12,973 WARNING MsgRouterThr:26992 [router.py:message_loop():77] message_loop has been closed
