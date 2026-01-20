@@ -1,27 +1,3 @@
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from model_baseline import BaselineCNN
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-loader = torch.utils.data.DataLoader(
-    datasets.MNIST(".", train=True, download=True,
-                   transform=transforms.ToTensor()),
-    batch_size=64, shuffle=True
-)
-
-model = BaselineCNN().to(device)
-optimizer = optim.Adam(model.parameters())
-loss_fn = nn.CrossEntropyLoss()
-
-for data, target in loader:
-    data, target = data.to(device), target.to(device)
-    optimizer.zero_grad()
-    loss = loss_fn(model(data), target)
-    loss.backward()
-    optimizer.step()
-    break
-
-print("Baseline trained")
+from model import Net
+model = Net()
+print("Baseline params:", sum(p.numel() for p in model.parameters()))
