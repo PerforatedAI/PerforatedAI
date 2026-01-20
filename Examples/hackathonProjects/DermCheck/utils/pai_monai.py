@@ -14,6 +14,9 @@ def setup_pai_monai(model, config):
     # Configure PAI settings before initialization
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
+    GPA.pc.set_testing_dendrite_capacity(False)
+    # Reduce switch delay from default 10 to 3 for fast demo
+    GPA.pc.set_n_epochs_to_switch(3)
     
     # Set forward function
     forward_fn_map = {

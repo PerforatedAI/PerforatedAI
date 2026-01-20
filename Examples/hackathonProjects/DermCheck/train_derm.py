@@ -78,6 +78,19 @@ def train(config, args):
     # 3. Data Loaders
     train_loader, val_loader = get_loaders(config)
     
+    # 3.1 Handle Dataset Limit for Demo
+    if args.limit:
+        from torch.utils.data import Subset
+        print(f"Limiting dataset to {args.limit} samples for fast demo iteration...")
+        train_loader = torch.utils.data.DataLoader(
+            Subset(train_loader.dataset, range(min(args.limit, len(train_loader.dataset)))),
+            batch_size=train_loader.batch_size, shuffle=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            Subset(val_loader.dataset, range(min(args.limit // 5, len(val_loader.dataset)))),
+            batch_size=val_loader.batch_size, shuffle=False
+        )
+    
     # 4. Loss functions
     class_loss_fn = nn.CrossEntropyLoss()
     seg_loss_fn = DiceLoss(sigmoid=True)
@@ -149,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=None)
     parser.add_argument('--batch-size', type=int, default=None)
     parser.add_argument('--tiny', action='store_true', help='Use a fast TinyCNN for CPU demo')
+    parser.add_argument('--limit', type=int, default=None, help='Limit number of samples for ultra-fast training')
     args = parser.parse_args()
     
     config = load_config()

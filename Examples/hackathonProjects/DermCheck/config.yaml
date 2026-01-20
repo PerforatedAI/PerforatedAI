@@ -30,11 +30,12 @@ training:
   device: ""  # Auto-detect (use "cpu" or "cuda:0" to force)
 
 # PerforatedAI Configuration
+# PerforatedAI Configuration
 pai:
   enabled: true
   forward_function: sigmoid
   weight_init_multiplier: 0.01
-  improvement_threshold: 0.001
+  improvement_threshold: 0.0001
   maximizing_score: true
   testing_dendrite_capacity: false
   save_name: PAI_DermCheck
@@ -45,7 +46,7 @@ optimizer:
   scheduler: ReduceLROnPlateau
   scheduler_kwargs:
     mode: max
-    patience: 5
+    patience: 2
     factor: 0.5
 
 # Augmentation
