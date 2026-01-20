@@ -1,0 +1,29 @@
+program: 4_sweep_perforated.py
+method: bayes 
+
+# Explicitly specify Python interpreter from venv
+command:
+  - D:\Final Last hope\gemini\mmdet_env\Scripts\python.exe
+  - ${program}
+  - ${args}
+
+project: speech-commands-perforated
+
+metric:
+  name: best_val_acc
+  goal: maximize
+
+parameters:
+  n_epochs_to_switch:
+    values: [5, 7, 10, 12, 15]
+  
+  max_dendrites:
+    values: [4, 5, 6, 8, 10]
+  
+  improvement_threshold:
+    values: [0.001, 0.003, 0.005, 0.007, 0.01]
+
+early_terminate:
+  type: hyperband
+  min_iter: 20
+  eta: 2
