@@ -37,8 +37,8 @@ The network **grows** new computational pathways during training, **adapts** acr
 Case Study - https://docs.google.com/document/d/15h97tnoIzcxxOs5xVFLeYHde-76A5MoNnJOkImHeprA/edit?usp=sharing
 
 
-W&B sweep report(BONUS) - https://wandb.ai/shobhit1kapoor-university-of-texas-at-dall/Perforated-ResNet-CIFAR100/reports/Perforated-Vision-Pro-Maximizing-Visual-Intelligence-with-Minimal-Data--VmlldzoxNTY4MzE5Mw?accessToken=0qg28wqpzl00nsek3m6tf1sw7940cyurosm67xnhu0n6qyq4hmt3qsnq6dplel9y
-
+W&B sweep report(BONUS) - [https://wandb.ai/shobhit1kapoor-university-of-texas-at-dall/Perforated-ResNet-CIFAR100/reports/Perforated-Vision-Pro-Maximizing-Visual-Intelligence-with-Minimal-Data--VmlldzoxNTY4MzE5Mw?accessToken=0qg28wqpzl00nsek3m6tf1sw7940cyurosm67xnhu0n6qyq4hmt3qsnq6dplel9y
+](https://wandb.ai/shobhit1kapoor-university-of-texas-at-dall/Perforated-ResNet-CIFAR100/reports/Perforated-Vision-Pro-Maximizing-Visual-Intelligence-with-Minimal-Data--VmlldzoxNTY4MzE5Mw?accessToken=0qg28wqpzl00nsek3m6tf1sw7940cyurosm67xnhu0n6qyq4hmt3qsnq6dplel9y)
 ---
 
 ## Project Impact
