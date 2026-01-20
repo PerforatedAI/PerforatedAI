@@ -1,0 +1,34 @@
+# Giant-Killer NLP Project Dependencies
+# PyTorch Dendritic Optimization Hackathon
+
+# Core ML Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Transformers for BERT models
+transformers>=4.30.0
+
+# Datasets library for Jigsaw dataset
+datasets>=2.14.0
+
+# Perforated AI for dendritic optimization
+perforatedai>=0.1.0
+
+# Evaluation metrics
+scikit-learn>=1.3.0
+
+# Progress bars and utilities
+tqdm>=4.65.0
+
+# Numerical computing
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Logging and experiment tracking
+tensorboard>=2.14.0
+
+# Configuration management
+pyyaml>=6.0
+
+# Hugging Face Hub for model sharing
+huggingface_hub>=0.20.0
