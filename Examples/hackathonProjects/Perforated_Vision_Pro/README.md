@@ -31,7 +31,7 @@ The network **grows** new computational pathways during training, **adapts** acr
 
 ## Team
 
-**Akash Rawat**
+**Shobhit Kapoor**
 
 
 Case Study - https://docs.google.com/document/d/15h97tnoIzcxxOs5xVFLeYHde-76A5MoNnJOkImHeprA/edit?usp=sharing
