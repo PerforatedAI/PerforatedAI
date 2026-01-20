@@ -8,13 +8,39 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
+
+# --- PAI Library Setup ---
+# Add the root directory to path to import perforatedai
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Navigate up 3 levels: training -> perforated-uniplexity... -> hackathonProjects -> Examples -> PerforatedAI (Root)
+# Wait, let's verify directory depth.
+# Script is in: C:\Users\user\Desktop\PerforatedAI\Examples\hackathonProjects\perforated-uniplexity-credit-scoring\training
+# Root is:      C:\Users\user\Desktop\PerforatedAI
+# Depth: training(1) -> scoring(2) -> hackathonProjects(3) -> Examples(4) -> Root
+# So we need 4 levels up.
+root_dir = os.path.abspath(os.path.join(current_dir, "../../../../")) 
+sys.path.append(root_dir)
+
+# Debug print to help identify path issues
+print("Adding to path: " + root_dir)
+
+try:
+    from perforatedai import globals_perforatedai as GPA
+    from perforatedai import utils_perforatedai as UPA
+    print("Successfully imported PerforatedAI Library")
+except ImportError as e:
+    print("Failed to import PerforatedAI: " + str(e))
+    print("Attempted path: " + root_dir)
+    sys.exit(1)
+
 from models.dendritic_model import DendriticModel
 
 def train_dendritic():
     """Train the dendritic model"""
     
-    print("🚀 Starting Dendritic Model Training...")
+    print("Starting Dendritic Model Training...")
     
     # Load data
     try:
@@ -32,61 +58,97 @@ def train_dendritic():
     dataset = TensorDataset(train_features, train_labels)
     train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
     
+    val_dataset = TensorDataset(val_features, val_labels)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    
     # Initialize model
     model = DendriticModel(input_dim=5)
     
-    # Use BCEWithLogitsLoss
-    # Use BCEWithLogitsLoss
+    # Determine device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # --- PAI Configuration ---
+    GPA.pc.set_testing_dendrite_capacity(False) # Disable test mode for real training
+
+    # --- PAI Initialization ---
+    model = UPA.initialize_pai(model)
+    model.to(device)
+
+    # We use PAI tracker to manage the optimizer and scheduler
+    # This allows it to reset learning rates when structure changes (dendrites added)
+    optimizer_args = {'params': model.parameters(), 'lr': 0.001}
+    scheduler_args = {'mode': 'max', 'patience': 5, 'factor': 0.5}
+    
+    GPA.pai_tracker.set_optimizer(optim.Adam)
+    GPA.pai_tracker.set_scheduler(optim.lr_scheduler.ReduceLROnPlateau)
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimizer_args, scheduler_args)
+
     criterion = nn.BCEWithLogitsLoss()
-    # Use AdamW for better regularization
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
+
+    print(f"Starting PAI-Dendritic Optimization Loop on {device}")
     
-    # Training loop
-    epochs = 40
+    # PAI requires a potentially infinite loop because it decides when to stop
+    # after trying effectively all dendritic configurations.
+    epoch = 0
+    training_complete = False
     
-    # Scheduler for better convergence
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-    
-    # History tracking
-    train_losses = []
-    val_accuracies = []
-    epochs_range = range(1, epochs + 1)
-    
-    for epoch in range(epochs):
+    while not training_complete:
+        epoch += 1
         model.train()
         total_loss = 0
         
-        for batch_features, batch_labels in train_loader:
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            
             optimizer.zero_grad()
-            outputs = model(batch_features)
-            loss = criterion(outputs, batch_labels)
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
             loss.backward()
             optimizer.step()
-            
             total_loss += loss.item()
-        
-        # Step the scheduler
-        scheduler.step()
-        
+
         avg_loss = total_loss / len(train_loader)
-        train_losses.append(avg_loss)
         
         # Validation
         model.eval()
+        correct = 0
+        total = 0
+        val_loss_sum = 0
         with torch.no_grad():
-            val_outputs = model(val_features)
-            val_loss = criterion(val_outputs, val_labels)
-            
-            preds = torch.sigmoid(val_outputs) > 0.5
-            acc = (preds == val_labels).float().mean()
-            val_accuracies.append(float(acc))
+            for X_val, y_val in val_loader:
+                X_val, y_val = X_val.to(device), y_val.to(device)
+                outputs = model(X_val)
+                val_loss_sum += criterion(outputs, y_val).item()
+                predicted = (torch.sigmoid(outputs) > 0.5).float()
+                total += y_val.size(0)
+                correct += (predicted == y_val).sum().item()
         
-        if (epoch + 1) % 5 == 0:
-            print(f"Epoch [{epoch+1}/{epochs}] | Train Loss: {avg_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {acc:.4f}")
-    
-    # Save model
+        val_acc = correct / total
+        avg_val_loss = val_loss_sum / len(val_loader)
+        
+        # LOGGING (Optional: PAI does its own too)
+        print(f"Epoch {epoch} | Loss: {avg_loss:.4f} | Val Acc: {val_acc:.4f}")
+        
+        # --- PAI VALIDATION PIVOT POINT ---
+        # This is where the magic happens. The tracker decides if it should:
+        # 1. Continue training current structure
+        # 2. Add new dendrites (restructure)
+        # 3. Stop because no improvement found
+        model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+        model.to(device) # Ensure model stays on device after potential restructure
+        
+        if training_complete:
+            print("PAI Optimization Complete! Best model loaded.")
+            break
+            
+        if restructured:
+            print("PAI Restructure Triggered: Resetting Optimizer...")
+            optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimizer_args, scheduler_args)
+
+    # Save final optimized model
     os.makedirs("models", exist_ok=True)
-    torch.save(model.state_dict(), "models/dendritic_checkpoint.pt")
+    torch.save(model.state_dict(), 'models/dendritic_pai_optimized.pt')
+    print("Saved optimized model to models/dendritic_pai_optimized.pt")
     
     # Save Metrics
     import json
@@ -96,10 +158,8 @@ def train_dendritic():
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     
     metrics = {
-        "final_accuracy": float(acc),
-        "final_loss": float(val_loss.item()),
-        "train_loss_history": train_losses,
-        "val_acc_history": val_accuracies,
+        "final_accuracy": float(val_acc),
+        "final_loss": float(avg_val_loss),
         "num_parameters": num_params
     }
     with open("results/dendritic_metrics.json", "w") as f:

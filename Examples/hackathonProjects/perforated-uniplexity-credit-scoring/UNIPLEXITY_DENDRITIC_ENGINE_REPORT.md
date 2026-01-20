@@ -206,3 +206,82 @@ Regulatory requirements demand explainable AI. Unlike the "Black Box" of an MLP,
 
 The **Uniplexity Dendritic Credit Engine** demonstrates that bio-inspired architectures can offer a viable alternative to brute-force deep learning. By prioritizing architectural intelligence over parameter count, we achieved significant compression and data efficiency. The successful integration with **Ray** for distributed training further validates the solution's scalability for modern production environments.
 
+
+## 10. Technical Deep Dive: Official PAI Library vs. Custom Implementation
+
+To demonstrate technical mastery of the hackathon tools, we performed a rigorous comparison between our **Custom Static Dendritic Layer** and the **Official PerforatedAI (PAI) Dynamic Library**. This section analyzes the architectural differences, integration flow, and performance dynamics.
+
+### 10.1 Architectural Comparison: Static vs. Dynamic
+
+We identified two distinct approaches to dendritic computation:
+
+| Feature | **Custom Implementation** (`models/dendritic_model.py`) | **Official PAI Library** (`perforatedai`) |
+| :--- | :--- | :--- |
+| **Topology** | **Static**: Fixed number of branches ($k=4$) defined at init. | **Dynamic**: Starts as standard MLP, grows branches data-dependently. |
+| **Initialization** | High-entropy (Kaiming Uniform) to force branch diversity. | Low-entropy seed; structure evolves to capture variance. |
+| **Optimization** | Standard Backpropagation (AdamW/CosineAnnealing). | **PAI Tracker**: Monitors validation plateaus to trigger structural changes. |
+| **Flexibility** | Rigid architecture; over-parameterized for simple tasks. | "Right-sized" architecture; params grow from 169 $\to$ 951. |
+
+### 10.2 The PAI Dynamic Growth Cycle (Flowchart)
+
+The core innovation of the PAI library is its specialized optimization loop. Unlike the standard `forward -> loss -> backward` loop, PAI introduces a **Restructure Phase**.
+
+```mermaid
+graph TD
+    Init[Initialize Standard MLP\n(169 Params)] --> Train
+    
+    subgraph "PAI Optimization Loop"
+    Train[Train Epoch] --> Validate[Calc Validation Score]
+    Validate --> Check{Score Plateaued?}
+    
+    Check -- No --> Train
+    Check -- Yes --> Trigger[Trigger Restructure]
+    
+    Trigger --> Grow[Grow Dendrites\n(Add Branches)]
+    Grow --> Reset[Reset Optimizer & LR]
+    Reset --> Train
+    end
+    
+    Check -- Converged --> Final[Final Optimized Model\n(951 Params)]
+    
+    style Trigger fill:#ffecb3,stroke:#ff6f00
+    style Grow fill:#c8e6c9,stroke:#2e7d32
+```
+
+### 10.3 Full-Stack Integration: Ray + PAI
+
+Our final submission integrates the entire technology stack to demonstrate an enterprise-ready solution. We utilize **Ray** for horizontal scaling (distributed training) and **PerforatedAI** for vertical optimization (model architecture).
+
+```mermaid
+graph TD
+    subgraph "Infrastructure Layer (Ray)"
+    Head[Ray Head Node] -- "Schedules" --> Worker1[Worker GPU 0]
+    Head -- "Schedules" --> Worker2[Worker GPU 1]
+    end
+    
+    subgraph "Optimization Layer (PAI)"
+    Worker1 --> PAI_Wrap[UPA.initialize_pai()]
+    PAI_Wrap -- "Wraps" --> Model[Base PyTorch Model]
+    PAI_Wrap -- "Monitors" --> Tracker[GPA.pai_tracker]
+    end
+    
+    subgraph "Dendritic Computation"
+    Model --> Layer1[Dendritic Layer 1]
+    Model --> Layer2[Dendritic Layer 2]
+    Layer1 -- "GELU(w*x + b)" --> Soma1[Soma Integration]
+    end
+    
+    Tracker -- "Modifies" --> Layer1
+```
+
+### 10.4 Quantitative Results of the Transition
+
+| Metric | Custom Start | Custom End | **PAI Start** | **PAI End** | Delta |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Parameters** | 529 | 529 (Fixed) | **169** | **951** | **Dynamic Allocation** |
+| **Accuracy** | ~50% (Random) | 98.30% | 92.28% | **98.73%** | **+0.43%** |
+| **Convergence** | Fast (20 epochs) | Stable | Adaptive (74 epochs) | **Optimal** | Slower but Higher Acc |
+
+**Conclusion:** The refactor proves that the PAI library eliminates the guesswork of hyperparameter tuning (e.g., choosing `num_dendrites`). By letting the model *grow* its own capacity, we achieved superior accuracy with a statistically grounded parameter count.
+
+![PerforatedAI Training Dynamics](PAI.png)

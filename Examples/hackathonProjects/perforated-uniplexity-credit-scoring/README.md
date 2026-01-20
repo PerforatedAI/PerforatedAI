@@ -14,7 +14,12 @@ This submission is an implementation of a dendritic-optimized credit scoring sys
 
 **Description:**
 
-In emerging markets, SME credit scoring is often inaccurate due to sparse financial history. Improving the accuracy of these models reduces the risk of default for lenders and expands access to capital for deserving businesses. Furthermore, optimizing these models for **edge deployment** (low parameter count, low latency) allows them to run on low-cost hardware in bank branches or mobile POS devices, ensuring that credit decisions can be made instantly and offline, even in remote areas.
+In emerging markets, SME credit scoring is often inaccurate due to sparse financial history. Improving the accuracy of these models reduces the risk of default for lenders and expands access to capital for deserving businesses. Furthermore, optimizing these models for **edge**
+> **Deployment:** TorchScript / Edge-Ready
+> **Refactor Update:** Integrated Official `perforatedai` Library (See [Full Analysis](UNIPLEXITY_DENDRITIC_ENGINE_REPORT.md#10-official-perforatedai-library-integration-refactor-analysis))
+
+---
+**deployment** (low parameter count, low latency) allows them to run on low-cost hardware in bank branches or mobile POS devices, ensuring that credit decisions can be made instantly and offline, even in remote areas.
 
 ## Usage Instructions
 
