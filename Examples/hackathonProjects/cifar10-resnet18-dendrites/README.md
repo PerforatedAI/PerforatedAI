@@ -28,8 +28,10 @@ This project compares the final test accuracy of the ResNet18 CIFAR-10 baseline 
 
 Model Final Test Accuracy Notes
 Traditional (No Dendrites) 85.71% Baseline ResNet18 CIFAR-10
-Dendritic (PerforatedAI) 86.97% ResNet18 + Dendritic Optimization
+
 <img width="615" height="457" alt="Screenshot (522)" src="https://github.com/user-attachments/assets/1a325958-975d-4127-8e91-4b5f3ccc7e48" />
+
+Dendritic (PerforatedAI) 86.97% ResNet18 + Dendritic Optimization
 <img width="1355" height="594" alt="Screenshot (521)" src="https://github.com/user-attachments/assets/6f17ad37-9f13-449e-9e2c-4ecad55587e7" />
 
 Remaining Error Reduction:
