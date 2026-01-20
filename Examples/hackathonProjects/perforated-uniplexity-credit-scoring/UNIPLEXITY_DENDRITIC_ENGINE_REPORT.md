@@ -16,7 +16,8 @@
 6.  **Performance Analysis**
 7.  **Edge Efficiency & Hardware Implications**
 8.  **Broader Impact**
-9.  **Implementation Details**
+9.  **Conclusion**
+10. **Technical Deep Dive: Official PAI Library vs. Custom Implementation**
 
 ---
 
@@ -228,21 +229,21 @@ The core innovation of the PAI library is its specialized optimization loop. Unl
 
 ```mermaid
 graph TD
-    Init[Initialize Standard MLP\n(169 Params)] --> Train
+    Init["Initialize Standard MLP (169 Params)"] --> Train
     
-    subgraph "PAI Optimization Loop"
+    subgraph PAI_Optimization_Loop
     Train[Train Epoch] --> Validate[Calc Validation Score]
     Validate --> Check{Score Plateaued?}
     
     Check -- No --> Train
     Check -- Yes --> Trigger[Trigger Restructure]
     
-    Trigger --> Grow[Grow Dendrites\n(Add Branches)]
-    Grow --> Reset[Reset Optimizer & LR]
+    Trigger --> Grow["Grow Dendrites (Add Branches)"]
+    Grow --> Reset[Reset Optimizer and LR]
     Reset --> Train
     end
     
-    Check -- Converged --> Final[Final Optimized Model\n(951 Params)]
+    Check -- Converged --> Final["Final Optimized Model (951 Params)"]
     
     style Trigger fill:#ffecb3,stroke:#ff6f00
     style Grow fill:#c8e6c9,stroke:#2e7d32
@@ -254,24 +255,24 @@ Our final submission integrates the entire technology stack to demonstrate an en
 
 ```mermaid
 graph TD
-    subgraph "Infrastructure Layer (Ray)"
-    Head[Ray Head Node] -- "Schedules" --> Worker1[Worker GPU 0]
-    Head -- "Schedules" --> Worker2[Worker GPU 1]
+    subgraph Infrastructure_Layer_Ray
+    Head[Ray Head Node] -- Schedules --> Worker1[Worker GPU 0]
+    Head -- Schedules --> Worker2[Worker GPU 1]
     end
     
-    subgraph "Optimization Layer (PAI)"
-    Worker1 --> PAI_Wrap[UPA.initialize_pai()]
-    PAI_Wrap -- "Wraps" --> Model[Base PyTorch Model]
-    PAI_Wrap -- "Monitors" --> Tracker[GPA.pai_tracker]
+    subgraph Optimization_Layer_PAI
+    Worker1 --> PAI_Wrap["UPA.initialize_pai"]
+    PAI_Wrap -- Wraps --> Model[Base PyTorch Model]
+    PAI_Wrap -- Monitors --> Tracker["GPA.pai_tracker"]
     end
     
-    subgraph "Dendritic Computation"
+    subgraph Dendritic_Computation
     Model --> Layer1[Dendritic Layer 1]
     Model --> Layer2[Dendritic Layer 2]
-    Layer1 -- "GELU(w*x + b)" --> Soma1[Soma Integration]
+    Layer1 -- "GELU activation" --> Soma1[Soma Integration]
     end
     
-    Tracker -- "Modifies" --> Layer1
+    Tracker -- Modifies --> Layer1
 ```
 
 ### 10.4 Quantitative Results of the Transition

@@ -54,14 +54,14 @@ We evaluated our Dendritic Neural Network against a strong Baseline MLP on the e
 | Model Framework | Accuracy (Val) | Parameters | Data Needed | Verdict |
 | :--- | :--- | :--- | :--- | :--- |
 | **Baseline (MLP)** | 98.58% | 2,497 | 100% | *The Reference* |
-| **Dendritic (Pure)** | 98.30% | **529** (Lowest) | **25%** | 🧠 **Highly Efficient** (-79% Params) |
-| **Hybrid (Merge)** | **98.72%** | ~3,026 | High | ✅ **Outperforms Baseline** |
+| **Dendritic (Pure)** | **98.73%** | **632** (Lowest) | **25%** | 🧠 **Highly Efficient** (-75% Params) |
+| **Hybrid (Merge)** | 98.72% | ~3,026 | High | ✅ **Outperforms Baseline** |
 | **Ensemble (XGB)** | **98.78%** | N/A | High | 🎯 **Highest Accuracy** (+0.20%) |
 | **Lightning** | 98.03% | ~3,026 | High | *Fast Implementation (3 Epochs)* |
 
 ### Key Findings
 1.  **Surpassed Baseline Accuracy**: The **Ensemble** (98.78%) and **Hybrid** (98.72%) frameworks both outperformed the solid Baseline (98.58%), reducing the remaining error rate by up to **14%**.
-2.  **Massive Parameter Reduction**: The optimized **Dendritic Model** achieved 98.3% accuracy with only **529 parameters**, a **79% reduction** compared to the Baseline's 2,497 parameters. This makes it ideal for edge deployment.
+2.  **Massive Parameter Reduction**: The optimized **Dendritic Model** achieved 98.73% accuracy with only **632 parameters**, a **75% reduction** compared to the Baseline's 2,497 parameters. This makes it ideal for edge deployment.
 3.  **Superior Data Efficiency**: The Dendritic model reached optimal performance using only **25% of the training data**, demonstrating a superior ability to learn complex logic gates (e.g., fraud patterns) compared to the MLP.
 
 ### Mandatory Hackathon Graphs
@@ -69,11 +69,22 @@ These graphs are **automatically generated from the actual training logs** when 
 
 #### A. Raw Results Graph (`PAI.png`)
 _Shows the training loss and validation accuracy curves over time._
-![Raw Results Graph](PAI.png)
+![Raw Results Graph](PAI_updated.png)
 
 #### B. Clean Results Graph (`Accuracy_Improvement.png`)
 _A direct side-by-side comparison of the final model accuracy._
 ![Accuracy Improvement](Accuracy_Improvement.png)
+
+#### C. Training Progression Gallery
+_Detailed view of training dynamics at different stages._
+
+| Stage | Graph |
+| :--- | :--- |
+| **Final Run (PAI.png)** | ![Final Run](PAI/PAI.png) |
+| **No Improve Run** | ![No Improve](PAI/PAI_20.01.2026.10.43.39_noImprove_lr_0.png) |
+| **Before Switch (Ep 0)** | ![Before Switch 0](PAI/PAI_beforeSwitch_0.png) |
+| **Before Switch (Ep 2)** | ![Before Switch 2](PAI/PAI_beforeSwitch_2.png) |
+| **Before Switch (Ep 4)** | ![Before Switch 4](PAI/PAI_beforeSwitch_4.png) |
 
 ---
 
