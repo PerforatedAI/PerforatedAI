@@ -1,0 +1,11 @@
+
+NeuroVision-DO/
+│
+├── README.md
+├── requirements.txt
+├── notebook.ipynb
+├── data/
+│   ├── train/
+│   └── val/
+└── model/
+    └── vision_model_final.pth
