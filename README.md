@@ -1,15 +1,15 @@
-Perforated Phi-2 Financial Sentiment Analysis
+**Perforated Phi-2 Financial Sentiment Analysis**
 Elevator Pitch
 
 A real-world NLP benchmark demonstrating how PerforatedAI’s dendritic optimization improves Phi-2 financial sentiment classification accuracy without increasing model size.
 
-📌 About the Project
+**📌 About the Project**
 
 Financial sentiment analysis is a critical component of modern trading systems, market intelligence platforms, and automated risk assessment pipelines. Even small classification errors can propagate into costly downstream decisions. While compact language models such as Microsoft Phi-2 offer strong efficiency, improving their accuracy without increasing parameter count remains challenging.
 
 This project explores whether biologically inspired dendritic computation, implemented via PerforatedAI, can enhance representational capacity and classification performance without scaling model size. By applying dendritic routing to a real-world NLP task, we aim to move beyond toy benchmarks and demonstrate practical, measurable impact.
 
-🔍 What It Does
+**🔍 What It Does**
 
 This project compares two models trained under identical conditions:
 
@@ -28,7 +28,7 @@ Training dynamics
 
 Practical deployability
 
-🛠 How We Built It
+**🛠 How We Built It**
 Dataset
 
 Financial PhraseBank (All-Agree split)
@@ -53,7 +53,7 @@ Identical data splits and evaluation protocol for fair comparison
 
 GPU-accelerated training with careful memory management
 
-Dendritic Optimization
+**Dendritic Optimization**
 
 Integrated using PerforatedAI
 
@@ -63,15 +63,15 @@ Validation-based dendrite scoring enabled via add_validation_score
 
 Required PerforatedAI artifacts generated automatically
 
-Note:
+**Note:**
 In the final run, PerforatedAI hooks and validation tracking were enabled, producing all required PAI outputs. Due to transformer memory constraints, dendritic routing was selectively applied, with fallback behavior where necessary. All required PerforatedAI artifacts were generated successfully and are included in this submission.
 
-📊 Results
+📊 **Results**
 Experimental Runs
 
 We report results from two controlled experiments, reflecting progressive optimization:
 
-Experiment A – Constrained Setup
+**Experiment A – Constrained Setup
 Model	Accuracy	F1
 Baseline	0.5126	0.4108
 Dendritic	0.5378	0.3842
@@ -87,7 +87,7 @@ Improvements:
 
 Accuracy: +12.97%
 
-F1 Score: +13.94%
+F1 Score: +13.94%**
 
 📈 Visualizations (Required & Optional)
 
@@ -98,12 +98,20 @@ PAI.png – Required raw results graph
 
 
 training_progress.png
+<img width="2964" height="1764" alt="training_progress" src="https://github.com/user-attachments/assets/65e35d15-03af-435b-afb2-f5c6679b71ac" />
+
 
 metrics_comparison.png
+<img width="2964" height="1770" alt="metrics_comparison" src="https://github.com/user-attachments/assets/2895f80b-3e02-4a70-81d2-8c758358a4da" />
+
 
 improvement_metrics.png
+<img width="2968" height="1764" alt="improvement_metrics" src="https://github.com/user-attachments/assets/6ebc914d-c9a4-45ff-9820-275c9d7c0d48" />
+
 
 confusion_matrices.png
+<img width="4055" height="1773" alt="confusion_matrices" src="https://github.com/user-attachments/assets/14b74832-caa2-404d-ab3d-d84514027552" />
+
 
 summary_report.txt
 
@@ -173,4 +181,5 @@ pip install transformers accelerate datasets scikit-learn matplotlib seaborn
 git clone https://github.com/PerforatedAI/PerforatedAI.git
 pip install -e ./PerforatedAI
 
-python train.py
+python finaltrain.py
+
