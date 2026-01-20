@@ -1,0 +1,6 @@
+
+{
+  "name": "Sarcasm Vibe Detector",
+  "description": "A high-performance Hinglish sarcasm and sentiment detector using Tiny BERT with dendritic optimization. Features real-time on-device prediction and deep AI analysis.",
+  "requestFramePermissions": []
+}
