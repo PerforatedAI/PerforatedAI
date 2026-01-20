@@ -123,7 +123,7 @@ It confirms that dendrites were correctly applied and optimized during training.
 
 ![Perforated AI Output Graph](./PAI/PAI.png)
 
-> ⚠️ This graph is mandatory. Submissions without this file cannot be judged.
+
 
 ---
 
