@@ -1,31 +1,9 @@
-# --- System & Python ---
-.DS_Store
-__pycache__/
-*.pyc
-**/__pycache__
-
-# --- Virtual Environments ---
 myvenv
-venv/
-.venv/
 
-# --- Build Artifacts ---
-/build
-perforatedai.egg-info
-
-# --- Data & Outputs ---
 data
 PB
+perforatedai.egg-info
+**/__pycache__
+/build
 
-# --- Large Model Files (prevent accidental commits) ---
-*.pt
-*.pth
-*.onnx
-*.safetensors
-
-# --- Weights & Biases ---
-wandb/
-
-# --- IDE ---
-.vscode/
-.idea/
+.DS_Store
