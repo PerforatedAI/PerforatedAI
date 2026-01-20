@@ -123,7 +123,7 @@ A simplified comparison of Accuracy vs. Parameters visualizing the efficiency fr
 
 All experiments were tracked using Weights & Biases to ensure reproducibility and analyze hyperparameter impact.
 
-*   **[Link to W&B Report](https://wandb.ai/krishr-indian-institute-of-technology/cifar100-dendritic-demo/reports/ResNet18-ResNet34-Dendrite-Optimization--VmlldzoxNTY3ODA1MA)**
+*   **[Link to W&B Report](https://api.wandb.ai/links/krishr-indian-institute-of-technology/d9k8ynp3)**
 
 This report details:
 *   Training loss and accuracy curves.
