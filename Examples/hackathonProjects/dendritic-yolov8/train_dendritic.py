@@ -118,47 +118,90 @@ def main():
     schedArgs = {'mode': 'max', 'patience': 3, 'factor': 0.5}
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
-    # Training loop with add_validation_score()
-    print(f"\nTraining for {args.epochs} epochs...")
-    
-    for epoch in range(args.epochs):
-        # Validate to get score
-        score = validate(model, yolo, device)
-        print(f"Epoch {epoch}: mAP50 = {score:.4f}")
-        
-        if args.wandb:
-            wandb.log({"mAP50": score, "epoch": epoch})
-        
-        # Add validation score to PerforatedAI tracker
-        model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
-            score, model
-        )
-        
-        if restructured:
-            print("Model restructured! Re-initializing optimizer...")
-            optimArgs['params'] = model.parameters()
-            optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
-                model, optimArgs, schedArgs
-            )
-            model = model.to(device)
-        
-        if training_complete:
-            print("Training complete - dendrite optimization finished!")
-            break
-        
+    # Training loop with proper PAI integration
+    # KEY: Use add_extra_score() for training and add_validation_score() for validation
+    # This produces the correct graph format (see Dendrite Recommendations.pdf):
+    # - Green line: Training scores
+    # - Orange line: Validation scores
+    # - Vertical bars: Dendrite addition epochs
+    print(f"\nTraining for up to {args.epochs} epochs (will stop when PAI signals completion)...")
+
+    import os
+    os.makedirs('PAI', exist_ok=True)
+
+    epoch = 0
+    training_complete = False
+
+    while not training_complete and epoch < args.epochs:
+        print(f"\n{'='*50}")
+        print(f"Epoch {epoch + 1}/{args.epochs}")
+        print(f"{'='*50}")
+
         # Train one epoch using YOLO's built-in training
         yolo.model = model
-        yolo.train(
+        results = yolo.train(
             data="coco128.yaml",
             epochs=1,
             imgsz=640,
             batch=16,
             device=device,
             exist_ok=True,
-            verbose=False
+            verbose=False,
+            project='runs/train',
+            name='dendritic'
         )
         model = yolo.model
-    
+
+        # Get training score from results
+        train_score = float(results.results_dict.get('metrics/mAP50(B)', 0))
+
+        # IMPORTANT: Add TRAINING score to PAI tracker (creates green line in graph)
+        GPA.pai_tracker.add_extra_score(train_score * 100, 'train')
+
+        # Validate to get validation score
+        val_score = validate(model, yolo, device)
+        print(f"  Train mAP50: {train_score:.4f}")
+        print(f"  Val mAP50:   {val_score:.4f}")
+
+        if args.wandb:
+            wandb.log({
+                "train_mAP50": train_score,
+                "val_mAP50": val_score,
+                "epoch": epoch,
+                "params": count_parameters(model)
+            })
+
+        # IMPORTANT: Add VALIDATION score to PAI tracker (creates orange line, triggers dendrites)
+        model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
+            val_score * 100, model  # Convert to percentage
+        )
+        model = model.to(device)
+        yolo.model = model
+
+        if restructured:
+            current_params = count_parameters(model)
+            print(f"\n>>> DENDRITES ADDED! <<<")
+            print(f"    Parameters: {baseline_params/1e6:.2f}M -> {current_params/1e6:.2f}M")
+            optimArgs['params'] = model.parameters()
+            optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
+                model, optimArgs, schedArgs
+            )
+
+        if training_complete:
+            print("\n" + "="*60)
+            print("TRAINING COMPLETE - PerforatedAI optimization finished!")
+            print("="*60)
+
+        epoch += 1
+
+    # Save the PAI graphs
+    print("\nSaving PAI graphs...")
+    try:
+        GPA.pai_tracker.save_graphs()
+        print("Graphs saved to PAI/PAI.png")
+    except Exception as e:
+        print(f"Note: {e}")
+
     # Final validation
     final_score = validate(model, yolo, device)
     final_params = count_parameters(model)
