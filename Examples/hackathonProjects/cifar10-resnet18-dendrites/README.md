@@ -1,17 +1,17 @@
-Intro - 
-Description:
+**Intro** - 
+
 
 CIFAR-10 is a standard dataset used to benchmark image classification models. This hackathon submission tests adding Perforated AI dendrites (Dendritic Optimization) to a ResNet18-based CIFAR-10 classifier in PyTorch, and compares its performance against the same baseline ResNet18 model trained without dendrites.
 
 Team:
 Yatharth Khanna - Student/Founder@Meta Infinium (https://www.linkedin.com/in/yatharth-khanna-960ab224b/)
 
-Project Impact - 
-Description:
+**Project Impact** - 
+
 
 Improving the accuracy of an image classification model matters because it reduces incorrect predictions and improves reliability in real-world applications like robotics, smart cameras, edge-device vision, and automated quality inspection. Even small improvements in test accuracy can meaningfully reduce remaining error and increase confidence in deployment scenarios where consistent recognition performance is important.
 
-Usage Instructions - 
+**Usage Instructions** - 
 
 Installation:
 pip install -r requirements.txt
@@ -22,7 +22,7 @@ python cifar10_resnet18_baseline.py
 Run Dendritic Optimization (PerforatedAI):
 python cifar10_resnet18_perforatedai.py
 
-Results
+**Results**
 
 This project compares the final test accuracy of the ResNet18 CIFAR-10 baseline model vs the same architecture trained with PerforatedAI dendrites.
 
@@ -42,7 +42,7 @@ Remaining Error Reduction = (14.29 - 13.03) / 14.29 × 100 = 8.81%
 
 This provides a Remaining Error Reduction of 8.81%.
 
-Raw Results Graph - 
+**Raw Results Graph** - 
 <img width="2800" height="1400" alt="PAI" src="https://github.com/user-attachments/assets/7d78e269-730e-47f5-9a94-ab44266950e1" />
 
 
