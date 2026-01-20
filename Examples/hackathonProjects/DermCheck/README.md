@@ -306,6 +306,11 @@ This section provides the mandatory results as specified in the [MNIST example](
 | Baseline MONAI (No Dendrites) | See PAI_DermCheck/PAIbest_test_scores.csv | TBD | From PAI tracking |
 | With PerforatedAI Dendrites | See PAI_DermCheck/PAIbest_test_scores.csv | TBD | Final optimized model |
 
+**Remaining Error Reduction**: TBD% (will be calculated after training completes)
+
+> [!NOTE]
+> Remaining Error Reduction is calculated as: `(Error_Baseline - Error_Dendritic) / Error_Baseline`.
+
 **Performance Metrics:**
 - **Inference Time**: Faster processing on edge devices
 - **Model Size**: Optimized through dendritic growth
