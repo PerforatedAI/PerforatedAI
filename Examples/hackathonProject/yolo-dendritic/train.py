@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-train_yolo_pai_working.py - The version that actually ran successfully
-
-This is the version from your log that completed 20 epochs.
-Now we need to fix it to use REAL data and REAL loss.
+YOLO + Dendritic + PAI Integration
+Version with extra_verbose for debugging dendrite_values error
 """
 
 import os
@@ -21,6 +19,7 @@ import time
 # PAI imports
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
+from perforatedai import modules_perforatedai as MPA
 
 # Auto GPU
 def find_free_gpu():
@@ -95,24 +94,43 @@ def setup_pai():
     GPA.pc.set_output_dimensions([-1, 0, -1, -1])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
-    GPA.pc.set_modules_to_convert([nn.Conv2d])
-    GPA.pc.append_module_names_to_track(['C2f', 'SPPF', 'Detect', 'Conv'])
-    GPA.pc.set_verbose(False)
+    
+    # RORRY'S FIX: Clear default conversion list, only convert specific layers
+    GPA.pc.set_modules_to_convert([])
+    GPA.pc.set_module_ids_to_convert([
+        ".model.22.cv3.0.2",  # First detection scale
+        ".model.22.cv3.1.2",  # Second detection scale  
+        ".model.22.cv3.2.2"   # Third detection scale
+    ])
+    
+    GPA.pc.set_verbose(True)
+    GPA.pc.set_extra_verbose(True)  # RORRY REQUESTED: To see forward/backward activity
     GPA.pc.set_history_lookback(1)
-    logger.info("✓ PAI configured")
+    logger.info("✓ PAI configured to ONLY convert detection head cv3 layers")
 
-# Inject dendrites (direct mode that worked)
+# Inject dendrites
 def inject_dendrites(model):
-    logger.info("Injecting dendrites...")
+    logger.info("Injecting dendrites into PAI-wrapped layers...")
     detect = model.model[-1]
     count = 0
+    
     for i, seq in enumerate(detect.cv3):
-        for j, layer in enumerate(seq):
-            if isinstance(layer, nn.Conv2d):
-                dendritic = DendriticConv2d(layer, num_dendrites=6, dendrite_scale=0.2)
-                seq[j] = dendritic
+        # The final layer (index 2) should now be a PAINeuronModule
+        if len(seq) > 2:
+            layer = seq[2]  
+            
+            if isinstance(layer, MPA.PAINeuronModule) and isinstance(layer.main_module, nn.Conv2d):
+                # Create dendritic conv from the wrapped Conv2d
+                dendritic = DendriticConv2d(layer.main_module, num_dendrites=6, dendrite_scale=0.2)
+                
+                # Fill PAI's dendrite slot
+                layer.dendrite_module.parent_module = dendritic
+                
                 count += 1
-                logger.info(f"  ✓ Replaced cv3[{i}][{j}] with DendriticConv2d")
+                logger.info(f"  ✓ Injected dendrites into cv3[{i}][2]")
+            else:
+                logger.warning(f"  ✗ cv3[{i}][2] is {type(layer).__name__}, not PAINeuronModule!")
+    
     logger.info(f"✓ {count} dendrites injected")
     return count
 
@@ -260,12 +278,7 @@ def validate(model, data_loader, use_real_data, optimizer, scheduler, epoch):
     
     avg_loss = total_loss / max(num_batches, 1)
     
-    try:
-        model, restructured, complete = GPA.pai_tracker.add_validation_score(avg_loss, model)
-    except:
-        restructured = False
-        complete = epoch >= 20
-    
+    model, restructured, complete = GPA.pai_tracker.add_validation_score(avg_loss, model)    
     model = model.to(device)
     
     if restructured:
@@ -302,13 +315,46 @@ def main():
         else:
             seen[mid] = name
     
+    # Add all the shared SiLU act modules that don't appear in named_modules
+    for i in range(1, 23):
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.cv1.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.cv1.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.cv2.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.cv2.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.0.cv1.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.0.cv1.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.0.cv2.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.0.cv2.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.1.cv1.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.1.cv1.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.1.cv2.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.m.1.cv2.default_act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.conv.act"])
+        GPA.pc.append_module_names_to_not_save([f".model.{i}.conv.default_act"])
+    
+    # Add detection head activations (model.22.cv2 and cv3)
+    for cv in ["cv2", "cv3"]:
+        for i in range(3):
+            for j in range(3):
+                GPA.pc.append_module_names_to_not_save([f".model.22.{cv}.{i}.{j}.act"])
+                GPA.pc.append_module_names_to_not_save([f".model.22.{cv}.{i}.{j}.default_act"])
+    
     logger.info("\nInitializing PAI...")
     model = UPA.initialize_pai(model, save_name="PAI_YOLO", maximizing_score=False, making_graphs=True)
+    
+    # Verify only the target layers were wrapped
+    logger.info("\nVerifying PAI wrapping...")
+    for name, module in model.named_modules():
+        if isinstance(module, MPA.PAINeuronModule):
+            logger.info(f"  ✓ PAINeuronModule found: {name}")
     
     logger.info("\nInjecting dendrites...")
     count = inject_dendrites(model)
     if count == 0:
         logger.error("No dendrites injected!")
+        import pdb; pdb.set_trace()
         sys.exit(1)
     
     model = model.to(device)
