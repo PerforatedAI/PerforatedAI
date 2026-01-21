@@ -54,9 +54,13 @@ python train.py
 
 ## Training Behavior
 Phase 1 (Epoch 0-15):  Loss decreases 0.0165 → 0.0085 (plateau)
+
 Phase 2 (Epoch 16):    PAI dendrites triggered #1
+
 Phase 3 (Epoch 17-43): Temporary spike → recovery
-Phase 4 (Epoch 44):    PAI dendrites triggered #2  
+
+Phase 4 (Epoch 44):    PAI dendrites triggered #2
+
 Phase 5 (Epoch 45-99): Final convergence → 0.0071
 
 ## Key Innovations
