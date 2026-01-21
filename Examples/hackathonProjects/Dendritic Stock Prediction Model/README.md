@@ -51,6 +51,8 @@ Comparing the traditional model to the dendritic model below:
 
 This provides a Remaining Error Reduction of **0.06%**.
 
+Despite the very small improvement from applying dendrites, given the lack of time, further training and modification of the LSTM model may produce better results. Additionally, due to learning the majority of my machine learning knowledge over the first week of winter break, my lack of experience has almost likely held back the models from reaching their the full potential. Thus, given that dendritic optimization improved the model, albeit slightly, I believe that a more experienced engineer may be able to produce better results, and the lack of results more so reflects my current ability.
+
 ## Raw Results Graph:
 
 ![Dendritic LSTM Stock Prediction Model Output Graph.](model_info/model_info.png)
