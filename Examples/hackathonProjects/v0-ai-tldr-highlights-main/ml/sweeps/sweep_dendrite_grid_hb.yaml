@@ -1,0 +1,46 @@
+# Grid Sweep with Hyperband Early Stopping
+# Exhaustive search over discrete compression + PAI combinations
+
+program: ml/train.py
+method: grid
+metric:
+  name: val/rouge_l
+  goal: maximize
+
+parameters:
+  # Core experimental factors
+  use_pai:
+    values: [true, false]
+  
+  compression_ratio:
+    values: [0.6, 0.75, 1.0]
+  
+  dropout_rate:
+    values: [0.0, 0.1, 0.2]
+  
+  # Fixed learning rates to try
+  lr:
+    values: [1e-5, 5e-5, 1e-4]
+  
+  batch_size:
+    values: [8, 16]
+  
+  # PAI knobs (subset)
+  n_epochs_to_switch:
+    values: [2, 5]
+  
+  p_epochs_to_switch:
+    values: [1, 2]
+  
+  # Seeds
+  seed:
+    values: [42, 123]
+
+# Hyperband early stopping
+early_terminate:
+  type: hyperband
+  min_iter: 1
+  s: 2
+  eta: 3
+
+run_cap: 200

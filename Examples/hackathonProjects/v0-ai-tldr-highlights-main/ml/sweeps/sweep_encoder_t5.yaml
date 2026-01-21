@@ -1,0 +1,80 @@
+# Bayesian sweep for T5 summarizer with PerforatedAI
+# 
+# Launch:
+#   wandb sweep ml/sweeps/sweep_encoder_t5.yaml
+#   wandb agent <SWEEP_ID>
+#
+# Multiple agents can run in parallel on different machines.
+
+program: ml/train.py
+method: bayes
+metric:
+  name: eval/score
+  goal: maximize
+
+# Early termination to save costs
+early_terminate:
+  type: hyperband
+  min_iter: 100
+  s: 2
+
+parameters:
+  # Learning rate (log-uniform for wide search)
+  lr:
+    distribution: log_uniform_values
+    min: 1e-6
+    max: 5e-4
+  
+  # Batch size
+  batch_size:
+    values: [8, 16, 32]
+  
+  # Model compression ratio
+  compression_ratio:
+    values: [0.6, 0.75, 1.0]
+  
+  # PerforatedAI settings
+  use_pai:
+    values: [true, false]
+  
+  n_epochs_to_switch:
+    values: [3, 5, 8]
+  
+  p_epochs_to_switch:
+    values: [1, 2, 3]
+  
+  # Dendrite capacity (only used when use_pai=true)
+  dendrite_capacity:
+    values: [4, 8, 16]
+  
+  # Random seed for reproducibility
+  seed:
+    values: [42, 123, 777]
+  
+  # Dataset
+  dataset:
+    value: samsum
+  
+  # Model
+  model_name:
+    value: t5-small
+  
+  # Fixed training settings
+  max_steps:
+    value: 5000
+  
+  eval_steps:
+    value: 500
+  
+  max_grad_norm:
+    value: 1.0
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - --experiment-type
+  - compressed_pai
+  - --wandb
+  - enabled
+  - ${args}
