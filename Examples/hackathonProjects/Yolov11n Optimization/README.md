@@ -69,7 +69,7 @@ This project demonstrates that **Dendritic Optimization significantly improves o
 
 ### Full Data (100%) Results
 
-| Model | Final Validation mAP50 | Notes |
+| Model | Final mAP50 | Notes |
 |-------|------------------------|-------|
 | Traditional (Baseline) | 55.77 | YOLOv11n, 100% training data |
 | **Dendritic (PAI)** | **58.07** | YOLOv11n + Dendrites, 100% training data |
