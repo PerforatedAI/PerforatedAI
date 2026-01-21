@@ -14,14 +14,24 @@ Training: 100 epochs (stable)
 Data: Synthetic (COCO fallback)
 ```
 
+| Metric    | No-Dendrite Baseline | Dendritic PAI (Peak) | Absolute Gain | RER    |
+| --------- | -------------------- | -------------------- | ------------- | ------ |
+| mAP@50    | 0.5664               | 0.666                | +0.0996       | +23.6% |
+| mAP@50-95 | 0.4236               | 0.508                | +0.0844       | +14.6% |
+
 ## Performance Visualization
 ![PAI Performance Graphs](PAI.png)
-![mAP@50](mAP@50.jpeg)
-![mAP@50-95](mAP@50-95.jpeg)
 
-Also in the PAI graphs, it looks like the losses are stagnated, but that is because on epoch 1, the training loss seems to start off at a 9, before dropping to ~0.015 (in the same range as validation loss). Here's a better visualisation. 
+In the PAI graphs, it looks like the losses are stagnated, but that is because on epoch 1, the training loss seems to start off at a 9, before dropping to ~0.015 (in the same range as validation loss). Here's a better visualisation retaining the PAI numbers.
 
 ![Comparison](Comparsion.jpeg)
+
+
+
+Here are the mAP@50 and mAP@50-95 plots!
+
+![mAP@50](mAP@50.jpeg)
+![mAP@50-95](mAP@50-95.jpeg)
 
 
 ## Technical Architecture
