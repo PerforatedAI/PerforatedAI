@@ -22,7 +22,7 @@ Data: Synthetic (COCO fallback)
 ## Performance Visualization
 ![PAI Performance Graphs](PAI.png)
 
-In the PAI graphs, it looks like the losses are stagnated, but that is because on epoch 1, the training loss seems to start off at a 9, before dropping to ~0.015 (in the same range as validation loss). Here's a better visualisation retaining the PAI numbers.
+In the PAI graphs, it looks like the losses are stagnated, but that is because on epoch 1, the training loss seems to start off at a 9, before dropping to ~0.015 (in the same range as validation loss). Here's a better visualisation retaining the PAI numbers.  These numbers are the same for PAI, it is just zoomed in with a better scaled y-axis.
 
 ![Comparison](Comparsion.jpeg)
 
