@@ -1,0 +1,8 @@
+{
+  "model": "demo_baseline",
+  "loss": 0.95,
+  "perplexity": 2.59,
+  "parameters": 250000,
+  "mode": "eval",
+  "dendrites": "enabled"
+}
