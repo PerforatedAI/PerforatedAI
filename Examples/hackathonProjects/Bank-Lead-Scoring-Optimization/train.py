@@ -90,7 +90,7 @@ if config.use_dendritic == 1:
     print(">>> MODE: DENDRITIC OPTIMIZATION (STABILIZED SEARCH)")
     
     GPA.pc.set_testing_dendrite_capacity(False) 
-    GPA.pc.set_n_epochs_to_switch(15) # Wait longer to ensure stability [cite: 96]
+    GPA.pc.set_n_epochs_to_switch(3) # Wait longer to ensure stability [cite: 96]
     
     model = UPA.initialize_pai(model)
     

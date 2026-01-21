@@ -5,12 +5,18 @@ import time
 import os
 
 # --- CONFIG ---
-# Toggle this to test different models
+MODEL_FILE = "standard_model.pth" 
 # MODEL_FILE = "standard_model.pth" 
-MODEL_FILE = "optimized_model.pth" 
 DATA_FILE = "todays_call_list.csv"
 
-# --- RE-DEFINE ARCHITECTURES (Must match above) ---
+# Matches build_demo.py
+NUMERIC_FEATURES = ['age', 'balance', 'day', 'campaign', 'pdays', 'previous']
+JOB_MAPPING = {
+    'retired': 2, 'management': 1, 'entrepreneur': 1, 'student': 0, 
+    'blue-collar': 0, 'unemployed': -1, 'unknown': 0
+}
+
+# --- ARCHITECTURES (Updated with Sigmoid) ---
 class StandardModel(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
@@ -18,7 +24,7 @@ class StandardModel(nn.Module):
             nn.Linear(input_dim, 1024), nn.LeakyReLU(),
             nn.Linear(1024, 512), nn.LeakyReLU(),
             nn.Linear(512, 256), nn.LeakyReLU(),
-            nn.Linear(256, 2)
+            nn.Linear(256, 1), nn.Sigmoid()
         )
     def forward(self, x): return self.layers(x)
 
@@ -26,9 +32,9 @@ class OptimizedModel(nn.Module):
     def __init__(self, input_dim):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Linear(input_dim, 256), nn.LeakyReLU(),
-            nn.Linear(256, 64), nn.LeakyReLU(),
-            nn.Linear(64, 2)
+            nn.Linear(input_dim, 512), nn.LeakyReLU(), 
+            nn.Linear(512, 512), nn.LeakyReLU(),     
+            nn.Linear(512, 1), nn.Sigmoid()
         )
     def forward(self, x): return self.layers(x)
 
@@ -36,18 +42,24 @@ class OptimizedModel(nn.Module):
 print(f">>> 📱 BANK MANAGER APP LAUNCHING...")
 print(f">>> Loading Brain: {MODEL_FILE}")
 
-# 1. Load Data
 if not os.path.exists(DATA_FILE):
-    print("Data file not found. Running setup...")
-    import setup_data # Fallback
+    print("Error: todays_call_list.csv not found.")
+    exit()
     
 df = pd.read_csv(DATA_FILE)
-# Simple preprocessing to match training
-X_raw = df.select_dtypes(include=['number']).fillna(0).values
-X_tensor = torch.tensor(X_raw, dtype=torch.float32)
 
-# 2. Load Model
+# --- MATCHING PREPROCESSING ---
+df['job_code'] = df['job'].map(JOB_MAPPING).fillna(0)
+# SCALING (Must match Training!)
+df_scaled = df.copy()
+df_scaled['balance'] = df_scaled['balance'] / 1000.0
+df_scaled['age'] = df_scaled['age'] / 100.0
+
+X_raw = df_scaled[NUMERIC_FEATURES + ['job_code']].fillna(0).values
+X_tensor = torch.tensor(X_raw, dtype=torch.float32)
 input_dim = X_tensor.shape[1]
+
+# LOAD MODEL
 if "optimized" in MODEL_FILE:
     model = OptimizedModel(input_dim)
 else:
@@ -55,29 +67,26 @@ else:
 
 try:
     model.load_state_dict(torch.load(MODEL_FILE))
-except:
-    print("ERROR: Model architecture doesn't match file. Check your config.")
+    model.eval()
+except Exception as e:
+    print(f"ERROR: Model mismatch. Re-run build_demo.py! {e}")
     exit()
 
-model.eval()
-
-# 3. Predict & Benchmark
+# PREDICT
 print(">>> Running Prediction on today's call list...")
 start_time = time.time()
 with torch.no_grad():
-    outputs = model(X_tensor)
-    probs = torch.softmax(outputs, dim=1)[:, 1] # Probability of 'Yes'
+    probs = model(X_tensor).squeeze()
 end_time = time.time()
 
-# 4. Display Results
+# RESULTS
 df['Win_Probability'] = probs.numpy()
-top_leads = df.sort_values(by='Win_Probability', ascending=False).head(3)
+top_leads = df.sort_values(by='Win_Probability', ascending=False)
 
 print(f"\nProcessing Complete in {end_time - start_time:.4f} seconds.")
-print("="*40)
-print("       TOP LEADS TO CALL TODAY")
-print("="*40)
-# Show the most relevant columns for a bank agent
-cols = [c for c in ['age', 'job', 'balance', 'Win_Probability'] if c in df.columns]
-print(top_leads[cols].to_string(index=False))
-print("="*40)
+print("="*55)
+print(f" {'AGE':<4} {'JOB':<12} {'BALANCE':<10} {'SCORE'}")
+print("="*55)
+for _, row in top_leads.iterrows():
+    print(f" {row['age']:<4} {row['job']:<12} {row['balance']:<10} {row['Win_Probability']:.4f}")
+print("="*55)

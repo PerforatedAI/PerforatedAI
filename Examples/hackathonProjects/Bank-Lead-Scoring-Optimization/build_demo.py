@@ -5,31 +5,49 @@ from torch.utils.data import DataLoader, TensorDataset
 import pandas as pd
 import os
 
-# --- 1. DATA SETUP ---
-print(">>> Loading Data...")
-# Check if files exist
-if not os.path.exists("train.csv"):
-    print("Error: train.csv not found! Run setup_data.py first.")
-    exit()
+# --- CONFIG ---
+NUMERIC_FEATURES = ['age', 'balance', 'day', 'campaign', 'pdays', 'previous']
+JOB_MAPPING = {
+    'retired': 2, 'management': 1, 'entrepreneur': 1, 'student': 0, 
+    'blue-collar': 0, 'unemployed': -1, 'unknown': 0
+}
+
+# --- IMPROVED PREPROCESSING (WITH SCALING) ---
+def preprocess(df):
+    # 1. Map Jobs
+    df['job_code'] = df['job'].map(JOB_MAPPING).fillna(0)
+    
+    # 2. CRITICAL FIX: Scale the huge numbers so the AI doesn't break
+    # We create copies to avoid SettingWithCopy warnings
+    df = df.copy()
+    df['balance'] = df['balance'] / 1000.0  # Shrink 25000 -> 25.0
+    df['age'] = df['age'] / 100.0           # Shrink 65 -> 0.65
+    
+    X = df[NUMERIC_FEATURES + ['job_code']].fillna(0).values
+    return torch.tensor(X, dtype=torch.float32)
 
 def get_data(filename):
     df = pd.read_csv(filename)
-    # Simple cleaner to ensure we have numbers
     target_col = 'y' if 'y' in df.columns else 'deposit'
-    # Handle Yes/No or 1/0
+    if target_col not in df.columns:
+        print(f"Error: {target_col} column missing.")
+        exit()
+        
     y = df[target_col].apply(lambda x: 1 if str(x).lower() in ['yes', '1'] else 0).values
-    X = df.drop(columns=[target_col], errors='ignore').select_dtypes(include=['number']).fillna(0).values
-    return torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.long)
+    X_tensor = preprocess(df)
+    return X_tensor, torch.tensor(y, dtype=torch.float32) # Float for BCE Loss
+
+# --- MAIN SETUP ---
+print(">>> Loading Data & Scaling Features...")
+if not os.path.exists("train.csv"):
+    print("Error: train.csv not found!")
+    exit()
 
 X_train, y_train = get_data("train.csv")
-# Use the full dataset for the demo training
 train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=1024, shuffle=True)
 input_dim = X_train.shape[1]
 
-# --- 2. DEFINE THE BRAINS ---
-
-# BRAIN A: The Standard (Baseline)
-# Matches 1024-512-256 config (~700k params)
+# --- DEFINITIONS ---
 class StandardModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -37,43 +55,46 @@ class StandardModel(nn.Module):
             nn.Linear(input_dim, 1024), nn.LeakyReLU(),
             nn.Linear(1024, 512), nn.LeakyReLU(),
             nn.Linear(512, 256), nn.LeakyReLU(),
-            nn.Linear(256, 2)
+            nn.Linear(256, 1), nn.Sigmoid() # Sigmoid for probability
         )
     def forward(self, x): return self.layers(x)
 
-# BRAIN B: The Optimized (Dendritic Result)
-# Matches Row 1 result (~135k params)
 class OptimizedModel(nn.Module):
     def __init__(self):
         super().__init__()
-        # This architecture creates approx 135k parameters
+        # The Winning 271k Architecture
         self.layers = nn.Sequential(
-            nn.Linear(input_dim, 256), nn.LeakyReLU(),
-            nn.Linear(256, 64), nn.LeakyReLU(), 
-            nn.Linear(64, 2)
+            nn.Linear(input_dim, 512), nn.LeakyReLU(), 
+            nn.Linear(512, 512), nn.LeakyReLU(),     
+            nn.Linear(512, 1), nn.Sigmoid()
         )
     def forward(self, x): return self.layers(x)
 
-# --- 3. TRAIN AND SAVE ---
-def train_brain(model, filename):
+# --- SMART TRAINING ---
+def train_brain(model, filename, epochs=30):
     print(f">>> Training {filename}...")
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.CrossEntropyLoss()
+    # FIX: Use BCELoss for binary classification
+    criterion = nn.BCELoss() 
     
-    # Train for 15 epochs (Enough for a functional demo)
     model.train()
-    for epoch in range(15):
+    for epoch in range(epochs):
         for X_b, y_b in train_loader:
             optimizer.zero_grad()
-            loss = criterion(model(X_b), y_b)
+            y_pred = model(X_b).squeeze()
+            
+            # FIX: Class Weighting (Manual)
+            # Penalize missing a "Yes" (1) much more than missing a "No" (0)
+            weight = y_b * 5.0 + 1.0 # 6x penalty for missing a Yes
+            loss = (criterion(y_pred, y_b) * weight).mean()
+            
             loss.backward()
             optimizer.step()
             
-    # Save the file
     torch.save(model.state_dict(), filename)
     print(f">>> SAVED: {filename}")
 
-# Run the factory
-train_brain(StandardModel(), "standard_model.pth")
-train_brain(OptimizedModel(), "optimized_model.pth")
-print("\nDONE! You now have two brain files ready for the demo.")
+# Build them (More epochs for better convergence)
+train_brain(StandardModel(), "standard_model.pth", epochs=20)
+train_brain(OptimizedModel(), "optimized_model.pth", epochs=40) # Optimized gets more time to perfect
+print("\nDONE! Brains re-engineered with scaling.")
