@@ -69,7 +69,7 @@ We treated Perforated AI as the Architect and PyTorch as the Construction Crew.
 
 3. **Deploy Phase (Edge Ready):** The final optimized_model.pth contains the intelligence of the dendritic search baked into a standard, lightweight format.
 
-## 7. How to Reproduce
+## 8. How to Reproduce
 1.  **Install Requirements:**
     ```bash
     pip install pandas torch scikit-learn wandb perforated-ai
@@ -92,7 +92,7 @@ We treated Perforated AI as the Architect and PyTorch as the Construction Crew.
     ```
     *(This outputs the prioritized call list using the optimized brain)*
 
-## 8. Future Roadmap & Hackathon Submission
+## 9. Future Roadmap & Hackathon Submission
 This optimized model is currently being integrated into our proprietary **Marketing Intelligence Tool** to automate lead prioritization for field agents.
 
 **Upcoming Milestone:**
