@@ -107,10 +107,26 @@ def setup_pai():
         ".model.22.cv3.2.2"   # Third detection scale
     ])
     
-    GPA.pc.set_verbose(True)
-    GPA.pc.set_extra_verbose(True)  # RORRY REQUESTED: To see forward/backward activity
+    GPA.pc.set_verbose(False)
+    GPA.pc.set_extra_verbose(False)  # RORRY REQUESTED: To see forward/backward activity
     GPA.pc.set_history_lookback(1)
-    logger.info("✓ PAI configured to ONLY convert detection head cv3 layers")
+    
+    # Monkeypatch clear_dendrites to re-inject our custom dendrites after clearing
+    original_clear_dendrites = MPA.PAINeuronModule.clear_dendrites
+    
+    def clear_dendrites_with_reinject(self):
+        # Call original clear_dendrites
+        original_clear_dendrites(self)
+        
+        # Re-inject our custom DendriticConv2d if this is a Conv2d layer
+        if isinstance(self.main_module, nn.Conv2d):
+            dendritic = DendriticConv2d(self.main_module, num_dendrites=6, dendrite_scale=0.2)
+            self.dendrite_module.parent_module = dendritic
+            if GPA.pc.get_verbose():
+                logger.info(f"Re-injected dendrites into {self.name} during clear_dendrites")
+    
+    MPA.PAINeuronModule.clear_dendrites = clear_dendrites_with_reinject
+    logger.info("✓ PAI configured with monkeypatched clear_dendrites")
 
 # Inject dendrites
 def inject_dendrites(model):
