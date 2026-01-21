@@ -34,7 +34,7 @@ Run Dendritic model with:
 ## Results 
 | Param Counts | Max Valid Scores       |  Max Test Scores  |
 |--------------|------------------------| ------- |
-| 132854       | 44.578151983832164     | 44.578151983832164 |
+| 132854       | 54.44999996099563     | 54.44999996099563 |
 
 ## Raw Results Graph
 
