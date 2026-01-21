@@ -1,0 +1,17 @@
+Standard BERT: {
+  shape: rectangle
+  label: "Standard BERT-tiny"
+  Embeddings: {shape: cylinder; label: "Embeddings"}
+  Encoder: {shape: rectangle; label: "Transformer Encoder (xN)"}
+  Classifier: {shape: rectangle; label: "Classification Head"}
+  Embeddings -> Encoder -> Classifier
+}
+
+DendriticBERT: {
+  shape: rectangle
+  label: "DendriticBERT (DSN Mode)"
+  Embeddings_D: {shape: cylinder; label: "Embeddings (DAN Style)"}
+  Dendrite: {shape: diamond; label: "Dendritic Layer (PAI)"}
+  Classifier_D: {shape: rectangle; label: "Classification Head"}
+  Embeddings_D -> Dendrite -> Classifier_D
+}
