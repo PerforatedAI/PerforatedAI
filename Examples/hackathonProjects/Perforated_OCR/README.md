@@ -131,7 +131,7 @@ It confirms that dendrites were correctly applied and optimized during training.
 
 A simplified visualization showing the accuracy improvement trend between the baseline and dendritic models.
 
-![Perforated AI Output Graph](./PAI/PAI.png)
+![Perforated AI Output Graph](./PAI_Output/PAI_OutputScores.png)
 
 ---
 
