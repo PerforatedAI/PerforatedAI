@@ -53,6 +53,8 @@ This provides a Remaining Error Reduction of **0.06%**.
 
 Despite the very small improvement from applying dendrites, given the lack of time, further training and modification of the LSTM model may produce better results. Additionally, due to learning the majority of my machine learning knowledge over the first week of winter break, my lack of experience has almost likely held back the models from reaching their the full potential. Thus, given that dendritic optimization improved the model, albeit slightly, I believe that a more experienced engineer may be able to produce better results, and the lack of results more so reflects my current ability.
 
+I also think that the model performed poorly due to overfitting on the input data.
+
 ## Raw Results Graph:
 
 ![Dendritic LSTM Stock Prediction Model Output Graph.](model_info/model_info.png)
@@ -69,6 +71,7 @@ All data outputted from using `perforatedai` libraries can be seen in the `model
 - Potentially add an GUI or TUI to more easily customize model training.
 - Clean up `dendritic_main.py` and `main.py`.
 - Take steps to reduce overfitting in base and dendritic models.
+- Utilize the generated testing dataset in some way (current scripts ignore this dataset).
 
 ## Resources Used:
 
