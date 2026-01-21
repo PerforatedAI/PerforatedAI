@@ -44,6 +44,7 @@ Remaining Error Reduction = (14.29 - 6.52) / 14.29 × 100 = 54.37%
 This provides a Remaining Error Reduction of 54.37%
 
 **Raw Results Graph** 
+<img width="2800" height="1400" alt="image" src="https://github.com/user-attachments/assets/5b4f418d-6559-4f0d-a92d-8ee786746897" />
 
 
 
