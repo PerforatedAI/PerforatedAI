@@ -1,4 +1,4 @@
-# SafeWander: YOLOv11n with Dendritic Optimization for Object Detection
+#YOLOv11n with Dendritic Optimization for Object Detection
 
 ## Intro
 
