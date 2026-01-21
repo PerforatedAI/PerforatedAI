@@ -15,13 +15,14 @@ Standard deep learning models for tabular data are often over-parameterized. Thi
 We utilized **Perforated AI** to perform an automated, Active Structural Search. Instead of using fixed architectures, we configured a High-Sensitivity Plateau Trigger (Switch Threshold = 3). The system monitored convergence in real-time. Although multiple potential restructures were identified, we selected the architecture resulting from the primary dendritic injection, which provided the critical capacity needed to overcome learning bottlenecks while remaining 62% smaller than standard architectures.
 
 ## 4. Results: The "Smart Capacity" Case Study
-We analyzed three distinct architectural states to prove the efficiency of dendritic connections against standard over-parameterization.
 
-### **A. Efficiency Analysis (The "Double Win")**
-![Efficiency Chart](efficiency_chart.png)
-**Fig 1: Efficiency Analysis.**
-* **Blue Bars (Size):** Show the massive reduction from the 710k Baseline (Left) to the Optimized models.
-* **Red Bars (Accuracy):** Show that despite the size cut, the Dendritic Model (Right) achieved the highest accuracy.
+### **A. Efficiency Summary**
+The slide below summarizes our "Double Win": reducing model size by **~62%** while simultaneously outperforming the baseline.
+
+![Efficiency Summary Slide](model_compression.png)
+
+> **Strategic Decision (The "One Dendrite" Limit):**
+> As seen in the PAI Log below, the system identified multiple restructuring opportunities. However, we determined the **accuracy/parameter tradeoff was not worth it for the second dendrite**. We finalized the model with **only one major dendritic addition** (growing from 135k → 271k), achieving the optimal balance of **65.52% accuracy**.
 
 | Architecture | Parameters | Accuracy | vs. Baseline | Insight |
 | :--- | :--- | :--- | :--- | :--- |
@@ -29,14 +30,10 @@ We analyzed three distinct architectural states to prove the efficiency of dendr
 | **Pruned State** | 135,426 | 64.66% | -0.23% | **Proof of Bloat:** 81% size cut yielded negligible loss. |
 | **Dendritic Optimized** | **~271,622** | **65.52%** | **+0.63%** | **Proof of Efficacy:** "Smart" growth beat the heavy baseline. |
 
-> **Key Finding & Strategic Decision:**
-> 1. **Dendrites > Standard Neurons:** By adding back just ~136k parameters via active dendritic growth, accuracy jumped nearly 1%, proving that dendritic parameters are mathematically more efficient than standard dense layers.
-> 2. **The "One Dendrite" Limit:** As seen in the PAI Log below, the system identified multiple restructuring opportunities. However, we determined the **accuracy/parameter tradeoff was not worth it for the second dendrite**. We finalized the model with **only one major dendritic addition**, achieving the optimal balance of 65.52% accuracy with just ~271k parameters.
-
 ### **B. Optimization Receipt**
 ![Perforated AI Optimization Log](PAI/PAI.png)
 **Fig 2: The PAI Log.**
-The vertical blue lines confirm where the system actively injected new structures. We stopped the search after the first major restructure (Epoch 6) provided the decisive accuracy boost, rejecting further complexity to maintain edge efficiency.
+The vertical blue lines confirm where the system actively injected new structures. We stopped the search after the first major restructure (Epoch 6) provided the decisive accuracy boost.
 
 ## 5. Proof of Optimization (W&B Sweep)
 The charts below, captured from our latest Weights & Biases report, demonstrate the stabilized optimization process.
