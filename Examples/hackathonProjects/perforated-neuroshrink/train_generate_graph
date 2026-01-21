@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from perforatedai import utils_perforatedai as UPA
 from perforatedai import globals_perforatedai as GPA
+from perforatedai import utils_perforatedai as UPA
 
 
-# ---------------- MODEL ----------------
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -17,19 +17,41 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = torch.relu(x)
-        x = self.conv2(x)
-        x = torch.relu(x)
-        x = torch.max_pool2d(x, 2)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = torch.relu(x)
-        x = self.fc2(x)
-        return torch.log_softmax(x, dim=1)
+        x = F.relu(self.fc1(x))
+        return F.log_softmax(self.fc2(x), dim=1)
 
 
-# ---------------- MAIN ----------------
+def train(model, device, loader, optimizer):
+    model.train()
+    correct = 0
+    for data, target in loader:
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        out = model(data)
+        loss = F.nll_loss(out, target)
+        loss.backward()
+        optimizer.step()
+        pred = out.argmax(dim=1)
+        correct += pred.eq(target).sum().item()
+    return 100.0 * correct / len(loader.dataset)
+
+
+def validate(model, device, loader):
+    model.eval()
+    correct = 0
+    with torch.no_grad():
+        for data, target in loader:
+            data, target = data.to(device), target.to(device)
+            out = model(data)
+            pred = out.argmax(dim=1)
+            correct += pred.eq(target).sum().item()
+    return 100.0 * correct / len(loader.dataset)
+
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -40,68 +62,52 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST("./data", train=True, download=True, transform=transform),
-        batch_size=64,
-        shuffle=True
+        batch_size=64, shuffle=True
     )
 
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST("./data", train=False, transform=transform),
-        batch_size=1000,
-        shuffle=False
+        batch_size=1000, shuffle=False
     )
 
-    # Reduce logs
+    # ===== PAI SETTINGS =====
+    GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_verbose(False)
+    GPA.pc.set_n_epochs_to_switch(15)
 
     model = Net().to(device)
+    model = UPA.initialize_pai(model)
 
-    # 🔑 THIS LINE GENERATES THE REQUIRED PAI GRAPH
-    model = UPA.initialize_pai(model, save_name="PAI")
-
+    # 🔴 CRITICAL FIX: NO UNPACKING
     GPA.pai_tracker.set_optimizer(optim.Adam)
-
     optimizer = GPA.pai_tracker.setup_optimizer(
-        model,
-        {"params": model.parameters(), "lr": 1e-3},
-        None
+        model, {"params": model.parameters(), "lr": 0.001}, None
     )
 
-    # -------- ONE TRAINING PASS (ENOUGH FOR GRAPH) --------
-    model.train()
-    correct = 0
+    epoch = -1
+    while True:
+        epoch += 1
+        print(f"\nEpoch {epoch}")
 
-    for data, target in train_loader:
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = nn.functional.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
+        train_acc = train(model, device, train_loader, optimizer)
+        val_acc = validate(model, device, test_loader)
 
-        pred = output.argmax(dim=1)
-        correct += pred.eq(target).sum().item()
+        print(f"Train Accuracy: {train_acc:.2f}%")
+        print(f"Validation Accuracy: {val_acc:.2f}%")
 
-    train_acc = 100.0 * correct / len(train_loader.dataset)
-    GPA.pai_tracker.add_extra_score(train_acc, "train")
-    print(f"Train Accuracy: {train_acc:.2f}%")
+        model, restructured, training_complete = GPA.pai_tracker.add_validation_score(
+            val_acc, model
+        )
 
-    # -------- ONE VALIDATION PASS (GRAPH FINALIZED HERE) --------
-    model.eval()
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = model(data)
-            pred = output.argmax(dim=1)
-            correct += pred.eq(target).sum().item()
+        if restructured:
+            print("🔁 Model restructured → reinitializing optimizer")
+            optimizer = GPA.pai_tracker.setup_optimizer(
+                model, {"params": model.parameters(), "lr": 0.001}, None
+            )
 
-    val_acc = 100.0 * correct / len(test_loader.dataset)
-    print(f"Validation Accuracy: {val_acc:.2f}%")
-
-    GPA.pai_tracker.add_validation_score(val_acc, model)
-
-    print("\n✅ DONE")
-    print("📊 Required graph generated at: PAI/PAI.png")
+        if training_complete:
+            print("\n✅ Training complete — PAI graph generated")
+            break
 
 
 if __name__ == "__main__":
