@@ -95,6 +95,7 @@ def main():
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_verbose(True)
     GPA.pc.set_dendrite_update_mode(True)
+    GPA.pc.set_unwrapped_modules_confirmed(True)  # Skip debugger prompts
     
     model = UPA.initialize_pai(
         model,
