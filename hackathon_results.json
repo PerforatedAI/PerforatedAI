@@ -1,0 +1,16 @@
+{
+  "hackathon": "PerforatedAI Dendritic Optimization",
+  "status": "Success",
+  "baseline": {
+    "params_M": 3.16,
+    "score": 17.41
+  },
+  "dendritic": {
+    "params_M": 15.81,
+    "score": 20.33
+  },
+  "improvement": {
+    "param_growth_pct": "+400.32%",
+    "score_improvement_pct": "+16.77%"
+  }
+}
