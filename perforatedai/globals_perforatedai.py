@@ -251,6 +251,11 @@ class PAIConfig:
                 f"Variable '{name[4:]}' does not exist.  Ignoring set attempt."
             )
             return lambda x: None
+        if name.startswith("append_"):
+            print(
+                f"List Variable '{name[7:]}' does not exist.  Ignoring append attempt."
+            )
+            return lambda x: None
         else:
             raise AttributeError(
                 f"'{self.__class__.__name__}' object has no attribute '{name}'"
