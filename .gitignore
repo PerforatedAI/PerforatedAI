@@ -1,9 +1,17 @@
-myvenv
+# Common Virtual Environments
+myvenv*
+ENV*
+venv*
 
-data
-PB
-perforatedai.egg-info
+# Common Data and Output Files
+data*
+PAI*
+
+# Build Folders
 **/__pycache__
 /build
+releases/*
+perforatedai.egg-info
 
-.DS_Store
+# Working Folders
+Examples/*

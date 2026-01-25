@@ -25,25 +25,77 @@ except ImportError as e:
 
 
 # Values for Dendrite training, minimally used in open source version
-DENDRITE_TENSOR_VALUES = [
+_DENDRITE_TENSOR_VALUES_BASE = [
     "shape"
 ]  # Shape is tensor of same shape as total neurons in module
-DENDRITE_SINGLE_VALUES = []
+_DENDRITE_SINGLE_VALUES_BASE = []
 
 DENDRITE_INIT_VALUES = ["initialized", "current_d_init"]
 
+_VALUE_TRACKER_ARRAYS_BASE = ["dendrite_outs"]
 
-VALUE_TRACKER_ARRAYS = ["dendrite_outs"]
-if GPA.pc.get_perforated_backpropagation():
-    DENDRITE_TENSOR_VALUES = MPB.update_dendrite_tensor_values(DENDRITE_TENSOR_VALUES)
-    DENDRITE_SINGLE_VALUES = MPB.update_dendrite_single_values(DENDRITE_SINGLE_VALUES)
-    VALUE_TRACKER_ARRAYS = MPB.update_value_tracker_arrays(VALUE_TRACKER_ARRAYS)
+# Cached values to avoid recomputation (each tracks its own state)
+_cached_dendrite_tensor_values = None
+_cached_dendrite_tensor_pb_state = None
+_cached_dendrite_single_values = None
+_cached_dendrite_single_pb_state = None
+_cached_value_tracker_arrays = None
+_cached_value_tracker_pb_state = None
 
-# Values for reinitializing and saving dendrite scaffolding
-DENDRITE_REINIT_VALUES = DENDRITE_TENSOR_VALUES + DENDRITE_SINGLE_VALUES
-DENDRITE_SAVE_VALUES = (
-    DENDRITE_TENSOR_VALUES + DENDRITE_SINGLE_VALUES + DENDRITE_INIT_VALUES
-)
+
+def get_DENDRITE_TENSOR_VALUES():
+    """Get DENDRITE_TENSOR_VALUES, updating from MPB if perforated_backpropagation is enabled."""
+    global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state
+    current_pb_state = GPA.pc.get_perforated_backpropagation()
+    
+    if _cached_dendrite_tensor_values is None or _cached_dendrite_tensor_pb_state != current_pb_state:
+        _cached_dendrite_tensor_pb_state = current_pb_state
+        if current_pb_state:
+            _cached_dendrite_tensor_values = MPB.update_dendrite_tensor_values(_DENDRITE_TENSOR_VALUES_BASE.copy())
+        else:
+            _cached_dendrite_tensor_values = _DENDRITE_TENSOR_VALUES_BASE.copy()
+    
+    return _cached_dendrite_tensor_values
+
+
+def get_DENDRITE_SINGLE_VALUES():
+    """Get DENDRITE_SINGLE_VALUES, updating from MPB if perforated_backpropagation is enabled."""
+    global _cached_dendrite_single_values, _cached_dendrite_single_pb_state
+    current_pb_state = GPA.pc.get_perforated_backpropagation()
+    
+    if _cached_dendrite_single_values is None or _cached_dendrite_single_pb_state != current_pb_state:
+        _cached_dendrite_single_pb_state = current_pb_state
+        if current_pb_state:
+            _cached_dendrite_single_values = MPB.update_dendrite_single_values(_DENDRITE_SINGLE_VALUES_BASE.copy())
+        else:
+            _cached_dendrite_single_values = _DENDRITE_SINGLE_VALUES_BASE.copy()
+    
+    return _cached_dendrite_single_values
+
+
+def get_VALUE_TRACKER_ARRAYS():
+    """Get VALUE_TRACKER_ARRAYS, updating from MPB if perforated_backpropagation is enabled."""
+    global _cached_value_tracker_arrays, _cached_value_tracker_pb_state
+    current_pb_state = GPA.pc.get_perforated_backpropagation()
+    
+    if _cached_value_tracker_arrays is None or _cached_value_tracker_pb_state != current_pb_state:
+        _cached_value_tracker_pb_state = current_pb_state
+        if current_pb_state:
+            _cached_value_tracker_arrays = MPB.update_value_tracker_arrays(_VALUE_TRACKER_ARRAYS_BASE.copy())
+        else:
+            _cached_value_tracker_arrays = _VALUE_TRACKER_ARRAYS_BASE.copy()
+    
+    return _cached_value_tracker_arrays
+
+
+def get_DENDRITE_REINIT_VALUES():
+    """Get DENDRITE_REINIT_VALUES."""
+    return get_DENDRITE_TENSOR_VALUES() + get_DENDRITE_SINGLE_VALUES()
+
+
+def get_DENDRITE_SAVE_VALUES():
+    """Get DENDRITE_SAVE_VALUES."""
+    return get_DENDRITE_TENSOR_VALUES() + get_DENDRITE_SINGLE_VALUES() + DENDRITE_INIT_VALUES
 
 
 def filter_backward(grad_out, values):
@@ -448,7 +500,7 @@ class PAINeuronModule(nn.Module):
                     values = torch.cat(
                         (
                             self.dendrites_to_top[self.dendrite_modules_added - 1],
-                            nn.Parameter(self.candidate_to_top.detach().clone()),
+                            nn.Parameter(self.candidate_to_top.detach().clone().to(dtype=GPA.pc.get_d_type())),
                         ),
                         0,
                     )
@@ -470,7 +522,7 @@ class PAINeuronModule(nn.Module):
                     )
                 self.dendrites_to_top.append(
                     nn.Parameter(
-                        values.detach().clone().to(GPA.pc.get_device()),
+                        values.detach().clone().to(device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
                         requires_grad=True,
                     )
                 )
@@ -478,7 +530,7 @@ class PAINeuronModule(nn.Module):
                 if GPA.pc.get_learn_dendrites_live():
                     self.dendrites_to_top.append(
                         nn.Parameter(
-                            self.candidate_to_top.detach().clone(), requires_grad=True
+                            self.candidate_to_top.detach().clone().to(dtype=GPA.pc.get_d_type()), requires_grad=True
                         )
                     )
                 else:
@@ -1273,7 +1325,7 @@ class DendriteValueTracker(nn.Module):
             total_string += f"\t{val_name}:\n\t\t"
             total_string += getattr(self, val_name).__repr__()
             total_string += "\n"
-        for val_name in DENDRITE_TENSOR_VALUES:
+        for val_name in get_DENDRITE_TENSOR_VALUES():
             if getattr(self, val_name, None) is not None:
                 total_string += f"\t{val_name}:\n\t\t"
                 total_string += getattr(self, val_name).__repr__()
@@ -1339,7 +1391,7 @@ class DendriteValueTracker(nn.Module):
 
         """
         self.out_channels = out_channels
-        for val_name in DENDRITE_TENSOR_VALUES:
+        for val_name in get_DENDRITE_TENSOR_VALUES():
             self.register_buffer(
                 val_name,
                 torch.zeros(
@@ -1347,14 +1399,14 @@ class DendriteValueTracker(nn.Module):
                 ),
             )
 
-        for name in VALUE_TRACKER_ARRAYS:
+        for name in get_VALUE_TRACKER_ARRAYS():
             setattr(self, name, {})
             count = 1
             if torch.cuda.device_count() > count:
                 count = torch.cuda.device_count()
             for i in range(count):
                 getattr(self, name)[i] = []
-        for val_name in DENDRITE_SINGLE_VALUES:
+        for val_name in get_DENDRITE_SINGLE_VALUES():
             self.register_buffer(
                 val_name,
                 torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
@@ -1381,5 +1433,5 @@ class DendriteValueTracker(nn.Module):
         if GPA.pc.get_perforated_backpropagation():
             MPB.reinitialize_for_pb(self)
         else:
-            for val_name in DENDRITE_REINIT_VALUES:
+            for val_name in get_DENDRITE_REINIT_VALUES():
                 setattr(self, val_name, getattr(self, val_name) * 0)
