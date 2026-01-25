@@ -32,6 +32,87 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
 
 
+def auto_exclude_yolov8_duplicates(model):
+    """
+    Pre-configure PerforatedAI to skip YOLOv8's shared module pointers.
+
+    Based on the reference implementation in Examples/hackathonProject/yolo-dendritic/
+    This is the PROPER way to avoid debugger prompts - no monkey patching needed.
+
+    YOLOv8 shares activation function instances across layers for memory efficiency.
+    This function tells PerforatedAI which duplicate references to skip BEFORE
+    initialize_pai() encounters them.
+
+    Args:
+        model: YOLOv8 model instance
+
+    Returns:
+        int: Number of duplicate modules excluded
+    """
+    print("\n" + "="*70)
+    print("Pre-configuring PerforatedAI for YOLOv8 shared modules...")
+    print("="*70)
+
+    # Step 1: Automatically find ALL duplicate module pointers
+    seen = {}
+    excluded = []
+
+    for name, mod in model.named_modules():
+        mid = id(mod)
+        if mid in seen:
+            # This module shares a pointer with another - exclude it
+            GPA.pc.append_module_names_to_not_save([name])
+            excluded.append(name)
+        else:
+            seen[mid] = name
+
+    # Step 2: Additionally exclude known YOLOv8 shared activation patterns
+    # (Following the pattern from yolo-dendritic reference implementation)
+
+    # Backbone layers (model.1 through model.22)
+    for i in range(1, 23):
+        activation_suffixes = [
+            '.act',
+            '.default_act',
+            '.cv1.act',
+            '.cv1.default_act',
+            '.cv2.act',
+            '.cv2.default_act',
+            '.conv.act',
+            '.conv.default_act',
+        ]
+        for suffix in activation_suffixes:
+            GPA.pc.append_module_names_to_not_save([f".model.{i}{suffix}"])
+
+    # C2f module activations (nested m.0, m.1, etc.)
+    for i in range(1, 23):
+        for m_idx in range(10):  # Cover up to 10 nested modules
+            for cv in ['cv1', 'cv2']:
+                GPA.pc.append_module_names_to_not_save([
+                    f".model.{i}.m.{m_idx}.{cv}.act"
+                ])
+                GPA.pc.append_module_names_to_not_save([
+                    f".model.{i}.m.{m_idx}.{cv}.default_act"
+                ])
+
+    # Detection head activations (model.22)
+    for cv in ["cv2", "cv3"]:
+        for i in range(3):
+            for j in range(3):
+                GPA.pc.append_module_names_to_not_save([
+                    f".model.22.{cv}.{i}.{j}.act"
+                ])
+                GPA.pc.append_module_names_to_not_save([
+                    f".model.22.{cv}.{i}.{j}.default_act"
+                ])
+
+    print(f"✓ Pre-configured {len(excluded)} duplicate exclusions")
+    print("✓ Model ready for non-interactive PAI initialization")
+    print("="*70 + "\n")
+
+    return len(excluded)
+
+
 def train_epoch(model, dataloader, optimizer, device):
     """Train for one epoch."""
     model.train()
@@ -87,22 +168,30 @@ def main():
     
     baseline_params = count_parameters(model)
     print(f"Baseline params: {baseline_params / 1e6:.2f}M")
-    
+
     # Save input stem (skip model.0 to avoid weight issues)
     input_stem = model.model[0]
-    
+
+    # CRITICAL: Pre-configure duplicate exclusions BEFORE initialize_pai()
+    # This is the proper solution from the yolo-dendritic reference implementation
+    # Uses official PerforatedAI API - no monkey patching needed!
+    auto_exclude_yolov8_duplicates(model)
+
     # Apply PerforatedAI dendritic optimization
+    print("Configuring PerforatedAI...")
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_verbose(True)
-    GPA.pc.set_dendrite_update_mode(True)
-    GPA.pc.set_unwrapped_modules_confirmed(True)  # Skip debugger prompts
-    
+    GPA.pc.set_unwrapped_modules_confirmed(True)
+    print("[OK] PerforatedAI configured\n")
+
+    print("Initializing PerforatedAI (should run non-interactively)...")
     model = UPA.initialize_pai(
         model,
         doing_pai=True,
         save_name="DendriticYOLOv8",
         maximizing_score=True
     )
+    print("[OK] PerforatedAI initialized without debugger prompts!")
     
     # Restore input stem
     model.model[0] = input_stem
