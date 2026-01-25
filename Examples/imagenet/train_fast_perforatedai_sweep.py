@@ -691,6 +691,7 @@ def main(args, run=None):
     excluded = ['method', 'metric', 'parameters']
     priorities = ['dendrite_mode', 'model_arch']
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Add priority keys first with their names
     name_parts = [f"{k}={wandb.config[k]}" for k in priorities if k in wandb.config]
     # Add remaining keys in default order without names
@@ -699,6 +700,11 @@ def main(args, run=None):
     name_parts = [str(wandb.config[k]) for k in priorities if k in wandb.config]
     # Add remaining keys in default order
 >>>>>>> bec25c203e (updated proper savenaming)
+=======
+    # Add priority keys first with their names
+    name_parts = [f"{k}={wandb.config[k]}" for k in priorities if k in wandb.config]
+    # Add remaining keys in default order without names
+>>>>>>> df7876d9e8 (updated READMEs, updated how huggingface looks for metrics, updated pb being able to be turned off correctly with pb installed, updated best_arch_scores to have all scores, created a way to have function passthroughs for modules and for _ variables.)
     remaining_keys = [k for k in parameters_dict.keys() if k not in excluded and k not in priorities]
     name_parts.extend(str(wandb.config[k]) for k in remaining_keys if k in wandb.config)
     name_str = "_".join(name_parts)
