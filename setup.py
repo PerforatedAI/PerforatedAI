@@ -8,6 +8,7 @@ setup(
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
     description="perforatedai baseline package",
+    license="Apache 2.0",
     classifiers=[
         "Programming Language: Python :: 3",
         "License: Apache 2.0",

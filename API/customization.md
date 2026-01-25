@@ -263,16 +263,18 @@ If you want to load the best model for any reason you can call:
     
 This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
     
-<!--
-If you want to load a simplified pb model just for inference you can do so with the following:
 
-    model = fullModel() 
-    from perforatedbp import network_pbp as PBN
-    model = PBN.load_pai_model(model, 'PAIFirstFullRun//best_model_pai.pt')     
+If you want to load a simplified pb model just for inference, or for finetuning a tained dendritic model without adding more dendrites, you can do so with the following after load_system
 
-Note: this does not use initialize_pai, but all other GPA settings must be replicated first.
+    model = UPA.load_system(model, your save name, 'best_model', True)
+    ...
+    from perforatedai import blockwise_perforatedai as BPA
+    from perforatedai import clean_perforatedai as CPA
+    model = BPA.blockwise_network(model)
+    model  = CPA.refresh_net(model)
 
--->
+Note: all other GPA settings should still be set first
+
     
 ## 8 Optimization
 
