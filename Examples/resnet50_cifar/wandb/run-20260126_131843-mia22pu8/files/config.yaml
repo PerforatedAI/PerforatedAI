@@ -1,0 +1,71 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            j5q42wqlke27b4r99zii38051uvpgxxs:
+                args:
+                    - --mode
+                    - baseline
+                    - --epochs
+                    - "1"
+                cpu_count: 8
+                cpu_count_logical: 12
+                cudaVersion: "12.7"
+                disk:
+                    /:
+                        total: "214856699904"
+                        used: "204277391360"
+                email: piogodwin7@gmail.com
+                executable: C:\Users\Pio Godwin\AppData\Local\Programs\Python\Python313\python.exe
+                gpu: NVIDIA GeForce RTX 2050
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      cudaCores: 2048
+                      memoryTotal: "4294967296"
+                      name: NVIDIA GeForce RTX 2050
+                      uuid: GPU-ebc096e4-2b88-7eac-dc4e-2abfdd2d638f
+                host: LAPTOP-1JMIE0CN
+                memory:
+                    total: "8243634176"
+                os: Windows-11-10.0.26200-SP0
+                program: -m src.train
+                python: CPython 3.13.5
+                root: C:\Users\Pio Godwin\Desktop\Pytorch_dentric
+                startedAt: "2026-01-26T07:48:43.865191Z"
+                writerId: j5q42wqlke27b4r99zii38051uvpgxxs
+        m: []
+        python_version: 3.13.5
+        t:
+            "1":
+                - 1
+                - 41
+                - 105
+            "2":
+                - 1
+                - 41
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+            "4": 3.13.5
+            "5": 0.23.1
+            "8":
+                - 3
+            "12": 0.23.1
+            "13": windows-amd64
+batch_size:
+    value: 128
+dataset:
+    value: cifar100
+epochs:
+    value: 1
+lr:
+    value: 0.1
+mode:
+    value: baseline
+project_name:
+    value: hackathon-dendritic
+run_name:
+    value: resnet50_run

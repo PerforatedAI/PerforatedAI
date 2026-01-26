@@ -1,0 +1,4 @@
+Using device: cuda
+100%|█| 169M/169M [06
+Epoch 1: Train Loss: 4.9052 | Train Acc: 1.61%
+Epoch 1: Val Loss: 4.5389 | Val Acc: 2.08%

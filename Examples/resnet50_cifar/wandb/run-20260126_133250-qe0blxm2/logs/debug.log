@@ -1,0 +1,23 @@
+2026-01-26 13:32:50,415 INFO    MainThread:14092 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2026-01-26 13:32:50,415 INFO    MainThread:14092 [wandb_setup.py:_flush():80] Configure stats pid to 14092
+2026-01-26 13:32:50,415 INFO    MainThread:14092 [wandb_setup.py:_flush():80] Loading settings from C:\Users\Pio Godwin\.config\wandb\settings
+2026-01-26 13:32:50,415 INFO    MainThread:14092 [wandb_setup.py:_flush():80] Loading settings from C:\Users\Pio Godwin\Desktop\Pytorch_dentric\wandb\settings
+2026-01-26 13:32:50,415 INFO    MainThread:14092 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2026-01-26 13:32:50,416 INFO    MainThread:14092 [wandb_init.py:setup_run_log_directory():714] Logging user logs to C:\Users\Pio Godwin\Desktop\Pytorch_dentric\wandb\run-20260126_133250-qe0blxm2\logs\debug.log
+2026-01-26 13:32:50,416 INFO    MainThread:14092 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to C:\Users\Pio Godwin\Desktop\Pytorch_dentric\wandb\run-20260126_133250-qe0blxm2\logs\debug-internal.log
+2026-01-26 13:32:50,416 INFO    MainThread:14092 [wandb_init.py:init():841] calling init triggers
+2026-01-26 13:32:50,416 INFO    MainThread:14092 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'mode': 'dendritic', 'epochs': 10, 'batch_size': 128, 'lr': 0.1, 'dataset': 'cifar100', 'run_name': 'dendritic_retry', 'project_name': 'hackathon-dendritic', 'pai_global_candidates': 1, 'pai_improvement_threshold': 0.001, 'pai_max_dendrites': 100, 'pai_candidate_multiplier': 0.01, '_wandb': {}}
+2026-01-26 13:32:50,416 INFO    MainThread:14092 [wandb_init.py:init():889] starting backend
+2026-01-26 13:32:52,770 INFO    MainThread:14092 [wandb_init.py:init():892] sending inform_init request
+2026-01-26 13:32:52,819 INFO    MainThread:14092 [wandb_init.py:init():900] backend started and connected
+2026-01-26 13:32:52,840 INFO    MainThread:14092 [wandb_init.py:init():970] updated telemetry
+2026-01-26 13:32:52,843 INFO    MainThread:14092 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2026-01-26 13:32:54,289 INFO    MainThread:14092 [wandb_init.py:init():1041] starting run threads in backend
+2026-01-26 13:32:54,648 INFO    MainThread:14092 [wandb_run.py:_console_start():2521] atexit reg
+2026-01-26 13:32:54,648 INFO    MainThread:14092 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2026-01-26 13:32:54,648 INFO    MainThread:14092 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2026-01-26 13:32:54,648 INFO    MainThread:14092 [wandb_run.py:_redirect():2461] Redirects installed.
+2026-01-26 13:32:54,652 INFO    MainThread:14092 [wandb_init.py:init():1081] run started, returning control to user process
+2026-01-26 13:32:58,249 INFO    wandb-AsyncioManager-main:14092 [service_client.py:_forward_responses():80] Reached EOF.
+2026-01-26 13:32:58,249 INFO    wandb-AsyncioManager-main:14092 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.
