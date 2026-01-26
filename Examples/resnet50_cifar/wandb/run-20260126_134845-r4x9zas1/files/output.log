@@ -1,0 +1,1075 @@
+Using device: cuda
+Initializing PerforatedAI Dendritic Optimization...
+New list value of "_modules_to_track": [<class 'torch.nn.modules.batchnorm.BatchNorm2d'>, <class 'torch.nn.modules.activation.ReLU'>, <class 'torch.nn.modules.linear.Identity'>, <class 'torch.nn.modules.pooling.AdaptiveAvgPool2d'>, <class 'torch.nn.modules.container.Sequential'>]
+Using FIXED_SWITCH mode to force dendrite addition for demo...
+Initializing with switch_mode 2
+calling convert on ResNet(
+  (conv1): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+  (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (relu): ReLU(inplace=True)
+  (maxpool): Identity()
+  (layer1): Sequential(
+    (0): Bottleneck(
+      (conv1): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (downsample): Sequential(
+        (0): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+        (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): Bottleneck(
+      (conv1): Conv2d(256, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (2): Bottleneck(
+      (conv1): Conv2d(256, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+  )
+  (layer2): Sequential(
+    (0): Bottleneck(
+      (conv1): Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (downsample): Sequential(
+        (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): Bottleneck(
+      (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (2): Bottleneck(
+      (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (3): Bottleneck(
+      (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+  )
+  (layer3): Sequential(
+    (0): Bottleneck(
+      (conv1): Conv2d(512, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (downsample): Sequential(
+        (0): Conv2d(512, 1024, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): Bottleneck(
+      (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (2): Bottleneck(
+      (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (3): Bottleneck(
+      (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (4): Bottleneck(
+      (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (5): Bottleneck(
+      (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+  )
+  (layer4): Sequential(
+    (0): Bottleneck(
+      (conv1): Conv2d(1024, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+      (downsample): Sequential(
+        (0): Conv2d(1024, 2048, kernel_size=(1, 1), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (1): Bottleneck(
+      (conv1): Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+    (2): Bottleneck(
+      (conv1): Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (relu): ReLU(inplace=True)
+    )
+  )
+  (avgpool): AdaptiveAvgPool2d(output_size=(1, 1))
+  (fc): Linear(in_features=2048, out_features=100, bias=True)
+) depth 0
+calling convert on : ResNet, depth 0
+not calling convert on T_destination depth 0
+not calling convert on add_module depth 0
+not calling convert on apply depth 0
+sub is in tracking list so initiating tracked for: .avgpool
+tracking a module .avgpool with main type <class 'torch.nn.modules.pooling.AdaptiveAvgPool2d'>
+AdaptiveAvgPool2d(output_size=(1, 1))
+not calling convert on avgpool depth 0
+not calling convert on base_width depth 0
+not calling convert on bfloat16 depth 0
+sub is in tracking list so initiating tracked for: .bn1
+tracking a module .bn1 with main type <class 'torch.nn.modules.batchnorm.BatchNorm2d'>
+BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+not calling convert on bn1 depth 0
+not calling convert on buffers depth 0
+not calling convert on call_super_init depth 0
+not calling convert on children depth 0
+not calling convert on compile depth 0
+sub is in conversion list so initiating PAI for: .conv1
+initing a module .conv1 with main type <class 'torch.nn.modules.conv.Conv2d'>
+Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+creating dendrite Values for .conv1
+not calling convert on conv1 depth 0
+not calling convert on cpu depth 0
+not calling convert on cuda depth 0
+not calling convert on dilation depth 0
+not calling convert on double depth 0
+not calling convert on dump_patches depth 0
+not calling convert on eval depth 0
+not calling convert on extra_repr depth 0
+sub is in conversion list so initiating PAI for: .fc
+initing a module .fc with main type <class 'torch.nn.modules.linear.Linear'>
+Linear(in_features=2048, out_features=100, bias=True)
+creating dendrite Values for .fc
+not calling convert on fc depth 0
+not calling convert on float depth 0
+not calling convert on forward depth 0
+not calling convert on get_buffer depth 0
+not calling convert on get_extra_state depth 0
+not calling convert on get_parameter depth 0
+not calling convert on get_submodule depth 0
+not calling convert on groups depth 0
+not calling convert on half depth 0
+not calling convert on inplanes depth 0
+not calling convert on ipu depth 0
+sub is in tracking list so initiating tracked for: .layer1
+tracking a module .layer1 with main type <class 'torch.nn.modules.container.Sequential'>
+Sequential(
+  (0): Bottleneck(
+    (conv1): Conv2d(64, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+    (downsample): Sequential(
+      (0): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+      (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (1): Bottleneck(
+    (conv1): Conv2d(256, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (2): Bottleneck(
+    (conv1): Conv2d(256, 64, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(64, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+)
+not calling convert on layer1 depth 0
+sub is in tracking list so initiating tracked for: .layer2
+tracking a module .layer2 with main type <class 'torch.nn.modules.container.Sequential'>
+Sequential(
+  (0): Bottleneck(
+    (conv1): Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+    (downsample): Sequential(
+      (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)
+      (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (1): Bottleneck(
+    (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (2): Bottleneck(
+    (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (3): Bottleneck(
+    (conv1): Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(128, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+)
+not calling convert on layer2 depth 0
+sub is in tracking list so initiating tracked for: .layer3
+tracking a module .layer3 with main type <class 'torch.nn.modules.container.Sequential'>
+Sequential(
+  (0): Bottleneck(
+    (conv1): Conv2d(512, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+    (downsample): Sequential(
+      (0): Conv2d(512, 1024, kernel_size=(1, 1), stride=(2, 2), bias=False)
+      (1): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (1): Bottleneck(
+    (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (2): Bottleneck(
+    (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (3): Bottleneck(
+    (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (4): Bottleneck(
+    (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (5): Bottleneck(
+    (conv1): Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(256, 1024, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+)
+not calling convert on layer3 depth 0
+sub is in tracking list so initiating tracked for: .layer4
+tracking a module .layer4 with main type <class 'torch.nn.modules.container.Sequential'>
+Sequential(
+  (0): Bottleneck(
+    (conv1): Conv2d(1024, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+    (downsample): Sequential(
+      (0): Conv2d(1024, 2048, kernel_size=(1, 1), stride=(2, 2), bias=False)
+      (1): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+  )
+  (1): Bottleneck(
+    (conv1): Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+  (2): Bottleneck(
+    (conv1): Conv2d(2048, 512, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (conv3): Conv2d(512, 2048, kernel_size=(1, 1), stride=(1, 1), bias=False)
+    (bn3): BatchNorm2d(2048, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (relu): ReLU(inplace=True)
+  )
+)
+not calling convert on layer4 depth 0
+not calling convert on load_state_dict depth 0
+sub is in tracking list so initiating tracked for: .maxpool
+tracking a module .maxpool with main type <class 'torch.nn.modules.linear.Identity'>
+Identity()
+not calling convert on maxpool depth 0
+not calling convert on modules depth 0
+not calling convert on mtia depth 0
+not calling convert on named_buffers depth 0
+not calling convert on named_children depth 0
+not calling convert on named_modules depth 0
+not calling convert on named_parameters depth 0
+not calling convert on parameters depth 0
+not calling convert on register_backward_hook depth 0
+not calling convert on register_buffer depth 0
+not calling convert on register_forward_hook depth 0
+not calling convert on register_forward_pre_hook depth 0
+not calling convert on register_full_backward_hook depth 0
+not calling convert on register_full_backward_pre_hook depth 0
+not calling convert on register_load_state_dict_post_hook depth 0
+not calling convert on register_load_state_dict_pre_hook depth 0
+not calling convert on register_module depth 0
+not calling convert on register_parameter depth 0
+not calling convert on register_state_dict_post_hook depth 0
+not calling convert on register_state_dict_pre_hook depth 0
+sub is in tracking list so initiating tracked for: .relu
+tracking a module .relu with main type <class 'torch.nn.modules.activation.ReLU'>
+ReLU(inplace=True)
+not calling convert on relu depth 0
+not calling convert on requires_grad_ depth 0
+not calling convert on set_extra_state depth 0
+not calling convert on set_submodule depth 0
+not calling convert on share_memory depth 0
+not calling convert on state_dict depth 0
+not calling convert on to depth 0
+not calling convert on to_empty depth 0
+not calling convert on train depth 0
+not calling convert on training depth 0
+not calling convert on type depth 0
+not calling convert on xpu depth 0
+not calling convert on zero_grad depth 0
+returning from call to:
+param conv1.main_module.weight is now wrapped
+param conv1.dendrite_module.parent_module.weight is now wrapped
+param fc.main_module.weight is now wrapped
+param fc.main_module.bias is now wrapped
+param fc.dendrite_module.parent_module.weight is now wrapped
+param fc.dendrite_module.parent_module.bias is now wrapped
+Running Dendrite Experiment
+Not using ReduceLROnPlateau, this is not recommended
+Resetting scheduler with 0 steps and 0 initial ticks to skip
+Scheduler update loop with 0 ended with 0.1
+Scheduler ended with 0 steps and lr of 0.1
+setting d shape for
+.fc
+torch.Size([128, 100])
+setting d shape for
+.conv1
+torch.Size([128, 64, 32, 32])
+Epoch 1: Train Loss: 4.9353 | Train Acc: 1.15%
+Adding extra score train of 1.146
+Epoch 1: Val Loss: 4.5866 | Val Acc: 1.33%
+Adding validation score 1.33000000
+Not saving new best because:
+Not enough history since switch 0 <= 0
+Saving first model or all models
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 0, last improved epoch 0, total epochs 0, n: 2, num_cycles: 0
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: True
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 0
+  skip_steps < max_steps: False
+  scheduler is not None: True
+=============================
+Returning False - no triggers to switch have been hit
+Not stepping with history 0 and current 0
+Checking if at last with scores 0, count since switch 0 and last total lr step count -1
+At last count False with count 0 and last LR count -1
+Learning rates were 1.00000000e-01 and 1.00000000e-01 started with 0, and is now at 0 committed True then either this (non zero) or eventually comparing to 0 steps or rate -1.00000000
+Completed adding score. Restructured is 0,
+current switch list is:
+[]
+Epoch 2: Train Loss: 4.5310 | Train Acc: 1.86%
+Adding extra score train of 1.858
+Epoch 2: Val Loss: 4.4295 | Val Acc: 2.99%
+Adding validation score 2.99000000
+
+
+Got score of 2.9900000000 (average 2.99, *0.999=2.98701) which is higher than 0.0000000000 by 1e-05 so setting epoch to 1
+
+
+2 epoch improved is 1
+This also beats global best of 0 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 1, last improved epoch 1, total epochs 1, n: 2, num_cycles: 0
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: True
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 0
+  skip_steps < max_steps: False
+  scheduler is not None: True
+=============================
+Returning True - Fixed switch number is hit
+Calling switch_mode with True, 0, 0, -1,100,0,0,
+Adding new dendrites without resetting which means the last ones improved. Resetting num_dendrite_tries
+saving system beforeSwitch_0
+Importing best Model for switch to PA...
+loading system best_model
+loading net from dict
+setting up arrays and simulating cycles for 2 pai modules
+creating dendrite Values for .conv1
+creating dendrite Values for .fc
+after loading epoch last improved is 1 mode is n
+Calling set_dendrite_training
+.conv1 calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.fc calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.avgpool calling set mode p
+.bn1 calling set mode p
+.layer1 calling set mode p
+.layer2 calling set mode p
+.layer3 calling set mode p
+.layer4 calling set mode p
+.maxpool calling set mode p
+.relu calling set mode p
+.conv1
+Setting candidate processors
+.fc
+Setting candidate processors
+Switching back to N...
+.conv1 calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.avgpool calling set mode n
+.bn1 calling set mode n
+.layer1 calling set mode n
+.layer2 calling set mode n
+.layer3 calling set mode n
+.layer4 calling set mode n
+.maxpool calling set mode n
+.relu calling set mode n
+Resetting committed to initial rate to False
+saving system switch_2
+Setting epoch last improved to 2
+Not saving restructure right now
+Completed adding score. Restructured is 1,
+current switch list is:
+[1, 1]
+Resetting scheduler with 1 steps and 0 initial ticks to skip
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Scheduler update loop with 0 ended with 0.1
+Scheduler ended with 0 steps and lr of 0.1
+Epoch 3: Train Loss: 4.2174 | Train Acc: 4.62%
+Adding extra score train of 4.622
+Epoch 3: Val Loss: 4.0522 | Val Acc: 6.90%
+Adding validation score 6.90000000
+
+
+Got score of 6.9000000000 (average 6.9, *0.9999=6.899310000000001) which is higher than 0.0000000000 by 1e-05 so setting epoch to 2
+
+
+2 epoch improved is 2
+This also beats global best of 2.99 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 2, last improved epoch 2, total epochs 2, n: 2, num_cycles: 2
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: False
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 0
+  skip_steps < max_steps: False
+  scheduler is not None: True
+=============================
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 0
+Incrementing scheduler to count 1
+Checking if at last with scores 0, count since switch 1 and last total lr step count -1
+At last count False with count 1 and last LR count -1
+Learning rate just stepped to 9.7552825815e-02 with 1 total steps
+Learning rates were 1.00000000e-01 and 9.75528258e-02 started with 0, and is now at 1 committed False then either this (non zero) or eventually comparing to 0 steps or rate -1.00000000
+First dendrite addition detected (last_max_learning_rate_steps == 0), immediately committing to initial rate without search
+Setting last max steps to 1 and lr 0.09755282581475769
+Completed adding score. Restructured is 0,
+current switch list is:
+[1, 1]
+Epoch 4: Train Loss: 3.9316 | Train Acc: 8.04%
+Adding extra score train of 8.042
+Epoch 4: Val Loss: 3.7541 | Val Acc: 10.68%
+Adding validation score 10.68000000
+
+
+Got score of 10.6800000000 (average 10.68, *0.9999=10.678932) which is higher than 6.9000000000 by 1e-05 so setting epoch to 3
+
+
+2 epoch improved is 3
+This also beats global best of 6.9 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 3, last improved epoch 3, total epochs 3, n: 2, num_cycles: 2
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: True
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 2
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning True - Fixed switch number is hit
+Calling switch_mode with True, 0, 2, 0.09755282581475769,100,1,0,
+Adding new dendrites without resetting which means the last ones improved. Resetting num_dendrite_tries
+saving system beforeSwitch_2
+Importing best Model for switch to PA...
+loading system best_model
+loading net from dict
+setting up arrays and simulating cycles for 2 pai modules
+creating dendrite Values for .conv1
+.conv1 calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+creating dendrite Values for .fc
+.fc calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+after loading epoch last improved is 3 mode is n
+Calling set_dendrite_training
+.conv1 calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.fc calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.avgpool calling set mode p
+.bn1 calling set mode p
+.layer1 calling set mode p
+.layer2 calling set mode p
+.layer3 calling set mode p
+.layer4 calling set mode p
+.maxpool calling set mode p
+.relu calling set mode p
+.conv1
+Setting candidate processors
+.fc
+Setting candidate processors
+Switching back to N...
+.conv1 calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+.avgpool calling set mode n
+.bn1 calling set mode n
+.layer1 calling set mode n
+.layer2 calling set mode n
+.layer3 calling set mode n
+.layer4 calling set mode n
+.maxpool calling set mode n
+.relu calling set mode n
+Resetting committed to initial rate to False
+saving system switch_4
+Setting epoch last improved to 4
+Not saving restructure right now
+Completed adding score. Restructured is 1,
+current switch list is:
+[1, 1, 3, 3]
+Resetting scheduler with 1 steps and 0 initial ticks to skip
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Scheduler update loop with 0 ended with 0.1
+Scheduler ended with 0 steps and lr of 0.1
+Epoch 5: Train Loss: 3.7044 | Train Acc: 11.36%
+Adding extra score train of 11.364
+Epoch 5: Val Loss: 3.5528 | Val Acc: 13.61%
+Adding validation score 13.61000000
+
+
+Got score of 13.6100000000 (average 13.61, *1.0=13.61) which is higher than 0.0000000000 by 1e-05 so setting epoch to 4
+
+
+2 epoch improved is 4
+This also beats global best of 10.68 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 4, last improved epoch 4, total epochs 4, n: 2, num_cycles: 4
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: False
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 1
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 1
+Incrementing scheduler to count 1
+Checking if at last with scores 0, count since switch 1 and last total lr step count -1
+At last count False with count 1 and last LR count -1
+Learning rate just stepped to 9.7552825815e-02 with 1 total steps
+1 steps is the max of the last switch mode
+Learning rates were 1.00000000e-01 and 9.75528258e-02 started with 0, and is now at 1 committed False then either this (non zero) or eventually comparing to 1 steps or rate 0.09755283
+In statements to check next learning rate with stepped True and max count False
+Completed adding score. Restructured is 0,
+current switch list is:
+[1, 1, 3, 3]
+Epoch 6: Train Loss: 3.4270 | Train Acc: 16.31%
+Adding extra score train of 16.31
+Epoch 6: Val Loss: 3.2618 | Val Acc: 19.68%
+Adding validation score 19.68000000
+
+
+Got score of 19.6800000000 (average 19.68, *1.0=19.68) which is higher than 13.6100000000 by 1e-05 so setting epoch to 5
+
+
+2 epoch improved is 5
+This also beats global best of 13.61 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 5, last improved epoch 5, total epochs 5, n: 2, num_cycles: 4
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: False
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 1
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 1
+Incrementing scheduler to count 3
+Checking if at last with scores 0, count since switch 2 and last total lr step count 1
+At last count True with count 2 and last LR count 1
+Learning rate just stepped to 7.9389262615e-02 with 2 total steps
+Learning rates were 9.04508497e-02 and 7.93892626e-02 started with 0, and is now at 2 committed False then either this (non zero) or eventually comparing to 1 steps or rate 0.09755283
+In statements to check next learning rate with stepped True and max count True
+saving system PBCount_2_startSteps_0
+Saving with initial steps: _26.01.2026.14.19.29_PBCount_2_startSteps_0 with current best 19.68
+loading system switch_4
+loading net from dict
+setting up arrays and simulating cycles for 2 pai modules
+creating dendrite Values for .conv1
+.conv1 calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.conv1 calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+creating dendrite Values for .fc
+.fc calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+after loading epoch last improved is 3 mode is n
+Setting epoch last improved to 4
+Not saving restructure right now
+Completed adding score. Restructured is 1,
+current switch list is:
+[1, 1, 3, 3]
+Resetting scheduler with 1 steps and 0 initial ticks to skip
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Lower start rate initial 0.1 stepping 1 times
+C:\Users\Pio Godwin\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\optim\lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+1 step 1 to 0.09755282581475769
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Scheduler update loop with 1 ended with 0.09755282581475769
+Scheduler ended with 1 steps and lr of 0.09755282581475769
+Epoch 7: Train Loss: 3.7042 | Train Acc: 11.66%
+Adding extra score train of 11.658
+Epoch 7: Val Loss: 3.5509 | Val Acc: 14.44%
+Adding validation score 14.44000000
+
+
+Got score of 14.4400000000 (average 14.44, *1.0=14.44) which is higher than 0.0000000000 by 1e-05 so setting epoch to 4
+
+
+2 epoch improved is 4
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 4, last improved epoch 4, total epochs 4, n: 2, num_cycles: 4
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: False
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 1
+  last_max_learning_rate_steps: 1
+  skip_steps < max_steps: False
+  scheduler is not None: True
+=============================
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 1 to last max 1
+Incrementing scheduler to count 2
+Checking if at last with scores 1, count since switch 1 and last total lr step count 1
+At last count True with count 1 and last LR count 1
+Learning rate just stepped to 9.0450849719e-02 with 2 total steps
+Learning rates were 9.75528258e-02 and 9.04508497e-02 started with 1, and is now at 2 committed False then either this (non zero) or eventually comparing to 1 steps or rate 0.09755283
+In statements to check next learning rate with stepped True and max count True
+Got initial 0 step score 19.68 and 1 score at step 14.44 so loading old score
+saving system PBCount_2_startSteps_1
+Saving with initial steps: _26.01.2026.14.24.55_PBCount_2_startSteps_1
+loading system PBCount_2_startSteps_0
+loading net from dict
+setting up arrays and simulating cycles for 2 pai modules
+creating dendrite Values for .conv1
+.conv1 calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.conv1 calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+creating dendrite Values for .fc
+.fc calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+after loading epoch last improved is 5 mode is n
+saving system PBCount_2_startSteps_0
+Saving with initial steps: _26.01.2026.14.24.56_PBCount_2_startSteps_0
+Setting last max steps to 2 and lr 0.09045084971874738
+Setting epoch last improved to 6
+Not saving restructure right now
+Completed adding score. Restructured is 1,
+current switch list is:
+[1, 1, 3, 3]
+Resetting scheduler with 3 steps and 0 initial ticks to skip
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Lower start rate initial 0.1 stepping 0 times
+C:\Users\Pio Godwin\AppData\Local\Programs\Python\Python313\Lib\site-packages\torch\optim\lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+  warnings.warn(
+1 step 1 to 0.09755282581475769
+Lower start rate initial 0.09755282581475769 stepping 0 times
+1 step 2 to 0.09045084971874738
+Scheduler update loop with 2 ended with 0.09045084971874738
+Scheduler ended with 2 steps and lr of 0.09045084971874738
+Epoch 8: Train Loss: 3.1782 | Train Acc: 21.21%
+Adding extra score train of 21.208
+Epoch 8: Val Loss: 3.0364 | Val Acc: 24.62%
+Adding validation score 24.62000000
+
+
+Got score of 24.6200000000 (average 24.62, *1.0=24.62) which is higher than 19.6800000000 by 1e-05 so setting epoch to 6
+
+
+2 epoch improved is 6
+This also beats global best of 19.68 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 6, last improved epoch 6, total epochs 6, n: 2, num_cycles: 4
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: True
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 2
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning False - no triggers to switch have been hit
+Incrementing scheduler to count 3
+Checking if at last with scores 0, count since switch 3 and last total lr step count 1
+At last count False with count 3 and last LR count 1
+Learning rate just stepped to 7.9389262615e-02 with 3 total steps
+Learning rates were 9.04508497e-02 and 7.93892626e-02 started with 0, and is now at 3 committed True then either this (non zero) or eventually comparing to 2 steps or rate 0.09045085
+Setting last max steps to 2 and lr 0.09045084971874738
+Completed adding score. Restructured is 0,
+current switch list is:
+[1, 1, 3, 3]
+Epoch 9: Train Loss: 2.8695 | Train Acc: 27.23%
+Adding extra score train of 27.234
+Epoch 9: Val Loss: 2.8340 | Val Acc: 28.98%
+Adding validation score 28.98000000
+
+
+Got score of 28.9800000000 (average 28.98, *1.0=28.98) which is higher than 24.6200000000 by 1e-05 so setting epoch to 7
+
+
+2 epoch improved is 7
+This also beats global best of 24.62 so saving
+saving system best_model
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 7, last improved epoch 7, total epochs 7, n: 2, num_cycles: 4
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: True
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 3
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning True - Fixed switch number is hit
+Calling switch_mode with True, 0, 3, 0.07938926261462367,100,2,0,
+Adding new dendrites without resetting which means the last ones improved. Resetting num_dendrite_tries
+saving system beforeSwitch_4
+Importing best Model for switch to PA...
+loading system best_model
+loading net from dict
+setting up arrays and simulating cycles for 2 pai modules
+creating dendrite Values for .conv1
+.conv1 calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.conv1 calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.conv1
+Setting candidate processors
+.conv1 calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+creating dendrite Values for .fc
+.fc calling set mode p
+PAI calling set mode p : tensor([1.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([2.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode p
+PAI calling set mode p : tensor([3.], device='cuda:0')
+.fc
+Setting candidate processors
+.fc calling set mode n
+PAI calling set mode n : tensor([4.], device='cuda:0')
+So calling all the things to add to modules
+after loading epoch last improved is 7 mode is n
+Calling set_dendrite_training
+.conv1 calling set mode p
+PAI calling set mode p : tensor([5.], device='cuda:0')
+.fc calling set mode p
+PAI calling set mode p : tensor([5.], device='cuda:0')
+.avgpool calling set mode p
+.bn1 calling set mode p
+.layer1 calling set mode p
+.layer2 calling set mode p
+.layer3 calling set mode p
+.layer4 calling set mode p
+.maxpool calling set mode p
+.relu calling set mode p
+.conv1
+Setting candidate processors
+.fc
+Setting candidate processors
+Switching back to N...
+.conv1 calling set mode n
+PAI calling set mode n : tensor([6.], device='cuda:0')
+So calling all the things to add to modules
+.fc calling set mode n
+PAI calling set mode n : tensor([6.], device='cuda:0')
+So calling all the things to add to modules
+.avgpool calling set mode n
+.bn1 calling set mode n
+.layer1 calling set mode n
+.layer2 calling set mode n
+.layer3 calling set mode n
+.layer4 calling set mode n
+.maxpool calling set mode n
+.relu calling set mode n
+Resetting committed to initial rate to False
+saving system switch_6
+Setting epoch last improved to 8
+Not saving restructure right now
+Completed adding score. Restructured is 1,
+current switch list is:
+[1, 1, 3, 3, 7, 7]
+Resetting scheduler with 1 steps and 0 initial ticks to skip
+Using scheduler:
+<class 'torch.optim.lr_scheduler.CosineAnnealingLR'>
+Scheduler update loop with 0 ended with 0.1
+Scheduler ended with 0 steps and lr of 0.1
+Epoch 10: Train Loss: 2.8043 | Train Acc: 28.32%
+Adding extra score train of 28.324
+Epoch 10: Val Loss: 3.0059 | Val Acc: 26.40%
+Adding validation score 26.40000000
+
+
+Got score of 26.4000000000 (average 26.4, *1.0=26.4) which is higher than 0.0000000000 by 1e-05 so setting epoch to 8
+
+
+2 epoch improved is 8
+saving system latest
+Checking PAI switch with mode n, switch mode DOING_FIXED_SWITCH, epoch 8, last improved epoch 8, total epochs 8, n: 2, num_cycles: 6
+=== LR Optimization Check ===
+  mode == "n": True
+  get_learn_dendrites_live(): False
+  committed_to_initial_rate: False
+  get_dont_give_up_unless_learning_rate_lowered(): True
+  current_n_learning_rate_initial_skip_steps: 0
+  last_max_learning_rate_steps: 3
+  skip_steps < max_steps: True
+  scheduler is not None: True
+=============================
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 3
+Incrementing scheduler to count 1
+Checking if at last with scores 0, count since switch 1 and last total lr step count -1
+At last count False with count 1 and last LR count -1
+Learning rate just stepped to 9.7552825815e-02 with 1 total steps
+Learning rates were 1.00000000e-01 and 9.75528258e-02 started with 0, and is now at 1 committed False then either this (non zero) or eventually comparing to 3 steps or rate 0.07938926
+In statements to check next learning rate with stepped True and max count False
+Completed adding score. Restructured is 0,
+current switch list is:
+[1, 1, 3, 3, 7, 7]

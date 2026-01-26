@@ -1,0 +1,11 @@
+Using device: cuda
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Pio Godwin\Desktop\Pytorch_dentric\src\train.py", line 176, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Pio Godwin\Desktop\Pytorch_dentric\src\train.py", line 113, in main
+    criterion = nn.CrossEntropyLoss()
+                ^^
+UnboundLocalError: cannot access local variable 'nn' where it is not associated with a value
