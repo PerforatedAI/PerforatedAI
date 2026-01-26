@@ -1,0 +1,21 @@
+project_name: "Project-Med-Edge"
+dataset: "dermamnist"
+seed: 42
+
+model:
+  name: "DermoNet-Edge"
+  channels: 3
+  classes: 7
+  input_size: 28
+
+training:
+  epochs: 100
+  batch_size: 128
+  lr: 0.001
+  weight_decay: 0.001  # Higher weight decay to reduce overfitting
+
+dendrites:
+  enabled: false
+  layer_target: "fc1"
+  max_dendrites: 8
+  epochs_to_switch: 8

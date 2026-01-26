@@ -1,0 +1,5 @@
+torch
+torchvision
+psutil
+matplotlib
+numpy

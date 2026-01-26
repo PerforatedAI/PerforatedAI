@@ -1,0 +1,28 @@
+{
+  "os":  "Windows-10-10.0.26100-SP0",
+  "python":  "CPython 3.11.5",
+  "startedAt":  "2025-12-30T04:53:10.320158Z",
+  "program":  "D:\\hackathon\\dendritic-edge-vision-v3\\PerforatedAI\\Examples\\hackathonProjects\\dendritic_mobilenet\\train.py",
+  "codePath":  "Examples\\hackathonProjects\\dendritic_mobilenet\\train.py",
+  "codePathLocal":  "train.py",
+  "git":  {
+    "remote":  "https://github.com/raghunathsundar1/PerforatedAI.git",
+    "commit":  "21c164159009bf513ea434ed8fa722626b892130"
+  },
+  "email":  "raghunathsundar1@gmail.com",
+  "root":  "D:\\hackathon\\dendritic-edge-vision-v3\\PerforatedAI\\Examples\\hackathonProjects\\dendritic_mobilenet",
+  "host":  "Raghunathpc",
+  "executable":  "D:\\hackathon\\dendritic-edge-vision-v3\\.venv\\Scripts\\python.exe",
+  "cpu_count":  12,
+  "cpu_count_logical":  16,
+  "disk":  {
+    "/":  {
+      "total":  "209714147328",
+      "used":  "20787937280"
+    }
+  },
+  "memory":  {
+    "total":  "16890322944"
+  },
+  "writerId":  "iabk16tg6af3y702imi4jxf22r2mychx"
+}

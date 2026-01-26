@@ -1,0 +1,13 @@
+{"time":"2026-01-05T05:44:04.635198+05:30","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-01-05T05:44:05.8239638+05:30","level":"INFO","msg":"stream: created new stream","id":"li82ltpt"}
+{"time":"2026-01-05T05:44:05.8246997+05:30","level":"INFO","msg":"handler: started","stream_id":"li82ltpt"}
+{"time":"2026-01-05T05:44:05.829893+05:30","level":"INFO","msg":"stream: started","id":"li82ltpt"}
+{"time":"2026-01-05T05:44:05.829893+05:30","level":"INFO","msg":"sender: started","stream_id":"li82ltpt"}
+{"time":"2026-01-05T05:44:05.829893+05:30","level":"INFO","msg":"writer: started","stream_id":"li82ltpt"}
+{"time":"2026-01-05T06:05:38.2184307+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/kamaleshgehlot0022-chennai-institute-of-technology/emotion-recognition-pai/li82ltpt/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2026-01-05T06:58:10.1621771+05:30","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-01-05T06:58:10.5233401+05:30","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-01-05T06:58:10.5417132+05:30","level":"INFO","msg":"stream: closing","id":"li82ltpt"}
+{"time":"2026-01-05T06:58:10.5417132+05:30","level":"INFO","msg":"handler: closed","stream_id":"li82ltpt"}
+{"time":"2026-01-05T06:58:10.5433899+05:30","level":"INFO","msg":"sender: closed","stream_id":"li82ltpt"}
+{"time":"2026-01-05T06:58:10.5433899+05:30","level":"INFO","msg":"stream: closed","id":"li82ltpt"}

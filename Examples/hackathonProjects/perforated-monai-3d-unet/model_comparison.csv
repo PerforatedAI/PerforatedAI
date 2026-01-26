@@ -1,0 +1,5 @@
+Model,Channels,Parameters,Parameters (Millions)
+Baseline (Full),"(32, 64, 128, 256)",4748837,4.749
+Dendritic (Full),"(32, 64, 128, 256)",4748837,4.749
+Baseline (Compressed),"(24, 40, 80, 160)",1887445,1.887
+Dendritic (Compressed),"(24, 40, 80, 160)",1887445,1.887

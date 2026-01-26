@@ -1,0 +1,51 @@
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            d0b3oxi27h6mmdi4rpd51llym1tkobel:
+                args:
+                    - --data_dir
+                    - c:\Users\Kamalesh\OneDrive\Documents\hack\emotion-recognition\data\ravdess
+                codePath: Examples\hackathonProjects\emotion-recognition\main.py
+                codePathLocal: main.py
+                cpu_count: 10
+                cpu_count_logical: 12
+                disk:
+                    /:
+                        total: "296253124608"
+                        used: "192652877824"
+                email: kamaleshgehlot0022@gmail.com
+                executable: C:\Python313\python.exe
+                git:
+                    commit: 276db7abc6ec202a92222e4d57cabbe172fb6f17
+                    remote: https://github.com/kamaleshgehlot0022-design/PerforatedAI.git
+                host: kamaleshm
+                memory:
+                    total: "16806326272"
+                os: Windows-11-10.0.26100-SP0
+                program: C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\main.py
+                python: CPython 3.13.5
+                root: C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition
+                startedAt: "2026-01-05T00:14:01.516445Z"
+                writerId: d0b3oxi27h6mmdi4rpd51llym1tkobel
+        m: []
+        python_version: 3.13.5
+        t:
+            "1":
+                - 1
+                - 5
+                - 53
+            "2":
+                - 1
+                - 5
+                - 53
+            "3":
+                - 2
+                - 13
+                - 17
+            "4": 3.13.5
+            "5": 0.23.1
+            "8":
+                - 3
+            "12": 0.23.1
+            "13": windows-amd64

@@ -1,0 +1,5 @@
+Create a .venv [i used python 3.10.11 ] ,Install the requirements.txt and if using nvidia gpu torch cuda 
+data download https://msd-for-monai.s3-us-west-2.amazonaws.com/Task01_BrainTumour.tar
+keep the data in root folder Perforated-MONAI\datasets\monai\Task01_BrainTumour
+git clone PerforatedAI repo to root https://github.com/PerforatedAI/PerforatedAI.git 
+now you can trigger runs with python src/training/train_baseline_compressed.py OR 

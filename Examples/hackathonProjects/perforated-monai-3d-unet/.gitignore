@@ -1,0 +1,52 @@
+# =========================
+# Python / Virtual Envs
+# =========================
+.venv/
+.venv-linux/
+venv/
+env/
+__pycache__/
+**/__pycache__/
+
+# =========================
+# Environment & Secrets
+# =========================
+.env
+
+# =========================
+# Datasets & Outputs
+# =========================
+datasets/
+outputs/
+best_run_logs/
+PAI_MONAI_Compressed/
+PAI_MONAI_full/
+# =========================
+# Experiment Tracking
+# =========================
+wandb/
+
+
+# =========================
+# Local / Internal Libraries
+# =========================
+perforatedai/
+
+W&B_Reports/
+
+# =========================
+# Docs & Local Files (Do NOT commit)
+# =========================
+license_deyharit.txt
+Dendritic Optimization for Compressed 3D UNet.pdf
+Dendritic Optimization for Compressed 3D UNet.docx
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+Perforated-MONAI.zip

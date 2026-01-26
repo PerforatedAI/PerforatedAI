@@ -1,0 +1,21 @@
+{
+    "dataset": "cifar10",
+    "baseline": {
+        "Accuracy": "72.2%",
+        "Total Params": "2,122,186",
+        "Active Params": "2,122,186",
+        "Inference (Total)": "6.16s",
+        "Latency (Batch=1)": "2.56 ms",
+        "Memory Usage": "~227 MB",
+        "Sparsity": "N/A"
+    },
+    "dendritic": {
+        "Accuracy": "73.5%",
+        "Total Params": "8,433,178",
+        "Active Params": "2,951,612",
+        "Inference (Total)": "10.00s",
+        "Latency (Batch=1)": "2.97 ms",
+        "Memory Usage": "~143 MB",
+        "Sparsity": "65.0%"
+    }
+}
