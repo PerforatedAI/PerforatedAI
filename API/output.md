@@ -42,8 +42,8 @@ Additionally the validation/training scores should be flatlined during Dendrite 
     The _pai versions of models are optimized for inference.  These models are smaller and also can be run with open source code from this API without requiring a license to use the training software.
 
 ## CSV Names
- - bestTestScores
-    A final scores output that shows the best test scores at the epoch where the best validation scores were achieved.  This includes parameter counts for each version of the network as well.  This could be considered the main output results of an experiment.  Requires using addTestScore to work properly.
+ - best_arch_scores
+    A final scores output that shows the best test scores at the epoch where the best validation scores were achieved.  This includes parameter counts for each version of the network as well.  This could be considered the main output results of an experiment.
 - Best_PB_Scores
     Best PB correlation scores at each epoch
  - Scores
