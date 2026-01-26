@@ -1,0 +1,28 @@
+# Core ML Libraries
+torch>=2.0.0
+pytorch-lightning>=2.0.0
+transformers>=4.30.0
+datasets>=2.12.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Experiment Tracking
+wandb>=0.15.0
+
+# Distributed Training (Ray not yet supported on Python 3.13)
+# ray[train]>=2.9.0
+# ray[tune]>=2.9.0
+# bayesian-optimization>=1.4.0
+
+# Edge Deployment
+onnx>=1.14.0
+onnxruntime>=1.15.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.65.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
