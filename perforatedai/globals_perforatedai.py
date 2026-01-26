@@ -620,10 +620,21 @@ class PAIConfig:
             self, "weight_tying_experimental", self.weight_tying_experimental
         )
 
-        # This is a setting for huggingface for what metric to use for scoring
-        self.metric = 'eval_loss'
+        # These are settings where libraries must be doing the scoring adding to
+        # message from your main script what metric to use
+        self.library_validation_score = ''
         add_pai_config_var_functions(
-            self, "metric", self.metric
+            self, "library_validation_score", self.library_validation_score
+        )
+        self.library_extra_scores = []
+        add_pai_config_var_functions(
+            self, "library_extra_scores", self.library_extra_scores,
+            list_type=True,
+        )
+        self.library_extra_scores_without_graphing = []
+        add_pai_config_var_functions(   
+            self, "library_extra_scores_without_graphing", self.library_extra_scores_without_graphing,
+            list_type=True,
         )
 
 

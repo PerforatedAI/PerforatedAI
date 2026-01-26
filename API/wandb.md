@@ -110,12 +110,18 @@ When calling initialize_pai a save name must be set to determine the folder to s
 If you want to retain all of your tests separately you can label your save_name with
 the wandb sweep configuration values.
 
-    excluded = ['method', 'metric', 'parameters', 'dendrite_mode']
-    keys = [k for k in parameters_dict.keys() if k not in excluded]
-    name_str = "Dendrites-" + str(wandb.config.dendrite_mode) + "_" + "_".join(
-    str(wandb.config[k]) for k in keys if k in wandb.config
-    )
+    # Build run name with priority ordering
+    excluded = ['method', 'metric', 'parameters']
+    priorities = ['dendrite_mode', 'model_arch']
+    # Add priority keys first
+    name_parts = [str(wandb.config[k]) for k in priorities if k in wandb.config]
+    # Add remaining keys in default order
+    remaining_keys = [k for k in parameters_dict.keys() if k not in excluded and k not in priorities]
+    name_parts.extend(str(wandb.config[k]) for k in remaining_keys if k in wandb.config)
+    name_str = "_".join(name_parts)
     run.name = name_str
+
+    model = UPA.initialize_pai(model, save_name=run.name)
 
 ## Logging
 Then inside your script you'll also need to add logging.  You can add as much or as little as you'd like

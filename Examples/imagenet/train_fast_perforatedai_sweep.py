@@ -691,9 +691,9 @@ def main(args, run=None):
     # Build run name with priority ordering
     excluded = ['method', 'metric', 'parameters']
     priorities = ['dendrite_mode', 'model_arch']
-    # Add priority keys first
-    name_parts = [str(wandb.config[k]) for k in priorities if k in wandb.config]
-    # Add remaining keys in default order
+    # Add priority keys first with their names
+    name_parts = [f"{k}={wandb.config[k]}" for k in priorities if k in wandb.config]
+    # Add remaining keys in default order without names
     remaining_keys = [k for k in parameters_dict.keys() if k not in excluded and k not in priorities]
     name_parts.extend(str(wandb.config[k]) for k in remaining_keys if k in wandb.config)
     name_str = "_".join(name_parts)
