@@ -47,28 +47,7 @@ However, we reccomend your optimizer and scheduler should be set this way instea
     
 ## 4 - Scores
 
-### 4.1 Training
-Training in general can stay exactly as is.  But at the end of your training loop if you would like to track the training score as well you can optionally add:
-
-    GPA.pai_tracker.add_extra_score(training_score, 'Train')
-    
-### 4.2 - Testing
-    
-If you run testing periodically at the same time when you run validation (this is recommended) You can also call:
-
-    GPA.pai_tracker.add_test_score(test_score, 'Test Accuracy')
-    
-The test score should obviously not be used in the same way as the validation score for early stopping or other decisions.  However, by calculating it at each epoch and calling this function the system will automatically keep track of the affiliated test score of the highest validation score during each neuron training iteration.  This will create a CSV file (..bestTestScore.csv) for you that neatly keeps track of the parameter counts of each cycle as well as what the test score was at the point of the highest validation score for that dendrite count.  If you do not call this function it will use the validation score twice when producing this CSV file.  This function should be called before addValidationScore.
-
-### 4.3 Additional Scores
-
-In additional to the above which will be added to the graph you may want to save scores thare are not the same format.  A common reason for this is when a project calculates training loss, validation loss, and validation accuracy, but not training accuracy.  You may want the graph to reflect the training and validation loss to confirm experiments are working and both losses are improving, but what is the most important at the end is the validation accuracy.  In cases like this just use the following to add scores to the csv files but not to the graphs.
-
-    GPA.pai_tracker.add_extra_score_without_graphing(extraScore, 'Test Accuracy')
-    
-## 5 - Validation
-
-### 5.1 Main Validation Requirements
+### 4.1 Validation Requirements
 At the end of your validation loop the following must be called so the tracker knows when to switch between dendrite learning and normal learning
 
     model, restructured, training_complete = GPA.pai_tracker.add_validation_score(score, 
@@ -92,9 +71,9 @@ Description of variables:
     not be performed.  
     score - This is the validation score you are using to determine if the model is improving.
     It can be an actual score like accuracy or the loss value.  If you are using a loss value
-    be sure when you called initialize() you set maximizingScore to False.
+    be sure when you called initialize() you set maximizing_score to False.
     
-### 5.2 Separate Validation Functions
+#### 4.1.1 Separate Validation Functions
 If this is called from within a test/validation function you'll need to add the following where the validation step is called
 
     return model, optimizer, scheduler
@@ -105,7 +84,22 @@ And then set them all when it is called like this
         
 Additionally make sure all three are being passed into the function because otherwise they won't be defined if the network is not restructured
 
-## Epochs
+### 4.2 Extra Scores
+Adding the validation score like above is required since it is the function that actually updates your model.  However, if is often helpful to also keep track of other scores such as train or test scores.  By calling the function below these scores will also be added to your graph and the best_arch_scores csv file to track the corresponding scores at the epoch where the best validation score was calculated for each dendrite count.
+
+    GPA.pai_tracker.add_extra_score(training_score, 'Train')
+
+Additionally, if you would like to track the extra score for the csv file, but not graph it you can call the function below.  This is often best if you would like to keep track of both an accuracy score and a loss score, or generally when you are tracking metrics where it would not make sense to graph them both on the same axis.
+
+    GPA.pai_tracker.add_extra_score_without_graphing(test_score, 'Test Accuracy')
+    
+### 4.3 Additional Scores
+
+In additional to the above which will be added to the graph you may want to save scores thare are not the same format.  A common reason for this is when a project calculates training loss, validation loss, and validation accuracy, but not training accuracy.  You may want the graph to reflect the training and validation loss to confirm experiments are working and both losses are improving, but what is the most important at the end is the validation accuracy.  In cases like this just use the following to add scores to the csv files but not to the graphs.
+
+    GPA.pai_tracker.add_extra_score_without_graphing(extraScore, 'Test Accuracy')
+
+## 5 - Epochs
 
 The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
 

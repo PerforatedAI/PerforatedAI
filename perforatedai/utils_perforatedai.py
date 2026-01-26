@@ -1171,7 +1171,7 @@ def load_net_from_dict(net, state_dict):
                     % module.name
                 )
                 print(
-                    "\n2 - This can also happen if you adjusted your model "
+                    "\n2 - This can happen if you adjusted your model "
                     "definition after calling initialize_pai"
                 )
                 print(
@@ -1206,6 +1206,9 @@ def load_net_from_dict(net, state_dict):
                 )
                 print("\n6 - You have converted a module that is in a frozen"
                     " part of the network and thus no gradients are flowing"
+                )
+                print("\n7 - You are running multiple experiments at once with the same save_name."
+                      " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
                 )
                 import pdb
 
@@ -1570,3 +1573,74 @@ def find_param_name_by_id(model, param_id):
         if id(p) == param_id:
             return "." + name
     return None
+
+
+def add_method_delegation_to_module(wrapper_module, method_name):
+    """Add delegating methods to a wrapper module that has a main_module attribute.
+    
+    This adds the specified methods to the wrapper module instance so they
+    properly delegate to the wrapped main_module. Works for any wrapper module
+    (TrackedNeuronModule, PAINeuronModule, etc.) that has a main_module attribute.
+    
+    Args:
+        wrapper_module: A wrapper module instance with a main_module attribute
+        method_name: The method name to delegate (e.g., '_gradient_checkpointing_func')
+    """
+    import types
+    
+    if hasattr(wrapper_module.main_module, method_name):
+        # Create a delegating method that forwards to main_module
+        def make_delegated_method(name):
+            def delegated_method(self, *args, **kwargs):
+                main_module_attr = getattr(self.main_module, name, None)
+                if main_module_attr is None:
+                    raise AttributeError(
+                        f"'{type(self.main_module).__name__}' object has no attribute '{name}'"
+                    )
+                if callable(main_module_attr):
+                    return main_module_attr(*args, **kwargs)
+                return main_module_attr
+            return delegated_method
+        
+        # Bind it to this specific instance
+        setattr(wrapper_module, method_name, types.MethodType(
+            make_delegated_method(method_name), 
+            wrapper_module
+        ))
+
+
+def apply_method_delegation_to_model(model, method_name, main_module_type):
+    """Recursively apply method delegation to all wrapper modules with main_module in a model.
+    
+    This traverses the entire model and adds method delegation for any module that has
+    a main_module attribute and optionally matches specified types.
+    
+    Args:
+        model: The PyTorch model to traverse
+        method_name: The method name to delegate (e.g., '_gradient_checkpointing_func')
+        main_module_type: main_module type name to filter by.
+                          Example: 'Qwen2DecoderLayer'
+    
+    Example:
+        # Apply gradient checkpointing delegation to all decoder layers
+        apply_method_delegation_to_model(
+            model, 
+            '_gradient_checkpointing_func',
+            main_module_type='Qwen2DecoderLayer'
+        )
+    """
+    count = 0
+    for name, module in model.named_modules():
+        # Check if module has main_module attribute (it's a wrapper)
+        if hasattr(module, 'main_module'):
+            # Check if we should apply based on main_module type
+            should_apply = True
+            if main_module_type is not None:
+                main_module_type_name = type(module.main_module).__name__
+                should_apply = main_module_type_name == main_module_type
+            
+            if should_apply:
+                add_method_delegation_to_module(module, method_name)
+                count += 1
+    
+    print(f"[PAI] Applied method delegation to {count} wrapper module instances")

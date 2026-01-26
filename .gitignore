@@ -1,21 +1,17 @@
-# --- System & Python Trash ---
-.DS_Store
-__pycache__/
-*.pyc
-myvenv
-perforatedai.egg-info
+# Common Virtual Environments
+myvenv*
+ENV*
+venv*
+
+# Common Data and Output Files
+data*
+PAI*
+
+# Build Folders
+**/__pycache__
 /build
+releases/*
+perforatedai.egg-info
 
-# --- Project Specific Ignored Folders ---
-train/
-test/
-wandb/
-
-# --- Large Files ---
-*.pt
-*.pth
-*.onnx
-.DS_Store
-venv/
-**/PAI/
-**/data/
+# Working Folders
+Examples/*
