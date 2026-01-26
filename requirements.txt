@@ -1,0 +1,10 @@
+torch
+transformers>=4.36
+accelerate
+datasets
+bitsandbytes
+peft
+scikit-learn
+pandas
+matplotlib
+seaborn
