@@ -1,0 +1,94 @@
+{
+  "train_losses": [
+    3.1125848293304443,
+    2.4534741640090942,
+    2.0688132762908937
+  ],
+  "batch_losses": [
+    {
+      "epoch": 1,
+      "batch": 1,
+      "loss": 2.798802137374878
+    },
+    {
+      "epoch": 1,
+      "batch": 2,
+      "loss": 3.454249858856201
+    },
+    {
+      "epoch": 1,
+      "batch": 3,
+      "loss": 3.048804998397827
+    },
+    {
+      "epoch": 1,
+      "batch": 4,
+      "loss": 3.279109239578247
+    },
+    {
+      "epoch": 1,
+      "batch": 5,
+      "loss": 2.9819579124450684
+    },
+    {
+      "epoch": 2,
+      "batch": 1,
+      "loss": 2.050402879714966
+    },
+    {
+      "epoch": 2,
+      "batch": 2,
+      "loss": 1.364526391029358
+    },
+    {
+      "epoch": 2,
+      "batch": 3,
+      "loss": 2.9256861209869385
+    },
+    {
+      "epoch": 2,
+      "batch": 4,
+      "loss": 2.8057124614715576
+    },
+    {
+      "epoch": 2,
+      "batch": 5,
+      "loss": 3.1210429668426514
+    },
+    {
+      "epoch": 3,
+      "batch": 1,
+      "loss": 2.6446492671966553
+    },
+    {
+      "epoch": 3,
+      "batch": 2,
+      "loss": 1.2205320596694946
+    },
+    {
+      "epoch": 3,
+      "batch": 3,
+      "loss": 1.6295608282089233
+    },
+    {
+      "epoch": 3,
+      "batch": 4,
+      "loss": 2.281449794769287
+    },
+    {
+      "epoch": 3,
+      "batch": 5,
+      "loss": 2.5678744316101074
+    }
+  ],
+  "epochs_trained": 3,
+  "pai_used": true,
+  "integration_success": true,
+  "final_config": {
+    "model_architecture": "<class 'transformers.models.vision_encoder_decoder.modeling_vision_encoder_decoder.VisionEncoderDecoderModel'>",
+    "encoder_type": "<class 'transformers.models.vit.modeling_vit.ViTModel'>",
+    "decoder_type": "<class 'transformers.models.trocr.modeling_trocr.TrOCRForCausalLM'>",
+    "dendrite_layers_configured": "Yes",
+    "output_dimensions_set": "Yes"
+  }
+}
