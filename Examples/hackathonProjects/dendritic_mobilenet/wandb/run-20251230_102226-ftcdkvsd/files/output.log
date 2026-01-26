@@ -1,0 +1,27 @@
+Using device: cpu
+Initializing model with dendrite_count=8...
+By default skipping base_model. See "Safetensors Errors" section of customization.md to include it.
+Running a test of Dendrite Capacity.
+Adding 8 dendrites to dendritic_output layer...
+You have a converted module that was never initialized
+This likely means it is not being added to the autograd graph
+Check your forward function that it is actually being used
+If its not you should really delete it, but you can also add
+.dendritic_output
+with:
+GPA.pc.append_module_ids_to_track(['.dendritic_output'])
+This can also happen while testing_dendrite_capacity if you
+run a validation cycle and try to add Dendrites before doing any training.
+Traceback (most recent call last):
+  File "D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet\train.py", line 68, in train
+    model.dendritic_output.create_new_dendrite_module()
+  File "D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\perforatedai\modules_perforatedai.py", line 559, in create_new_dendrite_module
+    self.dendrite_module.create_new_dendrite_module(self.main_module)
+  File "D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\perforatedai\modules_perforatedai.py", line 1009, in create_new_dendrite_module
+    self.dendrite_values[j].reinitialize_for_pai()
+  File "D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\perforatedai\modules_perforatedai.py", line 1389, in reinitialize_for_pai
+    setattr(self, val_name, getattr(self, val_name) * 0)
+                            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\hackathon\dendritic-edge-vision-v3\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1964, in __getattr__
+    raise AttributeError(
+AttributeError: 'DendriteValueTracker' object has no attribute 'shape'

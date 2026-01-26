@@ -1,0 +1,7 @@
+torch
+torchvision
+tqdm
+wandb
+matplotlib
+numpy
+perforatedbp

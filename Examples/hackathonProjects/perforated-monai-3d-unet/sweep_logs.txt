@@ -1,0 +1,914 @@
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04732050
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 8, last improved epoch 8, total epochs 8, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 8 | Dice 0.0473 | Best 0.0473
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04910165
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 9, last improved epoch 9, total epochs 9, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 9 | Dice 0.0491 | Best 0.0491
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04781161
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 10, last improved epoch 9, total epochs 10, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 10 | Dice 0.0478 | Best 0.0491
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04618768
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 11, last improved epoch 9, total epochs 11, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 11 | Dice 0.0462 | Best 0.0491
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04979368
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 12, last improved epoch 12, total epochs 12, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 12 | Dice 0.0498 | Best 0.0498
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04888178
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 13, last improved epoch 12, total epochs 13, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 13 | Dice 0.0489 | Best 0.0498
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04925883
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 14, last improved epoch 12, total epochs 14, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 14 | Dice 0.0493 | Best 0.0498
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04968303
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 15, last improved epoch 12, total epochs 15, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 15 | Dice 0.0497 | Best 0.0498
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04729330
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 16, last improved epoch 12, total epochs 16, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=2] Epoch 16 | Dice 0.0473 | Best 0.0498
+wandb:
+wandb: Run history:
+wandb:         best_val_dice ▁▄▅▅▇▇▇▇▇████████
+wandb:                 epoch ▁▁▂▂▃▃▄▄▅▅▅▆▆▇▇██
+wandb: improvement_threshold ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:         max_dendrites ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   num_dendrites_added ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                params ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:            train/loss █▅▃▃▃▂▂▂▂▂▁▁▁▁▁▁▁
+wandb:              val/dice ▁▄▅▅▇▇▇▆▇█▇▇████▇
+wandb:
+wandb: Run summary:
+wandb:         best_val_dice 0.04979
+wandb:                 epoch 16
+wandb: improvement_threshold 0.01
+wandb:                    lr 5e-05
+wandb:         max_dendrites 2
+wandb:         model_variant full
+wandb:   num_dendrites_added 0
+wandb:                params 8716505
+wandb:           stop_reason early_stopping
+wandb:            train/loss 0.82401
+wandb:                    +1 ...
+wandb:
+wandb:  View run full_d2_t0.01 at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/05nge5y7
+wandb:  View project at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: .\wandb\run-20260106_130656-05nge5y7\logs
+wandb: Agent Starting Run: fke1qbs5 with config:
+wandb:  improvement_threshold: 0.01
+wandb:  lr: 5e-05
+wandb:  max_dendrites: 2
+wandb:  model_variant: compressed
+wandb: WARNING Ignoring project 'Perforated-MONAI' when running a sweep.
+wandb: Tracking run with wandb version 0.23.1
+wandb: Run data is saved locally in D:\Hackathons\Perforated-MONAI\wandb\run-20260106_132212-fke1qbs5
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run glad-sweep-22
+wandb:  View project at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb:  View sweep at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/sweeps/oulnib5d
+wandb:  View run at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/fke1qbs5
+Running Dendrite Experiment
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:120: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler()
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\utils\deprecate_utils.py:321: FutureWarning: monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
+  warn_deprecated(argname, msg, warning_category)
+Loading dataset: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 388/388 [00:00<?, ?it/s] 
+Loading dataset: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 96/96 [00:00<00:00, 192472.84it/s]
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.03174161
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 0, last improved epoch 0, total epochs 0, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 0 | Dice 0.0317 | Best 0.0317
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04247531
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 1, last improved epoch 1, total epochs 1, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 1 | Dice 0.0425 | Best 0.0425
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04377523
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 2, last improved epoch 2, total epochs 2, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 2 | Dice 0.0438 | Best 0.0438
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04393635
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 3, last improved epoch 2, total epochs 3, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 3 | Dice 0.0439 | Best 0.0439
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04454057
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 4, last improved epoch 4, total epochs 4, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 4 | Dice 0.0445 | Best 0.0445
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04775697
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 5, last improved epoch 5, total epochs 5, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 5 | Dice 0.0478 | Best 0.0478
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04880144
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 6, last improved epoch 6, total epochs 6, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 6 | Dice 0.0488 | Best 0.0488
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04775970
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 7, last improved epoch 6, total epochs 7, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 7 | Dice 0.0478 | Best 0.0488
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04698683
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 8, last improved epoch 6, total epochs 8, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 8 | Dice 0.0470 | Best 0.0488
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04828987
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 9, last improved epoch 6, total epochs 9, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 9 | Dice 0.0483 | Best 0.0488
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04556357
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 10, last improved epoch 6, total epochs 10, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=2] Epoch 10 | Dice 0.0456 | Best 0.0488
+wandb:
+wandb: Run history:
+wandb:         best_val_dice ▁▅▆▆▆██████
+wandb:                 epoch ▁▂▂▃▄▅▅▆▇▇█
+wandb: improvement_threshold ▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    lr ▁▁▁▁▁▁▁▁▁▁▁
+wandb:         max_dendrites ▁▁▁▁▁▁▁▁▁▁▁
+wandb:   num_dendrites_added ▁▁▁▁▁▁▁▁▁▁▁
+wandb:                params ▁▁▁▁▁▁▁▁▁▁▁
+wandb:            train/loss █▄▃▂▂▂▂▁▁▁▁
+wandb:              val/dice ▁▅▆▆▆███▇█▇
+wandb:
+wandb: Run summary:
+wandb:         best_val_dice 0.0488
+wandb:                 epoch 10
+wandb: improvement_threshold 0.01
+wandb:                    lr 5e-05
+wandb:         max_dendrites 2
+wandb:         model_variant compressed
+wandb:   num_dendrites_added 0
+wandb:                params 3458585
+wandb:           stop_reason early_stopping
+wandb:            train/loss 0.87641
+wandb:                    +1 ...
+wandb:
+wandb:  View run compressed_d2_t0.01 at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/fke1qbs5
+wandb:  View project at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: .\wandb\run-20260106_132212-fke1qbs5\logs
+wandb: Agent Starting Run: t2fs5zo9 with config:
+wandb:  improvement_threshold: 0.01
+wandb:  lr: 5e-05
+wandb:  max_dendrites: 3
+wandb:  model_variant: full
+wandb: WARNING Ignoring project 'Perforated-MONAI' when running a sweep.
+wandb: Tracking run with wandb version 0.23.1
+wandb: Run data is saved locally in D:\Hackathons\Perforated-MONAI\wandb\run-20260106_133016-t2fs5zo9
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run exalted-sweep-23
+wandb:  View project at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb:  View sweep at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/sweeps/oulnib5d
+wandb:  View run at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/t2fs5zo9
+Running Dendrite Experiment
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:120: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler()
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\utils\deprecate_utils.py:321: FutureWarning: monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
+  warn_deprecated(argname, msg, warning_category)
+Loading dataset: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 388/388 [00:00<00:00, 1004561.70it/s]
+Loading dataset: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 96/96 [00:00<00:00, 191102.60it/s] 
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.03254267
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 0, last improved epoch 0, total epochs 0, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 0 | Dice 0.0325 | Best 0.0325
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04036991
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 1, last improved epoch 1, total epochs 1, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 1 | Dice 0.0404 | Best 0.0404
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04203613
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 2, last improved epoch 2, total epochs 2, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 2 | Dice 0.0420 | Best 0.0420
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04482727
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 3, last improved epoch 3, total epochs 3, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 3 | Dice 0.0448 | Best 0.0448
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04652553
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 4, last improved epoch 4, total epochs 4, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 4 | Dice 0.0465 | Best 0.0465
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04613015
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 5, last improved epoch 4, total epochs 5, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 5 | Dice 0.0461 | Best 0.0465
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04700245
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 6, last improved epoch 6, total epochs 6, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 6 | Dice 0.0470 | Best 0.0470
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04658718
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 7, last improved epoch 6, total epochs 7, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 7 | Dice 0.0466 | Best 0.0470
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04698032
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 8, last improved epoch 6, total epochs 8, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 8 | Dice 0.0470 | Best 0.0470
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04854650
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 9, last improved epoch 9, total epochs 9, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 9 | Dice 0.0485 | Best 0.0485
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04853759
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 10, last improved epoch 9, total epochs 10, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 10 | Dice 0.0485 | Best 0.0485
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04773878
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 11, last improved epoch 9, total epochs 11, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 11 | Dice 0.0477 | Best 0.0485
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04895512
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 12, last improved epoch 9, total epochs 12, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 12 | Dice 0.0490 | Best 0.0490
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04852530
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 13, last improved epoch 9, total epochs 13, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 13 | Dice 0.0485 | Best 0.0490
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04992881
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 14, last improved epoch 14, total epochs 14, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 14 | Dice 0.0499 | Best 0.0499
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04934260
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 15, last improved epoch 14, total epochs 15, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 15 | Dice 0.0493 | Best 0.0499
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.05161582
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 16, last improved epoch 16, total epochs 16, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 16 | Dice 0.0516 | Best 0.0516
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04998238
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 17, last improved epoch 16, total epochs 17, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 17 | Dice 0.0500 | Best 0.0516
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04897647
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 18, last improved epoch 16, total epochs 18, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 18 | Dice 0.0490 | Best 0.0516
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.05170346
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 19, last improved epoch 16, total epochs 19, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 19 | Dice 0.0517 | Best 0.0516
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04765329
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 20, last improved epoch 16, total epochs 20, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[full | d=3] Epoch 20 | Dice 0.0477 | Best 0.0516
+wandb: 
+wandb: Run history:
+wandb:         best_val_dice ▁▄▄▆▆▆▆▆▆▇▇▇▇▇▇▇█████
+wandb:                 epoch ▁▁▂▂▂▃▃▃▄▄▅▅▅▆▆▆▇▇▇██
+wandb: improvement_threshold ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:         max_dendrites ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   num_dendrites_added ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                params ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:            train/loss █▅▄▃▃▃▂▂▂▂▂▂▂▁▁▁▁▁▁▁▁
+wandb:              val/dice ▁▄▄▅▆▆▆▆▆▇▇▇▇▇▇▇█▇▇█▇
+wandb:
+wandb: Run summary:
+wandb:         best_val_dice 0.05162
+wandb:                 epoch 20
+wandb: improvement_threshold 0.01
+wandb:                    lr 5e-05
+wandb:         max_dendrites 3
+wandb:         model_variant full
+wandb:   num_dendrites_added 0
+wandb:                params 8716505
+wandb:           stop_reason early_stopping
+wandb:            train/loss 0.7984
+wandb:                    +1 ...
+wandb:
+wandb:  View run full_d3_t0.01 at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/t2fs5zo9
+wandb:  View project at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: .\wandb\run-20260106_133016-t2fs5zo9\logs
+wandb: Agent Starting Run: av17nbiw with config:
+wandb:  improvement_threshold: 0.01
+wandb:  lr: 5e-05
+wandb:  max_dendrites: 3
+wandb:  model_variant: compressed
+wandb: WARNING Ignoring project 'Perforated-MONAI' when running a sweep.
+wandb: Tracking run with wandb version 0.23.1
+wandb: Run data is saved locally in D:\Hackathons\Perforated-MONAI\wandb\run-20260106_134838-av17nbiw
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run brisk-sweep-24
+wandb:  View project at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb:  View sweep at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/sweeps/oulnib5d
+wandb:  View run at https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/av17nbiw
+Running Dendrite Experiment
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:120: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler()
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\utils\deprecate_utils.py:321: FutureWarning: monai.transforms.spatial.dictionary Orientationd.__init__:labels: Current default value of argument `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` was changed in version None from `labels=(('L', 'R'), ('P', 'A'), ('I', 'S'))` to `labels=None`. Default value changed to None meaning that the transform now uses the 'space' of a meta-tensor, if applicable, to determine appropriate axis labels.
+  warn_deprecated(argname, msg, warning_category)
+Loading dataset: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 388/388 [00:00<?, ?it/s] 
+Loading dataset: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 96/96 [00:00<?, ?it/s]
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+Building dendrites with Perforated Backpropagation
+Building dendrites with Perforated Backpropagation
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.03317831
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 0, last improved epoch 0, total epochs 0, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 0 | Dice 0.0332 | Best 0.0332
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.03769644
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 1, last improved epoch 1, total epochs 1, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 1 | Dice 0.0377 | Best 0.0377
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04254519
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 2, last improved epoch 2, total epochs 2, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 2 | Dice 0.0425 | Best 0.0425
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04296101
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 3, last improved epoch 2, total epochs 3, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 3 | Dice 0.0430 | Best 0.0430
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04578775
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 4, last improved epoch 4, total epochs 4, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 4 | Dice 0.0458 | Best 0.0458
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04471807
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 5, last improved epoch 4, total epochs 5, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 5 | Dice 0.0447 | Best 0.0458
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04607264
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 6, last improved epoch 4, total epochs 6, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 6 | Dice 0.0461 | Best 0.0461
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04461094
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 7, last improved epoch 4, total epochs 7, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 7 | Dice 0.0446 | Best 0.0461
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04621104
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 8, last improved epoch 4, total epochs 8, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 8 | Dice 0.0462 | Best 0.0462
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04508915
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 9, last improved epoch 4, total epochs 9, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 9 | Dice 0.0451 | Best 0.0462
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04933071
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 10, last improved epoch 10, total epochs 10, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 10 | Dice 0.0493 | Best 0.0493
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04941322
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 11, last improved epoch 10, total epochs 11, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 11 | Dice 0.0494 | Best 0.0493
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04927447
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 12, last improved epoch 10, total epochs 12, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 12 | Dice 0.0493 | Best 0.0493
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04675771
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 13, last improved epoch 10, total epochs 13, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 13 | Dice 0.0468 | Best 0.0493
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:159: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\sweep_tests_dendritic.py:182: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:226: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+D:\Hackathons\Perforated-MONAI\.venv\lib\site-packages\monai\inferers\utils.py:370: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at C:\actions-runner\_work\pytorch\pytorch\pytorch\torch\csrc\autograd\python_variable_indexing.cpp:353.)
+  out[idx_zm] += p
+Adding validation score 0.04573642
+A switch mode must be set.  Check your settings for GPA.pc.set_switch_mode().
+Checking PAI switch with mode n, switch mode No mode, this should never be the case., epoch 14, last improved epoch 10, total epochs 14, n: 10, num_cycles: 0
+Returning False - no triggers to switch have been hit
+[compressed | d=3] Epoch 14 | Dice 0.0457 | Best 0.0493
+wandb: 
+wandb: Run history:
+wandb:         best_val_dice ▁▃▅▅▆▆▇▇▇▇█████
+wandb:                 epoch ▁▁▂▃▃▃▄▅▅▅▆▇▇▇█
+wandb: improvement_threshold ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                    lr ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:         max_dendrites ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:   num_dendrites_added ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                params ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:            train/loss █▅▃▃▂▂▂▂▂▁▁▁▁▁▁
+wandb:              val/dice ▁▃▅▅▆▆▇▆▇▆███▇▆
+wandb:
+wandb: Run summary:
+wandb:         best_val_dice 0.04933
+wandb:                 epoch 14
+wandb: improvement_threshold 0.01
+wandb:                    lr 5e-05
+wandb:         max_dendrites 3
+wandb:         model_variant compressed
+wandb:   num_dendrites_added 0
+wandb:                params 3458585
+wandb:           stop_reason early_stopping
+wandb:            train/loss 0.85549
+wandb:                    +1 ...
+wandb:
+wandb:  View run compressed_d3_t0.01 at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI/runs/av17nbiw
+wandb:  View project at: https://wandb.ai/deyharit-metriontech-com/Perforated-MONAI
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: .\wandb\run-20260106_134838-av17nbiw\logs
+wandb: Sweep Agent: Waiting for job.
+wandb: Sweep Agent: Exiting.
+(.venv) PS D:\Hackathons\Perforated-MONAI> 

@@ -1,0 +1,11 @@
+{"time":"2025-12-30T15:37:05.9847371+05:30","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2025-12-30T15:37:06.4731834+05:30","level":"INFO","msg":"stream: created new stream","id":"j50cfegf"}
+{"time":"2025-12-30T15:37:06.4731834+05:30","level":"INFO","msg":"handler: started","stream_id":"j50cfegf"}
+{"time":"2025-12-30T15:37:06.4748222+05:30","level":"INFO","msg":"stream: started","id":"j50cfegf"}
+{"time":"2025-12-30T15:37:06.4748222+05:30","level":"INFO","msg":"writer: started","stream_id":"j50cfegf"}
+{"time":"2025-12-30T15:37:06.4748222+05:30","level":"INFO","msg":"sender: started","stream_id":"j50cfegf"}
+{"time":"2025-12-30T15:42:34.0944969+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/j50cfegf/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2025-12-30T17:29:27.2655321+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/j50cfegf/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2025-12-30T19:55:40.5937717+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/j50cfegf/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2025-12-30T20:11:44.6447654+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/j50cfegf/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}
+{"time":"2025-12-30T20:12:25.1627965+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/j50cfegf/file_stream\": dial tcp 35.186.228.49:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."}
