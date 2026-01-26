@@ -2,6 +2,8 @@
 
 If you are crashing in ways that aren't caught by the other md files, search for them here before looking up online.
 
+But before reading this please take note, if the system is crashing **do not just add error handling and ignore the errors**.  These errors that come up are all important to the process to fix.  If you just ignore that things are crashing that is not an acceptable workaround and you will not see benefits.
+
 ## New Best Scores are not Being Tiggered
 Check GPA.pc.get_improvement_threshold().  If the improvement is very small it may not be beating the previous best by a high enough margin.  You can also set GPA.pc.set_verbose(True) to check if this is the case.
 
@@ -101,17 +103,21 @@ This can be caused when after restructuring there is a optimizer.step() before a
     net.optimizer_.zero_grad()
     print("PAI: Model restructured and optimizer reinitialized")
 
-
+We have also seen this happen if gradient checkpointing is enabled.  Please turn this off for perforated ai usage. 
 
 ## Attribute Error:
     
-    AttributeError: 'pb_neuron_layer' object has no attribute 'SOMEVARIABLE'
+    AttributeError: 'PAINeuronLayer' object has no attribute 'SOMEVARIABLE'
 
-This is the error you will get if you need to access an attribute of a module that is now wrapped as a pb_neuron_layer.  All you have to do in this case is the following change.
+This is the error you will get if you need to access an attribute of a module that is now wrapped as a PAINeuronLayer.  All you have to do in this case is the following change.
 
     #model.yourModule.SOMEVARIABLE
     model.yourModule.mainModule.SOMEVARIABLE
     
+This is done automatically for most variables.  But for special varialbes and functions that start with a _ python does not do it for you.  In these cases if the above is not easily accessible because it is in the backend of a library you are working with, you can also do the following after initialize_pai
+
+    UPA.apply_method_delegation_to_model(model, "method_name", module_type)
+
 ## Initialize Error
 
     AttributeError: 'list' object has no attribute 'set_optimizer_instance'
