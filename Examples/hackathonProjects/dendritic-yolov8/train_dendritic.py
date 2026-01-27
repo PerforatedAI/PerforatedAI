@@ -203,8 +203,10 @@ def main():
     # Setup optimizer through PerforatedAI tracker
     GPA.pai_tracker.set_optimizer(optim.Adam)
     GPA.pai_tracker.set_scheduler(ReduceLROnPlateau)
-    
-    optimArgs = {'params': model.parameters(), 'lr': args.lr}
+
+    # CRITICAL FIX: Pass parameters as list, not iterator
+    # After initialize_pai(), model.parameters() needs to be converted to list
+    optimArgs = {'params': list(model.parameters()), 'lr': args.lr}
     schedArgs = {'mode': 'max', 'patience': 3, 'factor': 0.5}
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
@@ -272,7 +274,8 @@ def main():
             current_params = count_parameters(model)
             print(f"\n>>> DENDRITES ADDED! <<<")
             print(f"    Parameters: {baseline_params/1e6:.2f}M -> {current_params/1e6:.2f}M")
-            optimArgs['params'] = model.parameters()
+            # CRITICAL FIX: Pass parameters as list when resetting optimizer
+            optimArgs['params'] = list(model.parameters())
             optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
                 model, optimArgs, schedArgs
             )
