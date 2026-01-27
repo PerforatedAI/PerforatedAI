@@ -204,9 +204,10 @@ def main():
     GPA.pai_tracker.set_optimizer(optim.Adam)
     GPA.pai_tracker.set_scheduler(ReduceLROnPlateau)
 
-    # CRITICAL FIX: Pass parameters as list, not iterator
-    # After initialize_pai(), model.parameters() needs to be converted to list
-    optimArgs = {'params': list(model.parameters()), 'lr': args.lr}
+    # CORRECTED: Let GPA.pai_tracker.setup_optimizer manage parameters automatically
+    # It knows which parameters should be trainable within the PAI framework
+    # Don't pass 'params' explicitly - PAI tracker will identify them
+    optimArgs = {'lr': args.lr}
     schedArgs = {'mode': 'max', 'patience': 3, 'factor': 0.5}
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
@@ -274,8 +275,8 @@ def main():
             current_params = count_parameters(model)
             print(f"\n>>> DENDRITES ADDED! <<<")
             print(f"    Parameters: {baseline_params/1e6:.2f}M -> {current_params/1e6:.2f}M")
-            # CRITICAL FIX: Pass parameters as list when resetting optimizer
-            optimArgs['params'] = list(model.parameters())
+            # Let PAI tracker manage parameters - don't pass explicit params
+            optimArgs = {'lr': args.lr}
             optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
                 model, optimArgs, schedArgs
             )
