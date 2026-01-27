@@ -1,0 +1,29 @@
+[INFO] Loading dataset...
+Loading dataset: wubingheng/vit-medical-image-classification...
+Downloading train data (attempt 1)...
+Downloading test data...
+Loading arrow files...
+Dataset loaded: 3002 train, 375 val, 375 test
+Creating dataloaders...
+[INFO] Creating DENDRITIC ViT...
+C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\huggingface_hub\file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Some weights of ViTForImageClassification were not initialized from the model checkpoint at google/vit-base-patch16-224-in21k and are newly initialized: ['classifier.bias', 'classifier.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+[INFO] Baseline: 85,817,112 params
+[INFO] Injecting dendrites...
+By default skipping base_model. See "Safetensors Errors" section of customization.md to include it.
+Running a test of Dendrite Capacity.
+[INFO] Dendritic model: 171,443,760 params (-99.8% reduction)
+✅ Trainable: 113,418,288 (131.9% of baseline)
+🌳 Dendritic Training:   0%|                                                                                                                  | 0/94 [00:00<?, ?it/s]
+The following module has not properly set this_output_dimensions
+.vit.encoder.layer.11.output.dense
+it is expecting:
+tensor([-1,  0])
+but received
+torch.Size([32, 197, 768])
+to check these all at once set GPA.pc.set_debugging_output_dimensions(1)
+Call MODEL_VARIABLE.vit.encoder.layer.11.output.dense.set_this_output_dimensions([...]) on this module after initialize_pai
+
+🌳 Dendritic Training:   0%|                                                                                                                  | 0/94 [00:07<?, ?it/s]

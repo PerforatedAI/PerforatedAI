@@ -1,0 +1,23 @@
+[INFO] Loading dataset...
+Loading dataset: wubingheng/vit-medical-image-classification...
+Downloading train data (attempt 1)...
+Downloading test data...
+Loading arrow files...
+Dataset loaded: 3002 train, 375 val, 375 test
+Creating dataloaders...
+[INFO] Creating DENDRITIC ViT...
+C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\huggingface_hub\file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Some weights of ViTForImageClassification were not initialized from the model checkpoint at google/vit-base-patch16-224-in21k and are newly initialized: ['classifier.bias', 'classifier.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+[INFO] Baseline: 85,817,112 params
+Traceback (most recent call last):
+  File "C:\Users\AVIRAL PC\DentricNew\hack\train_dendritic.py", line 20, in <module>
+    model = create_dendritic_vit(dendrite_config.MODEL_NAME, dendrite_config.NUM_CLASSES, dendrite_config)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\dentmodel.py", line 19, in create_dendritic_vit
+    model.classifier.set_this_output_dimensions([num_labels])
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1695, in __getattr__
+    raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+AttributeError: 'Linear' object has no attribute 'set_this_output_dimensions'

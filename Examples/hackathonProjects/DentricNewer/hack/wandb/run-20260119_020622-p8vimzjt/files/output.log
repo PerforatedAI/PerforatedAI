@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "C:\Users\AVIRAL PC\DentricNew\hack\train_baseline.py", line 15, in <module>
+    dataset = load_medical_imaging_dataset()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\datasets.py", line 23, in load_medical_imaging_dataset
+    raw_dataset = load_medical_imaging_dataset(dataset_name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\datasets.py", line 23, in load_medical_imaging_dataset
+    raw_dataset = load_medical_imaging_dataset(dataset_name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\datasets.py", line 23, in load_medical_imaging_dataset
+    raw_dataset = load_medical_imaging_dataset(dataset_name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  [Previous line repeated 996 more times]
+RecursionError: maximum recursion depth exceeded

@@ -1,0 +1,25 @@
+2026-01-19 02:46:34,500 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 02:46:34,500 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Configure stats pid to 26828
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Loading settings from C:\Users\AVIRAL PC\.config\wandb\settings
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Loading settings from C:\Users\AVIRAL PC\DentricNew\hack\wandb\settings
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'mode': 'offline'}
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train_baseline.py', 'program': 'C:\\Users\\AVIRAL PC\\DentricNew\\hack\\train_baseline.py'}
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_init.py:_log_setup():507] Logging user logs to C:\Users\AVIRAL PC\DentricNew\hack\wandb\offline-run-20260119_024634-1frdzc7k\logs\debug.log
+2026-01-19 02:46:34,501 INFO    MainThread:26828 [wandb_init.py:_log_setup():508] Logging internal logs to C:\Users\AVIRAL PC\DentricNew\hack\wandb\offline-run-20260119_024634-1frdzc7k\logs\debug-internal.log
+2026-01-19 02:46:34,502 INFO    MainThread:26828 [wandb_init.py:init():547] calling init triggers
+2026-01-19 02:46:34,502 INFO    MainThread:26828 [wandb_init.py:init():554] wandb.init called with sweep_config: {}
+config: {}
+2026-01-19 02:46:34,503 INFO    MainThread:26828 [wandb_init.py:init():596] starting backend
+2026-01-19 02:46:34,503 INFO    MainThread:26828 [wandb_init.py:init():600] setting up manager
+2026-01-19 02:46:34,507 INFO    MainThread:26828 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=spawn, using: spawn
+2026-01-19 02:46:34,509 INFO    MainThread:26828 [wandb_init.py:init():606] backend started and connected
+2026-01-19 02:46:34,518 INFO    MainThread:26828 [wandb_init.py:init():697] updated telemetry
+2026-01-19 02:46:34,521 INFO    MainThread:26828 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 02:46:34,524 INFO    MainThread:26828 [wandb_init.py:init():781] starting run threads in backend
+2026-01-19 02:46:34,593 INFO    MainThread:26828 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-19 02:46:34,594 INFO    MainThread:26828 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-19 02:46:34,594 INFO    MainThread:26828 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-19 02:46:34,594 INFO    MainThread:26828 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-19 02:46:34,595 INFO    MainThread:26828 [wandb_init.py:init():822] run started, returning control to user process
+2026-01-19 02:46:47,943 WARNING MsgRouterThr:26828 [router.py:message_loop():77] message_loop has been closed

@@ -1,0 +1,181 @@
+2026-01-19 03:45:16,564 INFO    StreamThr :7396 [internal.py:wandb_internal():86] W&B internal server running at pid: 7396, started at: 2026-01-19 03:45:16.562214
+2026-01-19 03:45:16,569 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: status
+2026-01-19 03:45:16,588 INFO    WriterThread:7396 [datastore.py:open_for_write():85] open: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\run-xbqd0lco.wandb
+2026-01-19 03:45:16,590 DEBUG   SenderThread:7396 [sender.py:send():379] send: header
+2026-01-19 03:45:16,592 DEBUG   SenderThread:7396 [sender.py:send():379] send: run
+2026-01-19 03:45:17,513 INFO    SenderThread:7396 [dir_watcher.py:__init__():211] watching files in: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files
+2026-01-19 03:45:17,514 INFO    SenderThread:7396 [sender.py:_start_run_threads():1121] run started: xbqd0lco with start time 1768774516.563184
+2026-01-19 03:45:17,514 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 03:45:17,516 INFO    SenderThread:7396 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 03:45:17,543 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: check_version
+2026-01-19 03:45:17,544 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: check_version
+2026-01-19 03:45:17,746 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: run_start
+2026-01-19 03:45:17,783 DEBUG   HandlerThread:7396 [system_info.py:__init__():31] System info init
+2026-01-19 03:45:17,783 DEBUG   HandlerThread:7396 [system_info.py:__init__():46] System info init done
+2026-01-19 03:45:17,783 INFO    HandlerThread:7396 [system_monitor.py:start():181] Starting system monitor
+2026-01-19 03:45:17,784 INFO    SystemMonitor:7396 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2026-01-19 03:45:17,784 INFO    HandlerThread:7396 [system_monitor.py:probe():201] Collecting system info
+2026-01-19 03:45:17,796 INFO    SystemMonitor:7396 [interfaces.py:start():190] Started cpu monitoring
+2026-01-19 03:45:17,797 INFO    SystemMonitor:7396 [interfaces.py:start():190] Started disk monitoring
+2026-01-19 03:45:17,798 INFO    SystemMonitor:7396 [interfaces.py:start():190] Started gpu monitoring
+2026-01-19 03:45:17,799 INFO    SystemMonitor:7396 [interfaces.py:start():190] Started memory monitoring
+2026-01-19 03:45:17,821 INFO    SystemMonitor:7396 [interfaces.py:start():190] Started network monitoring
+2026-01-19 03:45:17,822 DEBUG   HandlerThread:7396 [system_info.py:probe():195] Probing system
+2026-01-19 03:45:17,824 DEBUG   HandlerThread:7396 [gitlib.py:_init_repo():53] git repository is invalid
+2026-01-19 03:45:17,824 DEBUG   HandlerThread:7396 [system_info.py:probe():240] Probing system done
+2026-01-19 03:45:17,824 DEBUG   HandlerThread:7396 [system_monitor.py:probe():210] {'os': 'Windows-10-10.0.26200-SP0', 'python': '3.11.0', 'heartbeatAt': '2026-01-18T22:15:17.822384', 'startedAt': '2026-01-18T22:15:16.533821', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': 'C:\\Users\\AVIRAL PC\\DentricNew\\hack\\train_dendritic.py', 'codePath': 'train_dendritic.py', 'host': 'LAPTOP-S7A922A6', 'username': 'AVIRAL PC', 'executable': 'C:\\Users\\AVIRAL PC\\DentricNew\\.venv\\Scripts\\python.exe', 'cpu_count': 8, 'cpu_count_logical': 16, 'cpu_freq': {'current': 2304.0, 'min': 0.0, 'max': 2304.0}, 'cpu_freq_per_core': [{'current': 2304.0, 'min': 0.0, 'max': 2304.0}], 'disk': {'total': 728.5745277404785, 'used': 657.5014152526855}, 'gpu': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'gpu_count': 1, 'gpu_devices': [{'name': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'memory_total': 4294967296}], 'memory': {'total': 15.744766235351562}}
+2026-01-19 03:45:17,824 INFO    HandlerThread:7396 [system_monitor.py:probe():211] Finished collecting system info
+2026-01-19 03:45:17,824 INFO    HandlerThread:7396 [system_monitor.py:probe():214] Publishing system info
+2026-01-19 03:45:17,824 DEBUG   HandlerThread:7396 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2026-01-19 03:45:17,825 DEBUG   HandlerThread:7396 [system_info.py:_save_pip():67] Saving pip packages done
+2026-01-19 03:45:17,827 INFO    HandlerThread:7396 [system_monitor.py:probe():216] Finished publishing system info
+2026-01-19 03:45:17,832 DEBUG   SenderThread:7396 [sender.py:send():379] send: files
+2026-01-19 03:45:17,832 INFO    SenderThread:7396 [sender.py:_save_file():1375] saving file wandb-metadata.json with policy now
+2026-01-19 03:45:17,844 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:45:17,845 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:45:18,413 DEBUG   SenderThread:7396 [sender.py:send():379] send: telemetry
+2026-01-19 03:45:18,534 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-summary.json
+2026-01-19 03:45:18,536 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\requirements.txt
+2026-01-19 03:45:18,536 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:18,537 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-metadata.json
+2026-01-19 03:45:19,169 INFO    wandb-upload_0:7396 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL~1\AppData\Local\Temp\tmp6qrrr9imwandb\53q7gzva-wandb-metadata.json
+2026-01-19 03:45:20,547 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:21,560 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:21,952 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:45:22,569 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:23,572 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:27,011 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:45:28,730 DEBUG   SenderThread:7396 [sender.py:send():379] send: exit
+2026-01-19 03:45:28,730 INFO    SenderThread:7396 [sender.py:send_exit():584] handling exit code: 0
+2026-01-19 03:45:28,731 INFO    SenderThread:7396 [sender.py:send_exit():586] handling runtime: 10
+2026-01-19 03:45:28,734 INFO    SenderThread:7396 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 03:45:28,736 INFO    SenderThread:7396 [sender.py:send_exit():592] send defer
+2026-01-19 03:45:28,736 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,736 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 0
+2026-01-19 03:45:28,737 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,737 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 0
+2026-01-19 03:45:28,738 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 1
+2026-01-19 03:45:28,738 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,738 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 1
+2026-01-19 03:45:28,739 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,739 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 1
+2026-01-19 03:45:28,739 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 2
+2026-01-19 03:45:28,740 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,740 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 2
+2026-01-19 03:45:28,740 INFO    HandlerThread:7396 [system_monitor.py:finish():190] Stopping system monitor
+2026-01-19 03:45:28,740 DEBUG   SystemMonitor:7396 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2026-01-19 03:45:28,759 DEBUG   SystemMonitor:7396 [system_monitor.py:_start():166] Finished system metrics aggregation loop
+2026-01-19 03:45:28,759 INFO    HandlerThread:7396 [interfaces.py:finish():202] Joined cpu monitor
+2026-01-19 03:45:28,759 DEBUG   SystemMonitor:7396 [system_monitor.py:_start():170] Publishing last batch of metrics
+2026-01-19 03:45:28,760 INFO    HandlerThread:7396 [interfaces.py:finish():202] Joined disk monitor
+2026-01-19 03:45:28,862 INFO    HandlerThread:7396 [interfaces.py:finish():202] Joined gpu monitor
+2026-01-19 03:45:28,863 INFO    HandlerThread:7396 [interfaces.py:finish():202] Joined memory monitor
+2026-01-19 03:45:28,864 INFO    HandlerThread:7396 [interfaces.py:finish():202] Joined network monitor
+2026-01-19 03:45:28,865 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,865 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 2
+2026-01-19 03:45:28,865 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 3
+2026-01-19 03:45:28,865 DEBUG   SenderThread:7396 [sender.py:send():379] send: stats
+2026-01-19 03:45:28,865 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,866 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 3
+2026-01-19 03:45:28,866 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,866 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 3
+2026-01-19 03:45:28,867 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 4
+2026-01-19 03:45:28,867 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,867 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 4
+2026-01-19 03:45:28,867 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,867 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 4
+2026-01-19 03:45:28,868 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 5
+2026-01-19 03:45:28,868 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,868 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 5
+2026-01-19 03:45:28,869 DEBUG   SenderThread:7396 [sender.py:send():379] send: summary
+2026-01-19 03:45:28,870 INFO    SenderThread:7396 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 03:45:28,871 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,871 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 5
+2026-01-19 03:45:28,872 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 6
+2026-01-19 03:45:28,872 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:28,872 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 6
+2026-01-19 03:45:28,873 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:28,873 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 6
+2026-01-19 03:45:28,877 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:45:29,422 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 7
+2026-01-19 03:45:29,422 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:29,422 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 7
+2026-01-19 03:45:29,423 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:29,423 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 7
+2026-01-19 03:45:29,652 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-summary.json
+2026-01-19 03:45:29,653 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\config.yaml
+2026-01-19 03:45:29,840 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 03:45:30,663 INFO    Thread-16 :7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:30,929 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 8
+2026-01-19 03:45:30,930 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 03:45:30,930 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:30,930 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 8
+2026-01-19 03:45:30,931 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:30,932 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 8
+2026-01-19 03:45:30,933 INFO    SenderThread:7396 [job_builder.py:build():281] Attempting to build job artifact
+2026-01-19 03:45:30,935 INFO    SenderThread:7396 [job_builder.py:_get_source_type():411] no source found
+2026-01-19 03:45:30,935 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 9
+2026-01-19 03:45:30,936 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:30,936 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 9
+2026-01-19 03:45:30,936 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:30,937 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 9
+2026-01-19 03:45:30,937 INFO    SenderThread:7396 [dir_watcher.py:finish():358] shutting down directory watcher
+2026-01-19 03:45:31,677 INFO    SenderThread:7396 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:31,678 INFO    SenderThread:7396 [dir_watcher.py:finish():388] scan: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files
+2026-01-19 03:45:31,679 INFO    SenderThread:7396 [dir_watcher.py:finish():402] scan save: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\config.yaml config.yaml
+2026-01-19 03:45:31,680 INFO    SenderThread:7396 [dir_watcher.py:finish():402] scan save: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log output.log
+2026-01-19 03:45:31,684 INFO    SenderThread:7396 [dir_watcher.py:finish():402] scan save: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\requirements.txt requirements.txt
+2026-01-19 03:45:31,691 INFO    SenderThread:7396 [dir_watcher.py:finish():402] scan save: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-metadata.json wandb-metadata.json
+2026-01-19 03:45:31,693 INFO    SenderThread:7396 [dir_watcher.py:finish():402] scan save: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-summary.json wandb-summary.json
+2026-01-19 03:45:31,699 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 10
+2026-01-19 03:45:31,700 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:31,700 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 10
+2026-01-19 03:45:31,702 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:31,702 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 10
+2026-01-19 03:45:31,702 INFO    SenderThread:7396 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 03:45:32,479 INFO    wandb-upload_0:7396 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\config.yaml
+2026-01-19 03:45:32,584 INFO    wandb-upload_1:7396 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\output.log
+2026-01-19 03:45:32,717 INFO    wandb-upload_2:7396 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\requirements.txt
+2026-01-19 03:45:32,731 INFO    wandb-upload_3:7396 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\files\wandb-summary.json
+2026-01-19 03:45:32,937 INFO    Thread-15 (_thread_body):7396 [sender.py:transition_state():612] send defer: 11
+2026-01-19 03:45:32,939 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:32,939 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 11
+2026-01-19 03:45:32,940 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:32,940 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 11
+2026-01-19 03:45:32,940 INFO    SenderThread:7396 [file_pusher.py:join():164] waiting for file pusher
+2026-01-19 03:45:32,941 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 12
+2026-01-19 03:45:32,941 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:32,942 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 12
+2026-01-19 03:45:32,943 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:32,943 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 12
+2026-01-19 03:45:32,944 INFO    SenderThread:7396 [file_stream.py:finish():593] file stream finish called
+2026-01-19 03:45:33,378 INFO    SenderThread:7396 [file_stream.py:finish():597] file stream finish is done
+2026-01-19 03:45:33,379 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 13
+2026-01-19 03:45:33,379 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:33,379 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 13
+2026-01-19 03:45:33,380 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:33,380 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 13
+2026-01-19 03:45:33,381 INFO    SenderThread:7396 [sender.py:transition_state():612] send defer: 14
+2026-01-19 03:45:33,381 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 03:45:33,381 INFO    HandlerThread:7396 [handler.py:handle_request_defer():170] handle defer: 14
+2026-01-19 03:45:33,382 DEBUG   SenderThread:7396 [sender.py:send():379] send: final
+2026-01-19 03:45:33,383 DEBUG   SenderThread:7396 [sender.py:send():379] send: footer
+2026-01-19 03:45:33,383 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: defer
+2026-01-19 03:45:33,384 INFO    SenderThread:7396 [sender.py:send_request_defer():608] handle sender defer: 14
+2026-01-19 03:45:33,386 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 03:45:33,386 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: server_info
+2026-01-19 03:45:33,387 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: get_summary
+2026-01-19 03:45:33,387 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: sampled_history
+2026-01-19 03:45:33,387 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: job_info
+2026-01-19 03:45:33,388 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 03:45:33,389 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: server_info
+2026-01-19 03:45:33,725 DEBUG   SenderThread:7396 [sender.py:send_request():406] send_request: job_info
+2026-01-19 03:45:33,726 INFO    MainThread:7396 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-19 03:45:33,726 INFO    MainThread:7396 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-19 03:45:33,727 INFO    MainThread:7396 [wandb_run.py:_footer_sync_info():3440] logging synced files
+2026-01-19 03:45:33,728 DEBUG   HandlerThread:7396 [handler.py:handle_request():144] handle_request: shutdown
+2026-01-19 03:45:33,728 INFO    HandlerThread:7396 [handler.py:finish():857] shutting down handler
+2026-01-19 03:45:34,403 INFO    WriterThread:7396 [datastore.py:close():294] close: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_034516-xbqd0lco\run-xbqd0lco.wandb
+2026-01-19 03:45:34,731 INFO    SenderThread:7396 [sender.py:finish():1552] shutting down sender
+2026-01-19 03:45:34,731 INFO    SenderThread:7396 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 03:45:34,732 INFO    SenderThread:7396 [file_pusher.py:join():164] waiting for file pusher

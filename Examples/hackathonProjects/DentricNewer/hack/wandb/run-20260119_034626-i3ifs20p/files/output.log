@@ -1,0 +1,38 @@
+[INFO] Loading dataset...
+Loading dataset: wubingheng/vit-medical-image-classification...
+Downloading train data (attempt 1)...
+Downloading test data...
+Loading arrow files...
+Dataset loaded: 3002 train, 375 val, 375 test
+Creating dataloaders...
+[INFO] Creating DENDRITIC ViT...
+C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\huggingface_hub\file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Some weights of ViTForImageClassification were not initialized from the model checkpoint at google/vit-base-patch16-224-in21k and are newly initialized: ['classifier.bias', 'classifier.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+[INFO] Baseline: 85,817,112 params
+[INFO] Injecting dendrites...
+By default skipping base_model. See "Safetensors Errors" section of customization.md to include it.
+Running a test of Dendrite Capacity.
+[INFO] Dendritic model: 171,443,760 params (-99.8% reduction)
+✅ Trainable: 113,418,288 (131.9% of baseline)
+
+
+
+
+🌳 Dendritic Training:   4%|████▌                                                                                                     | 4/94 [01:16<28:33, 19.04s/it]
+Traceback (most recent call last):
+  File "C:\Users\AVIRAL PC\DentricNew\hack\train_dendritic.py", line 51, in <module>
+    train_loss, train_acc = train_epoch(model, loaders['train'], optimizer, dendrite_config.DEVICE)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\train_dendritic.py", line 40, in train_epoch
+    outputs.loss.backward()
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\torch\_tensor.py", line 492, in backward
+    torch.autograd.backward(
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\torch\autograd\__init__.py", line 251, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+  File "perforatedai/modules_perforatedai.py", line 640, in perforatedai.modules_perforatedai.PAINeuronModule.forward.lambda
+  File "perforatedai/modules_perforatedai.py", line 295, in perforatedai.modules_perforatedai.PAINeuronModule.__getattr__
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\torch\nn\modules\module.py", line 1682, in __getattr__
+    def __getattr__(self, name: str) -> Any:
+KeyboardInterrupt

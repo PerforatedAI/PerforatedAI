@@ -1,0 +1,51 @@
+wandb_version: 1
+
+batch_size:
+  desc: null
+  value: 64
+dendrite_density:
+  desc: null
+  value: 0.4
+epochs:
+  desc: null
+  value: 30
+lr:
+  desc: null
+  value: 1.000675273694733
+weight_decay:
+  desc: null
+  value: 0.04277745742856705
+_wandb:
+  desc: null
+  value:
+    python_version: 3.10.12
+    cli_version: 0.15.8
+    framework: huggingface
+    huggingface_version: 4.36.0
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1768840431.893348
+    t:
+      1:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 51
+      - 55
+      2:
+      - 1
+      - 11
+      - 41
+      - 49
+      - 51
+      - 55
+      3:
+      - 13
+      - 23
+      - 37
+      4: 3.10.12
+      5: 0.15.8
+      6: 4.36.0
+      8:
+      - 5

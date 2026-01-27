@@ -1,0 +1,12 @@
+wandb_version: 1
+
+batch_size:
+  value: 32
+dendrite_density:
+  value: 0.2
+epochs:
+  value: 30
+lr:
+  value: 1.000492090562377
+weight_decay:
+  value: 0.02233212810486536

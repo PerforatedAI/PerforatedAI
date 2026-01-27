@@ -1,0 +1,273 @@
+2026-01-19 04:53:18,395 INFO    StreamThr :3933452 [internal.py:wandb_internal():86] W&B internal server running at pid: 3933452, started at: 2026-01-19 04:53:18.393639
+2026-01-19 04:53:18,398 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status
+2026-01-19 04:53:18,403 INFO    WriterThread:3933452 [datastore.py:open_for_write():85] open: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/run-huttfy29.wandb
+2026-01-19 04:53:18,404 DEBUG   SenderThread:3933452 [sender.py:send():379] send: header
+2026-01-19 04:53:18,408 DEBUG   SenderThread:3933452 [sender.py:send():379] send: run
+2026-01-19 04:53:19,329 INFO    SenderThread:3933452 [dir_watcher.py:__init__():211] watching files in: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files
+2026-01-19 04:53:19,329 INFO    SenderThread:3933452 [sender.py:_start_run_threads():1121] run started: huttfy29 with start time 1768778598.393589
+2026-01-19 04:53:19,333 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 04:53:19,333 INFO    SenderThread:3933452 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 04:53:19,348 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: check_version
+2026-01-19 04:53:19,349 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: check_version
+2026-01-19 04:53:19,663 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: run_start
+2026-01-19 04:53:19,695 ERROR   HandlerThread:3933452 [gpu.py:is_available():381] Error initializing NVML: RM has detected an NVML/RM version mismatch.
+2026-01-19 04:53:19,696 DEBUG   HandlerThread:3933452 [system_info.py:__init__():31] System info init
+2026-01-19 04:53:19,697 DEBUG   HandlerThread:3933452 [system_info.py:__init__():46] System info init done
+2026-01-19 04:53:19,697 INFO    HandlerThread:3933452 [system_monitor.py:start():181] Starting system monitor
+2026-01-19 04:53:19,697 INFO    SystemMonitor:3933452 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2026-01-19 04:53:19,698 INFO    HandlerThread:3933452 [system_monitor.py:probe():201] Collecting system info
+2026-01-19 04:53:19,699 INFO    SystemMonitor:3933452 [interfaces.py:start():190] Started cpu monitoring
+2026-01-19 04:53:19,700 INFO    SystemMonitor:3933452 [interfaces.py:start():190] Started disk monitoring
+2026-01-19 04:53:19,703 INFO    SystemMonitor:3933452 [interfaces.py:start():190] Started memory monitoring
+2026-01-19 04:53:19,705 INFO    SystemMonitor:3933452 [interfaces.py:start():190] Started network monitoring
+2026-01-19 04:53:19,724 DEBUG   HandlerThread:3933452 [system_info.py:probe():195] Probing system
+2026-01-19 04:53:19,725 DEBUG   HandlerThread:3933452 [system_info.py:_probe_git():180] Probing git
+2026-01-19 04:53:19,736 DEBUG   HandlerThread:3933452 [system_info.py:_probe_git():188] Probing git done
+2026-01-19 04:53:19,737 DEBUG   HandlerThread:3933452 [system_info.py:probe():240] Probing system done
+2026-01-19 04:53:19,737 DEBUG   HandlerThread:3933452 [system_monitor.py:probe():210] {'os': 'Linux-6.12.10-76061203-generic-x86_64-with-glibc2.35', 'python': '3.10.12', 'heartbeatAt': '2026-01-18T23:23:19.724192', 'startedAt': '2026-01-18T23:23:18.382612', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py', 'codePath': 'hack/train_dendritic.py', 'git': {'remote': 'https://github.com/AviralDeshratna11/DentricNewer.git', 'commit': '2e21aeea970ec643563add733a9363a627a61168'}, 'email': None, 'root': '/home/sankalp/avi/DentricNewer', 'host': 'Server3A6000', 'username': 'sankalp', 'executable': '/home/sankalp/avi/DentricNewer/.venv/bin/python3', 'cpu_count': 12, 'cpu_count_logical': 24, 'cpu_freq': {'current': 841.823375, 'min': 800.0, 'max': 3300.0}, 'cpu_freq_per_core': [{'current': 800.822, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 900.559, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 900.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 900.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.286, 'min': 800.0, 'max': 3300.0}, {'current': 900.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.416, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}], 'disk': {'total': 934.9467658996582, 'used': 292.1509437561035}, 'memory': {'total': 125.41775512695312}}
+2026-01-19 04:53:19,737 INFO    HandlerThread:3933452 [system_monitor.py:probe():211] Finished collecting system info
+2026-01-19 04:53:19,737 INFO    HandlerThread:3933452 [system_monitor.py:probe():214] Publishing system info
+2026-01-19 04:53:19,737 DEBUG   HandlerThread:3933452 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2026-01-19 04:53:19,737 DEBUG   HandlerThread:3933452 [system_info.py:_save_pip():67] Saving pip packages done
+2026-01-19 04:53:19,738 INFO    HandlerThread:3933452 [system_monitor.py:probe():216] Finished publishing system info
+2026-01-19 04:53:19,741 DEBUG   SenderThread:3933452 [sender.py:send():379] send: files
+2026-01-19 04:53:19,742 INFO    SenderThread:3933452 [sender.py:_save_file():1375] saving file wandb-metadata.json with policy now
+2026-01-19 04:53:19,753 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:53:19,753 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:53:20,251 DEBUG   SenderThread:3933452 [sender.py:send():379] send: telemetry
+2026-01-19 04:53:20,333 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-metadata.json
+2026-01-19 04:53:20,334 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/requirements.txt
+2026-01-19 04:53:20,334 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:20,334 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-summary.json
+2026-01-19 04:53:21,566 INFO    wandb-upload_0:3933452 [upload_job.py:push():131] Uploaded file /tmp/tmpr989shbewandb/hbo8gwyh-wandb-metadata.json
+2026-01-19 04:53:22,331 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:23,331 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:23,728 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:29,027 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:29,334 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:30,335 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:31,336 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:34,117 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:34,753 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:53:34,754 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:53:35,338 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:36,338 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:37,339 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:39,340 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:39,446 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:41,341 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:43,342 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:44,486 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:45,343 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:47,344 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:49,345 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:49,753 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:53:49,754 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:53:50,190 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:51,346 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/config.yaml
+2026-01-19 04:53:51,347 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:53,347 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:55,348 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:55,717 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:53:57,349 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:53:59,350 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:00,793 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:01,350 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:03,351 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:04,753 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:54:04,753 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:54:05,352 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:06,042 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:07,353 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:09,353 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:11,354 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:11,519 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:13,355 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:15,356 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:17,106 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:17,357 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:19,358 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:19,706 DEBUG   SystemMonitor:3933452 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2026-01-19 04:54:19,708 DEBUG   SenderThread:3933452 [sender.py:send():379] send: stats
+2026-01-19 04:54:19,753 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:54:19,753 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:54:21,359 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:22,204 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:23,359 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:25,360 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:27,361 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:27,623 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:29,362 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:31,363 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:31,662 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 04:54:31,665 DEBUG   SenderThread:3933452 [sender.py:send():379] send: history
+2026-01-19 04:54:31,666 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 04:54:31,667 INFO    SenderThread:3933452 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 04:54:32,363 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-summary.json
+2026-01-19 04:54:32,668 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:33,364 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:34,995 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:54:34,995 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:54:37,860 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:39,367 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:41,368 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:43,091 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:43,368 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:45,369 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:47,370 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:48,317 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:49,371 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:49,709 DEBUG   SenderThread:3933452 [sender.py:send():379] send: stats
+2026-01-19 04:54:49,972 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:54:49,973 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:54:51,372 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:53,373 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:53,530 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:55,374 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:57,375 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:54:59,105 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:54:59,376 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:01,377 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:03,378 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:04,477 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:55:04,972 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 04:55:04,973 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 04:55:05,379 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:06,768 DEBUG   SenderThread:3933452 [sender.py:send():379] send: exit
+2026-01-19 04:55:06,768 INFO    SenderThread:3933452 [sender.py:send_exit():584] handling exit code: 255
+2026-01-19 04:55:06,768 INFO    SenderThread:3933452 [sender.py:send_exit():586] handling runtime: 107
+2026-01-19 04:55:06,769 INFO    SenderThread:3933452 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 04:55:06,769 INFO    SenderThread:3933452 [sender.py:send_exit():592] send defer
+2026-01-19 04:55:06,769 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,769 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 0
+2026-01-19 04:55:06,770 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,770 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 0
+2026-01-19 04:55:06,770 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 1
+2026-01-19 04:55:06,770 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,770 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 1
+2026-01-19 04:55:06,771 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,771 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 1
+2026-01-19 04:55:06,771 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 2
+2026-01-19 04:55:06,771 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,771 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 2
+2026-01-19 04:55:06,771 INFO    HandlerThread:3933452 [system_monitor.py:finish():190] Stopping system monitor
+2026-01-19 04:55:06,772 INFO    HandlerThread:3933452 [interfaces.py:finish():202] Joined cpu monitor
+2026-01-19 04:55:06,772 INFO    HandlerThread:3933452 [interfaces.py:finish():202] Joined disk monitor
+2026-01-19 04:55:06,772 INFO    HandlerThread:3933452 [interfaces.py:finish():202] Joined memory monitor
+2026-01-19 04:55:06,773 INFO    HandlerThread:3933452 [interfaces.py:finish():202] Joined network monitor
+2026-01-19 04:55:06,773 DEBUG   SystemMonitor:3933452 [system_monitor.py:_start():166] Finished system metrics aggregation loop
+2026-01-19 04:55:06,773 DEBUG   SystemMonitor:3933452 [system_monitor.py:_start():170] Publishing last batch of metrics
+2026-01-19 04:55:06,774 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,774 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 2
+2026-01-19 04:55:06,774 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 3
+2026-01-19 04:55:06,774 DEBUG   SenderThread:3933452 [sender.py:send():379] send: stats
+2026-01-19 04:55:06,775 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,775 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 3
+2026-01-19 04:55:06,775 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,775 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 3
+2026-01-19 04:55:06,775 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 4
+2026-01-19 04:55:06,776 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,776 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 4
+2026-01-19 04:55:06,776 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,776 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 4
+2026-01-19 04:55:06,776 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 5
+2026-01-19 04:55:06,776 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,777 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 5
+2026-01-19 04:55:06,777 DEBUG   SenderThread:3933452 [sender.py:send():379] send: summary
+2026-01-19 04:55:06,777 INFO    SenderThread:3933452 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 04:55:06,778 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,778 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 5
+2026-01-19 04:55:06,778 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 6
+2026-01-19 04:55:06,778 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,778 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 6
+2026-01-19 04:55:06,778 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,779 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 6
+2026-01-19 04:55:06,779 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 7
+2026-01-19 04:55:06,779 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:55:06,779 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:06,779 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 7
+2026-01-19 04:55:06,779 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:06,779 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 7
+2026-01-19 04:55:07,394 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:07,394 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-summary.json
+2026-01-19 04:55:07,766 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 04:55:09,405 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 8
+2026-01-19 04:55:09,405 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 04:55:09,406 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:09,406 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 8
+2026-01-19 04:55:09,407 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:09,407 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 8
+2026-01-19 04:55:09,407 INFO    SenderThread:3933452 [job_builder.py:build():281] Attempting to build job artifact
+2026-01-19 04:55:09,408 INFO    SenderThread:3933452 [job_builder.py:_get_source_type():400] is repo sourced job
+2026-01-19 04:55:09,422 INFO    SenderThread:3933452 [job_builder.py:build():374] adding wandb-job metadata file
+2026-01-19 04:55:09,436 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 9
+2026-01-19 04:55:09,437 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:09,437 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 9
+2026-01-19 04:55:09,438 DEBUG   SenderThread:3933452 [sender.py:send():379] send: artifact
+2026-01-19 04:55:10,396 INFO    Thread-12 :3933452 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:11,804 INFO    wandb-upload_0:3933452 [upload_job.py:push():89] Uploaded file /home/sankalp/.local/share/wandb/artifacts/staging/tmpyr9r2pha
+2026-01-19 04:55:12,774 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: keepalive
+2026-01-19 04:55:13,128 INFO    wandb-upload_1:3933452 [upload_job.py:push():89] Uploaded file /home/sankalp/.local/share/wandb/artifacts/staging/tmpofg6ud9b
+2026-01-19 04:55:15,157 INFO    SenderThread:3933452 [sender.py:send_artifact():1475] sent artifact job-https___github.com_AviralDeshratna11_DentricNewer.git_hack_train_dendritic.py - {'id': 'QXJ0aWZhY3Q6MjM4Mzc5OTAxNA==', 'digest': '433a10921a02a8cba5062fa6d17b98a7', 'state': 'PENDING', 'aliases': [], 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjgzMTgzNTgwMw==', 'latestArtifact': None}, 'version': 'latest'}
+2026-01-19 04:55:15,157 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:15,157 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 9
+2026-01-19 04:55:15,157 INFO    SenderThread:3933452 [dir_watcher.py:finish():358] shutting down directory watcher
+2026-01-19 04:55:15,158 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 04:55:15,398 INFO    SenderThread:3933452 [dir_watcher.py:finish():388] scan: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files
+2026-01-19 04:55:15,399 INFO    SenderThread:3933452 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log output.log
+2026-01-19 04:55:15,399 INFO    SenderThread:3933452 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-metadata.json wandb-metadata.json
+2026-01-19 04:55:15,399 INFO    SenderThread:3933452 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/requirements.txt requirements.txt
+2026-01-19 04:55:15,405 INFO    SenderThread:3933452 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-summary.json wandb-summary.json
+2026-01-19 04:55:15,405 INFO    SenderThread:3933452 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/config.yaml config.yaml
+2026-01-19 04:55:15,406 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 10
+2026-01-19 04:55:15,417 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:15,417 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 10
+2026-01-19 04:55:15,423 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:15,423 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 10
+2026-01-19 04:55:15,423 INFO    SenderThread:3933452 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 04:55:16,235 INFO    wandb-upload_0:3933452 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/output.log
+2026-01-19 04:55:16,297 INFO    wandb-upload_2:3933452 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/requirements.txt
+2026-01-19 04:55:16,535 INFO    wandb-upload_1:3933452 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/wandb-summary.json
+2026-01-19 04:55:16,555 INFO    wandb-upload_3:3933452 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/files/config.yaml
+2026-01-19 04:55:16,756 INFO    Thread-11 (_thread_body):3933452 [sender.py:transition_state():612] send defer: 11
+2026-01-19 04:55:16,757 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:16,757 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 11
+2026-01-19 04:55:16,758 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:16,758 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 11
+2026-01-19 04:55:16,758 INFO    SenderThread:3933452 [file_pusher.py:join():164] waiting for file pusher
+2026-01-19 04:55:16,758 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 12
+2026-01-19 04:55:16,758 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:16,759 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 12
+2026-01-19 04:55:16,759 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:16,759 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 12
+2026-01-19 04:55:16,760 INFO    SenderThread:3933452 [file_stream.py:finish():593] file stream finish called
+2026-01-19 04:55:17,246 INFO    SenderThread:3933452 [file_stream.py:finish():597] file stream finish is done
+2026-01-19 04:55:17,247 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 13
+2026-01-19 04:55:17,247 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:17,247 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 13
+2026-01-19 04:55:17,248 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:17,248 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 13
+2026-01-19 04:55:17,248 INFO    SenderThread:3933452 [sender.py:transition_state():612] send defer: 14
+2026-01-19 04:55:17,249 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 04:55:17,250 INFO    HandlerThread:3933452 [handler.py:handle_request_defer():170] handle defer: 14
+2026-01-19 04:55:17,250 DEBUG   SenderThread:3933452 [sender.py:send():379] send: final
+2026-01-19 04:55:17,251 DEBUG   SenderThread:3933452 [sender.py:send():379] send: footer
+2026-01-19 04:55:17,251 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: defer
+2026-01-19 04:55:17,251 INFO    SenderThread:3933452 [sender.py:send_request_defer():608] handle sender defer: 14
+2026-01-19 04:55:17,252 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 04:55:17,253 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 04:55:17,254 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: server_info
+2026-01-19 04:55:17,255 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: server_info
+2026-01-19 04:55:17,260 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: get_summary
+2026-01-19 04:55:17,261 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: sampled_history
+2026-01-19 04:55:17,263 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: job_info
+2026-01-19 04:55:17,557 DEBUG   SenderThread:3933452 [sender.py:send_request():406] send_request: job_info
+2026-01-19 04:55:17,557 INFO    MainThread:3933452 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-19 04:55:17,558 INFO    MainThread:3933452 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-19 04:55:17,558 INFO    MainThread:3933452 [wandb_run.py:_footer_sync_info():3440] logging synced files
+2026-01-19 04:55:17,559 DEBUG   HandlerThread:3933452 [handler.py:handle_request():144] handle_request: shutdown
+2026-01-19 04:55:17,559 INFO    HandlerThread:3933452 [handler.py:finish():857] shutting down handler
+2026-01-19 04:55:18,263 INFO    WriterThread:3933452 [datastore.py:close():294] close: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_045318-huttfy29/run-huttfy29.wandb
+2026-01-19 04:55:18,557 INFO    SenderThread:3933452 [sender.py:finish():1552] shutting down sender
+2026-01-19 04:55:18,557 INFO    SenderThread:3933452 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 04:55:18,558 INFO    SenderThread:3933452 [file_pusher.py:join():164] waiting for file pusher

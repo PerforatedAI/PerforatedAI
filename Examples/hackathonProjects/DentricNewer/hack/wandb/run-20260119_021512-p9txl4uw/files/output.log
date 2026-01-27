@@ -1,0 +1,104 @@
+Downloading data files:   0%|                                                                               | 0/2 [00:00<?, ?it/s]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Downloading data: 100%|█████████████████████████████████████████████████████████████████████▉| 1.97G/1.97G [00:50<00:00, 41.2MB/s]
+
+Downloading data files:  50%|███████████████████████████████████▌                                   | 1/2 [00:55<00:55, 55.37s/it]
+
+
+
+
+
+
+Downloading data: 100%|████████████████████████████████████████████████████████████████████████| 488M/488M [00:12<00:00, 40.1MB/s]
+
+
+
+
+
+Downloading data: 100%|████████████████████████████████████████████████████████████████████████| 488M/488M [00:13<00:00, 37.4MB/s]
+
+
+
+
+
+
+Downloading data: 100%|████████████████████████████████████████████████████████████████████████| 488M/488M [00:13<00:00, 37.1MB/s]
+Downloading data files: 100%|███████████████████████████████████████████████████████████████████████| 2/2 [01:36<00:00, 48.17s/it]
+Extracting data files: 100%|███████████████████████████████████████████████████████████████████████| 2/2 [00:00<00:00, 151.88it/s]
+Generating train split: 3000 examples [00:03, 964.95 examples/s]Failed to read file 'C:\Users\AVIRAL PC\.cache\huggingface\datasets\downloads\08e0b310253d6fc7db36b64f07a773b317df55932395d2d42ea06fe6ffef2780' with error <class 'ValueError'>: Couldn't cast
+image: struct<bytes: binary, path: string>
+  child 0, bytes: binary
+  child 1, path: string
+label: int64
+-- schema metadata --
+huggingface: '{"info": {"features": {"image": {"_type": "Image"}, "label"' + 294
+to
+{'image': Image(decode=True, id=None), 'label': ClassLabel(names=['aiye', 'baibiandou', 'baibu', 'baidoukou', 'baihe', 'cangzhu', 'cansha', 'dangshen', 'ezhu', 'foshou', 'gancao', 'gouqi', 'honghua', 'hongteng', 'huaihua', 'jiangcan', 'jingjie', 'jinyinhua', 'mudanpi', 'niubangzi', 'zhuling', 'zhuru', 'zhuye', 'zicao'], id=None), 'pixel_values': Sequence(feature=Sequence(feature=Sequence(feature=Value(dtype='float32', id=None), length=-1, id=None), length=-1, id=None), length=-1, id=None)}
+because column names don't match
+Generating train split: 3002 examples [00:03, 952.40 examples/s]
+Traceback (most recent call last):
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\builder.py", line 1917, in _prepare_split_single
+    for _, table in generator:
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\packaged_modules\arrow\arrow.py", line 70, in _generate_tables
+    yield f"{file_idx}_{batch_idx}", self._cast_table(pa_table)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\packaged_modules\arrow\arrow.py", line 58, in _cast_table
+    pa_table = table_cast(pa_table, self.info.features.arrow_schema)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\table.py", line 2332, in table_cast
+    return cast_table_to_schema(table, schema)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\table.py", line 2290, in cast_table_to_schema
+    raise ValueError(f"Couldn't cast\n{table.schema}\nto\n{features}\nbecause column names don't match")
+ValueError: Couldn't cast
+image: struct<bytes: binary, path: string>
+  child 0, bytes: binary
+  child 1, path: string
+label: int64
+-- schema metadata --
+huggingface: '{"info": {"features": {"image": {"_type": "Image"}, "label"' + 294
+to
+{'image': Image(decode=True, id=None), 'label': ClassLabel(names=['aiye', 'baibiandou', 'baibu', 'baidoukou', 'baihe', 'cangzhu', 'cansha', 'dangshen', 'ezhu', 'foshou', 'gancao', 'gouqi', 'honghua', 'hongteng', 'huaihua', 'jiangcan', 'jingjie', 'jinyinhua', 'mudanpi', 'niubangzi', 'zhuling', 'zhuru', 'zhuye', 'zicao'], id=None), 'pixel_values': Sequence(feature=Sequence(feature=Sequence(feature=Value(dtype='float32', id=None), length=-1, id=None), length=-1, id=None), length=-1, id=None)}
+because column names don't match
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "C:\Users\AVIRAL PC\DentricNew\hack\train_baseline.py", line 15, in <module>
+    dataset = load_medical_imaging_dataset()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\hack\data_utils.py", line 24, in load_medical_imaging_dataset
+    raw_dataset = load_dataset(dataset_name)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\load.py", line 2152, in load_dataset
+    builder_instance.download_and_prepare(
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\builder.py", line 948, in download_and_prepare
+    self._download_and_prepare(
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\builder.py", line 1043, in _download_and_prepare
+    self._prepare_split(split_generator, **prepare_split_kwargs)
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\builder.py", line 1805, in _prepare_split
+    for job_id, done, content in self._prepare_split_single(
+  File "C:\Users\AVIRAL PC\DentricNew\.venv\Lib\site-packages\datasets\builder.py", line 1950, in _prepare_split_single
+    raise DatasetGenerationError("An error occurred while generating the dataset") from e
+datasets.builder.DatasetGenerationError: An error occurred while generating the dataset

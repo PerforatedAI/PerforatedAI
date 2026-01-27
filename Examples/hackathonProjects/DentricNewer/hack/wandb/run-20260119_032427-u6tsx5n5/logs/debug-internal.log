@@ -1,0 +1,179 @@
+2026-01-19 03:24:27,372 INFO    StreamThr :23072 [internal.py:wandb_internal():86] W&B internal server running at pid: 23072, started at: 2026-01-19 03:24:27.372384
+2026-01-19 03:24:27,374 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status
+2026-01-19 03:24:27,380 INFO    WriterThread:23072 [datastore.py:open_for_write():85] open: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\run-u6tsx5n5.wandb
+2026-01-19 03:24:27,380 DEBUG   SenderThread:23072 [sender.py:send():379] send: header
+2026-01-19 03:24:27,381 DEBUG   SenderThread:23072 [sender.py:send():379] send: run
+2026-01-19 03:24:28,343 INFO    SenderThread:23072 [dir_watcher.py:__init__():211] watching files in: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files
+2026-01-19 03:24:28,343 INFO    SenderThread:23072 [sender.py:_start_run_threads():1121] run started: u6tsx5n5 with start time 1768773267.373392
+2026-01-19 03:24:28,343 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 03:24:28,343 INFO    SenderThread:23072 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 03:24:28,350 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: check_version
+2026-01-19 03:24:28,351 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: check_version
+2026-01-19 03:24:28,546 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: run_start
+2026-01-19 03:24:28,571 DEBUG   HandlerThread:23072 [system_info.py:__init__():31] System info init
+2026-01-19 03:24:28,571 DEBUG   HandlerThread:23072 [system_info.py:__init__():46] System info init done
+2026-01-19 03:24:28,571 INFO    HandlerThread:23072 [system_monitor.py:start():181] Starting system monitor
+2026-01-19 03:24:28,572 INFO    SystemMonitor:23072 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2026-01-19 03:24:28,572 INFO    HandlerThread:23072 [system_monitor.py:probe():201] Collecting system info
+2026-01-19 03:24:28,578 INFO    SystemMonitor:23072 [interfaces.py:start():190] Started cpu monitoring
+2026-01-19 03:24:28,579 INFO    SystemMonitor:23072 [interfaces.py:start():190] Started disk monitoring
+2026-01-19 03:24:28,579 INFO    SystemMonitor:23072 [interfaces.py:start():190] Started gpu monitoring
+2026-01-19 03:24:28,580 INFO    SystemMonitor:23072 [interfaces.py:start():190] Started memory monitoring
+2026-01-19 03:24:28,590 INFO    SystemMonitor:23072 [interfaces.py:start():190] Started network monitoring
+2026-01-19 03:24:28,599 DEBUG   HandlerThread:23072 [system_info.py:probe():195] Probing system
+2026-01-19 03:24:28,601 DEBUG   HandlerThread:23072 [gitlib.py:_init_repo():53] git repository is invalid
+2026-01-19 03:24:28,601 DEBUG   HandlerThread:23072 [system_info.py:probe():240] Probing system done
+2026-01-19 03:24:28,601 DEBUG   HandlerThread:23072 [system_monitor.py:probe():210] {'os': 'Windows-10-10.0.26200-SP0', 'python': '3.11.0', 'heartbeatAt': '2026-01-18T21:54:28.599206', 'startedAt': '2026-01-18T21:54:27.363394', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': 'C:\\Users\\AVIRAL PC\\DentricNew\\hack\\train_dendritic.py', 'codePath': 'train_dendritic.py', 'host': 'LAPTOP-S7A922A6', 'username': 'AVIRAL PC', 'executable': 'C:\\Users\\AVIRAL PC\\DentricNew\\.venv\\Scripts\\python.exe', 'cpu_count': 8, 'cpu_count_logical': 16, 'cpu_freq': {'current': 2304.0, 'min': 0.0, 'max': 2304.0}, 'cpu_freq_per_core': [{'current': 2304.0, 'min': 0.0, 'max': 2304.0}], 'disk': {'total': 728.5745277404785, 'used': 657.5132865905762}, 'gpu': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'gpu_count': 1, 'gpu_devices': [{'name': 'NVIDIA GeForce RTX 3050 Ti Laptop GPU', 'memory_total': 4294967296}], 'memory': {'total': 15.744766235351562}}
+2026-01-19 03:24:28,601 INFO    HandlerThread:23072 [system_monitor.py:probe():211] Finished collecting system info
+2026-01-19 03:24:28,601 INFO    HandlerThread:23072 [system_monitor.py:probe():214] Publishing system info
+2026-01-19 03:24:28,601 DEBUG   HandlerThread:23072 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2026-01-19 03:24:28,602 DEBUG   HandlerThread:23072 [system_info.py:_save_pip():67] Saving pip packages done
+2026-01-19 03:24:28,603 INFO    HandlerThread:23072 [system_monitor.py:probe():216] Finished publishing system info
+2026-01-19 03:24:28,606 DEBUG   SenderThread:23072 [sender.py:send():379] send: files
+2026-01-19 03:24:28,606 INFO    SenderThread:23072 [sender.py:_save_file():1375] saving file wandb-metadata.json with policy now
+2026-01-19 03:24:28,611 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:24:28,611 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:24:29,131 DEBUG   SenderThread:23072 [sender.py:send():379] send: telemetry
+2026-01-19 03:24:29,356 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:24:29,357 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\wandb-metadata.json
+2026-01-19 03:24:29,358 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\requirements.txt
+2026-01-19 03:24:29,358 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_created():271] file/dir created: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\wandb-summary.json
+2026-01-19 03:24:29,906 INFO    wandb-upload_0:23072 [upload_job.py:push():131] Uploaded file C:\Users\AVIRAL~1\AppData\Local\Temp\tmpvy2fnjf7wandb\l11mrtrv-wandb-metadata.json
+2026-01-19 03:24:31,368 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:24:33,181 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:24:38,215 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:24:41,456 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:24:43,477 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:24:43,635 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:24:43,635 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:24:43,636 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:24:45,496 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:24:49,034 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:24:54,066 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:24:58,632 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:24:58,633 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:25:00,041 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:00,646 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\config.yaml
+2026-01-19 03:25:05,457 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:10,509 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:13,640 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:25:13,641 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:25:16,120 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:21,167 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:26,226 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:28,604 DEBUG   SystemMonitor:23072 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2026-01-19 03:25:28,608 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:25:28,653 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:25:28,654 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:25:29,926 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:25:32,050 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:37,104 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:42,164 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:43,646 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:25:43,647 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:25:48,164 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:53,226 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:58,351 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:25:58,620 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:25:58,665 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:25:58,667 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:26:04,111 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:09,155 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:13,664 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:26:13,665 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:26:15,134 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:19,779 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:26:20,685 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:25,753 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:28,631 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:26:28,680 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:26:28,681 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:26:31,123 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:36,178 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:41,233 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:43,678 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:26:43,679 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:26:47,159 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:52,218 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:57,259 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:26:58,647 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:26:58,695 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:26:58,695 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:27:03,108 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:08,149 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:11,764 ERROR   gpu       :23072 [interfaces.py:monitor():144] Failed to sample metric: Unknown Error
+2026-01-19 03:27:11,765 ERROR   gpu       :23072 [interfaces.py:monitor():144] Failed to sample metric: Unknown Error
+2026-01-19 03:27:13,184 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:13,698 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:27:13,699 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:27:19,164 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:24,208 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:28,656 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:27:28,702 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:27:28,703 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:27:30,206 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:35,252 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:40,341 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:43,718 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:27:43,719 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:27:46,114 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:51,167 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:56,228 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:27:58,658 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:27:58,720 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:27:58,721 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:28:02,226 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:07,287 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:12,338 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:13,727 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:28:13,729 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:28:18,161 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:23,264 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:28,357 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:28,668 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:28:28,745 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:28:28,746 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:28:34,326 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:39,377 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:41,629 ERROR   gpu       :23072 [interfaces.py:monitor():144] Failed to sample metric: Unknown Error
+2026-01-19 03:28:41,629 ERROR   gpu       :23072 [interfaces.py:monitor():144] Failed to sample metric: Unknown Error
+2026-01-19 03:28:43,760 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:28:43,761 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:28:45,208 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:50,260 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:55,295 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:28:58,680 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:28:58,773 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:28:58,774 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:29:00,827 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:01,996 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:29:04,033 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:29:06,835 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:11,886 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:13,774 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:29:13,775 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:29:17,476 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:18,310 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:29:20,355 INFO    Thread-16 :23072 [dir_watcher.py:_on_file_modified():288] file/dir modified: C:\Users\AVIRAL PC\DentricNew\hack\wandb\run-20260119_032427-u6tsx5n5\files\output.log
+2026-01-19 03:29:23,446 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:28,510 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:28,684 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:29:28,779 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:29:28,780 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:29:34,231 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:39,282 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:43,784 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:29:43,786 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:29:45,218 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:50,265 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:55,304 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:29:58,699 DEBUG   SenderThread:23072 [sender.py:send():379] send: stats
+2026-01-19 03:29:58,791 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:29:58,791 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:30:01,271 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:30:06,306 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:30:11,350 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:30:13,793 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 03:30:13,795 DEBUG   SenderThread:23072 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 03:30:17,237 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 03:30:22,284 DEBUG   HandlerThread:23072 [handler.py:handle_request():144] handle_request: status_report

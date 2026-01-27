@@ -1,0 +1,770 @@
+2026-01-19 22:28:42,222 INFO    StreamThr :218756 [internal.py:wandb_internal():86] W&B internal server running at pid: 218756, started at: 2026-01-19 22:28:42.221251
+2026-01-19 22:28:42,226 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status
+2026-01-19 22:28:42,236 INFO    WriterThread:218756 [datastore.py:open_for_write():85] open: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/run-1u0m5674.wandb
+2026-01-19 22:28:42,237 DEBUG   SenderThread:218756 [sender.py:send():379] send: header
+2026-01-19 22:28:42,244 DEBUG   SenderThread:218756 [sender.py:send():379] send: run
+2026-01-19 22:28:43,153 INFO    SenderThread:218756 [dir_watcher.py:__init__():211] watching files in: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files
+2026-01-19 22:28:43,153 INFO    SenderThread:218756 [sender.py:_start_run_threads():1121] run started: 1u0m5674 with start time 1768841922.221035
+2026-01-19 22:28:43,157 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:28:43,157 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:28:43,175 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: check_version
+2026-01-19 22:28:43,176 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: check_version
+2026-01-19 22:28:43,467 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: run_start
+2026-01-19 22:28:43,492 ERROR   HandlerThread:218756 [gpu.py:is_available():381] Error initializing NVML: RM has detected an NVML/RM version mismatch.
+2026-01-19 22:28:43,493 DEBUG   HandlerThread:218756 [system_info.py:__init__():31] System info init
+2026-01-19 22:28:43,493 DEBUG   HandlerThread:218756 [system_info.py:__init__():46] System info init done
+2026-01-19 22:28:43,494 INFO    HandlerThread:218756 [system_monitor.py:start():181] Starting system monitor
+2026-01-19 22:28:43,494 INFO    SystemMonitor:218756 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2026-01-19 22:28:43,494 INFO    HandlerThread:218756 [system_monitor.py:probe():201] Collecting system info
+2026-01-19 22:28:43,496 INFO    SystemMonitor:218756 [interfaces.py:start():190] Started cpu monitoring
+2026-01-19 22:28:43,497 INFO    SystemMonitor:218756 [interfaces.py:start():190] Started disk monitoring
+2026-01-19 22:28:43,499 INFO    SystemMonitor:218756 [interfaces.py:start():190] Started memory monitoring
+2026-01-19 22:28:43,499 INFO    SystemMonitor:218756 [interfaces.py:start():190] Started network monitoring
+2026-01-19 22:28:43,513 DEBUG   HandlerThread:218756 [system_info.py:probe():195] Probing system
+2026-01-19 22:28:43,514 DEBUG   HandlerThread:218756 [system_info.py:_probe_git():180] Probing git
+2026-01-19 22:28:43,525 DEBUG   HandlerThread:218756 [system_info.py:_probe_git():188] Probing git done
+2026-01-19 22:28:43,525 DEBUG   HandlerThread:218756 [system_info.py:probe():240] Probing system done
+2026-01-19 22:28:43,525 DEBUG   HandlerThread:218756 [system_monitor.py:probe():210] {'os': 'Linux-6.12.10-76061203-generic-x86_64-with-glibc2.35', 'python': '3.10.12', 'heartbeatAt': '2026-01-19T16:58:43.513842', 'startedAt': '2026-01-19T16:58:42.182834', 'docker': None, 'cuda': None, 'args': ('--model=vit_base_patch16_224',), 'state': 'running', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py', 'codePath': 'hack/train_dendritic.py', 'git': {'remote': 'https://github.com/AviralDeshratna11/DentricNewer.git', 'commit': '2e21aeea970ec643563add733a9363a627a61168'}, 'email': None, 'root': '/home/sankalp/avi/DentricNewer', 'host': 'Server3A6000', 'username': 'sankalp', 'executable': '/home/sankalp/avi/DentricNewer/.venv/bin/python3', 'cpu_count': 12, 'cpu_count_logical': 24, 'cpu_freq': {'current': 976.2951666666667, 'min': 800.0, 'max': 3300.0}, 'cpu_freq_per_core': [{'current': 1900.501, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 799.77, 'min': 800.0, 'max': 3300.0}, {'current': 800.4, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 1300.025, 'min': 800.0, 'max': 3300.0}, {'current': 2100.02, 'min': 800.0, 'max': 3300.0}, {'current': 895.229, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.463, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.706, 'min': 800.0, 'max': 3300.0}, {'current': 799.932, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.891, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 1301.043, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}, {'current': 800.0, 'min': 800.0, 'max': 3300.0}], 'disk': {'total': 934.9467658996582, 'used': 296.784423828125}, 'memory': {'total': 125.41775512695312}}
+2026-01-19 22:28:43,525 INFO    HandlerThread:218756 [system_monitor.py:probe():211] Finished collecting system info
+2026-01-19 22:28:43,525 INFO    HandlerThread:218756 [system_monitor.py:probe():214] Publishing system info
+2026-01-19 22:28:43,526 DEBUG   HandlerThread:218756 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2026-01-19 22:28:43,526 DEBUG   HandlerThread:218756 [system_info.py:_save_pip():67] Saving pip packages done
+2026-01-19 22:28:43,526 INFO    HandlerThread:218756 [system_monitor.py:probe():216] Finished publishing system info
+2026-01-19 22:28:43,529 DEBUG   SenderThread:218756 [sender.py:send():379] send: files
+2026-01-19 22:28:43,530 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-metadata.json with policy now
+2026-01-19 22:28:43,543 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:28:43,543 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:28:44,075 DEBUG   SenderThread:218756 [sender.py:send():379] send: telemetry
+2026-01-19 22:28:44,156 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/requirements.txt
+2026-01-19 22:28:44,157 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:44,158 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:28:44,158 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_created():271] file/dir created: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-metadata.json
+2026-01-19 22:28:44,892 INFO    wandb-upload_0:218756 [upload_job.py:push():131] Uploaded file /tmp/tmp2jw7qf19wandb/bl2nkdtc-wandb-metadata.json
+2026-01-19 22:28:46,154 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:47,155 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:48,109 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:28:48,155 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:49,156 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:51,156 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:53,157 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:53,594 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:28:55,158 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:57,159 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:28:58,542 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:28:58,543 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:28:58,935 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:28:59,160 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:01,161 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:03,161 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:04,189 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:05,163 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:07,163 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:09,164 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:09,681 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:11,165 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:13,166 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:13,543 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:29:13,544 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:29:15,088 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:15,167 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:16,167 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/config.yaml
+2026-01-19 22:29:17,168 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:19,168 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:20,595 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:21,170 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:23,171 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:25,172 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:25,968 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:27,172 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:28,543 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:29:28,544 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:29:29,173 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:31,110 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:31,174 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:33,175 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:35,176 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:36,191 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:36,194 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:29:36,199 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:29:36,199 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:29:36,200 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:29:37,177 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:37,178 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:29:41,202 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:43,500 DEBUG   SystemMonitor:218756 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2026-01-19 22:29:43,502 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:29:43,861 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:29:43,862 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:29:46,283 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:49,184 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:51,295 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:52,185 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:54,186 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:56,187 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:56,694 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:29:58,188 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:29:58,651 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:29:58,652 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:30:00,189 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:02,141 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:02,190 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:04,191 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:06,192 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:07,578 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:08,193 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:10,194 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:12,195 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:12,860 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:13,503 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:30:13,650 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:30:13,651 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:30:14,196 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:16,198 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:18,199 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:18,289 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:20,200 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:22,201 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:23,309 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:24,202 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:26,203 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:28,203 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:28,627 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:28,650 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:30:28,651 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:30:30,204 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:32,206 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:33,818 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:34,207 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:36,208 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:38,209 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:38,996 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:40,210 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:42,211 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:43,504 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:30:43,651 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:30:43,652 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:30:44,012 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:44,211 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:46,212 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:48,213 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:49,083 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:49,087 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:30:49,092 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:30:49,093 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:30:49,093 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:30:49,214 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:30:50,214 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:51,215 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:54,095 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:30:57,218 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:58,218 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:30:58,650 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:30:58,651 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:30:59,307 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:00,219 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:02,220 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:04,221 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:04,364 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:06,222 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:08,223 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:10,065 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:10,223 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:12,224 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:13,505 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:31:13,651 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:31:13,652 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:31:14,226 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:15,358 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:16,227 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:18,228 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:20,229 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:20,729 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:22,230 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:24,231 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:26,092 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:26,231 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:28,232 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:28,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:31:28,653 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:31:30,233 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:31,205 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:32,235 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:34,235 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:36,236 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:36,312 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:38,237 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:40,238 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:42,119 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:42,240 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:43,505 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:31:43,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:31:43,652 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:31:44,241 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:46,241 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:46,738 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:31:46,740 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:31:46,741 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:31:46,742 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:31:47,242 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:47,243 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:31:47,743 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:48,243 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:52,744 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:55,247 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:56,247 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:57,857 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:31:58,248 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:31:58,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:31:58,653 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:32:00,249 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:02,250 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:03,585 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:04,251 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:06,252 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:08,253 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:08,939 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:10,254 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:12,255 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:13,507 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:32:13,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:32:13,653 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:32:14,110 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:14,256 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:16,256 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:18,257 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:19,497 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:20,259 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:22,260 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:24,261 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:25,006 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:26,262 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:28,263 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:28,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:32:28,653 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:32:30,264 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:30,680 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:32,265 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:34,266 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:36,184 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:36,267 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:38,268 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:40,269 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:41,644 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:42,269 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:43,508 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:32:43,652 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:32:43,653 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:32:44,271 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:46,271 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:46,712 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:48,272 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:50,273 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:52,035 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:52,274 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:54,275 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:55,118 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:32:55,120 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:32:55,121 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:32:55,121 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:32:55,276 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:32:56,276 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:57,123 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:32:57,277 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:32:58,885 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:32:58,886 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:33:02,321 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:04,280 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:05,281 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:07,282 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:07,787 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:09,283 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:11,284 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:13,200 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:13,285 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:13,508 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:33:13,669 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:33:13,670 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:33:15,285 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:17,286 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:18,311 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:19,288 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:21,288 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:23,289 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:23,458 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:25,290 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:27,291 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:28,669 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:33:28,670 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:33:29,141 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:29,291 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:31,293 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:33,293 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:34,274 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:35,295 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:37,296 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:39,297 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:39,444 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:41,298 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:43,299 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:43,509 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:33:43,670 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:33:43,670 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:33:44,978 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:45,299 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:47,300 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:49,301 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:50,180 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:51,302 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:51,993 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:33:51,995 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:33:51,996 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:33:51,997 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:33:52,303 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:33:53,304 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:54,304 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:33:55,999 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:33:59,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:33:59,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:34:01,215 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:01,308 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:02,308 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:03,308 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:05,310 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:06,506 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:07,311 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:09,312 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:11,313 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:11,785 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:13,314 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:13,511 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:34:14,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:34:14,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:34:15,315 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:17,083 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:17,316 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:19,317 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:21,318 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:22,110 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:23,319 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:25,320 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:27,201 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:27,321 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:29,322 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:29,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:34:29,949 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:34:31,323 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:32,356 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:33,324 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:35,327 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:37,326 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:37,440 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:39,327 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:41,328 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:43,012 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:43,329 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:43,512 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:34:44,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:34:44,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:34:45,330 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:47,331 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:48,318 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:49,332 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:51,333 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:53,334 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:53,590 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:55,335 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:57,336 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:59,016 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:34:59,337 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:34:59,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:34:59,949 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:35:01,338 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:01,487 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:35:01,489 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:35:01,490 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:35:01,503 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:35:02,339 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:02,339 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:35:03,339 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:04,505 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:09,506 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:12,344 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:13,344 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:13,514 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:35:14,552 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:14,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:35:14,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:35:15,345 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:17,345 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:19,346 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:19,919 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:21,347 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:24,348 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:25,161 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:26,349 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:28,350 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:29,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:35:29,949 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:35:30,351 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:30,422 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:32,351 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:34,352 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:35,558 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:36,353 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:38,354 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:40,355 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:40,711 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:42,355 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:43,514 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:35:44,357 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:44,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:35:44,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:35:45,966 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:46,357 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:48,361 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:50,363 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:50,981 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:52,364 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:54,365 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:56,104 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:35:56,365 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:58,366 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:35:59,949 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:35:59,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:36:00,306 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:36:00,368 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:00,417 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:36:00,417 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:36:00,421 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:36:01,368 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:36:01,422 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:02,369 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:06,423 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:08,372 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:10,373 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:12,100 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:12,374 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:13,516 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:36:14,375 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:14,950 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:36:14,950 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:36:16,376 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:17,742 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:18,377 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:20,378 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:22,379 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:23,335 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:24,380 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:26,381 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:28,373 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:28,382 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:29,951 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:36:29,951 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:36:30,383 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:32,384 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:33,967 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:34,385 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:36,386 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:38,387 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:39,282 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:40,388 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:42,389 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:43,517 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:36:44,353 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:44,389 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:44,952 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:36:44,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:36:46,390 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:48,391 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:49,691 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:50,392 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:52,393 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:54,394 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:54,731 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:56,395 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:58,397 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:36:59,822 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:36:59,952 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:36:59,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:37:00,398 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:02,399 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:04,400 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:05,159 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:06,400 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:08,401 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:08,491 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:37:08,493 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:37:08,493 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:37:08,494 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:37:09,402 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:37:10,403 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:10,496 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:11,403 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:13,519 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:37:14,952 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:37:14,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:37:15,405 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:15,597 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:16,405 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:18,407 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:20,408 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:20,795 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:22,409 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:24,410 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:25,881 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:26,411 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:28,412 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:29,953 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:37:29,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:37:30,412 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:31,115 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:32,413 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:34,413 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:36,353 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:36,414 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:38,414 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:40,415 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:41,425 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:42,416 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:43,519 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:37:44,418 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:44,954 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:37:44,955 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:37:46,418 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:46,767 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:48,419 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:50,420 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:51,992 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:52,421 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:54,422 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:56,423 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:57,367 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:37:58,423 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:37:59,952 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:37:59,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:38:00,424 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:02,425 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:02,740 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:04,425 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:04,661 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:38:04,663 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:38:04,663 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:38:04,667 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:38:05,426 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:05,426 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:38:06,426 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:07,763 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:08,427 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:10,428 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:12,428 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:12,842 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:13,520 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:38:14,430 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:14,953 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:38:14,953 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:38:16,431 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:17,930 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:18,432 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:20,433 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:22,434 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:23,024 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:24,435 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:26,436 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:28,155 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:28,437 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:29,953 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:38:29,954 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:38:30,438 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:32,439 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:33,587 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:34,439 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:36,440 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:38,783 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:39,441 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:41,443 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:43,444 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:43,521 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:38:44,218 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:44,953 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:38:44,954 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:38:45,445 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:47,446 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:49,430 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:49,447 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:51,448 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:53,450 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:54,662 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:55,451 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:57,452 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:59,279 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: partial_history
+2026-01-19 22:38:59,281 DEBUG   SenderThread:218756 [sender.py:send():379] send: history
+2026-01-19 22:38:59,281 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: summary_record
+2026-01-19 22:38:59,282 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:38:59,453 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:38:59,453 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:38:59,959 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:38:59,961 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:38:59,961 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:39:01,454 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:03,455 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:05,456 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:05,546 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:07,457 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:09,458 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:10,844 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:11,459 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:13,460 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:13,522 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:39:14,958 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:39:14,959 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:39:15,461 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:15,921 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:17,462 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:19,463 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:21,212 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:21,464 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:23,465 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:25,465 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:26,316 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:27,466 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:29,467 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:29,959 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: stop_status
+2026-01-19 22:39:29,961 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: stop_status
+2026-01-19 22:39:31,148 DEBUG   SenderThread:218756 [sender.py:send():379] send: exit
+2026-01-19 22:39:31,148 INFO    SenderThread:218756 [sender.py:send_exit():584] handling exit code: 0
+2026-01-19 22:39:31,149 INFO    SenderThread:218756 [sender.py:send_exit():586] handling runtime: 647
+2026-01-19 22:39:31,149 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:39:31,150 INFO    SenderThread:218756 [sender.py:send_exit():592] send defer
+2026-01-19 22:39:31,151 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,151 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 0
+2026-01-19 22:39:31,151 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,152 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 0
+2026-01-19 22:39:31,152 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 1
+2026-01-19 22:39:31,152 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,152 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 1
+2026-01-19 22:39:31,153 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,153 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 1
+2026-01-19 22:39:31,153 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 2
+2026-01-19 22:39:31,154 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,154 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 2
+2026-01-19 22:39:31,154 INFO    HandlerThread:218756 [system_monitor.py:finish():190] Stopping system monitor
+2026-01-19 22:39:31,155 INFO    HandlerThread:218756 [interfaces.py:finish():202] Joined cpu monitor
+2026-01-19 22:39:31,155 INFO    HandlerThread:218756 [interfaces.py:finish():202] Joined disk monitor
+2026-01-19 22:39:31,156 DEBUG   SystemMonitor:218756 [system_monitor.py:_start():166] Finished system metrics aggregation loop
+2026-01-19 22:39:31,156 DEBUG   SystemMonitor:218756 [system_monitor.py:_start():170] Publishing last batch of metrics
+2026-01-19 22:39:31,157 INFO    HandlerThread:218756 [interfaces.py:finish():202] Joined memory monitor
+2026-01-19 22:39:31,158 INFO    HandlerThread:218756 [interfaces.py:finish():202] Joined network monitor
+2026-01-19 22:39:31,159 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,159 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 2
+2026-01-19 22:39:31,159 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 3
+2026-01-19 22:39:31,159 DEBUG   SenderThread:218756 [sender.py:send():379] send: stats
+2026-01-19 22:39:31,160 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,161 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 3
+2026-01-19 22:39:31,161 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,162 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 3
+2026-01-19 22:39:31,162 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 4
+2026-01-19 22:39:31,162 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,162 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 4
+2026-01-19 22:39:31,163 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,163 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 4
+2026-01-19 22:39:31,163 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 5
+2026-01-19 22:39:31,163 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,164 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 5
+2026-01-19 22:39:31,165 DEBUG   SenderThread:218756 [sender.py:send():379] send: summary
+2026-01-19 22:39:31,166 INFO    SenderThread:218756 [sender.py:_save_file():1375] saving file wandb-summary.json with policy end
+2026-01-19 22:39:31,166 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,166 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 5
+2026-01-19 22:39:31,166 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 6
+2026-01-19 22:39:31,167 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,167 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 6
+2026-01-19 22:39:31,168 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,168 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 6
+2026-01-19 22:39:31,168 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 7
+2026-01-19 22:39:31,168 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:31,169 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:31,169 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 7
+2026-01-19 22:39:31,170 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:31,170 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 7
+2026-01-19 22:39:31,468 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:31,469 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:39:32,148 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 22:39:32,737 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 8
+2026-01-19 22:39:32,737 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 22:39:32,738 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:32,738 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 8
+2026-01-19 22:39:32,739 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:32,739 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 8
+2026-01-19 22:39:32,740 INFO    SenderThread:218756 [job_builder.py:build():281] Attempting to build job artifact
+2026-01-19 22:39:32,740 INFO    SenderThread:218756 [job_builder.py:_get_source_type():400] is repo sourced job
+2026-01-19 22:39:32,744 INFO    SenderThread:218756 [job_builder.py:build():374] adding wandb-job metadata file
+2026-01-19 22:39:32,919 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 9
+2026-01-19 22:39:32,919 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:32,920 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 9
+2026-01-19 22:39:32,920 DEBUG   SenderThread:218756 [sender.py:send():379] send: artifact
+2026-01-19 22:39:33,150 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 22:39:33,469 INFO    Thread-13 :218756 [dir_watcher.py:_on_file_modified():288] file/dir modified: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:34,610 INFO    SenderThread:218756 [sender.py:send_artifact():1475] sent artifact job-https___github.com_AviralDeshratna11_DentricNewer.git_hack_train_dendritic.py - {'id': 'QXJ0aWZhY3Q6MjM4NDkyOTM5OA==', 'digest': 'b16e3c31dbd35dcda8904800ee119dcb', 'state': 'COMMITTED', 'aliases': [{'artifactCollectionName': 'job-https___github.com_AviralDeshratna11_DentricNewer.git_hack_train_dendritic.py', 'alias': 'latest'}, {'artifactCollectionName': 'job-https___github.com_AviralDeshratna11_DentricNewer.git_hack_train_dendritic.py', 'alias': 'v0'}], 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjgzMjMyMTY5NQ==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6MjM4NTAzMTQ4Ng==', 'versionIndex': 1}}, 'version': 'v0'}
+2026-01-19 22:39:34,610 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:34,610 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 9
+2026-01-19 22:39:34,610 INFO    SenderThread:218756 [dir_watcher.py:finish():358] shutting down directory watcher
+2026-01-19 22:39:35,471 INFO    SenderThread:218756 [dir_watcher.py:finish():388] scan: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files
+2026-01-19 22:39:35,472 INFO    SenderThread:218756 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log output.log
+2026-01-19 22:39:35,472 INFO    SenderThread:218756 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-metadata.json wandb-metadata.json
+2026-01-19 22:39:35,472 INFO    SenderThread:218756 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/requirements.txt requirements.txt
+2026-01-19 22:39:35,477 INFO    SenderThread:218756 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json wandb-summary.json
+2026-01-19 22:39:35,482 INFO    SenderThread:218756 [dir_watcher.py:finish():402] scan save: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/config.yaml config.yaml
+2026-01-19 22:39:35,488 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 10
+2026-01-19 22:39:35,489 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 22:39:35,489 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:35,489 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 10
+2026-01-19 22:39:35,496 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:35,496 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 10
+2026-01-19 22:39:35,496 INFO    SenderThread:218756 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 22:39:36,419 INFO    wandb-upload_1:218756 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/requirements.txt
+2026-01-19 22:39:36,834 INFO    wandb-upload_0:218756 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/output.log
+2026-01-19 22:39:36,901 INFO    wandb-upload_2:218756 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/wandb-summary.json
+2026-01-19 22:39:36,928 INFO    wandb-upload_3:218756 [upload_job.py:push():131] Uploaded file /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/files/config.yaml
+2026-01-19 22:39:37,129 INFO    Thread-12 (_thread_body):218756 [sender.py:transition_state():612] send defer: 11
+2026-01-19 22:39:37,130 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:37,130 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 11
+2026-01-19 22:39:37,131 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:37,131 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 11
+2026-01-19 22:39:37,131 INFO    SenderThread:218756 [file_pusher.py:join():164] waiting for file pusher
+2026-01-19 22:39:37,131 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 12
+2026-01-19 22:39:37,132 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:37,132 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 12
+2026-01-19 22:39:37,133 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:37,133 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 12
+2026-01-19 22:39:37,133 INFO    SenderThread:218756 [file_stream.py:finish():593] file stream finish called
+2026-01-19 22:39:38,153 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: keepalive
+2026-01-19 22:39:38,360 INFO    SenderThread:218756 [file_stream.py:finish():597] file stream finish is done
+2026-01-19 22:39:38,360 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 13
+2026-01-19 22:39:38,361 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:38,361 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 13
+2026-01-19 22:39:38,361 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: status_report
+2026-01-19 22:39:38,362 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:38,362 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 13
+2026-01-19 22:39:38,362 INFO    SenderThread:218756 [sender.py:transition_state():612] send defer: 14
+2026-01-19 22:39:38,363 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: defer
+2026-01-19 22:39:38,363 INFO    HandlerThread:218756 [handler.py:handle_request_defer():170] handle defer: 14
+2026-01-19 22:39:38,364 DEBUG   SenderThread:218756 [sender.py:send():379] send: final
+2026-01-19 22:39:38,364 DEBUG   SenderThread:218756 [sender.py:send():379] send: footer
+2026-01-19 22:39:38,364 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: defer
+2026-01-19 22:39:38,364 INFO    SenderThread:218756 [sender.py:send_request_defer():608] handle sender defer: 14
+2026-01-19 22:39:38,365 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: poll_exit
+2026-01-19 22:39:38,366 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: poll_exit
+2026-01-19 22:39:38,367 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: server_info
+2026-01-19 22:39:38,368 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: get_summary
+2026-01-19 22:39:38,369 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: server_info
+2026-01-19 22:39:38,369 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: sampled_history
+2026-01-19 22:39:38,375 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: job_info
+2026-01-19 22:39:38,708 DEBUG   SenderThread:218756 [sender.py:send_request():406] send_request: job_info
+2026-01-19 22:39:38,708 INFO    MainThread:218756 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-19 22:39:38,709 INFO    MainThread:218756 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-19 22:39:38,710 INFO    MainThread:218756 [wandb_run.py:_footer_sync_info():3440] logging synced files
+2026-01-19 22:39:38,710 DEBUG   HandlerThread:218756 [handler.py:handle_request():144] handle_request: shutdown
+2026-01-19 22:39:38,710 INFO    HandlerThread:218756 [handler.py:finish():857] shutting down handler
+2026-01-19 22:39:39,376 INFO    WriterThread:218756 [datastore.py:close():294] close: /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_222842-1u0m5674/run-1u0m5674.wandb
+2026-01-19 22:39:39,708 INFO    SenderThread:218756 [sender.py:finish():1552] shutting down sender
+2026-01-19 22:39:39,709 INFO    SenderThread:218756 [file_pusher.py:finish():159] shutting down file pusher
+2026-01-19 22:39:39,709 INFO    SenderThread:218756 [file_pusher.py:join():164] waiting for file pusher

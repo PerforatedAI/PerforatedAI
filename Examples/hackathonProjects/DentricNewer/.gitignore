@@ -1,0 +1,5 @@
+/.claude
+/.venv
+nulmodels/dendritic_best.pt
+hack/models/dendritic_best.pt
+models/

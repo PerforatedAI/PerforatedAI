@@ -1,0 +1,34 @@
+2026-01-19 13:47:43,479 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Current SDK version is 0.15.8
+2026-01-19 13:47:43,479 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Configure stats pid to 4058537
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/.config/wandb/settings
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Loading settings from /home/sankalp/avi/DentricNewer/hack/wandb/settings
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'api_key': '***REDACTED***'}
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'hack/train_dendritic.py', 'program': '/home/sankalp/avi/DentricNewer/hack/train_dendritic.py'}
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_init.py:_log_setup():507] Logging user logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_134743-ymuls7pk/logs/debug.log
+2026-01-19 13:47:43,480 INFO    MainThread:4058537 [wandb_init.py:_log_setup():508] Logging internal logs to /home/sankalp/avi/DentricNewer/hack/wandb/run-20260119_134743-ymuls7pk/logs/debug-internal.log
+2026-01-19 13:47:43,481 INFO    MainThread:4058537 [wandb_init.py:init():547] calling init triggers
+2026-01-19 13:47:43,481 INFO    MainThread:4058537 [wandb_init.py:init():554] wandb.init called with sweep_config: {}
+config: {}
+2026-01-19 13:47:43,481 INFO    MainThread:4058537 [wandb_init.py:init():596] starting backend
+2026-01-19 13:47:43,481 INFO    MainThread:4058537 [wandb_init.py:init():600] setting up manager
+2026-01-19 13:47:43,484 INFO    MainThread:4058537 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-01-19 13:47:43,487 INFO    MainThread:4058537 [wandb_init.py:init():606] backend started and connected
+2026-01-19 13:47:43,492 INFO    MainThread:4058537 [wandb_init.py:init():697] updated telemetry
+2026-01-19 13:47:43,500 INFO    MainThread:4058537 [wandb_init.py:init():730] communicating run to backend with 60.0 second timeout
+2026-01-19 13:47:44,390 INFO    MainThread:4058537 [wandb_run.py:_on_init():2180] communicating current version
+2026-01-19 13:47:45,388 INFO    MainThread:4058537 [wandb_run.py:_on_init():2189] got version response upgrade_message: "wandb version 0.24.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2026-01-19 13:47:45,389 INFO    MainThread:4058537 [wandb_init.py:init():781] starting run threads in backend
+2026-01-19 13:47:45,472 INFO    MainThread:4058537 [wandb_run.py:_console_start():2159] atexit reg
+2026-01-19 13:47:45,473 INFO    MainThread:4058537 [wandb_run.py:_redirect():2014] redirect: wrap_raw
+2026-01-19 13:47:45,474 INFO    MainThread:4058537 [wandb_run.py:_redirect():2079] Wrapping output streams.
+2026-01-19 13:47:45,474 INFO    MainThread:4058537 [wandb_run.py:_redirect():2104] Redirects installed.
+2026-01-19 13:47:45,475 INFO    MainThread:4058537 [wandb_init.py:init():822] run started, returning control to user process
+2026-01-19 14:29:00,725 INFO    MainThread:4058537 [wandb_run.py:_finish():1894] finishing run aviralsaxena1104-bits-pilani/dendrivit-bci/ymuls7pk
+2026-01-19 14:29:00,726 INFO    MainThread:4058537 [wandb_run.py:_atexit_cleanup():2128] got exitcode: 0
+2026-01-19 14:29:00,726 INFO    MainThread:4058537 [wandb_run.py:_restore():2111] restore
+2026-01-19 14:29:00,726 INFO    MainThread:4058537 [wandb_run.py:_restore():2117] restore done
+2026-01-19 14:29:08,607 INFO    MainThread:4058537 [wandb_run.py:_footer_history_summary_info():3481] rendering history
+2026-01-19 14:29:08,609 INFO    MainThread:4058537 [wandb_run.py:_footer_history_summary_info():3513] rendering summary
+2026-01-19 14:29:08,618 INFO    MainThread:4058537 [wandb_run.py:_footer_sync_info():3440] logging synced files

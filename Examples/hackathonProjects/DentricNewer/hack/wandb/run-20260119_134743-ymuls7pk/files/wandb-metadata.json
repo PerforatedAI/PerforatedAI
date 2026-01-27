@@ -1,0 +1,157 @@
+{
+    "os": "Linux-6.12.10-76061203-generic-x86_64-with-glibc2.35",
+    "python": "3.10.12",
+    "heartbeatAt": "2026-01-19T08:17:45.443445",
+    "startedAt": "2026-01-19T08:17:43.476445",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/sankalp/avi/DentricNewer/hack/train_dendritic.py",
+    "codePath": "hack/train_dendritic.py",
+    "git": {
+        "remote": "https://github.com/AviralDeshratna11/DentricNewer.git",
+        "commit": "2e21aeea970ec643563add733a9363a627a61168"
+    },
+    "email": null,
+    "root": "/home/sankalp/avi/DentricNewer",
+    "host": "Server3A6000",
+    "username": "sankalp",
+    "executable": "/home/sankalp/avi/DentricNewer/.venv/bin/python3",
+    "cpu_count": 12,
+    "cpu_count_logical": 24,
+    "cpu_freq": {
+        "current": 833.4147916666667,
+        "min": 800.0,
+        "max": 3300.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 809.491,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 799.272,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.932,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 799.385,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.135,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 801.826,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.859,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.842,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 1599.983,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 799.707,
+            "min": 800.0,
+            "max": 3300.0
+        },
+        {
+            "current": 800.0,
+            "min": 800.0,
+            "max": 3300.0
+        }
+    ],
+    "disk": {
+        "total": 934.9467658996582,
+        "used": 292.2135200500488
+    },
+    "memory": {
+        "total": 125.41775512695312
+    }
+}
