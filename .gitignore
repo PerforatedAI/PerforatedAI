@@ -22,7 +22,9 @@ Examples/hackathonProjects/*
 # Large Files and Logs to Exclude Everywhere
 **/wandb/
 **/PAI/
+!Examples/hackathonProjects/resnet50_optimization/PAI/
 **/*.pt
+!Examples/hackathonProjects/resnet50_optimization/PAI/*.pt
 **/*.pth
 **/*.onnx
 **/*.zip
