@@ -13,8 +13,11 @@ PAI*
 releases/*
 perforatedai.egg-info
 
-# Working Folders - Unignored to allow project commits
-# Examples/* 
+# Working Folders - Ignore all except specific project
+Examples/*
+!Examples/hackathonProjects/
+Examples/hackathonProjects/*
+!Examples/hackathonProjects/resnet50_optimization/ 
 
 # Large Files and Logs to Exclude Everywhere
 **/wandb/

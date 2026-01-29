@@ -1,5 +1,0 @@
-torch
-numpy
-pandas
-ray[default,train]
-bayesian-optimization

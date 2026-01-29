@@ -1,3 +1,0 @@
-from model import Net
-model = Net()
-print("Baseline params:", sum(p.numel() for p in model.parameters()))
