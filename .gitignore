@@ -13,5 +13,17 @@ PAI*
 releases/*
 perforatedai.egg-info
 
-# Working Folders
-Examples/*
+# Working Folders - Unignored to allow project commits
+# Examples/* 
+
+# Large Files and Logs to Exclude Everywhere
+**/wandb/
+**/PAI/
+**/*.pt
+**/*.pth
+**/*.onnx
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.h5
+**/*.pkl
