@@ -1,0 +1,13 @@
+# caches
+__pycache__/
+*.pyc
+
+# datasets (generated/downloaded)
+data_molnet/
+
+# wandb logs
+wandb/
+
+# PerforatedAI outputs: keep only the required final graph
+PAI/*
+!PAI/PAI.png

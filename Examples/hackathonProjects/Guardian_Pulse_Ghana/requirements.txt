@@ -1,0 +1,34 @@
+# Guardian-Pulse Ghana: Python Dependencies
+# ==========================================
+# Complete dependency specification for hackathon submission
+
+# Core Deep Learning Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Experiment Tracking and Monitoring
+wandb>=0.15.0
+
+# Scientific Computing
+numpy>=1.24.0
+
+# Data Processing (for production integration)
+pandas>=2.0.0
+
+# Visualization (for analysis notebooks)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Progress Bars
+tqdm>=4.65.0
+
+# Optional: For production deployment
+# onnx>=1.14.0                    # Model export for edge devices
+# onnxruntime>=1.15.0             # Optimized inference
+# tensorboard>=2.13.0             # Additional logging
+# scikit-learn>=1.3.0             # Evaluation metrics
+
+# Development Tools
+# pytest>=7.4.0                   # Unit testing
+# black>=23.0.0                   # Code formatting
+# flake8>=6.0.0                   # Linting
