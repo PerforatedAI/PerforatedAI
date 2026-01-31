@@ -333,8 +333,9 @@ def run_single_experiment(
             base_yaml_content = yaml.safe_load(f)
             
     
-    # Update train path
+    # Update train path and ensure path is absolute
     base_yaml_content['train'] = str(subset_txt_path.absolute())
+    base_yaml_content['path'] = str(data_dir.absolute())  # Always use absolute path from args
     # CRITICAL: Val and Test paths are NOT modified - they remain constant!
     # Only the training set varies by percentage
     
@@ -582,6 +583,27 @@ def main():
     
     # Setup device (GPU or CPU)
     device, device_type = setup_device()
+    
+    # Check if dataset exists, provide download instructions if not
+    data_path = Path(args.data_dir)
+    train_img_dir = data_path / "images" / "train2007"
+    if not train_img_dir.exists() or len(list(train_img_dir.glob("*.jpg"))) == 0:
+        print(f"\n⚠️  VOC dataset not found at {args.data_dir}")
+        print("\n" + "="*70)
+        print("IMPORTANT: Ultralytics dataset path configuration required")
+        print("="*70)
+        print("\n1. First, find your Ultralytics global settings location:")
+        print("   Run: python -c \"from ultralytics import settings; print(settings.file)\"")
+        print("\n2. Check the 'datasets_dir' value in that settings file")
+        print("   This is where Ultralytics will download datasets")
+        print("\n3. Download the VOC dataset (it will go to your Ultralytics datasets_dir):")
+        print("   Run: python -c \"from ultralytics import YOLO; YOLO('yolo11n.pt').train(data='VOC.yaml', epochs=1)\"")
+        print("\n4. When running this script, use --data-dir to point to that location:")
+        print("   Example: python run_experiments.py --data-dir /path/from/settings/datasets/VOC")
+        print("\nAlternatively, manually download and extract VOC.zip to match your --data-dir path")
+        sys.exit(1)
+    
+    print(f"[DATASET] ✓ Found VOC dataset at {args.data_dir}")
     
     # Filter experiments if specific one requested
     experiments_to_run = EXPERIMENTS
