@@ -5,6 +5,7 @@ setup(
     # Remember to also edit setupCython
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     version="3.0.9",
 =======
     version="3.0.7",
@@ -12,6 +13,9 @@ setup(
 =======
     version="3.0.8",
 >>>>>>> 07846f74dd (updated versions)
+=======
+    version="3.0.9",
+>>>>>>> 2b82aecdd8 (updated setups)
     packages=["perforatedai"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
