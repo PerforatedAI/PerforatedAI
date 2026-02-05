@@ -2007,7 +2007,7 @@ def set_gpa_config(config):
             if GPA.pc.get_verbose():
                 print(f"No setter found for {key} (looking for {set_method_name})")
     
-    if not GPA.pc.get_verbose():
+    if GPA.pc.get_verbose():
         print(f"Applied {set_count} PAI configuration settings ({skip_count} skipped)")
     
     return set_count
@@ -2162,7 +2162,7 @@ try:
             with open(config_path, 'r') as f:
                 config = json.load(f)
                 if 'pai_config' in config:
-                    print(f"Restoring PAI configuration from HuggingFace")
+                    #print(f"Restoring PAI configuration from HuggingFace")
                     set_gpa_config(config['pai_config'])
                 else:
                     print("Warning: No pai_config found in config.json")
@@ -2172,7 +2172,6 @@ try:
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors")
         state_dict = load_file(model_path)
-        GPA.pc.set_verbose(True)
         wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
