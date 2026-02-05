@@ -53,7 +53,7 @@ class build_py(_build_py):
 
 setup(
     name="perforatedai",
-    version="3.0.8",
+    version="3.0.9",
     packages=find_packages(),
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
