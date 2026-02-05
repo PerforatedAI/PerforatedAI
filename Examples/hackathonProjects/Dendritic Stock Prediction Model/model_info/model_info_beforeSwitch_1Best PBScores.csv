@@ -1,0 +1,13 @@
+Epochs,Best ever for all nodes Layer .fc,Best current for all nodes Layer .fc,Best ever for all nodes Layer .layer_norm,Best current for all nodes Layer .layer_norm,Best ever for all nodes Layer .lstm,Best current for all nodes Layer .lstm
+0,0.0004720415745396167,,,,,
+1,0.0006665959372185171,,,,,
+2,0.0007578650256618857,,,,,
+3,0.0008189757936634123,,,,,
+0,,,3.6608827258532983e-07,,,
+1,,,3.6608827258532983e-07,,,
+2,,,3.6608827258532983e-07,,,
+3,,,3.6608827258532983e-07,,,
+0,,,,,4.40239928138908e-05,
+1,,,,,5.035313733969815e-05,
+2,,,,,5.035313733969815e-05,
+3,,,,,5.035313733969815e-05,
