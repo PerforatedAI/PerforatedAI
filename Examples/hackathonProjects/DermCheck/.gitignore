@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Models and Large Data
+models/*.pt
+!models/.gitkeep
+data/*
+!data/.gitkeep
+
+# PAI Outputs (Keep graphs but ignore CSVs if desired, or ignore all)
+# PAI_DermCheck/
+# !PAI_DermCheck/*.png
+
+# OS
+.DS_Store
+Thumbs.db
