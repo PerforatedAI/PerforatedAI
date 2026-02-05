@@ -1,0 +1,21 @@
+# Dendritic YOLOv8 - PerforatedAI Hackathon
+# Requirements
+# CRITICAL: Pin PyTorch < 2.6 to avoid weights_only unpickling errors
+
+# Core dependencies (PyTorch < 2.6 is required!)
+torch==2.4.1
+torchvision==0.19.1
+torchaudio==2.4.1
+ultralytics==8.2.0
+perforatedai==3.0.7
+
+# Logging and visualization
+wandb
+matplotlib
+pandas
+seaborn
+numpy
+
+# Optional: Jupyter support
+jupyter
+ipywidgets
