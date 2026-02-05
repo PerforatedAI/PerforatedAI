@@ -394,6 +394,7 @@ jobs:
         Copy-Item perforatedai\globals_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\modules_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\tracker_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\network_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\utils_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\library_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai

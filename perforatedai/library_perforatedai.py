@@ -662,3 +662,132 @@ class ResNetPAI(nn.Module):
             Output tensor from the network.
         """
         return self._forward_impl(x)
+
+
+class ResNetPAIPreFC(nn.Module):
+    """PB-compatible ResNet wrapper.
+
+    All normalization layers should be wrapped in a PAISequential, or other
+    wrapped module. When working with a predefined model the following shows
+    an example of how to create a module for modules_to_replace.
+    """
+
+    def __init__(self, other_resnet):
+        """Initialize ResNetPAI from existing ResNet model.
+
+        Parameters
+        ----------
+        *args : other_resnet : torchvision.models.resnet.ResNet
+            An existing ResNet model to convert to PAI-compatible format.
+        """
+        super(ResNetPAIPreFC, self).__init__()
+
+        # For the most part, just copy the exact values from the original module
+        self._norm_layer = other_resnet._norm_layer
+        self.inplanes = other_resnet.inplanes
+        self.dilation = other_resnet.dilation
+        self.groups = other_resnet.groups
+        self.base_width = other_resnet.base_width
+
+        # For the component to be changed, define a PAISequential with the old
+        # modules included
+        self.conv1 = other_resnet.conv1
+        self.bn1 = other_resnet.bn1
+
+        self.relu = other_resnet.relu
+        self.maxpool = other_resnet.maxpool
+
+        for i in range(1, 5):
+            layer_name = "layer" + str(i)
+            original_layer = getattr(other_resnet, layer_name)
+            pb_layer = self._make_layer_pb(original_layer, other_resnet, i)
+            setattr(self, layer_name, pb_layer)
+
+        self.avgpool = other_resnet.avgpool
+        
+        # Create pre_fc layer with dimensions matching layer4 output (same as fc input)
+        fc_in_features = other_resnet.fc.in_features
+        self.pre_fc = nn.Linear(fc_in_features, fc_in_features)
+        
+        self.fc = other_resnet.fc
+
+    def _make_layer_pb(self, other_block_set, other_resnet, block_id):
+        """Convert ResNet layer blocks to PB-compatible format.
+
+        Parameters
+        ----------
+        other_block_set : torch.vision.models.resnet.any_block
+            A set of blocks from the original ResNet model.
+        other_resnet : torchvision.models.resnet.ResNet
+            The original ResNet model.
+        block_id : int
+            The layer number being converted.
+        Returns
+        -------
+        nn.Sequential
+            A sequential container with the converted blocks.
+        """
+        layers = []
+        for i in range(len(other_block_set)):
+            block_type = type(other_block_set[i])
+            if block_type == resnet_pt.BasicBlock:
+                layers.append(other_block_set[i])
+            elif block_type == resnet_pt.Bottleneck:
+                layers.append(other_block_set[i])
+            else:
+                print(
+                    "Your resnet uses a block type that has not been "
+                    "accounted for. Customization might be required."
+                )
+                layer_name = "layer" + str(block_id)
+                print(type(getattr(other_resnet, layer_name)))
+                pdb.set_trace()
+        return nn.Sequential(*layers)
+
+    def _forward_impl(self, x):
+        """Implementation of the forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to the network.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor from the network.
+        """
+        # Modified b1 rather than conv1 and bn1
+        x = self.conv1(x)
+        x = self.bn1(x)
+        # Rest of forward remains the same
+        x = F.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.pre_fc(x)
+        x = F.relu(x)
+        x = self.fc(x)
+
+        return x
+
+    def forward(self, x):
+        """Forward pass through the network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to the network.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor from the network.
+        """
+        return self._forward_impl(x)

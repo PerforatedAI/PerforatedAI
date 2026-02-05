@@ -350,4 +350,17 @@ Similarly, if you are using a token you can do the following:
     CUDA_VISIBLE_DEVICES=0 PAIEMAIL=YOUREMAIL PAITOKEN=YOURTOKEN python your_script.py
 
 
+## 10 Huggingface
+If you would like to upload a model to huggingface the following command has been created which can be called with args similar to the following:
 
+        UPA.upload_to_huggingface(
+            model, 
+            hf_repo_id,
+            license="apache-2.0",
+            pipeline_tag="image-classification",
+            tags=["perforated-ai", dataset_name, model_name]
+        )
+
+Similarly loading can be called with the following function:
+
+    model = UPA.from_hf_pretrained(model, hf_repo_id)
