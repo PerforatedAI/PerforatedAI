@@ -799,7 +799,7 @@ if __name__ == '__main__':
     # Dendrite Params
     parser.add_argument("--threshold", type=float, default=0.01,
                         help="The relative amount a model has to improve by for tracking dendrites")
-    parser.add_argument("--raw_threshold", type=float, default=10,
+    parser.add_argument("--threshold_raw", type=float, default=10,
                         help="The raw amount a model has to improve by for tracking dendrites")
     parser.add_argument("--n_epochs_to_switch", type=int, default=4,
                         help="The number of no improvement epochs before restructuring")
