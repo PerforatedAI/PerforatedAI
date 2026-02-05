@@ -1,0 +1,49 @@
+# W&B Sweep Configuration for PAI Lightning Training
+# Usage: wandb sweep ml/sweeps/sweep_pai_pl.yaml
+
+program: ml/scripts/train_pl.py
+method: bayes
+metric:
+  name: val/loss
+  goal: minimize
+
+parameters:
+  learning_rate:
+    distribution: log_uniform_values
+    min: 0.00001
+    max: 0.0005
+  
+  compression_ratio:
+    values: [1.0, 0.9, 0.75, 0.6]
+  
+  dropout_rate:
+    distribution: uniform
+    min: 0.0
+    max: 0.25
+  
+  batch_size:
+    values: [8, 16, 32]
+  
+  n_epochs_to_switch:
+    values: [2, 3, 5, 8]
+  
+  p_epochs_to_switch:
+    values: [1, 2, 3]
+  
+  experiment_type:
+    values: ["baseline", "compressed_pai", "compressed_control"]
+
+early_terminate:
+  type: hyperband
+  min_iter: 500
+  eta: 3
+  s: 2
+
+command:
+  - ${env}
+  - python
+  - -m
+  - ml.scripts.train_pl
+  - --wandb
+  - enabled
+  - ${args}

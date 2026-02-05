@@ -1,0 +1,94 @@
+# W&B Sweep Configuration for T5 Summarizer
+# 
+# Usage:
+#   wandb sweep ml/sweeps/wandb_sweep_t5.yaml
+#   wandb agent <SWEEP_ID>
+#
+# This sweep searches over:
+#   - Learning rate (log uniform)
+#   - Batch size
+#   - Compression ratio
+#   - PAI enable/disable
+#   - PAI switching hyperparameters
+
+program: ml/train.py
+method: bayes
+metric:
+  name: eval/score
+  goal: maximize
+
+parameters:
+  # Learning rate (log uniform distribution)
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-6
+    max: 5e-4
+  
+  # Batch size options
+  batch_size:
+    values: [8, 16, 32]
+  
+  # Compression ratio (1.0 = no compression)
+  compression_ratio:
+    values: [0.7, 0.8, 0.9, 1.0]
+  
+  # PAI enable/disable for ablation
+  experiment_type:
+    values: ["baseline", "compressed_pai", "compressed_control"]
+  
+  # PAI switching epochs (NEURITE phase)
+  n_epochs_to_switch:
+    values: [3, 5, 8, 10]
+  
+  # PAI switching epochs (DENDRITE phase)
+  p_epochs_to_switch:
+    values: [1, 2, 3]
+  
+  # Random seeds for reproducibility
+  seed:
+    values: [42, 111, 222, 333]
+  
+  # Fixed parameters
+  dataset:
+    value: "samsum"
+  
+  model_name:
+    value: "t5-small"
+  
+  max_steps:
+    value: 10000
+  
+  eval_steps:
+    value: 500
+
+# Command to run
+command:
+  - ${env}
+  - python
+  - ${program}
+  - --experiment-type
+  - ${experiment_type}
+  - --dataset
+  - ${dataset}
+  - --model-name
+  - ${model_name}
+  - --learning-rate
+  - ${learning_rate}
+  - --batch-size
+  - ${batch_size}
+  - --compression-ratio
+  - ${compression_ratio}
+  - --n-epochs-to-switch
+  - ${n_epochs_to_switch}
+  - --p-epochs-to-switch
+  - ${p_epochs_to_switch}
+  - --max-steps
+  - ${max_steps}
+  - --eval-steps
+  - ${eval_steps}
+  - --seed
+  - ${seed}
+  - --wandb
+  - enabled
+  - --wandb-project
+  - v0-pai-experiments
