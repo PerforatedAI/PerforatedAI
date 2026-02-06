@@ -1,0 +1,16 @@
+PerforatedAI Training Summary
+==================================================
+
+Model: TrOCR-base-handwritten
+Training Date: 2026-01-21 00:26:11
+Epochs: 3
+Batch Size: 2
+Learning Rate: 5e-05
+Device: cuda
+Final Accuracy: N/A
+PAI Integration: True
+
+Extra Scores Tracked:
+  - Train Loss Epoch 1: 3.1126 (epoch 1)
+  - Train Loss Epoch 2: 2.4535 (epoch 2)
+  - Train Loss Epoch 3: 2.0688 (epoch 3)
