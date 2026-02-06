@@ -1,0 +1,61 @@
+# Model Configuration
+model:
+  variant: "yolov8n"  # Options: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+  input_size: 640
+  pretrained: true
+
+# Training Configuration
+training:
+  epochs: 100
+  batch_size: 16
+  learning_rate: 0.001
+  weight_decay: 0.0  # Set to 0 as recommended for dendritic models
+  patience: 20  # Early stopping patience
+  data: "coco.yaml"  # Dataset config (use coco128.yaml for quick tests)
+  device: ""  # Auto-detect (use "cpu" or "cuda:0" to force)
+
+# PerforatedAI Configuration
+pai:
+  enabled: true
+  forward_function: "sigmoid"  # Options: sigmoid, relu, tanh
+  weight_init_multiplier: 0.01
+  improvement_threshold: 0.001  # Threshold for dendrite switching
+  maximizing_score: true  # Set to false if using loss instead of accuracy
+  testing_dendrite_capacity: false  # Set to true for initial capacity test
+  save_name: "PAI_GuardianEdge"
+
+# Optimizer Configuration
+optimizer:
+  type: "Adam"  # Options: Adam, SGD, AdamW
+  scheduler: "ReduceLROnPlateau"
+  scheduler_kwargs:
+    mode: "max"
+    patience: 5
+    factor: 0.5
+
+# Detection Configuration
+detection:
+  # COCO class IDs for threat detection
+  # 0: person, 39: bottle, 43: knife, 44: fork, 46: banana (placeholder for testing)
+  threat_classes: [0, 39, 43, 44]
+  confidence_threshold: 0.5
+  iou_threshold: 0.45
+  max_detections: 100
+
+# Inference Configuration
+inference:
+  show_labels: true
+  show_conf: true
+  line_thickness: 2
+  save_output: false
+  output_dir: "output"
+
+# Payment Configuration (polar.sh)
+payment:
+  enabled: false  # Set to true when ready for production
+  polar_api_url: "https://api.polar.sh"
+  btc_wallet: "145U3n87FxXRC1nuDNDVXLZjyLzGhphf9Y"
+  bsc_wallet: "0x23f0c8637de985b848b380aeba7b4cebbcfb2c47"
+  license_tiers:
+    personal: 49
+    commercial: 199
