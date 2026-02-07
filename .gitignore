@@ -1,8 +1,14 @@
-myvenv
+# Common Virtual Environments
+myvenv*
+ENV*
+venv*
 
+# Project-specific
 PB
 perforatedai.egg-info
-**/__pycache__
-/build
 
-.DS_Store
+# Common Data and Output Files
+data*
+PAI*
+
+# Build Folders
