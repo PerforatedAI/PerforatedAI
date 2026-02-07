@@ -29,6 +29,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, pri
         image, target = image.to(device), target.to(device)
         
         output = model(image)
+        if hasattr(output, 'logits'):
+            output = output.logits
         loss = criterion(output, target)
 
         optimizer.zero_grad()
@@ -53,6 +55,8 @@ def evaluate(model, criterion, data_loader, device, print_freq=100):
             image = image.to(device, non_blocking=True)
             target = target.to(device, non_blocking=True)
             output = model(image)
+            if hasattr(output, 'logits'):
+                output = output.logits
             loss = criterion(output, target)
 
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
@@ -141,6 +145,7 @@ def main():
     parser.add_argument("--workers", default=16, type=int, help="Number of data loading workers")
     parser.add_argument("--device", default="cuda", type=str, help="Device (cuda or cpu)")
     parser.add_argument("--print-freq", default=10, type=int, help="Print frequency")
+    parser.add_argument("--latency-only", action="store_true", help="Skip training and only measure latency")
     
     args = parser.parse_args()
     
@@ -164,25 +169,50 @@ def main():
     train_loader, test_loader = load_flowers102_data(args.data_path, args.batch_size, args.workers)
     num_classes = 102
     
-    # Load model from HuggingFace
-    print(f"\nLoading model from HuggingFace: {args.hf_repo_id}")
-    from perforatedai import utils_perforatedai as UPA
-    from perforatedai import globals_perforatedai as GPA
-    from perforatedai import library_perforatedai as LPA
-        
-    # Create base model architecture
-    base_model = torchvision.models.get_model('resnet18', weights=None, num_classes=1000)
-    model = LPA.ResNetPAIPreFC(base_model)
-    # Load from HuggingFace
-    model = UPA.from_hf_pretrained(model, args.hf_repo_id)
-    print(f"Successfully loaded model from HuggingFace")
+    # Load model
+    if args.latency_only and 'perforated' not in args.hf_repo_id:
+        # For latency-only mode with non-perforated models, load from torchvision for fair comparison
+        # Extract model name from repo ID (e.g., "microsoft/resnet-18" -> "resnet18")
+        model_name = args.hf_repo_id.split('/')[-1].replace('-', '')
+        print(f"\nLoading torchvision model: {model_name}")
+        model = torchvision.models.get_model(model_name, weights='IMAGENET1K_V1')
+        print(f"Successfully loaded torchvision model")
+    else:
+        # Load from HuggingFace
+        print(f"\nLoading model from HuggingFace: {args.hf_repo_id}")
+        from perforatedai import utils_perforatedai as UPA
+        from perforatedai import globals_perforatedai as GPA
+        from perforatedai import library_perforatedai as LPA
+            
+        # Create base model architecture
+        if('perforated' in args.hf_repo_id):
+            base_model = torchvision.models.get_model('resnet18', weights=None, num_classes=1000)
+            model = LPA.ResNetPAIPreFC(base_model)
+            # Load from HuggingFace
+            model = UPA.from_hf_pretrained(model, args.hf_repo_id)
+        else:
+            from transformers import AutoModelForImageClassification
+            model = AutoModelForImageClassification.from_pretrained(args.hf_repo_id)
+        print(f"Successfully loaded model from HuggingFace")
     
     # Replace final layer for Flowers102 (102 classes)
     if hasattr(model, 'fc'):
-        # When loaded from HuggingFace, fc is a TrackedNeuronModule with main_module
-        in_features = model.fc.main_module.in_features
+        # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear (from torchvision)
+        if hasattr(model.fc, 'main_module'):
+            in_features = model.fc.main_module.in_features
+        else:
+            in_features = model.fc.in_features
         model.fc = nn.Linear(in_features, num_classes)
         print(f"Replaced final layer for {num_classes} classes")
+    elif hasattr(model, 'classifier'):
+        # Transformers models use 'classifier' instead of 'fc'
+        if isinstance(model.classifier, nn.Sequential):
+            in_features = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Linear(in_features, num_classes)
+        else:
+            in_features = model.classifier.in_features
+            model.classifier = nn.Linear(in_features, num_classes)
+        print(f"Replaced classifier layer for {num_classes} classes")
     
     model = model.to(device)
     
@@ -209,21 +239,57 @@ def main():
         lr_scheduler = main_lr_scheduler
     
     # Training loop
-    print("\nStarting training...")
-    start_time = time.time()
-    
-    for epoch in range(args.epochs):
-        train_one_epoch(model, criterion, optimizer, train_loader, device, epoch, args.print_freq)
-        lr_scheduler.step()
-        test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+    if not args.latency_only:
+        print("\nStarting training...")
+        start_time = time.time()
         
-        print(f"Epoch {epoch+1}/{args.epochs} - Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}")
+        for epoch in range(args.epochs):
+            train_one_epoch(model, criterion, optimizer, train_loader, device, epoch, args.print_freq)
+            lr_scheduler.step()
+            test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+            
+            print(f"Epoch {epoch+1}/{args.epochs} - Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}")
+        
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        print(f"\nTraining complete! Total time: {total_time_str}")
+        print(f"Final Test Accuracy: {test_acc1:.3f}%")
+        print(f"Final Test Loss: {test_loss:.4f}")
+    else:
+        print("\nSkipping training (latency-only mode)")
+        test_acc1 = None
+        test_loss = None
     
-    total_time = time.time() - start_time
-    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print(f"\nTraining complete! Total time: {total_time_str}")
-    print(f"Final Test Accuracy: {test_acc1:.3f}%")
-    print(f"Final Test Loss: {test_loss:.4f}")
+    # Measure inference latency on CPU, one image at a time
+    print(f"\n{'='*80}")
+    print("Measuring inference latency on CPU (single images)...")
+    print(f"{'='*80}")
+    model = model.to('cpu')
+    model.eval()
+    total_images = 0
+    total_time = 0.0
+    
+    with torch.inference_mode():
+        for image, _ in test_loader:
+            # Process each image individually
+            for single_image in image:
+                single_image = single_image.unsqueeze(0).to('cpu')
+                
+                start_time = time.time()
+                _ = model(single_image)
+                elapsed = time.time() - start_time
+                
+                total_time += elapsed
+                total_images += 1
+    
+    time_per_image = (total_time / total_images) * 1000  # Convert to ms
+    fps = total_images / total_time
+    
+    print(f"Total images processed: {total_images}")
+    print(f"Total time: {total_time:.3f}s")
+    print(f"Time per image: {time_per_image:.2f}ms")
+    print(f"Throughput: {fps:.2f} FPS")
+    print(f"{'='*80}\n")
     
     return test_acc1, test_loss
 

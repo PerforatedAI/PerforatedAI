@@ -99,9 +99,15 @@ In additional to the above which will be added to the graph you may want to save
 
     GPA.pai_tracker.add_extra_score_without_graphing(extraScore, 'Test Accuracy')
 
-## 5 - Epochs
+## 5 - Training Loop Modification
 
-The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.
+The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.  E.g.:
+
+    for epoch in range(1, args.epochs + 1):
+    ->
+    epoch = -1
+    while(True):
+        epoch += 1
 
 ## That's all that's Required!
 With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `GPA.pc.set_testing_dendrite_capacity(True)`.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.
