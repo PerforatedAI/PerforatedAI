@@ -4,7 +4,6 @@ ENV*
 venv*
 
 # Common Data and Output Files
-data*
 PAI*
 
 # Build Folders
