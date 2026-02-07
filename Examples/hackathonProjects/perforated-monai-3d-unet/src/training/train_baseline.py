@@ -14,7 +14,6 @@ import bootstrap
 from monai.losses import DiceCELoss
 from monai.metrics import DiceMetric
 from monai.inferers import sliding_window_inference
-from monai.transforms import Compose, Activations, AsDiscrete
 
 from src.data.dataset_loader import get_dataloaders
 from src.models.unet_baseline import get_unet
@@ -23,20 +22,14 @@ from src.models.unet_baseline import get_unet
 # CONFIG
 # ========================
 PROJECT_NAME = "Perforated-MONAI"
-RUN_NAME = "baseline_unet_converged"
+RUN_NAME = "baseline_unet"
 
 DATA_DIR = "datasets/monai"
-
-LR = 2e-4
-
+NUM_EPOCHS = 30               # 🔴 match dendritic
+LR = 5e-5                     # 🔴 match dendritic
 PATCH_SIZE = (96, 96, 96)
-NUM_CLASSES = 3
+NUM_CLASSES = 4
 DEVICE = "cuda"
-
-# Convergence control
-MAX_EPOCHS = 150
-PATIENCE = 12
-MIN_DELTA = 0.002
 
 
 def flatten_if_needed(x):

@@ -139,7 +139,7 @@ jobs:
           git pull --rebase
 
           # Add files and commit (file is always new since push failed)
-          git add $RELEASE_DIR
+          git add -f $RELEASE_DIR
           if git diff --cached --quiet; then
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -231,7 +231,7 @@ jobs:
           git checkout develop
           git pull --rebase
           # Add files and commit (manylinux wheels are always new)
-          git add .
+          git add -f .
           
           if git diff --cached --quiet; then
             # No changes to commit, just continue loop without incrementing retry count
@@ -330,7 +330,7 @@ jobs:
           git checkout develop
           git pull --rebase
           # Add files and commit (file is always new since push failed)
-          git add $RELEASE_DIR
+          git add -f $RELEASE_DIR
           if git diff --cached --quiet; then
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -394,6 +394,7 @@ jobs:
         Copy-Item perforatedai\globals_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\modules_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\tracker_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\network_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\utils_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\library_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
@@ -431,7 +432,7 @@ jobs:
           git checkout develop
           git pull --rebase
           # Add files and commit (file is always new since push failed)
-          git add $RELEASE_DIR
+          git add -f $RELEASE_DIR
           if (git diff --cached --quiet) {
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -538,7 +539,7 @@ jobs:
             git checkout develop
             git pull --rebase
             # Add files and commit (file is always new since push failed)
-            git add $RELEASE_DIR
+            git add -f $RELEASE_DIR
             if git diff --cached --quiet; then
               # No changes to commit, just continue loop without incrementing retry count
               echo "Nothing to commit, continuing..."

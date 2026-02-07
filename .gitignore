@@ -3,12 +3,15 @@ myvenv*
 ENV*
 venv*
 
-# Project-specific
-PB
-perforatedai.egg-info
-
 # Common Data and Output Files
 data*
 PAI*
 
 # Build Folders
+**/__pycache__
+/build
+releases/*
+perforatedai.egg-info
+
+# Working Folders
+Examples/*

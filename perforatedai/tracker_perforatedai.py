@@ -394,7 +394,7 @@ def process_no_improvement(net):
     ):
         if not GPA.pc.get_silent():
             print(
-                f"Dendrites did not improve but current tries "
+                f"The newest added dendrites did not improve but current tries "
                 f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} '
                 f"is less than max tries {GPA.pc.get_max_dendrite_tries()} "
                 f"so loading last switch and trying new Dendrites."
@@ -412,7 +412,7 @@ def process_no_improvement(net):
     else:
         if not GPA.pc.get_silent():
             print(
-                f"Dendrites did not improve system and "
+                f"The newest added dendrites did not improve system and "
                 f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} > '
                 f"{GPA.pc.get_max_dendrite_tries()} so returning training_complete."
             )
@@ -2864,27 +2864,23 @@ class PAINeuronModuleTracker:
         del pd1
 
         """
-        Create best_test_scores.csv file
-        When working with dendrites there is a tradeoff between additional param count and test score improvement.
-        This file will help track that tradeoff by recording the best test scores for architecture version.
-        The test score that gets recorded here is not the best test score calculated,
-        instead it is the test score that was calculated during the epoch when the best validation score was found.
+        Create best_arch_scores.csv file
+        When working with dendrites there is a tradeoff between additional param count and score improvement.
+        This file will help track that tradeoff by recording the best scores for all extra_scores
+        and extra_scores_without_graphing for each architecture version.
+        The scores recorded here are from the epoch when the best validation score was found
+        within each switch_epoch boundary.
         """
-        test_scores = self.member_vars["test_scores"]
-        # If not tracking test scores, use validation scores
-        if len(self.member_vars["test_scores"]) == 0:
-            test_scores = self.member_vars["accuracies"]
-
-        if len(test_scores) != len(self.member_vars["accuracies"]):
-            print("Your test scores are not the same length as validation scores")
-            print(
-                "add_test_score should only be included once, use add_extra_score for other variables"
-            )
-
         switch_counts = len(self.member_vars["switch_epochs"])
-        best_test = []
         best_valid = []
         associated_params = []
+        
+        # Initialize dictionaries to store best scores for each extra score type
+        best_extra_scores = {}
+        for score_name in self.member_vars["extra_scores"]:
+            best_extra_scores[score_name] = []
+        for score_name in self.member_vars["extra_scores_without_graphing"]:
+            best_extra_scores[score_name] = []
 
         for switch in range(0, switch_counts, 2):
             start_index = 0
@@ -2902,9 +2898,26 @@ class PAINeuronModuleTracker:
                 )
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
-            best_test_score = test_scores[best_valid_index]
             best_valid.append(best_valid_score)
-            best_test.append(best_test_score)
+            
+            # Get corresponding scores from all extra_scores
+            for score_name in self.member_vars["extra_scores"]:
+                if best_valid_index < len(self.member_vars["extra_scores"][score_name]):
+                    best_extra_scores[score_name].append(
+                        self.member_vars["extra_scores"][score_name][best_valid_index]
+                    )
+                else:
+                    best_extra_scores[score_name].append(None)
+            
+            # Get corresponding scores from all extra_scores_without_graphing
+            for score_name in self.member_vars["extra_scores_without_graphing"]:
+                if best_valid_index < len(self.member_vars["extra_scores_without_graphing"][score_name]):
+                    best_extra_scores[score_name].append(
+                        self.member_vars["extra_scores_without_graphing"][score_name][best_valid_index]
+                    )
+                else:
+                    best_extra_scores[score_name].append(None)
+            
             if self.member_vars["doing_pai"]:
                 associated_params.append(self.member_vars["param_counts"][switch])
             else:
@@ -2932,20 +2945,41 @@ class PAINeuronModuleTracker:
                 )
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
-            best_test_score = test_scores[best_valid_index]
             best_valid.append(best_valid_score)
-            best_test.append(best_test_score)
+            
+            # Get corresponding scores from all extra_scores
+            for score_name in self.member_vars["extra_scores"]:
+                if best_valid_index < len(self.member_vars["extra_scores"][score_name]):
+                    best_extra_scores[score_name].append(
+                        self.member_vars["extra_scores"][score_name][best_valid_index]
+                    )
+                else:
+                    best_extra_scores[score_name].append(None)
+            
+            # Get corresponding scores from all extra_scores_without_graphing
+            for score_name in self.member_vars["extra_scores_without_graphing"]:
+                if best_valid_index < len(self.member_vars["extra_scores_without_graphing"][score_name]):
+                    best_extra_scores[score_name].append(
+                        self.member_vars["extra_scores_without_graphing"][score_name][best_valid_index]
+                    )
+                else:
+                    best_extra_scores[score_name].append(None)
+            
             associated_params.append(self.member_vars["param_counts"][-1])
 
-        pd1 = pd.DataFrame(
-            {
-                "Param Counts": associated_params,
-                "Max Valid Scores": best_valid,
-                "Max Test Scores": best_test,
-            }
-        )
+        # Build dataframe with all columns
+        csv_data = {
+            "Param Counts": associated_params,
+            "Max Valid Scores": best_valid,
+        }
+        
+        # Add columns for each extra score
+        for score_name in best_extra_scores:
+            csv_data[score_name] = best_extra_scores[score_name]
+        
+        pd1 = pd.DataFrame(csv_data)
         pd1.to_csv(
-            save_folder + "/" + self.save_name + extra_string + "best_test_scores.csv",
+            save_folder + "/" + self.save_name + extra_string + "_best_arch_scores.csv",
             index=False,
         )
         del pd1
@@ -3124,7 +3158,7 @@ class PAINeuronModuleTracker:
         Notes
         -----
         This function is a wrapper around `add_extra_score` that separates
-        test score for adding to best_test_scores.csv.
+        test score for adding to best_arch_scores.csv.
 
         """
         self.add_extra_score(score, extra_score_name)

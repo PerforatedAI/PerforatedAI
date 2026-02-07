@@ -102,10 +102,10 @@ Uses `vit-tiny` architecture with random initialization (not pretrained weights)
 
 ## Results
 
-Training with PerforatedAI dendrites achieves **74.82% accuracy** on 80k samples, compared to **73.01%** without dendrites.  This is an **6.7%** reduction in remaining error:
+Training with PerforatedAI dendrites achieves **75.45% accuracy** on 80k samples, compared to **73.01%** without dendrites.  This is a 9% reduction in remaining error.
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python vit_tiny_classifier.py --train --max-samples 80000 --eval --use-dendrites --training-epochs 20 --cache-dir './cache'
+CUDA_VISIBLE_DEVICES=0 python Examples/libraryExamples/huggingface/vit-tiny-classifier-rvlcdip/vit_tiny_classifier.py  --train --max-samples=80000 --eval --use-dendrites --training-epochs 20 --cache-dir './cache' --batch-size 256 --lr 0.0012 
 ```
 
 ![ViT RVL-CDIP Training Results](vit_rvlcdip.png)
