@@ -2078,6 +2078,19 @@ try:
         # Prepare model same way as save_pai_net does
         model = prepare_final_model(model)
         
+        # Calculate parameter count
+        param_count = count_params(model)
+        
+        # Format parameter count for tags (e.g., "11m" for 11 million)
+        if param_count >= 1e9:
+            param_tag = f"{param_count/1e9:.0f}b"
+        elif param_count >= 1e6:
+            param_tag = f"{param_count/1e6:.0f}m"
+        elif param_count >= 1e3:
+            param_tag = f"{param_count/1e3:.0f}k"
+        else:
+            param_tag = str(param_count)
+        
         # Create a temporary directory for files
         with tempfile.TemporaryDirectory() as tmpdir:
             # Save model weights
@@ -2092,6 +2105,9 @@ try:
                 if GPA.pc.get_verbose():
                     print(f"Extracted {len(pai_config)} PAI configuration parameters")
             
+            # Add parameter count at top level
+            config['num_parameters'] = param_count
+            
             # Add metadata
             if license:
                 config['license'] = license
@@ -2099,8 +2115,24 @@ try:
                 config['pipeline_tag'] = pipeline_tag
             if repo_url:
                 config['repo_url'] = repo_url
-            if tags:
-                config['tags'] = tags
+            
+            # Add tags with parameter count
+            if tags is None:
+                tags = []
+            elif not isinstance(tags, list):
+                tags = [tags]
+            else:
+                tags = tags.copy()  # Don't modify the original list
+            
+            # Add perforated-ai tag if not present
+            if "perforated-ai" not in tags:
+                tags.insert(0, "perforated-ai")
+            
+            # Add parameter count tag if not present
+            if param_tag not in tags:
+                tags.append(param_tag)
+            
+            config['tags'] = tags
             
             # Save config.json
             config_path = os.path.join(tmpdir, "config.json")
