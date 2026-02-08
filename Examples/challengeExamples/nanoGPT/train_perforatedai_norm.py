@@ -281,6 +281,7 @@ if block_size < model.config.block_size:
         block_size  # so that the checkpoint will have the right value
     )
 GPA.pc.append_module_names_to_track(["CausalSelfAttention"])
+GPA.pc.append_module_names_to_track(["MLP"])
 GPA.pc.set_module_names_to_convert(GPA.pc.get_module_names_to_convert())
 GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.pc.set_module_names_to_skip(GPA.pc.get_module_names_to_skip() + ['.lm_head'])
