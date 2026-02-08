@@ -23,8 +23,13 @@ from perforatedai import network_perforatedai as NPA
 try:
     from perforatedbp import utils_pbp as UPB
 
-except Exception as e:
-    pass
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == 'perforatedbp':
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 import copy
 
 from safetensors.torch import load_file
