@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name="perforatedai",
     # Remember to also edit setupCython
-    version="3.0.9",
+    version="3.1.0",
     packages=["perforatedai"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
