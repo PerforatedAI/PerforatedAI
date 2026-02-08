@@ -1,3 +1,13 @@
+# PAI Instructions
+The following instructions will allow you to reproduce Perforated AI's results
+
+    pip install torch numpy transformers datasets tiktoken wandb tqdm
+    python data/openwebtext/prepare.py
+    CUDA_VISIBLE_DEVICES=0 python train.py config/train_gpt2.py
+
+
+step 45000: train loss 3.0339, val loss 3.0590
+
 
 # nanoGPT
 
