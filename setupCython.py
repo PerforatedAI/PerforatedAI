@@ -70,7 +70,7 @@ setup(
         "torchvision",
         "matplotlib",
         "pandas",
-        "rsa",
+        "cryptography",
         "pyyaml",
         "safetensors",
     ],

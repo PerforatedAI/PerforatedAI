@@ -3,19 +3,7 @@ from setuptools import setup
 setup(
     name="perforatedai",
     # Remember to also edit setupCython
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     version="3.0.9",
-=======
-    version="3.0.7",
->>>>>>> c10f400ff7 (new version for compile)
-=======
-    version="3.0.8",
->>>>>>> 07846f74dd (updated versions)
-=======
-    version="3.0.9",
->>>>>>> 2b82aecdd8 (updated setups)
     packages=["perforatedai"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
@@ -32,7 +20,7 @@ setup(
         "torchvision",
         "matplotlib",
         "pandas",
-        "rsa",
+        "cryptography",
         "pyyaml",
         "safetensors",
     ],
