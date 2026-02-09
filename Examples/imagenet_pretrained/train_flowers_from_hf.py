@@ -170,7 +170,7 @@ def main():
     num_classes = 102
     
     # Load model
-    if args.latency_only and 'perforated' not in args.hf_repo_id:
+    if 'perforated' not in args.hf_repo_id:
         # For latency-only mode with non-perforated models, load from torchvision for fair comparison
         # Extract model name from repo ID (e.g., "microsoft/resnet-18" -> "resnet18")
         model_name = args.hf_repo_id.split('/')[-1].replace('-', '')
@@ -242,11 +242,18 @@ def main():
     if not args.latency_only:
         print("\nStarting training...")
         start_time = time.time()
+        best_acc1 = 0.0
+        best_epoch = 0
         
         for epoch in range(args.epochs):
             train_one_epoch(model, criterion, optimizer, train_loader, device, epoch, args.print_freq)
             lr_scheduler.step()
             test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+            
+            # Track best accuracy
+            if test_acc1 > best_acc1:
+                best_acc1 = test_acc1
+                best_epoch = epoch + 1
             
             print(f"Epoch {epoch+1}/{args.epochs} - Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}")
         
@@ -255,41 +262,43 @@ def main():
         print(f"\nTraining complete! Total time: {total_time_str}")
         print(f"Final Test Accuracy: {test_acc1:.3f}%")
         print(f"Final Test Loss: {test_loss:.4f}")
+        print(f"Best Test Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
     else:
         print("\nSkipping training (latency-only mode)")
         test_acc1 = None
         test_loss = None
     
-    # Measure inference latency on CPU, one image at a time
-    print(f"\n{'='*80}")
-    print("Measuring inference latency on CPU (single images)...")
-    print(f"{'='*80}")
-    model = model.to('cpu')
-    model.eval()
-    total_images = 0
-    total_time = 0.0
-    
-    with torch.inference_mode():
-        for image, _ in test_loader:
-            # Process each image individually
-            for single_image in image:
-                single_image = single_image.unsqueeze(0).to('cpu')
-                
-                start_time = time.time()
-                _ = model(single_image)
-                elapsed = time.time() - start_time
-                
-                total_time += elapsed
-                total_images += 1
-    
-    time_per_image = (total_time / total_images) * 1000  # Convert to ms
-    fps = total_images / total_time
-    
-    print(f"Total images processed: {total_images}")
-    print(f"Total time: {total_time:.3f}s")
-    print(f"Time per image: {time_per_image:.2f}ms")
-    print(f"Throughput: {fps:.2f} FPS")
-    print(f"{'='*80}\n")
+    if args.latency_only:
+        # Measure inference latency on CPU, one image at a time
+        print(f"\n{'='*80}")
+        print("Measuring inference latency on CPU (single images)...")
+        print(f"{'='*80}")
+        model = model.to('cpu')
+        model.eval()
+        total_images = 0
+        total_time = 0.0
+        
+        with torch.inference_mode():
+            for image, _ in test_loader:
+                # Process each image individually
+                for single_image in image:
+                    single_image = single_image.unsqueeze(0).to('cpu')
+                    
+                    start_time = time.time()
+                    _ = model(single_image)
+                    elapsed = time.time() - start_time
+                    
+                    total_time += elapsed
+                    total_images += 1
+        
+        time_per_image = (total_time / total_images) * 1000  # Convert to ms
+        fps = total_images / total_time
+        
+        print(f"Total images processed: {total_images}")
+        print(f"Total time: {total_time:.3f}s")
+        print(f"Time per image: {time_per_image:.2f}ms")
+        print(f"Throughput: {fps:.2f} FPS")
+        print(f"{'='*80}\n")
     
     return test_acc1, test_loss
 
