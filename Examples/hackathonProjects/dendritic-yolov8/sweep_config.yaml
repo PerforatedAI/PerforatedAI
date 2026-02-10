@@ -1,0 +1,48 @@
+program: train_yolov8_dendritic.py
+method: random
+metric:
+  name: mAP50-95
+  goal: maximize
+
+parameters:
+  learning_rate:
+    values: [0.01, 0.001, 0.0001]
+
+  weight_decay:
+    values: [0, 0.0001, 0.0005]
+
+  improvement_threshold:
+    values: [0, 1, 2]
+    # 0 = [0.01, 0.001, 0.0001, 0]
+    # 1 = [0.001, 0.0001, 0]
+    # 2 = [0]
+
+  candidate_weight_initialization_multiplier:
+    values: [0.1, 0.01]
+
+  pai_forward_function:
+    values: [0, 1, 2]
+    # 0 = sigmoid
+    # 1 = relu
+    # 2 = tanh
+
+  dendrite_mode:
+    values: [0, 1]
+    # 0 = no dendrites (baseline)
+    # 1 = GD dendrites
+    # 2 = CC dendrites (requires license)
+
+# Fixed parameters
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--data"
+  - "coco128.yaml"
+  - "--epochs"
+  - "50"
+  - "--batch"
+  - "16"
+  - "--imgsz"
+  - "640"
+  - "--use-wandb"

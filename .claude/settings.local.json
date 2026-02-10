@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__executeCode"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
