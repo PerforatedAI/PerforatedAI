@@ -1,11 +1,18 @@
+# The Artificial Dendrite Library for PyTorch
+
 <p align="center">
-  <img src="./assets/logo.png" width="600" alt="Perforated AI" />
+  <img src="logo.png" width="600" alt="Perforated AI" />
 </p>
 
 <p align="center">
 <a href="https://pypi.python.org/pypi/perforatedai"><img src="https://img.shields.io/pypi/v/perforatedai" /></a>
-<a href="https://pypi.python.org/pypi/perforatedai"><img src="https://img.shields.io/pypi/pyversions/perforatedai" /></a>
+<img src="https://img.shields.io/badge/python-3.7%2B-blue?logo=python" />
+<a href="https://pypi.python.org/pypi/perforatedai"><img src="https://img.shields.io/pypi/dm/perforatedai" /></a>
 <a href="https://github.com/PerforatedAI/PerforatedAI"><img src="https://img.shields.io/github/stars/PerforatedAI/PerforatedAI" /></a>
+<img src="https://img.shields.io/badge/code%20style-black-000000.svg" />
+<img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" />
+<a href="https://github.com/PerforatedAI/PerforatedAI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/PerforatedAI/PerforatedAI" /></a>
+
 </p>
 
 Add biologically-inspired dendritic optimization to your PyTorch neural networks with just a few lines of code. Perforated AI (PAI) automatically enhances model accuracy in a highly parameter-efficient manner by perforating the architecture with dendrites.
@@ -144,27 +151,32 @@ We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python v
 
 # Contribution Guidelines
 
-Perforated AI ❤️ open source! We welcome contributions from the community. 
+This library is open source! We welcome contributions from the community. 
 
 **Adding Examples:**
 - Follow the [MNIST example](./Examples/baseExamples/mnist) template
 - Include before/after results with visualizations
 - Provide complete running instructions
+- Provide baseline code without out library as NAME.py and perforated code with NAME_perforatedai.py as the script name
 
 **Reporting Issues:**
 - Visit [GitHub Issues](https://github.com/PerforatedAI/PerforatedAI/issues)
 - Contact support@perforatedai.com
 
-See the [Examples README](./Examples/README.md) for contribution guidelines.
+**Modifying Code:**
+- Provide detailed description of what th change does and the benefits it will provide
+- Use Black python formatting
+- Include comments within code to describe processes
 
 &nbsp;
 
 # Community
 
 Join the Perforated AI community:
-- 💬 [Discord](https://discord.gg/perforatedai) - Get help and share results
-- 📧 [Newsletter](https://perforatedai.com/newsletter) - Stay updated on dendritic AI research
-- 🐦 [Twitter](https://twitter.com/perforatedai) - Follow our latest developments
+- 💬 [Discord](https://discord.gg/Fgw3FG3Hzt) - Get help and share results
+- 📧 [Newsletter]([https://perforatedai.com/newsletter](https://www.perforatedai.com/contact)) - Stay updated on dendritic AI research
+- 🤝 [LinkedIn](https://www.linkedin.com/company/perforated-ai) - Follow our latest developments
+- 🤗 [Hugging Face](https://huggingface.co/perforated-ai) - Try our pretrained models on your datasets
 
 &nbsp;
 
@@ -191,21 +203,4 @@ If you use Perforated AI in your research, please cite:
 
 # Alternative Training Mechanisms
 
-When calling intitializePB a pb_neuron_layer_tracker called pai_tracker will be created.  This keeps track of all neuron modules and important values as well as performing the actions behind the scenes to add dendrite modules where they need to go.  It also must have a pointer to the optimizer being used. To get started quickly, or if the optimizer is hidden by a training framework, the following can be used:
-
-    GPA.pai_tracker.set_optimizer_instance(optimizer)
-
-However, we reccomend your optimizer and scheduler should be set this way instead. This method will automatically sweep over multiple learning rate options when adding dendrites, where often a lower learning rate is better for when after dendrites have been added. If you do use this method, the scheduler will get stepped inside our code so get rid of your scheduler.step() if you have one.  We recommend using ReduceLROnPlateau but any scheduler and optimizer should work.
-
-    GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
-    optimArgs = {'params':model.parameters(),'lr':learning_rate}
-    schedArgs = {'mode':'max', 'patience': 5} #Make sure this is lower than epochs to switch
-    optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
-    
-    Get rid of scheduler.step if there is one. If your scheduler is operating in a way
-    that it is doing things in other functions other than just a scheduler.step this
-    can cause problems and you should just not add the scheduler to our system.
-    We leave this uncommented inside the code block so it is not forgotten.
-    
-    Another note - It seems that weight decay can sometimes cause problems with dendrite learning.  If you currently have weight decay and are not happy with the results, try without it.
+Not a Contribution. If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please get in touch at [perforatedai.com](https://www.perforatedai.com/get-started). Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018). This open source code does not include the perforatedbp library and the perforated_backpropagation variable is set to False so the functions of that library will not be called without a license. The Perforated Backpropagation libraries and functionality are not part of this release, are not a contribution to this release, and are not released under any open source license.
