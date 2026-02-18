@@ -97,17 +97,15 @@ PAI works with many popular architectures and frameworks. Check out our [Example
 
 ## Base Examples
 - **[MNIST](./Examples/baseExamples/mnist)** - Classic computer vision with dendritic enhancement
-- **[TD3 Reinforcement Learning](./Examples/reinforcementLearning)** - TD3 with dendrites for continuous control
+- **[TD3 Reinforcement Learning](https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah)** - TD3 with dendrites for continuous control
 
 ## Advanced Examples
 - **[ImageNet ResNet-18](./Examples/imagenet)** - ResNet-18 with dendritic optimization ([Pretrained Model on Hugging Face](https://huggingface.co/perforated-ai/resnet-18-perforated))
-- **[Edge Impulse Block](./Examples/hackathonProjects/edge-voice-classification)** - DS-CNN for ESP32 devices (+8% on noisy audio)
+- **[Edge Impulse Block]([./Examples/hackathonProjects/example-custom-ml-block-pytorch)** - across 800 hyperparameter sweeps dendritic models consistently smarter with any given parameter count on keyword spotting in audio for edge deployment 
 
 ## Framework Integration
-- **[PyTorch Lightning](./Examples/libraryExamples)** - Using PAI with popular training frameworks
-- **[Hugging Face](./Examples/libraryExamples)** - Transformer models with dendritic layers
-
-For framework-specific guidance, see our [Library Examples](./Examples/libraryExamples).
+- **[PyTorch Lightning](./Examples/libraryExamples/pytorch_lightning)** - Using PAI with popular training frameworks
+- **[Hugging Face](./Examples/libraryExamples/huggingface)** - Transformer models with dendritic layers
 
 &nbsp;
 
@@ -119,16 +117,15 @@ Traditional artificial neurons are **point neurons** - they simply sum weighted 
 
 1. **Automatic Perforation**: PAI analyzes your network and perforates it with dendrites for selected modules
 2. **Validation-Driven Growth**: Identifies when to add dendrites based on validation score improvements
-3. **Gradient-Free Growth**: Dendrites are added during training without requiring gradients through them
-4. **Optimized Training**: Automatically adjusts learning rates for optimal dendritic optimization
-5. **Multi-Layer Support**: Unlike other dendritic methods, PAI works on multiple neuron layers simultaneously
+3. **Optimized Training**: Automatically adjusts learning rates for optimal dendritic optimization
+4. **Multi-Layer Support**: Unlike other dendritic methods, PAI works on multiple neuron layers simultaneously
 
 This approach delivers:
-- ✅ **Significant accuracy improvements** on challenging tasks
-- ✅ **Superior parameter efficiency** compared to standard scaling
-- ✅ **Reduced data requirements** for achieving target performance
-- ✅ **Robustness to noise** - particularly effective in real-world conditions
-- ✅ **Drop-in compatibility** - works with existing PyTorch code
+- **Significant accuracy improvements** on challenging tasks
+- **Superior parameter efficiency** compared to standard scaling
+- **Reduced data requirements** for achieving target performance
+- **Robustness to noise** - particularly effective in real-world conditions
+- **Drop-in compatibility** - works with existing PyTorch code
 
 See our [Papers](./Papers) directory for detailed comparisons with other dendritic learning methods.
 
@@ -164,7 +161,7 @@ This library is open source! We welcome contributions from the community.
 - Contact support@perforatedai.com
 
 **Modifying Code:**
-- Provide detailed description of what th change does and the benefits it will provide
+- Provide detailed description of what the change does and the benefits it will provide
 - Use Black python formatting
 - Include comments within code to describe processes
 
@@ -174,7 +171,7 @@ This library is open source! We welcome contributions from the community.
 
 Join the Perforated AI community:
 - 💬 [Discord](https://discord.gg/Fgw3FG3Hzt) - Get help and share results
-- 📧 [Newsletter]([https://perforatedai.com/newsletter](https://www.perforatedai.com/contact)) - Stay updated on dendritic AI research
+- 📧 [Newsletter](https://www.perforatedai.com/contact) - Stay updated on dendritic AI research
 - 🤝 [LinkedIn](https://www.linkedin.com/company/perforated-ai) - Follow our latest developments
 - 🤗 [Hugging Face](https://huggingface.co/perforated-ai) - Try our pretrained models on your datasets
 
@@ -187,7 +184,7 @@ If you use Perforated AI in your research, please cite:
 ```bibtex
 @article{brenner2025perforated,
   title={Perforated Backpropagation: A Neuroscience Inspired Extension to Artificial Neural Networks},
-  author={Brenner, Ryan and others},
+  author={Brenner, Rorry and Itti, Laurent},
   journal={arXiv preprint arXiv:2501.18018},
   year={2025}
 }
