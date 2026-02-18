@@ -1,7 +1,7 @@
 # The Artificial Dendrite Library for PyTorch
 
 <p align="center">
-  <img src="logo.png" width="600" alt="Perforated AI" />
+  <img src="logo.png" width="400" alt="Perforated AI" />
 </p>
 
 <p align="center">
