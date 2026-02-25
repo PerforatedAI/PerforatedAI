@@ -50,7 +50,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
-from model import GPTConfig, GPT
+from model_prefc import GPTConfig, GPT
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
@@ -283,7 +283,7 @@ if block_size < model.config.block_size:
     )
 GPA.pc.append_module_names_to_track(["CausalSelfAttention"])
 GPA.pc.append_module_names_to_track(["MLP"])
-#GPA.pc.append_module_ids_to_track([".lm_head"])
+GPA.pc.append_module_ids_to_track([".lm_head"])
 """
 for i in range(0,47):
     GPA.pc.append_module_ids_to_track([".transformer.h." + str(i) + ".mlp"])
@@ -297,14 +297,15 @@ GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.pc.set_module_names_to_skip(GPA.pc.get_module_names_to_skip() + ['.lm_head'])
 # GPA.verbose = True
 # GPA.extraVerbose = False
-model = UPA.initialize_pai(model, maximizing_score=False, save_name="PAI")
+model = UPA.initialize_pai(model, maximizing_score=False, save_name="PAI_prefc")
 
 import pdb
 
 pdb.set_trace()
 
 model.to(device)
-model.lm_head.set_this_output_dimensions([-1, -1, 0])
+model.lm_prefc.set_this_output_dimensions([-1, -1, 0])
+#model.lm_head.set_this_output_dimensions([-1, -1, 0])
 
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
