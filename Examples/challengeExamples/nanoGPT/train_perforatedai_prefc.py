@@ -128,6 +128,8 @@ dtype = (
     else "float16"
 )  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True  # use PyTorch 2.0 to compile the model to be faster
+# pre-fc warmup
+pretrain_prefc = True  # if True, pretrain only lm_prefc until val loss plateaus
 # -----------------------------------------------------------------------------
 config_keys = [
     k
@@ -281,6 +283,106 @@ if block_size < model.config.block_size:
     model_args["block_size"] = (
         block_size  # so that the checkpoint will have the right value
     )
+
+
+def pretrain_prefc_only(model):
+    """Pretrain only the lm_prefc layer until validation loss plateaus for 10 evals."""
+    if eval_only:
+        print("pretrain_prefc skipped because eval_only=True")
+        return
+
+    # Freeze everything except lm_prefc
+    for name, param in model.named_parameters():
+        param.requires_grad = name.startswith("lm_prefc")
+
+    model.to(device)
+    model.train()
+
+    # Use DDP wrapper only inside this pretrain block if needed
+    model_for_pretrain = model
+    if ddp:
+        model_for_pretrain = DDP(model, device_ids=[ddp_local_rank])
+    raw_model = model_for_pretrain.module if ddp else model_for_pretrain
+
+    # optimizer and scaler scoped to pretrain
+    scaler = torch.cuda.amp.GradScaler(enabled=(dtype == "float16"))
+    optimizer = raw_model.configure_optimizers(
+        weight_decay, learning_rate, (beta1, beta2), device_type
+    )
+
+    @torch.no_grad()
+    def estimate_loss_prefc():
+        out = {}
+        model_for_pretrain.eval()
+        for split in ["train", "val"]:
+            losses = torch.zeros(eval_iters)
+            for k in range(eval_iters):
+                X, Y = get_batch(split)
+                with ctx:
+                    _, loss = model_for_pretrain(X, Y)
+                losses[k] = loss.item()
+            out[split] = losses.mean()
+        model_for_pretrain.train()
+        return out
+
+    def get_lr_prefc(it):
+        if it < warmup_iters:
+            return learning_rate * (it + 1) / (warmup_iters + 1)
+        if it > lr_decay_iters:
+            return min_lr
+        decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+        return min_lr + coeff * (learning_rate - min_lr)
+
+    print("\nStarting pretrain_prefc: training only lm_prefc until val loss plateaus (10 evals)\n")
+    pretrain_iter = 0
+    best_val_loss = float("inf")
+    plateau_count = 0
+
+    X, Y = get_batch("train")
+    while plateau_count < 10:
+        lr = get_lr_prefc(pretrain_iter) if decay_lr else learning_rate
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = lr
+
+        for micro_step in range(gradient_accumulation_steps):
+            if ddp:
+                model_for_pretrain.require_backward_grad_sync = (
+                    micro_step == gradient_accumulation_steps - 1
+                )
+            with ctx:
+                _, loss = model_for_pretrain(X, Y)
+                loss = loss / gradient_accumulation_steps
+            X, Y = get_batch("train")
+            scaler.scale(loss).backward()
+
+        if grad_clip != 0.0:
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model_for_pretrain.parameters(), grad_clip)
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad(set_to_none=True)
+
+        pretrain_iter += 1
+
+        if pretrain_iter % eval_interval == 0 and master_process:
+            losses = estimate_loss_prefc()
+            val_loss = losses["val"]
+            print(
+                f"prefc step {pretrain_iter}: train loss {losses['train']:.4f}, val loss {val_loss:.4f}"
+            )
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                plateau_count = 0
+            else:
+                plateau_count += 1
+                print(f"prefc plateau count: {plateau_count}/10")
+
+    # Restore all parameters to trainable for full training
+    for param in model.parameters():
+        param.requires_grad = True
+
+    print("pretrain_prefc complete; resuming full-model training")
 GPA.pc.append_module_names_to_track(["CausalSelfAttention"])
 GPA.pc.append_module_names_to_track(["MLP"])
 GPA.pc.append_module_ids_to_track([".lm_head"])
@@ -297,6 +399,8 @@ GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.pc.set_module_names_to_skip(GPA.pc.get_module_names_to_skip() + ['.lm_head'])
 # GPA.verbose = True
 # GPA.extraVerbose = False
+if pretrain_prefc:
+    pretrain_prefc_only(model)
 model = UPA.initialize_pai(model, maximizing_score=False, save_name="PAI_prefc")
 
 import pdb
