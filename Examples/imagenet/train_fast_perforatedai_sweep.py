@@ -146,7 +146,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     metric_logger.synchronize_between_processes()
 
     print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
-
     # Add validation score to PerforatedAI tracker and check for restructuring
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Val Acc 5")
     model, restructured, trainingComplete = GPA.pai_tracker.add_validation_score(metric_logger.acc1.global_avg, model)
@@ -691,9 +690,21 @@ def main(args, run=None):
     # Build run name with priority ordering
     excluded = ['method', 'metric', 'parameters']
     priorities = ['dendrite_mode', 'model_arch']
+<<<<<<< HEAD
+<<<<<<< HEAD
     # Add priority keys first with their names
     name_parts = [f"{k}={wandb.config[k]}" for k in priorities if k in wandb.config]
     # Add remaining keys in default order without names
+=======
+    # Add priority keys first
+    name_parts = [str(wandb.config[k]) for k in priorities if k in wandb.config]
+    # Add remaining keys in default order
+>>>>>>> bec25c203e (updated proper savenaming)
+=======
+    # Add priority keys first with their names
+    name_parts = [f"{k}={wandb.config[k]}" for k in priorities if k in wandb.config]
+    # Add remaining keys in default order without names
+>>>>>>> df7876d9e8 (updated READMEs, updated how huggingface looks for metrics, updated pb being able to be turned off correctly with pb installed, updated best_arch_scores to have all scores, created a way to have function passthroughs for modules and for _ variables.)
     remaining_keys = [k for k in parameters_dict.keys() if k not in excluded and k not in priorities]
     name_parts.extend(str(wandb.config[k]) for k in remaining_keys if k in wandb.config)
     name_str = "_".join(name_parts)

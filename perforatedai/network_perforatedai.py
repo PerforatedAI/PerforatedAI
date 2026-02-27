@@ -27,11 +27,11 @@ def convert_network(net, layer_name=""):
                 "converting a single layer without a name, add a layer_name param to the call"
             )
             sys.exit(-1)
-        net = PAIOptimizedModule(net, layer_name)
+        net = PerforatedModule(net, layer_name)
     # Otherwise, check the module recursively if there are other modules to convert
     else:
         net = UPA.convert_module(
-            net, 0, "", [], [], PAIOptimizedModule, PAITrackedModule
+            net, 0, "", [], [], PerforatedModule, PAITrackedModule
         )
     return net
 
@@ -43,7 +43,7 @@ def get_pai_modules(net, depth):
         for submodule_id, layer in net.named_children():
             if net.get_submodule(submodule_id) is net:
                 continue
-            if type(net.get_submodule(submodule_id)) is PAIOptimizedModule:
+            if type(net.get_submodule(submodule_id)) is PerforatedModule:
                 this_list = this_list + [net.get_submodule(submodule_id)]
             else:
                 this_list = this_list + get_pai_modules(
@@ -53,7 +53,7 @@ def get_pai_modules(net, depth):
         for member in all_members:
             if getattr(net, member, None) is net:
                 continue
-            if type(getattr(net, member, None)) is PAIOptimizedModule:
+            if type(getattr(net, member, None)) is PerforatedModule:
                 this_list = this_list + [getattr(net, member)]
             elif issubclass(type(getattr(net, member, None)), nn.Module):
                 this_list = this_list + get_pai_modules(getattr(net, member), depth + 1)
@@ -118,9 +118,9 @@ def load_pai_model(net, filename):
     return load_pai_model_from_dict(net, state_dict)
 
 
-class PAIOptimizedModule(nn.Module):
+class PerforatedModule(nn.Module):
     def __init__(self, original_module, name):
-        super(PAIOptimizedModule, self).__init__()
+        super(PerforatedModule, self).__init__()
         self.name = name
         self.register_buffer("node_index", torch.tensor(-1))
         self.register_buffer("num_cycles", torch.tensor(-1))
