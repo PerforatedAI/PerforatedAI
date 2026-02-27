@@ -1,0 +1,566 @@
+'''
+Training script that loads models from HuggingFace and performs multiple training runs
+with statistical analysis.
+
+Combines functionality from:
+- train_flowers_from_hf.py: HuggingFace model loading
+- train_perforatedai_hf_multi.py: Multiple runs with statistics
+
+Usage:
+python train_from_hf_sweep.py --hf-repo-id perforated-ai/resnet-18-perforated --dataset flowers102 --num-runs 7
+python train_from_hf_sweep.py --hf-repo-id microsoft/resnet-18 --dataset flowers102 --num-runs 5
+'''
+
+import datetime
+import os
+import time
+import torch
+import torch.utils.data
+import torchvision
+import torchvision.transforms
+import utils
+from torch import nn
+from torchvision.transforms.functional import InterpolationMode
+
+
+def get_dataset_config(dataset_name):
+    """Get recommended hyperparameters for each dataset
+    
+    NOTE: Smaller datasets (flowers102, pets, food101) are designed for 
+    transfer learning with pretrained ImageNet weights.
+    """
+    configs = {
+        'cifar100': {
+            'num_classes': 100,
+            'image_size': 32,
+            'epochs': 200,
+            'batch_size': 128,
+            'lr': 0.1,
+            'lr_scheduler': 'cosineannealinglr',
+            'weight_decay': 5e-4,
+            'lr_warmup_epochs': 0,
+            'label_smoothing': 0.1,
+            'use_pretrained': False,  # Train from scratch
+        },
+        'stl10': {
+            'num_classes': 10,
+            'image_size': 96,
+            'epochs': 100,
+            'batch_size': 64,
+            'lr': 0.05,
+            'lr_scheduler': 'cosineannealinglr',
+            'weight_decay': 1e-4,
+            'lr_warmup_epochs': 0,
+            'label_smoothing': 0.0,
+            'use_pretrained': False,  # Train from scratch
+        },
+        'flowers102': {
+            'num_classes': 102,
+            'image_size': 224,
+            'epochs': 200,
+            'batch_size': 32,
+            'lr': 0.001,  # Lower LR for fine-tuning
+            'lr_scheduler': 'cosineannealinglr',
+            'weight_decay': 1e-4,
+            'lr_warmup_epochs': 5,
+            'label_smoothing': 0.1,
+            'use_pretrained': True,  # Use pretrained weights
+        },
+        'pets': {
+            'num_classes': 37,
+            'image_size': 224,
+            'epochs': 50,
+            'batch_size': 32,
+            'lr': 0.001,  # Lower LR for fine-tuning
+            'lr_scheduler': 'cosineannealinglr',
+            'weight_decay': 1e-4,
+            'lr_warmup_epochs': 5,
+            'label_smoothing': 0.0,
+            'use_pretrained': True,  # Use pretrained weights
+        },
+        'food101': {
+            'num_classes': 101,
+            'image_size': 224,
+            'epochs': 30,
+            'batch_size': 64,
+            'lr': 0.001,  # Lower LR for fine-tuning
+            'lr_scheduler': 'cosineannealinglr',
+            'weight_decay': 1e-4,
+            'lr_warmup_epochs': 5,
+            'label_smoothing': 0.0,
+            'use_pretrained': True,  # Use pretrained weights
+        },
+    }
+    return configs.get(dataset_name.lower(), configs['flowers102'])
+
+
+def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, print_freq=10):
+    model.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
+    metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
+
+    header = f"Epoch: [{epoch}]"
+    for i, (image, target) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        start_time = time.time()
+        image, target = image.to(device), target.to(device)
+        
+        output = model(image)
+        if hasattr(output, 'logits'):
+            output = output.logits
+        loss = criterion(output, target)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+        batch_size = image.shape[0]
+        metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
+        metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+        metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+        metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
+
+
+def evaluate(model, criterion, data_loader, device, print_freq=100):
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = "Test:"
+
+    with torch.inference_mode():
+        for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            image = image.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            output = model(image)
+            if hasattr(output, 'logits'):
+                output = output.logits
+            loss = criterion(output, target)
+
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            batch_size = image.shape[0]
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+
+    print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
+    return metric_logger.acc1.global_avg, metric_logger.loss.global_avg
+
+
+def measure_inference_latency(model, data_loader, device, warmup_batches=10):
+    """Measure inference latency and throughput (FPS) of the model."""
+    model.eval()
+    
+    print("\n" + "="*80)
+    print("MEASURING INFERENCE LATENCY")
+    print("="*80)
+    
+    batch_times = []
+    total_images = 0
+    
+    with torch.inference_mode():
+        # Warmup phase
+        print(f"Warmup: Running {warmup_batches} batches...")
+        for i, (image, _) in enumerate(data_loader):
+            if i >= warmup_batches:
+                break
+            image = image.to(device, non_blocking=True)
+            output = model(image)
+            if hasattr(output, 'logits'):
+                output = output.logits
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
+        
+        # Timing phase
+        print("Measuring latency...")
+        for i, (image, _) in enumerate(data_loader):
+            image = image.to(device, non_blocking=True)
+            
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
+            
+            start_time = time.time()
+            output = model(image)
+            if hasattr(output, 'logits'):
+                output = output.logits
+            
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
+            
+            end_time = time.time()
+            
+            batch_time = end_time - start_time
+            batch_times.append(batch_time)
+            total_images += image.shape[0]
+    
+    # Calculate statistics
+    total_time = sum(batch_times)
+    mean_batch_time = total_time / len(batch_times)
+    fps = total_images / total_time
+    mean_latency_ms = mean_batch_time * 1000
+    
+    # Calculate percentiles
+    sorted_times = sorted(batch_times)
+    p50_ms = sorted_times[len(sorted_times)//2] * 1000
+    p95_ms = sorted_times[int(len(sorted_times)*0.95)] * 1000
+    p99_ms = sorted_times[int(len(sorted_times)*0.99)] * 1000
+    
+    results = {
+        'fps': fps,
+        'mean_latency_ms': mean_latency_ms,
+        'p50_latency_ms': p50_ms,
+        'p95_latency_ms': p95_ms,
+        'p99_latency_ms': p99_ms,
+        'total_images': total_images,
+        'total_batches': len(batch_times),
+        'total_time_s': total_time,
+    }
+    
+    print(f"\nLatency Results:")
+    print(f"  Total images processed: {total_images}")
+    print(f"  Total batches: {len(batch_times)}")
+    print(f"  Total time: {total_time:.2f}s")
+    print(f"  Throughput: {fps:.2f} FPS")
+    print(f"  Mean latency per batch: {mean_latency_ms:.2f}ms")
+    print(f"  P50 latency: {p50_ms:.2f}ms")
+    print(f"  P95 latency: {p95_ms:.2f}ms")
+    print(f"  P99 latency: {p99_ms:.2f}ms")
+    print("="*80 + "\n")
+    
+    return results
+
+
+def load_dataset(dataset_name, data_path, batch_size, workers):
+    """Load dataset with standard preprocessing."""
+    print(f"Loading {dataset_name} dataset from {data_path}")
+    
+    # Dataset-specific configurations
+    dataset_configs = {
+        'flowers102': {
+            'num_classes': 102,
+            'img_size': 224,
+            'train_split': 'train',
+            'test_split': 'test',
+            'dataset_class': torchvision.datasets.Flowers102,
+        },
+        'pets': {
+            'num_classes': 37,
+            'img_size': 224,
+            'train_split': 'trainval',
+            'test_split': 'test',
+            'dataset_class': torchvision.datasets.OxfordIIITPet,
+        },
+        'food101': {
+            'num_classes': 101,
+            'img_size': 224,
+            'train_split': 'train',
+            'test_split': 'test',
+            'dataset_class': torchvision.datasets.Food101,
+        },
+        'cifar100': {
+            'num_classes': 100,
+            'img_size': 32,
+            'train_split': True,  # CIFAR uses True/False
+            'test_split': False,
+            'dataset_class': torchvision.datasets.CIFAR100,
+        },
+        'stl10': {
+            'num_classes': 10,
+            'img_size': 96,
+            'train_split': 'train',
+            'test_split': 'test',
+            'dataset_class': torchvision.datasets.STL10,
+        },
+    }
+    
+    if dataset_name not in dataset_configs:
+        raise ValueError(f"Unknown dataset: {dataset_name}. Supported: {list(dataset_configs.keys())}")
+    
+    config = dataset_configs[dataset_name]
+    img_size = config['img_size']
+    interpolation = InterpolationMode.BILINEAR
+    
+    # Training transforms
+    train_transform = torchvision.transforms.Compose([
+        torchvision.transforms.RandomResizedCrop(img_size, interpolation=interpolation),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    # Validation transforms
+    val_resize_size = img_size if img_size <= 32 else int(img_size * 256 / 224)
+    val_transform = torchvision.transforms.Compose([
+        torchvision.transforms.Resize(val_resize_size, interpolation=interpolation),
+        torchvision.transforms.CenterCrop(img_size),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    # Load datasets based on type
+    if dataset_name == 'cifar100':
+        dataset_train = config['dataset_class'](
+            root=data_path, train=config['train_split'], download=True, transform=train_transform
+        )
+        dataset_test = config['dataset_class'](
+            root=data_path, train=config['test_split'], download=True, transform=val_transform
+        )
+    elif dataset_name == 'stl10':
+        dataset_train = config['dataset_class'](
+            root=data_path, split=config['train_split'], download=True, transform=train_transform
+        )
+        dataset_test = config['dataset_class'](
+            root=data_path, split=config['test_split'], download=True, transform=val_transform
+        )
+    else:
+        dataset_train = config['dataset_class'](
+            root=data_path, split=config['train_split'], download=True, transform=train_transform
+        )
+        dataset_test = config['dataset_class'](
+            root=data_path, split=config['test_split'], download=True, transform=val_transform
+        )
+    
+    print(f"Train dataset size: {len(dataset_train)}")
+    print(f"Test dataset size: {len(dataset_test)}")
+    
+    # Create data loaders
+    train_loader = torch.utils.data.DataLoader(
+        dataset_train, batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=True
+    )
+    test_loader = torch.utils.data.DataLoader(
+        dataset_test, batch_size=batch_size, shuffle=False, num_workers=workers, pin_memory=True
+    )
+    
+    return train_loader, test_loader, config['num_classes']
+
+
+def load_model_from_hf(hf_repo_id, num_classes):
+    """Load model from HuggingFace and adapt for target number of classes."""
+    print(f"\nLoading model from HuggingFace: {hf_repo_id}")
+    
+    # Check if it's a perforated model
+    if 'perforated' in hf_repo_id.lower():
+        from perforatedai import utils_perforatedai as UPA
+        from perforatedai import globals_perforatedai as GPA
+        from perforatedai import library_perforatedai as LPA
+        
+        # Create base model architecture
+        base_model = torchvision.models.get_model('resnet18', weights=None, num_classes=1000)
+        model = LPA.ResNetPAIPreFC(base_model)
+        # Load from HuggingFace
+        model = UPA.from_hf_pretrained(model, hf_repo_id)
+        print(f"Successfully loaded perforated model from HuggingFace")
+    else:
+        # Try loading as transformers model
+        try:
+            from transformers import AutoModelForImageClassification
+            model = AutoModelForImageClassification.from_pretrained(hf_repo_id)
+            print(f"Successfully loaded transformers model from HuggingFace")
+        except Exception as e:
+            print(f"Failed to load as transformers model: {e}")
+            # Fallback: try loading as torchvision model
+            model_name = hf_repo_id.split('/')[-1].replace('-', '')
+            print(f"Attempting to load as torchvision model: {model_name}")
+            model = torchvision.models.get_model(model_name, weights='IMAGENET1K_V1')
+            print(f"Successfully loaded torchvision model")
+    
+    # Replace final layer for target number of classes
+    if hasattr(model, 'fc'):
+        # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
+        if hasattr(model.fc, 'main_module'):
+            in_features = model.fc.main_module.in_features
+        else:
+            in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, num_classes)
+        print(f"Replaced fc layer for {num_classes} classes")
+    elif hasattr(model, 'classifier'):
+        # Transformers models use 'classifier'
+        if isinstance(model.classifier, nn.Sequential):
+            in_features = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Linear(in_features, num_classes)
+        else:
+            in_features = model.classifier.in_features
+            model.classifier = nn.Linear(in_features, num_classes)
+        print(f"Replaced classifier layer for {num_classes} classes")
+    else:
+        raise ValueError(f"Cannot adapt model - unknown classifier layer")
+    
+    return model
+
+
+def train_single_run(args, train_loader, test_loader, num_classes):
+    """Perform a single training run and return best accuracy and epoch."""
+    device = torch.device(args.device)
+    
+    # Load model from HuggingFace
+    model = load_model_from_hf(args.hf_repo_id, num_classes)
+    model = model.to(device)
+    
+    # Setup training
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4)
+    
+    # Use CosineAnnealingLR as main scheduler
+    main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=args.epochs - args.lr_warmup_epochs, eta_min=0.0
+    )
+    
+    # Add warmup if specified
+    if args.lr_warmup_epochs > 0:
+        warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
+            optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
+        )
+        lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, 
+            schedulers=[warmup_lr_scheduler, main_lr_scheduler], 
+            milestones=[args.lr_warmup_epochs]
+        )
+    else:
+        lr_scheduler = main_lr_scheduler
+    
+    # Training loop
+    print("\nStarting training...")
+    start_time = time.time()
+    best_acc1 = 0.0
+    best_epoch = 0
+    
+    for epoch in range(args.epochs):
+        train_one_epoch(model, criterion, optimizer, train_loader, device, epoch, args.print_freq)
+        lr_scheduler.step()
+        test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+        
+        # Track best accuracy
+        if test_acc1 > best_acc1:
+            best_acc1 = test_acc1
+            best_epoch = epoch + 1
+        
+        print(f"Epoch {epoch+1}/{args.epochs} - Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}")
+    
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    print(f"\nTraining complete! Total time: {total_time_str}")
+    print(f"Best Test Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
+    
+    return best_acc1, best_epoch, model
+
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Train model from HuggingFace with multiple runs and statistics")
+    parser.add_argument("--hf-repo-id", required=True, type=str, 
+                       help="HuggingFace repository ID (e.g., 'perforated-ai/resnet-18-perforated' or 'microsoft/resnet-18')")
+    parser.add_argument("--dataset", default="flowers102", type=str,
+                       choices=['flowers102', 'pets', 'food101', 'cifar100', 'stl10'],
+                       help="Dataset to train on (default: flowers102)")
+    parser.add_argument("--data-path", default="./data", type=str, help="Dataset path")
+    parser.add_argument("--batch-size", default=None, type=int, help="Batch size (default: dataset-specific)")
+    parser.add_argument("--epochs", default=None, type=int, help="Number of epochs (default: dataset-specific)")
+    parser.add_argument("--lr", default=None, type=float, help="Learning rate (default: dataset-specific)")
+    parser.add_argument("--lr-warmup-epochs", default=None, type=int, help="Number of warmup epochs (default: dataset-specific)")
+    parser.add_argument("--label-smoothing", default=None, type=float, help="Label smoothing (default: dataset-specific)")
+    parser.add_argument("--workers", default=16, type=int, help="Number of data loading workers")
+    parser.add_argument("--device", default="cuda", type=str, help="Device (cuda or cpu)")
+    parser.add_argument("--print-freq", default=10, type=int, help="Print frequency")
+    parser.add_argument("--num-runs", default=7, type=int, help="Number of training runs (default: 7)")
+    
+    args = parser.parse_args()
+    
+    # Apply dataset-specific defaults if not explicitly set
+    config = get_dataset_config(args.dataset)
+    
+    if args.batch_size is None:
+        args.batch_size = config.get('batch_size', 32)
+    if args.epochs is None:
+        args.epochs = config.get('epochs', 50)
+    if args.lr is None:
+        args.lr = config.get('lr', 0.001)
+    if args.lr_warmup_epochs is None:
+        args.lr_warmup_epochs = config.get('lr_warmup_epochs', 5)
+    if args.label_smoothing is None:
+        args.label_smoothing = config.get('label_smoothing', 0.1)
+    
+    print(f"\n{'='*80}")
+    print(f"Training Configuration")
+    print(f"{'='*80}")
+    print(f"HuggingFace Repo: {args.hf_repo_id}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Number of runs: {args.num_runs}")
+    print(f"Epochs per run: {args.epochs}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Learning rate: {args.lr}")
+    print(f"LR warmup epochs: {args.lr_warmup_epochs}")
+    print(f"Label smoothing: {args.label_smoothing}")
+    print(f"Device: {args.device}")
+    print(f"{'='*80}\n")
+    
+    # Load dataset once
+    train_loader, test_loader, num_classes = load_dataset(
+        args.dataset, args.data_path, args.batch_size, args.workers
+    )
+    
+    # Run training multiple times and collect results
+    all_results = []
+    final_model = None
+    
+    for run_num in range(1, args.num_runs + 1):
+        print(f"\n{'='*80}")
+        print(f"STARTING RUN {run_num}/{args.num_runs}")
+        print(f"{'='*80}\n")
+        
+        best_acc1, best_epoch, model = train_single_run(args, train_loader, test_loader, num_classes)
+        all_results.append((best_acc1, best_epoch))
+        
+        # Save the final model for latency measurement
+        if run_num == args.num_runs:
+            final_model = model
+        
+        print(f"\n{'='*80}")
+        print(f"COMPLETED RUN {run_num}/{args.num_runs} - Best Acc@1: {best_acc1:.3f}, Best Epoch: {best_epoch}")
+        print(f"{'='*80}\n")
+    
+    # Measure inference latency with final model
+    latency_results = None
+    if final_model is not None:
+        device = torch.device(args.device)
+        latency_results = measure_inference_latency(final_model, test_loader, device)
+    
+    # Print results in CSV format
+    print(f"\n\n{'='*80}")
+    print(f"ALL {args.num_runs} RUNS COMPLETE - CSV OUTPUT")
+    print(f"{'='*80}\n")
+    
+    # Calculate statistics
+    accs = [acc1 for acc1, _ in all_results]
+    epochs = [epoch for _, epoch in all_results]
+    mean_acc = sum(accs)/len(accs)
+    std_acc = (sum((x - mean_acc)**2 for x in accs) / len(accs))**0.5
+    mean_epoch = sum(epochs)/len(epochs)
+    std_epoch = (sum((x - mean_epoch)**2 for x in epochs) / len(epochs))**0.5
+    
+    # Extract model name from repo ID
+    model_name = args.hf_repo_id.split('/')[-1]
+    
+    # CSV Header
+    print("Model,Dataset,Run,BestAcc1,BestEpoch,FPS,MeanLatency_ms,P95Latency_ms")
+    
+    # Latency values (same for all runs, measured once at end)
+    fps_str = f"{latency_results['fps']:.2f}" if latency_results else "N/A"
+    mean_lat_str = f"{latency_results['mean_latency_ms']:.2f}" if latency_results else "N/A"
+    p95_lat_str = f"{latency_results['p95_latency_ms']:.2f}" if latency_results else "N/A"
+    
+    # Individual runs
+    for i, (acc1, epoch) in enumerate(all_results, 1):
+        print(f"{model_name},{args.dataset},{i},{acc1:.3f},{epoch},{fps_str},{mean_lat_str},{p95_lat_str}")
+    
+    # Statistics rows
+    print(f"{model_name},{args.dataset},Mean,{mean_acc:.3f},{mean_epoch:.1f},{fps_str},{mean_lat_str},{p95_lat_str}")
+    print(f"{model_name},{args.dataset},Std,{std_acc:.3f},{std_epoch:.1f},{fps_str},{mean_lat_str},{p95_lat_str}")
+    print(f"{model_name},{args.dataset},Min,{min(accs):.3f},{min(epochs)},{fps_str},{mean_lat_str},{p95_lat_str}")
+    print(f"{model_name},{args.dataset},Max,{max(accs):.3f},{max(epochs)},{fps_str},{mean_lat_str},{p95_lat_str}")
+    print(f"{model_name},{args.dataset},Range,{max(accs) - min(accs):.3f},{max(epochs) - min(epochs)},{fps_str},{mean_lat_str},{p95_lat_str}")
+    
+    print(f"\n{'='*80}\n")
+
+
+if __name__ == "__main__":
+    main()

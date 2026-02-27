@@ -619,7 +619,7 @@ def main(args):
 
     for i in range(skip_layers):
         GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
-    GPA.pc.append_module_ids_to_track(['.conv1', '.bn1', '.fc'])
+    GPA.pc.append_module_ids_to_track(['.conv1', '.b1', '.fc'])
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
@@ -931,7 +931,7 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--train-crop-size", default=112, type=int, help="the random crop size used for training (default: 112 for fast training)"
     )
-    parser.add_argument("--convert-count", default=4, type=int, help="total number of layers to convert")
+    parser.add_argument("--convert-count", default=0, type=int, help="total number of layers to convert")
     parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
     parser.add_argument("--ra-sampler", action="store_true", help="whether to use Repeated Augmentation in training")
     parser.add_argument(
@@ -949,7 +949,7 @@ def get_args_parser(add_help=True):
                         help="PAI candidate weight initialization multiplier (default: 0.1)")
     parser.add_argument("--pai-forward-function", default="sigmoid", type=str, choices=["sigmoid", "relu", "tanh"],
                         help="PAI forward function (default: sigmoid)")
-    parser.add_argument("--dendrite-mode", default=2, type=int, choices=[0, 1, 2],
+    parser.add_argument("--dendrite-mode", default=1, type=int, choices=[0, 1, 2],
                         help="Dendrite mode: 0=no dendrites, 1=GD dendrites, 2=PB dendrites (default: 2)")
     parser.add_argument("--perforated-load-path", default="", type=str,
                         help="Path to load PerforatedAI checkpoint from (default: '', initialize new)")

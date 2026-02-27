@@ -23,8 +23,13 @@ from perforatedai import network_perforatedai as NPA
 try:
     from perforatedbp import utils_pbp as UPB
 
-except Exception as e:
-    pass
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == 'perforatedbp':
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 import copy
 
 from safetensors.torch import load_file
@@ -2007,7 +2012,7 @@ def set_gpa_config(config):
             if GPA.pc.get_verbose():
                 print(f"No setter found for {key} (looking for {set_method_name})")
     
-    if not GPA.pc.get_verbose():
+    if GPA.pc.get_verbose():
         print(f"Applied {set_count} PAI configuration settings ({skip_count} skipped)")
     
     return set_count
@@ -2078,6 +2083,19 @@ try:
         # Prepare model same way as save_pai_net does
         model = prepare_final_model(model)
         
+        # Calculate parameter count
+        param_count = count_params(model)
+        
+        # Format parameter count for tags (e.g., "11m" for 11 million)
+        if param_count >= 1e9:
+            param_tag = f"{param_count/1e9:.0f}b"
+        elif param_count >= 1e6:
+            param_tag = f"{param_count/1e6:.0f}m"
+        elif param_count >= 1e3:
+            param_tag = f"{param_count/1e3:.0f}k"
+        else:
+            param_tag = str(param_count)
+        
         # Create a temporary directory for files
         with tempfile.TemporaryDirectory() as tmpdir:
             # Save model weights
@@ -2092,6 +2110,9 @@ try:
                 if GPA.pc.get_verbose():
                     print(f"Extracted {len(pai_config)} PAI configuration parameters")
             
+            # Add parameter count at top level
+            config['num_parameters'] = param_count
+            
             # Add metadata
             if license:
                 config['license'] = license
@@ -2099,8 +2120,24 @@ try:
                 config['pipeline_tag'] = pipeline_tag
             if repo_url:
                 config['repo_url'] = repo_url
-            if tags:
-                config['tags'] = tags
+            
+            # Add tags with parameter count
+            if tags is None:
+                tags = []
+            elif not isinstance(tags, list):
+                tags = [tags]
+            else:
+                tags = tags.copy()  # Don't modify the original list
+            
+            # Add perforated-ai tag if not present
+            if "perforated-ai" not in tags:
+                tags.insert(0, "perforated-ai")
+            
+            # Add parameter count tag if not present
+            if param_tag not in tags:
+                tags.append(param_tag)
+            
+            config['tags'] = tags
             
             # Save config.json
             config_path = os.path.join(tmpdir, "config.json")
@@ -2162,7 +2199,7 @@ try:
             with open(config_path, 'r') as f:
                 config = json.load(f)
                 if 'pai_config' in config:
-                    print(f"Restoring PAI configuration from HuggingFace")
+                    #print(f"Restoring PAI configuration from HuggingFace")
                     set_gpa_config(config['pai_config'])
                 else:
                     print("Warning: No pai_config found in config.json")
@@ -2172,7 +2209,6 @@ try:
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors")
         state_dict = load_file(model_path)
-        GPA.pc.set_verbose(True)
         wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
