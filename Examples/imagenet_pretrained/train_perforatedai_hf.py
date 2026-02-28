@@ -441,6 +441,7 @@ def main(args):
         for i in range(4):
             GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
         GPA.pc.append_module_ids_to_track(['.b1'])
+        GPA.pc.append_module_ids_to_track(['.fc', '.conv1', '.bn1'])
         GPA.pc.append_module_names_to_convert(["BasicBlock", "Bottleneck"])
         
         if args.hf_mode == 2:
@@ -465,7 +466,14 @@ def main(args):
         
             model = custom_resnet.ResNetPAI(model)
             model = UPA.initialize_pai(model)
-            model = UPA.load_system(model, 'pretrained', 'best_model', True)
+            pretrained_path = args.pretrained_path
+            if not pretrained_path.endswith(".pt"):
+                raise ValueError(f"--pretrained-path must end with .pt (got: {pretrained_path})")
+            pretrained_dir, pretrained_file = os.path.split(pretrained_path)
+            if not pretrained_dir:
+                pretrained_dir = "."
+            pretrained_name = os.path.splitext(pretrained_file)[0]
+            model = UPA.load_system(model, pretrained_dir, pretrained_name, True)
             model = BPA.blockwise_network(model)
             model  = CPA.refresh_net(model)
             
@@ -587,10 +595,10 @@ def main(args):
             raise ValueError("--hf-repo-id is required when using --hf-mode 1")
         print(f"\nUploading model to HuggingFace: {args.hf_repo_id}")
         from perforatedai import modules_perforatedai as MPA
-        model.fc = MPA.TrackedNeuronModule(model.fc, "model.fc")
-        model.conv1 = MPA.TrackedNeuronModule(model.b1.model[0], "model.conv1")
-        model.bn1 = MPA.TrackedNeuronModule(model.b1.model[1], "model.bn1")
-        del model.b1
+        #model.fc = MPA.TrackedNeuronModule(model.fc, "model.fc")
+        #model.conv1 = MPA.TrackedNeuronModule(model.b1.model[0], "model.conv1")
+        #model.bn1 = MPA.TrackedNeuronModule(model.b1.model[1], "model.bn1")
+        #del model.b1
         UPA.upload_to_huggingface(
             model, 
             args.hf_repo_id,
@@ -931,6 +939,12 @@ def get_args_parser(add_help=True):
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
     parser.add_argument("--hf-mode", default=0, type=int, choices=[0, 1, 2], help="HuggingFace mode: 0=normal (default), 1=upload after loading, 2=load from HuggingFace")
     parser.add_argument("--hf-repo-id", default=None, type=str, help="HuggingFace repository ID (e.g., 'username/model-name') for upload (mode 1) or download (mode 2)")
+    parser.add_argument(
+        "--pretrained-path",
+        default="./pretrained/best_model.pt",
+        type=str,
+        help="Path to a local .pt file used by load_system (default: ./pretrained/best_model.pt)",
+    )
     return parser
 
 
