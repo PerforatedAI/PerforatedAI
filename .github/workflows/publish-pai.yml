@@ -116,7 +116,7 @@ jobs:
         set -x
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG/"
+        RELEASE_DIR="./perforatedai-releases/$TAG/"
         if [ ! -e $RELEASE_DIR ]; then 
           mkdir -p $RELEASE_DIR
         fi
@@ -134,6 +134,7 @@ jobs:
           echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
           
           # Fresh pull before each attempt
+          git remote set-url origin https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
           git fetch origin
           git checkout develop
           git pull --rebase
@@ -189,7 +190,7 @@ jobs:
       run: |
         set -x
         echo "Cloning the repository..."
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI.git
+        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
         cd PerforatedAI
         git checkout develop
         pwd
@@ -206,7 +207,7 @@ jobs:
       run: |
         set -x
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG"
+        RELEASE_DIR="./perforatedai-releases/$TAG"
         cd $RELEASE_DIR
         auditwheel repair *.whl
         ls wheelhouse/
@@ -227,6 +228,7 @@ jobs:
           echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
           
           # Fresh pull before each attempt
+          git remote set-url origin https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
           git fetch origin
           git checkout develop
           git pull --rebase
@@ -308,7 +310,7 @@ jobs:
         set -x
         ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG/"
+        RELEASE_DIR="./perforatedai-releases/$TAG/"
         if [ ! -e $RELEASE_DIR ]; then 
           mkdir -p $RELEASE_DIR
         fi
@@ -326,6 +328,7 @@ jobs:
           echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
           
           # Fresh pull before each attempt
+          git remote set-url origin https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
           git fetch origin
           git checkout develop
           git pull --rebase
@@ -430,6 +433,7 @@ jobs:
           Write-Host "Attempt $($RETRY_COUNT + 1) of $MAX_RETRIES"
           
           # Fresh pull before each attempt
+          git remote set-url origin https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
           git fetch origin
           git checkout develop
           git pull --rebase
@@ -519,7 +523,7 @@ jobs:
         run: |
           set -x
           TAG=${{ github.ref_name }}
-          RELEASE_DIR="./releases/$TAG/"
+          RELEASE_DIR="./perforatedai-releases/$TAG/"
           if [ ! -e $RELEASE_DIR ]; then 
             mkdir -p $RELEASE_DIR
           fi
@@ -537,6 +541,7 @@ jobs:
             echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
             
             # Fresh pull before each attempt
+            git remote set-url origin https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
             git fetch origin
             git checkout develop
             git pull --rebase
