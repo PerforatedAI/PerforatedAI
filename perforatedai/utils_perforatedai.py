@@ -22,7 +22,7 @@ from perforatedai import network_perforatedai as NPA
 
 try:
     from perforatedbp import utils_pbp as UPB
-
+    from perforatedbp import modules_pbp as MPB
 except ModuleNotFoundError as e:
     # Only pass if perforatedbp package itself is missing
     if e.name == 'perforatedbp':
@@ -30,6 +30,8 @@ except ModuleNotFoundError as e:
     else:
         # perforatedbp exists but is missing a dependency
         raise
+
+
 import copy
 
 from safetensors.torch import load_file
@@ -631,6 +633,7 @@ def convert_network(net, layer_name=""):
     """
     if GPA.pc.get_perforated_backpropagation():
         UPB.initialize_pb()
+        MPB.set_main_parameters(net)
     if type(net) in GPA.pc.get_modules_to_replace():
         net = replace_predefined_modules(net)
     if (type(net) in GPA.pc.get_modules_to_convert()) or (
@@ -692,9 +695,7 @@ def convert_network(net, layer_name=""):
             print(
                 "Any modules in the second list should be added to module_names_to_track"
             )
-            print(
-                "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
-            )
+
             print(
                 "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time"
             )
@@ -703,8 +704,12 @@ def convert_network(net, layer_name=""):
             )
             # If did miss some then set trace to debug
             if len(missed_ones) != 0:
+                print(
+                "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
+                )
+
                 pdb.set_trace()
-            print("confirmed")
+                print("confirmed")
     net.register_buffer("tracker_string", torch.tensor([], dtype=torch.uint8))
     return net
 
@@ -1177,8 +1182,6 @@ def load_net_from_dict(net, state_dict):
             "initialize_pai on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
-        import pdb
-
         pdb.set_trace()
         sys.exit(-1)
     if(GPA.pc.get_verbose()):
@@ -1260,7 +1263,6 @@ def load_net_from_dict(net, state_dict):
                 print("\n7 - You are running multiple experiments at once with the same save_name."
                       " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
                 )
-                import pdb
 
                 pdb.set_trace()
 
@@ -1301,6 +1303,8 @@ def load_net_from_dict(net, state_dict):
             manual_load_state_dict(net, state_dict)
         else:
             print(f"Error loading state_dict: {e}")
+            print("\ntype \'c\' to print full state dicts\n")
+            pdb.set_trace()
             print("net state dict is:")
             print(net.state_dict())
             print("loaded state dict is:")
@@ -1921,7 +1925,6 @@ def convert_to_type(value, type_name):
         # Unknown type - error and debug
         print(f"ERROR: Unknown type '{type_name}' for value: {value}")
         print(f"Type of value is: {type(value).__name__}")
-        import pdb
         pdb.set_trace()
         return value
 

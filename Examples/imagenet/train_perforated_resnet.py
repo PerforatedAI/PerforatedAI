@@ -7,6 +7,11 @@ CUDA_VISIBLE_DEVICES=0 python -m pdb train_fast_perforatedai_from_config.py --mo
 """
 CUDA_VISIBLE_DEVICES=1 python -m pdb train_fast_perforatedai_from_config.py --model resnet50 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu --perforated-load-path resnet50_c0_wd0.0001_dmode1_20260128_174922
 
+
+# This was the one that had the sudden large jump
+CUDA_VISIBLE_DEVICES=0 python train_perforated.py --model resnet18 --convert-count 0 --wd 0.0001 --dendrite-mode 1 --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260208_091654
+
+
 """
 
 """
@@ -36,7 +41,8 @@ Test:  Acc@1 61.660 Acc@5 85.200
 current command, maybe working?:
 CUDA_VISIBLE_DEVICES=0 python train_fast_perforatedai_from_config.py     --model resnet18     --batch-size 32     --lr 0.0125     --val-resize-size 256     --val-crop-size 224     --train-crop-size 224     --full-dataset     --data-path /home/rbrenner/Datasets/imagenet     --convert-count 0     --dendrite-mode 1     --improvement-threshold 0     --candidate-weight-init-mult 0.1     --pai-forward-function relu --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260112_205006
 
-
+Think this is the current command actually:
+CUDA_VISIBLE_DEVICES=1 python -m pdb train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
 """
 
@@ -619,7 +625,7 @@ def main(args):
 
     for i in range(skip_layers):
         GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
-    GPA.pc.append_module_ids_to_track(['.conv1', '.b1', '.fc'])
+    GPA.pc.append_module_ids_to_track(['.conv1', '.bn1', 'conv1', '.fc'])
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
@@ -633,7 +639,7 @@ def main(args):
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != '':
         model = UPA.initialize_pai(model, save_name=args.perforated_load_path)
-        model = UPA.load_system(model, args.perforated_load_path, 'latest', True)
+        model = UPA.load_system(model, args.perforated_load_path, 'switch_2', True)
     else:
         model = UPA.initialize_pai(model, save_name=save_name_with_timestamp)
 
@@ -655,7 +661,7 @@ def main(args):
     
     # Create optimizer and scheduler
     optimizer, lr_scheduler = create_optimizer_and_scheduler(model, args, custom_keys_weight_decay)
-
+    args.lr = args.lr * 10  # Increase LR after restructuring to help adapt to new architecture
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
     model_without_ddp = model

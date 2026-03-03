@@ -16,7 +16,7 @@ Supported models include:
 
 ### Baseline models
 
-For training baseline models, make sure you are using the off-the-shelf `transformers` library instead of the PerforatedAI-Transformers version:
+For training baseline models, make sure you are using the off-the-shelf `transformers` library instead of the transformers-perforated version:
 
     pip install transformers
 
@@ -45,10 +45,10 @@ Usage example for SNLI:
 
 ### PerforatedAI models
 
-To train a PerforatedAI model, first install the PerforatedAI-Transformers version of the `transformers` library:
+To train a PerforatedAI model, first install the transformers-perforated version of the `transformers` library:
 
-    git clone https://github.com/PerforatedAI/PerforatedAI-Transformers.git
-    cd PerforatedAI-Transformers
+    git clone https://github.com/PerforatedAI/transformers-perforated.git
+    cd transformers-perforated
     pip install -e .
     pip install perforatedai
 

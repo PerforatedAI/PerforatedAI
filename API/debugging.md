@@ -339,6 +339,9 @@ This error can be caused by a few different reasons:
 
     We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
+### No inf checks were recorded prior to update
+
+This error can sometimes come up when amp is being used.  We currently do not have a working around for this.
 
 ## Extra Debugging
 

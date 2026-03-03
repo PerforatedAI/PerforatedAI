@@ -1175,8 +1175,9 @@ class ResNetPAI(nn.Module):
 
         # For the component to be changed, define a PAISequential with the old
         # modules included
-        self.b1 = GPA.PAISequential([other_resnet.conv1, other_resnet.bn1])
-
+        #self.b1 = GPA.PAISequential([other_resnet.conv1, other_resnet.bn1])
+        self.conv1 = other_resnet.conv1
+        self.bn1 = other_resnet.bn1
         self.relu = other_resnet.relu
         self.maxpool = other_resnet.maxpool
 
@@ -1240,10 +1241,9 @@ class ResNetPAI(nn.Module):
         torch.Tensor
             Output tensor from the network.
         """
-        # Modified b1 rather than conv1 and bn1
-        x = self.b1(x)
-        # Rest of forward remains the same
-        x = F.relu(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
