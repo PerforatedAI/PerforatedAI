@@ -1897,14 +1897,23 @@ class PAINeuronModuleTracker:
             )
             pdb.set_trace()
         if not GPA.pc.get_silent():
-
-            print(
-                f'Checking PAI switch with mode {self.member_vars["mode"]}, '
-                f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
-                f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
-                f'total epochs {self.member_vars["total_epochs_run"]}, '
-                f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
-            )
+            if(GPA.pc.get_perforated_backpropagation()):
+                print(
+                    f'Checking PAI switch with mode {self.member_vars["mode"]}, '
+                    f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
+                    f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'total epochs {self.member_vars["total_epochs_run"]}, '
+                    f'n: {switch_number}, p: {GPA.pc.get_n_epochs_to_switch()}, '
+                    f'num_cycles: {self.member_vars["num_cycles"]}'
+                )
+            else:
+                print(
+                    f'Checking PAI switch with mode {self.member_vars["mode"]}, '
+                    f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
+                    f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'total epochs {self.member_vars["total_epochs_run"]}, '
+                    f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
+                )
         if GPA.pc.get_perforated_backpropagation():
             # this will fill in epoch last improved
             TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY
