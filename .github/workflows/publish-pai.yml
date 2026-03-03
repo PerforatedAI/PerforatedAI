@@ -204,7 +204,7 @@ jobs:
       run: |
         set -x
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG"
+        RELEASE_DIR="./perforatedai-releases/$TAG"
         cd $RELEASE_DIR
         auditwheel repair *.whl
         ls wheelhouse/
