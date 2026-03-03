@@ -1,0 +1,86 @@
+# LocalLlama Coder Configuration
+
+# Model Configuration
+model:
+  name: "codellama/CodeLlama-7b-hf"  # HuggingFace model ID
+  load_in_8bit: false  # Enable 8-bit quantization
+  torch_dtype: "float16"  # Use float16 for faster inference
+  device_map: "auto"  # Automatic device mapping
+  
+# LoRA Configuration
+lora:
+  r: 16  # LoRA rank
+  lora_alpha: 32  # LoRA alpha parameter
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# Training Configuration
+training:
+  epochs:  3
+  batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  max_grad_norm: 0.3
+  warmup_ratio: 0.03
+  lr_scheduler_type: "cosine"
+  logging_steps: 10
+  save_steps: 100
+  eval_steps: 100
+  output_dir: "models/"
+  
+# PerforatedAI Configuration
+pai:
+  forward_function: "forward"
+  correlation_threshold: 0.001
+  weight_decay_accepted: true
+  optimization_target: "attention"  # Focus on attention layers
+  enable_tracker: true
+  
+# Dataset Configuration
+dataset:
+  name: "synthetic"  # Use "codeparrot" for real data
+  max_length: 512
+  num_samples_demo: 100  # For demo mode
+  split_ratio:
+    train: 0.9
+    validation: 0.1
+    
+# Inference Configuration
+inference:
+  max_new_tokens: 128
+  temperature: 0.7
+  top_p: 0.95
+  do_sample: true
+  use_cache: true
+  
+# Benchmarking Configuration
+benchmark:
+  num_iterations: 100
+  prompts:
+    - "def bubble_sort(arr):"
+    - "class BinaryTree:"
+    - "def fibonacci(n):"
+    - "async function fetchData():"
+    - "SELECT * FROM users WHERE"
+    
+# Payment Configuration
+payment:
+  provider: "polar.sh"
+  wallets:
+    btc: "145U3n87FxXRC1nuDNDVXLZjyLzGhphf9Y"
+    bsc: "0x23f0c8637de985b848b380aeba7b4cebbcfb2c47"
+  tiers:
+    free:
+      features: ["Basic code completion", "Single GPU"]
+    pro:
+      features: ["Multi-GPU training", "Extended context", "Custom fine-tuning"]
+      price_usd: 29.99
