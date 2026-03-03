@@ -1,0 +1,2 @@
+*.safetensors filter=lfs diff=lfs merge=lfs -text
+Examples/hackathonProjects/Perforated_OCR/baseline_model/*.safetensors filter=lfs diff=lfs merge=lfs -text
