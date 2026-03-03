@@ -477,6 +477,7 @@ def main(args):
             model = BPA.blockwise_network(model)
             model  = CPA.refresh_net(model)
             
+            
 
         print("model has total params: ", sum([p.numel() for p in model.parameters()]))
 
@@ -494,7 +495,7 @@ def main(args):
                 print(f"Kept custom FC as trainable feature extractor ({fc_out_features}D), added adapter layer for {num_classes} classes")
             else:
                 print("Warning: --keep-fc-as-features specified but model has no 'fc' layer")
-        else:
+        elif(args.hf_mode != 1):
             # Replace final layer with correct number of classes
             if hasattr(model, 'fc'):
                 # ResNet, RegNet, etc.
@@ -595,10 +596,17 @@ def main(args):
             raise ValueError("--hf-repo-id is required when using --hf-mode 1")
         print(f"\nUploading model to HuggingFace: {args.hf_repo_id}")
         from perforatedai import modules_perforatedai as MPA
-        #model.fc = MPA.TrackedNeuronModule(model.fc, "model.fc")
-        #model.conv1 = MPA.TrackedNeuronModule(model.b1.model[0], "model.conv1")
-        #model.bn1 = MPA.TrackedNeuronModule(model.b1.model[1], "model.bn1")
-        #del model.b1
+
+        correctingb1 = True
+        if correctingb1:
+            from collections import OrderedDict
+            model.conv1 = MPA.TrackedNeuronModule(model.b1.model[0], "model.conv1")
+            model.bn1 = MPA.TrackedNeuronModule(model.b1.model[1], "model.bn1")
+            del model.b1
+            priority = ['conv1', 'bn1']
+            reordered = priority + [k for k in model._modules if k not in priority]
+            model._modules = OrderedDict((k, model._modules[k]) for k in reordered)
+
         UPA.upload_to_huggingface(
             model, 
             args.hf_repo_id,
@@ -934,7 +942,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
     parser.add_argument("--perforatedai", action="store_true", help="Use PerforatedAI model")
-    parser.add_argument("--keep-fc-as-features", default=1, type=int, help="Keep FC layer as feature extractor and add adapter layer on top (default: True)")
+    parser.add_argument("--keep-fc-as-features", default=0, type=int, help="Keep FC layer as feature extractor and add adapter layer on top (default: True)")
     parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
     parser.add_argument("--hf-mode", default=0, type=int, choices=[0, 1, 2], help="HuggingFace mode: 0=normal (default), 1=upload after loading, 2=load from HuggingFace")

@@ -91,7 +91,7 @@ dropout = 0.0  # for pretraining 0 is good, for finetuning try 0.1+
 n_layer = 12
 n_head = 12
 n_embd = 768
-dropout = 0.35  # for pretraining 0 is good, for finetuning try 0.1+
+dropout = 0.5  # for pretraining 0 is good, for finetuning try 0.1+
 
 
 """

@@ -91,7 +91,7 @@ dropout = 0.0  # for pretraining 0 is good, for finetuning try 0.1+
 n_layer = 12
 n_head = 12
 n_embd = 768
-dropout = 0.35  # for pretraining 0 is good, for finetuning try 0.1+
+dropout = 0.5  # for pretraining 0 is good, for finetuning try 0.1+
 
 
 """
@@ -128,6 +128,13 @@ dtype = (
     else "float16"
 )  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
 compile = True  # use PyTorch 2.0 to compile the model to be faster
+# -----------------------------------------------------------------------------
+# Overwrite settings to reduce overfitting (pretrained-safe)
+learning_rate = 2e-4
+lr_decay_iters = 200000
+weight_decay = 2e-1
+block_size = 512
+eval_interval = 4000
 # -----------------------------------------------------------------------------
 config_keys = [
     k
@@ -298,10 +305,6 @@ GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.verbose = True
 # GPA.extraVerbose = False
 model = UPA.initialize_pai(model, maximizing_score=False, save_name="PAI")
-
-import pdb
-
-pdb.set_trace()
 
 model.to(device)
 model.lm_head.set_this_output_dimensions([-1, -1, 0])

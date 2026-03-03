@@ -18,10 +18,13 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
-except ModuleNotFoundError:
-    pass  # Module not found, pass silently
-except ImportError as e:
-    print(f"Import error occurred: {e}")
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == 'perforatedbp':
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 
 
 # Values for Dendrite training, minimally used in open source version

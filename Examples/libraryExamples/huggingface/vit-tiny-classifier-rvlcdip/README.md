@@ -6,8 +6,8 @@ This example demonstrates training a Vision Transformer (ViT) for document class
 
 ```bash
 pip install "datasets<3.0.0" torch torchvision tqdm lz4
-git clone https://github.com/PerforatedAI/PerforatedAI-Transformers.git
-pip install -e PerforatedAI-Transformers
+git clone https://github.com/PerforatedAI/transformers-perforated.git
+pip install -e transformers-perforated
 ```
 
 For PerforatedAI support:

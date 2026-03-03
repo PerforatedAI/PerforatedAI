@@ -56,7 +56,7 @@ def main():
     # ============================================================
     # 🔴 PAI CONFIG — MUST BE SET *BEFORE* INITIALIZE
     # ============================================================
-    GPA.pc.set_switch_mode("DOING_HISTORY")
+    GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_max_dendrites(6)
     GPA.pc.set_perforated_backpropagation(False)
