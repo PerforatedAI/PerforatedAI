@@ -115,7 +115,13 @@ jobs:
       run: |
         set -x
         TAG=${{ github.ref_name }}
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+          echo "Clone attempt $i failed, retrying..."
+          sleep $((i * 5 + RANDOM % 10))
+          if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+        done
         RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
         mkdir -p $RELEASE_DIR
         cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
@@ -187,9 +193,12 @@ jobs:
       run: |
         set -x
         echo "Cloning the repository..."
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git
-        cd PerforatedAI-Releases
-        git checkout main
+        yum install -y https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.rpm || true
+        yum install -y git
+        git --version
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git && break
         pwd
         ls -al 
 
@@ -305,7 +314,13 @@ jobs:
       run: |
         set -x
         TAG=${{ github.ref_name }}
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+          echo "Clone attempt $i failed, retrying..."
+          sleep $((i * 5 + RANDOM % 10))
+          if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+        done
         RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
         mkdir -p $RELEASE_DIR
         cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
@@ -408,7 +423,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
         $TAG = "${{ github.ref_name }}"
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+        $CLONE_RETRIES = 5
+        for ($i = 1; $i -le $CLONE_RETRIES; $i++) {
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+          if ($LASTEXITCODE -eq 0) { break }
+          Write-Host "Clone attempt $i failed, retrying..."
+          Start-Sleep -Seconds ($i * 5 + (Get-Random -Maximum 10))
+          if ($i -eq $CLONE_RETRIES) { exit 1 }
+        }
         $RELEASE_DIR = "perforatedai-releases-repo\perforatedai-releases\$TAG\"
         New-Item -ItemType Directory -Path $RELEASE_DIR -Force
         Copy-Item pai_module\dist\*.whl -Destination $RELEASE_DIR -Recurse -Force
@@ -514,7 +536,13 @@ jobs:
         run: |
           set -x
           TAG=${{ github.ref_name }}
-          git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+          CLONE_RETRIES=5
+          for i in $(seq 1 $CLONE_RETRIES); do
+            git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+            echo "Clone attempt $i failed, retrying..."
+            sleep $((i * 5 + RANDOM % 10))
+            if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+          done
           RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
           mkdir -p $RELEASE_DIR
           cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
