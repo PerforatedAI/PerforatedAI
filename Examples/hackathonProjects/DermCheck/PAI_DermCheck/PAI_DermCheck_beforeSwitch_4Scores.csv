@@ -1,0 +1,7 @@
+Epochs,Validation Scores,Validation Running Scores
+0,0.2,
+1,0.15,
+2,0.2,
+0,,0.2
+1,,0.15
+2,,0.2
