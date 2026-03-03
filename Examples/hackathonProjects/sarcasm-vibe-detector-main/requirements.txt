@@ -1,0 +1,11 @@
+
+fastapi
+uvicorn[standard]
+transformers
+torch
+onnxruntime
+numpy
+pydantic
+python-multipart
+scikit-learn
+pandas
