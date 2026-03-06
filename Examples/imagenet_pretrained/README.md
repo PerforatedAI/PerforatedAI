@@ -43,16 +43,6 @@ Upload a locally loaded model to HuggingFace (uses the current model definition 
     --hf-repo-id "your-username/your-model-name" \
     --pretrained-path ./pretrained/best_model.pt
 
-If you want to upload a different local checkpoint, pass a custom path (must end in .pt):
-
-    python train_perforatedai_hf.py \
-    --dataset flowers102 \
-    --model resnet18 \
-    --perforatedai \
-    --hf-mode 1 \
-    --hf-repo-id "your-username/your-model-name" \
-    --pretrained-path /path/to/your_checkpoint.pt
-
 ## Using the pretrained ResNet-18 in your own project
 
 First install the repo to access the base model that includes the pre-fc layer:
