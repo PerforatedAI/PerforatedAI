@@ -91,12 +91,14 @@ When a switch occurs:
 
 If a new dendrite does not improve validation performance, the previous architecture is restored.
 
+---
+
 ### Example Results
 
 | Model       | Test Accuracy | Precision | Recall | F1         |
 | ----------- | ------------- | --------- | ------ | ---------- |
 | Baseline    | 61.03%        | 0.6115    | 0.6053 | 0.6084     |
-| + Dendrites | 59.76%        | 0.5693    | 0.8014 | **0.6657** |
+| + Dendrites | 59.76%        | 0.5693    | 0.8014 | 0.6657     |
 
 Dendrites improve overall F1 and recall, dynamically increasing model capacity to better capture rare fire events.
 
