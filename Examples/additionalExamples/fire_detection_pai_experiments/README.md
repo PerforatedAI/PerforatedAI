@@ -60,14 +60,65 @@ The script automatically runs two versions:
 - `is_dendrite = False` ->  Standard MLP  
 - `is_dendrite = True` ->  MLP with dynamic dendrite growth  
 
+PerforatedAI uses fixed switching mode:
+
+DOING_FIXED_SWITCH
+fixed_switch_num = 4
+
+This means dendrite restructuring is evaluated every 4 validation cycles, allowing the model to train sufficiently before architecture changes occur.
+
+---
+
+## Dendrite Growth Behavior
+
+During training, three dendrites were added.
+
+Switch events occurred at:
+
+| Epoch | Event                                                                           |
+| ----- | ------------------------------------------------------------------------------- |
+| 4     | First dendrite added                                                            |
+| 11    | Second dendrite added                                                           |
+| 16    | Third dendrite added                                                            |
+| 20    | Switch attempted but rejected because it did not improve validation performance |
+
+When a switch occurs:
+
+- The best-performing model checkpoint is restored
+- A dendrite is added to increase model capacity
+- The optimizer and scheduler are reset
+- Training continues with the updated architecture
+
+If a new dendrite does not improve validation performance, the previous architecture is restored.
+
 ### Example Results
 
-| Model | Test Accuracy | Precision | Recall | F1 |
-|-------|--------------|----------|--------|-----|
-| Baseline | 61.03% | 0.6115 | 0.6053 | 0.6084 |
-| + Dendrites | 63.25% | 0.6062 | 0.7558 | 0.6728 |
+| Model       | Test Accuracy | Precision | Recall | F1         |
+| ----------- | ------------- | --------- | ------ | ---------- |
+| Baseline    | 61.03%        | 0.6115    | 0.6053 | 0.6084     |
+| + Dendrites | 59.76%        | 0.5693    | 0.8014 | **0.6657** |
 
 Dendrites improve overall F1 and recall, dynamically increasing model capacity to better capture rare fire events.
+
+---
+
+### Interpretation
+
+Although overall accuracy decreased slightly, dendrite restructuring significantly improved recall and F1 score.
+
+Key changes:
+
+| Metric   | Baseline | Dendrites  |
+| -------- | -------- | ---------- |
+| Recall   | 0.6053   | **0.8014** |
+| F1 Score | 0.6084   | **0.6657** |
+
+Recall improved substantially, meaning the model detects many more true fire events.
+
+This is important because wildfire detection is a rare event problem. Missing a true fire pixel is typically far more costly than generating a few additional false positives.
+
+Dendrites increase model capacity dynamically, allowing the network to capture patterns associated with rare fire events that the baseline architecture could not model effectively.
+
 ---
 
 ## Class Imbalance
@@ -126,10 +177,11 @@ Run all cells.
 
 ## Key Observations
 
-- Baseline MLP achieves moderate F1 and recall under balanced training.
-- Dendrite restructuring increases model capacity dynamically, improving F1 and recall on test set.
-- Using pos_weight in BCE loss and emphasizing recall ensures rare fire events are better captured.
-- Balanced sampling stabilizes training and allows fair comparison between baseline and dendrite models.
+- Baseline MLP achieves moderate performance under balanced training.
+- PerforatedAI dynamically expands the network through dendrite growth.
+- Three dendrites were added during training, increasing model capacity.
+- This resulted in substantially improved recall and F1 score.
+- Dynamic architecture growth allows the model to better capture rare wildfire patterns.
 
 ---
 
@@ -139,6 +191,7 @@ Run all cells.
 - Explore spatio-temporal models (CNN / RNN / Transformers)
 - Improve precision-recall tradeoff via threshold tuning
 - Evaluate full imbalanced dataset without balancing
+- Investigate dendrite growth behavior on larger architectures
 
 ---
 
