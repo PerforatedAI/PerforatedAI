@@ -114,8 +114,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, pri
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
 
-    header = f"Epoch: [{epoch}]"
-    for i, (image, target) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+    for i, (image, target) in enumerate(data_loader):
         start_time = time.time()
         image, target = image.to(device), target.to(device)
         output = model(image)
@@ -214,7 +213,6 @@ def load_dataset(dataset_name, data_path, batch_size, workers=16):
     train_transform = torchvision.transforms.Compose([
         torchvision.transforms.RandomResizedCrop(image_size),
         torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
@@ -342,8 +340,9 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     model = load_model_from_hf(args.hf_repo_id, num_classes, model_type=args.model_type)
     model = model.to(device)
     GPA.pc.append_module_names_to_track(['Conv2dNormActivation', 'InvertedResidual']) 
-    GPA.pc.append_module_ids_to_track(['.classifier.0'])
+    #GPA.pc.append_module_ids_to_track(['.classifier.0'])
     GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_n_epochs_to_switch(25)
     model = UPA.initialize_pai(model, save_name="PAI-" + (args.hf_repo_id).split('/')[-1])  # Initialize PAI state for potential future pruning steps
 
     import pdb; pdb.set_trace()
