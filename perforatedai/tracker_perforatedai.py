@@ -1903,7 +1903,7 @@ class PAINeuronModuleTracker:
                     f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
                     f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
                     f'total epochs {self.member_vars["total_epochs_run"]}, '
-                    f'n: {switch_number}, p: {GPA.pc.get_n_epochs_to_switch()}, '
+                    f'n: {switch_number}, p: {GPA.pc.get_p_epochs_to_switch()}, '
                     f'num_cycles: {self.member_vars["num_cycles"]}'
                 )
             else:
@@ -2231,6 +2231,14 @@ class PAINeuronModuleTracker:
                     with torch.no_grad():
                         if GPA.pc.get_verbose():
                             print(f"Resetting score for {layer.name}")
+                        # Snapshot best_score before reset so we can compute per-epoch improvement
+                        layer.dendrite_module.dendrite_values[
+                            m
+                        ].epoch_start_best_score.copy_(
+                            layer.dendrite_module.dendrite_values[
+                                m
+                            ].best_score.detach()
+                        )
                         layer.dendrite_module.dendrite_values[
                             m
                         ].best_score_improved_this_epoch = (

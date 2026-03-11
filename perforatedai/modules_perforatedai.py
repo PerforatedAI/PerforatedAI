@@ -675,6 +675,10 @@ class PAINeuronModule(nn.Module):
                     )
                 out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
 
+        # If learning live, add the candidate's output to the neuron's output via the live weight
+        if GPA.pc.get_perforated_backpropagation():
+            out = MPB.apply_live_candidate_to_output(self, out, candidate_nonlinear_outs)
+
         # Catch if processors are required
         if type(out) is tuple:
             print(self)
@@ -1079,6 +1083,16 @@ class PAIDendriteModule(nn.Module):
                     MPB.init_candidates(self, j)
             if GPA.pc.get_perforated_backpropagation():
                 MPB.set_candidate_parameters(self.dendrites_to_candidates)
+            # Initialize best_dendrites_to_candidates_saved to snapshot peak-correlation weights at epoch boundaries
+            self.best_dendrites_to_candidates_saved = []
+            for j in range(0, GPA.pc.get_global_candidates()):
+                self.best_dendrites_to_candidates_saved.append(
+                    torch.zeros(
+                        (self.num_dendrites, self.out_channels),
+                        device=GPA.pc.get_device(),
+                        dtype=GPA.pc.get_d_type(),
+                    )
+                )
 
     def clear_processors(self):
         """Clear processors."""
@@ -1138,6 +1152,13 @@ class PAIDendriteModule(nn.Module):
                         "This was a flag that will be needed if using multiple candidates. "
                         "It's not set up yet but nice work finding it."
                     )
+                    print(
+                        "Note: with multiple candidates, best-score ranking in new_best() uses "
+                        "unnormalized covariance (prev_dendrite_candidate_correlation) rather than "
+                        "the normalized correlation coefficient. Candidates with larger output "
+                        "magnitude will be favored regardless of true correlation quality. "
+                        "Fix by tracking running sigma_V and sigma_E and dividing in new_best()."
+                    )
                     pdb.set_trace()
                 plane_max_index = 0
                 self.layers.append(
@@ -1146,7 +1167,7 @@ class PAIDendriteModule(nn.Module):
                 self.layers[self.num_dendrites].to(GPA.pc.get_device())
                 if self.num_dendrites > 0:
                     self.dendrites_to_dendrites[self.num_dendrites].copy_(
-                        self.dendrites_to_candidates[plane_max_index]
+                        self.best_dendrites_to_candidates_saved[plane_max_index]
                     )
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
                     self.processors.append(self.candidate_processors[plane_max_index])
