@@ -18,6 +18,12 @@ For details on our experiments, please view the [W&B report](https://wandb.ai/pe
 
 This repository replaces the PyTorch script from the example PyTorch block with our custom script. It updates the hyperparameter settings to enable users to experiment with all of the hyperparameters we swept over. It also compiles the final dendritic models in ONNX format to be used in exactly the same way as the original block. This is a plug-and-play Impulse Block allowing users to use dendritic optimization on any Edge Impulse project that uses audio data. As an open-source project, it enables users to make required adjustments to work with additional data formats. Additionally, working with the Edge Impulse team, this block provides a starting point to extend the default Edge Impulse NN Classifier block with dendritic optimization, empowering all Edge Impulse users to achieve improved outcomes on any project by checking a single checkbox.
 
+# Sweep Results
+
+Over 800 sweeps dendritic models consistently showed improved performance at any given parameter count.  This graph shows the best models for dendritic and traditional architectures as parameter count goes up across the 800 experiments.
+
+<img src="./Edge Impulse Sweep.png" alt="Edge Impulse Sweep." width="300" height="200">
+
 ## Example Output Graphs
 
 The image below is one selected output graph from a training run. Although the high oscillations cause difficulty in seeing improvements from dendrites 1 and 2, dendrites 3 and 4 show clear improvements above the previous architectures.
