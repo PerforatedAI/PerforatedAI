@@ -340,7 +340,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     model = load_model_from_hf(args.hf_repo_id, num_classes, model_type=args.model_type)
     model = model.to(device)
     GPA.pc.append_module_names_to_track(['Conv2dNormActivation', 'InvertedResidual']) 
-    #GPA.pc.append_module_ids_to_track(['.classifier.0'])
+    GPA.pc.append_module_ids_to_track(['.classifier.0'])
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_n_epochs_to_switch(25)
     model = UPA.initialize_pai(model, save_name="PAI-" + (args.hf_repo_id).split('/')[-1])  # Initialize PAI state for potential future pruning steps
