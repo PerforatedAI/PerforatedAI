@@ -946,7 +946,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
     parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
-    parser.add_argument("--full-dataset", action="store_true", help="Use full ImageNet-1000 instead of ImageNet-100 subset")
+    parser.add_argument("--full-dataset", default=True, action=argparse.BooleanOptionalAction, help="Use full ImageNet-1000 instead of ImageNet-100 subset (default: True)")
     
     # PerforatedAI parameters
     parser.add_argument("--improvement-threshold", default=0, type=int, choices=[0, 1, 2], 
