@@ -1,49 +1,18 @@
 """
-usage:
-CUDA_VISIBLE_DEVICES=0 python -m pdb train_fast_perforatedai_from_config.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
-"""
+Replicating our results on a one GPU machine:
 
+Resnet18:
+python train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
-"""
-CUDA_VISIBLE_DEVICES=1 python -m pdb train_fast_perforatedai_from_config.py --model resnet50 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu --perforated-load-path resnet50_c0_wd0.0001_dmode1_20260128_174922
-
-
-# This was the one that had the sudden large jump
-CUDA_VISIBLE_DEVICES=0 python train_perforated.py --model resnet18 --convert-count 0 --wd 0.0001 --dendrite-mode 1 --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260208_091654
-
-
-"""
-
-"""
-Original:
-
-Epoch: [89]  [500/506]  eta: 0:00:00  lr: 0.0010000000000000002  img/s: 12316.37788483597  loss: 0.5689 (0.5906)  acc1: 83.2031 (83.4479)  acc5: 95.7031 (95.5636)  time: 0.0253  data: 0.0049  max mem: 3617
-Epoch: [89] Total time: 0:00:13
-Test:   [ 0/20]  eta: 0:00:18  loss: 0.8479 (0.8479)  acc1: 74.6094 (74.6094)  acc5: 95.3125 (95.3125)  time: 0.9173  data: 0.9109  max mem: 3617
-Test:  Total time: 0:00:01
-Test:  Acc@1 70.300 Acc@5 89.820
-Training time 0:22:53
-
-with PAI:
-
-Epoch: [1125]  [500/506]  eta: 0:00:01  lr: 0.00010000000000000003  img/s: 1421.8356206467333  loss: 0.3493 (0.3511)  acc1: 90.2344 (90.1432)  acc5: 96.8750 (97.4715)  time: 0.1801  data: 0.0001  max mem: 9340
-Epoch: [1125] Total time: 0:01:32
-Adding extra score Train Acc 1 of 90.16036168026996
-Adding extra score Train Acc 5 of 97.47517291776981
-Test:   [ 0/20]  eta: 0:00:22  loss: 0.6772 (0.6772)  acc1: 85.1562 (85.1562)  acc5: 96.8750 (96.8750)  time: 1.1152  data: 1.0578  max mem: 9340
-Test:  Total time: 0:00:02
-Test:  Acc@1 73.040 Acc@5 91.420
-
-
-18_thin
-Test:  Acc@1 61.660 Acc@5 85.200
-
-current command, maybe working?:
-CUDA_VISIBLE_DEVICES=0 python train_fast_perforatedai_from_config.py     --model resnet18     --batch-size 32     --lr 0.0125     --val-resize-size 256     --val-crop-size 224     --train-crop-size 224     --full-dataset     --data-path /home/rbrenner/Datasets/imagenet     --convert-count 0     --dendrite-mode 1     --improvement-threshold 0     --candidate-weight-init-mult 0.1     --pai-forward-function relu --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260112_205006
-
-Think this is the current command actually:
-CUDA_VISIBLE_DEVICES=1 python -m pdb train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
-
+current resnet50 experiment:
+CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
+  --model resnet50 --batch-size 32 --lr 0.0125 \
+  --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 \
+  --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
+  --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
+  --candidate-weight-init-mult 0.1 --pai-forward-function relu \
+  --wd 0.001 --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
+  --random-erase 0.1
 """
 
 
