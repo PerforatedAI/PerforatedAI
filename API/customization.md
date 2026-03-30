@@ -264,7 +264,7 @@ If you want to load the best model for any reason you can call:
 This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
     
 
-If you want to load a simplified pb model just for inference, or for finetuning a tained dendritic model without adding more dendrites, you can do so with the following after load_system
+If you want to load a simplified pb model just for inference, or for finetuning a pretrained dendritic model without adding more dendrites, you can do so with the following after load_system
 
     model = UPA.load_system(model, your save name, 'best_model', True)
     ...
