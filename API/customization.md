@@ -77,9 +77,13 @@ This is often the part that has some complexity.  If your network is all simple 
 
     GPA.pc.append_module_names_to_convert(['moduleName'])
 
-Using moduleNamesToConvert does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
+Using module_names_to_convert does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
 
     GPA.pc.append_modules_to_convert([moduleType])
+
+Or the final option is to add specific modules by their path in the model.  This is for an example where you want to convert model.layer1[0].conv1
+
+    GPA.pc.append_module_ids_to_convert()['.layer1.0.conv1'])
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
@@ -103,13 +107,13 @@ When you first call initialize_pai the function will print a list of all paramet
 
 You should make sure to track every module even if its not wrapped, this ensures all modules are correctly accounted for. To track a module without wrapping it just append the following arrays similar to the wrapping arrays of similar names
 
-    GPA.pc.get_modules_to_track()
+    GPA.pc.append_modules_to_track()
     and
-    GPA.pc.get_module_names_to_track()
+    GPA.pc.append_module_names_to_track()
     
 Additionally if you only want to track, and not wrap, a single module where that module type typically would be wrapped, you can add it by name to the following list as follows. This is for an example where you want to track model.layer1[0].conv1:
 
-    moduleIDsToTrack += ['.layer1.0.conv1']
+    GPA.pc.append_module_ids_to_track()['.layer1.0.conv1'])
 
 Once you have seen this list and are sure it is correct, you can set it to be ignored in the future with:
 
