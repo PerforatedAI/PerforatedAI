@@ -5,6 +5,8 @@ modern AI with this method. However, other research either does not contain open
 differentiator for this open source implementation is that with under an hour of coding you can add dendrites to any existing PyTorch project and advance your own research by joining us on the cutting 
 edge of ML theory.
 
+**Quick Start:** The [API folder](API) contains detailed instructions for integrating PerforatedAI into your projects, including how to use our Claude skill with AI coding assistants for instant expert guidance.
+
 Additional details can be found in the [API](API) and [examples](Examples) folders.  If you like this project please star the repo to support the tech getting into the official PyTorch [ecosystem](https://landscape.pytorch.org/) and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in ADNs and Dendritic AI.
 
 ## Setup
