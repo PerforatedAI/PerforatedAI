@@ -1,6 +1,6 @@
 ---
 name: perforatedai
-description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration), 'analyze my perforated results' (analyze training outputs). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule."
+description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule. For analyzing completed training results, use the perforatedai-analyze skill."
 ---
 
 # PerforatedAI Dendrite Network Skill
@@ -65,16 +65,12 @@ Proceed with Step 1 below.
   - Input dimensions and data format
   - Training loop structure
   - Optimization metric being used
+  - Whether the script has configurable model selection (command-line arguments for model, architecture parameters, etc.)
   
 - If they say they don't have a script yet: Tell them:
   > "PerforatedAI is an optimization tool for existing models. Please build an initial training setup first and get a baseline working before integrating dendrites. Once you have a working training script, come back and say 'Perforate my model' to add dendritic optimization."
   
   Then stop - do not proceed with integration.
-
-- If the script has multiple model options: **Ask which one they're using**
-  - Multiple architectures (e.g., ResNet vs VGG)
-  - Multiple versions of same architecture (e.g., ResNet18 vs ResNet34 vs ResNet50)
-  - Configurable model sizes
 
 #### 1.2 Ask About Optimization Goal
 
@@ -92,53 +88,124 @@ Based on their answer:
 **If Efficiency/Model Size:**
 - **Educate them first:** "Important: Dendrites ADD parameters to your model, but they do so more efficiently than traditional approaches. To optimize for efficiency with PerforatedAI, you should start with a smaller base model and then add dendrites strategically.  This will allow you to achieve better performance than a larger model with fewer parameters. Let's work together to find the right balance for your use case."
 
-- **Then determine the path based on their model:**
+- **Based on your earlier analysis of their training script, determine if model selection is configurable:**
+  - Does it have command-line arguments that specify model architecture, variant, or size (e.g., `--model`, `--arch`, `--model_name`, `--resnet_version`, `--width`, `--depth`, `--num_heads`, `--num_layers`, `--hidden_dim`)?
+  - Does it have config files that specify model architecture or size parameters?
+  - Or is the model hardcoded in the script?
 
-  **For Pretrained Models (e.g., ResNet50, BERT-base):**
-  - Tell them: "You're using [ModelName]. To optimize for efficiency, I recommend switching to [SmallerVariant] and adding dendrites. For example:
-    - ResNet50 → ResNet34 + dendrites
+- **Then proceed based on what you find:**
+
+  **If model IS configurable (has --model, --arch, or config arguments):**
+  - **ASK what they're currently using, tailored to what's configurable:**
+    - If they have `--model` or `--arch` argument: "I see your script has a `--model` argument. What model are you currently using?"
+    - If they have architecture size parameters (e.g., `--width`, `--depth`, `--num_heads`, `--num_layers`): "I see your script supports configurable architecture. What are your current settings? (e.g., width, depth, number of heads/layers)"
+    - If they have both model selection AND size parameters: "I see your script supports different configurations. What model and settings are you currently using? (e.g., model name, width, depth, number of layers/heads)"
+  - Wait for their answer before proceeding
+  
+  **If model is NOT configurable (hardcoded in script):**
+  - **Analyze the code** to identify what model they're using
+  - Tell them: "I can see you're using [ModelName] in your script."
+  - Proceed directly based on what you found (no need to ask)
+
+- **Then determine the path based on their model (🚨 CRITICAL: For efficiency, the model MUST be smaller - always recommend downsizing):**
+
+  **For Pretrained Models (e.g., ResNet50, BERT-base, GPT2-medium):**
+  
+  **If they're using a larger variant within a model family (ResNet50, ResNet34, BERT-base, GPT2-medium, etc.):**
+  - Tell them: "You're using [ModelName]. To optimize for efficiency, I have two options for you.
+    
+    Important: Dendritic optimization often allows a smaller architecture to achieve the accuracy goals you would have previously needed the larger model for. The dendrites add targeted capacity exactly where needed, making efficient architectures surprisingly powerful.
+    
+    **Option 1: Smaller variant in the same family**
+    - ResNet50 → ResNet18 + dendrites (or ResNet34 as intermediate step)
     - ResNet34 → ResNet18 + dendrites
-    - BERT-base → BERT-small + dendrites
-    - GPT2-medium → GPT2-small + dendrites"
+    - BERT-base → BERT-small or DistilBERT + dendrites
+    - GPT2-medium → GPT2-small + dendrites
+    
+    **Option 2: Switch to a more efficient architecture type**
+    - ResNet50/34 → MobileNetV2 or EfficientNet-B0 + dendrites
+    - BERT-base → DistilBERT + dendrites
+    - ViT-Base → MobileViT or EfficientNet + dendrites
+    
+    Which would you like to try?"
   
-  - If they're already using the smallest common variant (e.g., ResNet18), suggest alternative efficient architectures:
-    - "Since you're already using ResNet18, consider MobileNetV2 or EfficientNet-B0 as a more efficient base"
-    - "For transformers, consider DistilBERT instead of BERT-small"
+  - **Wait for their choice before making any changes**
   
-  - Modify their script to load the smaller pretrained model variant
+  - **After they choose**, make the appropriate changes:
+    - **If model was configurable via arguments:** Modify their script's default argument or tell them which argument to change
+    - **If model was hardcoded:** Modify their script to load the chosen model
   
-  - **Before proceeding to Step 2:** Tell them:
-    "I've updated your script to use [SmallerModel]. Before we add dendrites, please run a quick training test to confirm it loads correctly and trains without errors. This smaller model will have lower accuracy initially, which is expected. Dendrites will help recover performance."
+  - **After making changes, tell them:**
+    "I've updated your script to use [ChosenModel]. Before we add dendrites, please run a quick training test to confirm it loads correctly and trains without errors. This smaller model will have lower accuracy initially, which is expected. Dendrites will help recover performance."
+  
+  - Wait for confirmation before proceeding to Step 2
+  
+  **If they're already using the smallest variant within their model family (ResNet18, BERT-small, GPT2-small, etc.):**
+  - Tell them: "You're using [CurrentModel], which is the smallest in its family. For maximum efficiency, I recommend switching to a fundamentally more efficient architecture type and adding dendrites.
+    
+    Important: Dendritic optimization often allows a smaller, more efficient architecture to achieve the accuracy goals you would have previously needed a larger model for. The dendrites add targeted capacity exactly where needed.
+    
+    Recommended switches:
+    - ResNet18 → MobileNetV2 or EfficientNet-B0 + dendrites
+    - BERT-small → DistilBERT + dendrites
+    - ViT-Small → MobileViT or EfficientNet + dendrites
+    
+    Would you like to make this switch?"
+  
+  - **Wait for their decision before making any changes**
+  
+  - **If they agree**, make the appropriate changes:
+    - **If model was configurable via arguments:** Modify their script's default argument or tell them which argument to change
+    - **If model was hardcoded:** Modify their script to load the more efficient architecture
+  
+  - **After making changes, tell them:**
+    "I've updated your script to use [MoreEfficientArchitecture]. Before we add dendrites, please run a quick training test to confirm it loads correctly and trains without errors. This architecture is designed for efficiency and will have lower accuracy initially. Dendrites will help recover performance."
   
   - Wait for confirmation before proceeding to Step 2
   
   **For Custom Models:**
-  - Analyze their model architecture to identify:
-    - Number of layers (depth)
-    - Hidden dimensions/channels (width)
-    - Whether they have command-line arguments or config files for these
+  - **First, check if configuration is via arguments or hardcoded:**
+    - Look for command-line arguments like `--num_layers`, `--hidden_dim`, `--width`, `--depth`, `--num_heads`, `--embed_dim`, etc.
+    - Look for config file options for these settings
+    
+  - **If configurable via arguments/config:**
+    - **ASK about their current configuration:** "What are your current model settings? For example, how many layers are you using? What are the hidden dimensions or channel counts?"
+    - Wait for their answer
+    
+  - **If hardcoded:**
+    - Analyze their model architecture to identify:
+      - Number of layers (depth)
+      - Hidden dimensions/channels (width)
+    - Tell them: "I can see your model has [X] layers with hidden dimension [Y]."
   
-  - Tell them: "To optimize for efficiency, let's make your model smaller first, then add dendrites. We can:
+  - **After understanding their current settings**, tell them: "To optimize for efficiency, let's make your model smaller first, then add dendrites.
+    
+    Important: Dendritic optimization often allows a smaller architecture to achieve the accuracy goals you would have previously needed a larger model for. The dendrites add targeted capacity exactly where needed, making smaller models surprisingly powerful.
+    
+    We can:
     - Reduce layer count (make it shallower)
     - Reduce hidden dimensions/channels (make it less wide)
     - Both"
   
-  - Ask: "Would you like to reduce depth (fewer layers), width (fewer channels/neurons), or both?"
+  - Ask: "Would you like to reduce depth (fewer layers), width (fewer channels/neurons), or both? And what values would you like to use?"
   
-  - **Then implement the changes based on their code structure:**
+  - **Wait for their decision on what to reduce and to what values**
+  
+  - **After they specify what they want**, implement the changes based on their code structure:
   
     **If they already have configurable width/depth parameters:**
     - Identify where these are set (config file, command-line args, hardcoded values)
-    - Update them to smaller values. For example:
+    - Update them to the values they specified. For example:
       - `hidden_dim=512` → `hidden_dim=256`
       - `num_layers=12` → `num_layers=6`
-    - Make the changes and tell them what you changed
+    - Tell them what you changed
     
     **If they have command-line arguments but not for width/depth:**
     - Add new command-line arguments for the parameters they want to adjust
     - Example: Add `--hidden_dim`, `--num_layers`, `--num_channels`, etc.
-    - Set reasonable defaults that are smaller than their current hardcoded values
+    - Set defaults to the values they specified
     - Update their model instantiation to use these new arguments
+    - Tell them what you changed
     
     **If they don't have command-line arguments:**
     - Add configurable settings at the top of their script or in a config section
@@ -150,6 +217,7 @@ Based on their answer:
       NUM_CHANNELS = 32  # Original: 64
       ```
     - Update their model definition to use these variables instead of hardcoded values
+    - Tell them what you changed
   
   - **Before proceeding to Step 2:**
     - Tell them: "I've updated your model to be smaller. Before we add dendrites, please run your training script now to confirm:
@@ -183,7 +251,6 @@ Add this configuration:
 ```python
 # PAI Configuration for CNNs
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_max_dendrites(5)
 GPA.pc.set_module_names_to_convert(["Conv2d", "Linear"])
 GPA.pc.set_input_dimensions([-1, 0, -1, -1])  # [batch, channels, height, width]
 ```
@@ -195,7 +262,6 @@ Add this configuration:
 ```python
 # PAI Configuration for Transformers
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_max_dendrites(5)
 GPA.pc.set_module_names_to_convert(["Linear"])
 GPA.pc.set_input_dimensions([-1, -1, 0])  # [batch, sequence, features]
 GPA.pc.append_module_ids_to_track([".output_projection"])  # Skip final layer
@@ -208,9 +274,8 @@ Add this configuration:
 ```python
 # PAI Configuration for ResNet
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_max_dendrites(3)
 GPA.pc.set_module_names_to_convert(["BasicBlock", "Bottleneck"])
-GPA.pc.append_module_ids_to_track([".layer1", ".layer2", ".conv1", ".fc"])
+GPA.pc.append_module_ids_to_track([".conv1", ".bn1"])
 GPA.pc.set_input_dimensions([-1, 0, -1, -1])  # [batch, channels, height, width]
 ```
 
@@ -279,32 +344,67 @@ Make this change in their script.
 
 Find where their optimizer and scheduler are currently defined in their script.
 
+**🚨 CRITICAL RULE: PRESERVE USER'S EXACT OPTIMIZER AND SCHEDULER TYPES AND ARGUMENTS**
+
 **If their setup is clean (2-5 lines in one place):**
 
-Replace their optimizer/scheduler code with the PAI pattern. For example, if they have:
+Replace their optimizer/scheduler code with the PAI pattern **while keeping the EXACT SAME types and arguments.**
+
+**Example 1 - User has Adam optimizer with StepLR scheduler:**
+Original:
 ```python
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 ```
 
-Replace it with:
+Correct PAI conversion (PRESERVES their choices):
 ```python
-GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # Their optimizer type
-GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)  # Prefer ReduceLROnPlateau
-optimArgs = {'params': model.parameters(), 'lr': 0.001}  # Their learning rate and other args
-schedArgs = {'mode': 'max', 'patience': 5}  # 'max' if maximizing, 'min' if minimizing
+GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # SAME optimizer type
+GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
+optimArgs = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
+schedArgs = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
 optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 ```
 
-**Important when making this change:**
-- Keep their optimizer type (Adam, SGD, AdamW, etc.)
-- Preserve all their optimizer arguments (lr, weight_decay, momentum, betas, etc.) in optimArgs
-- **Set scheduler mode to match Step 4's maximizing_score setting:**
-  - If `maximizing_score=True`: use `schedArgs = {'mode': 'max', 'patience': 5}`
-  - If `maximizing_score=False`: use `schedArgs = {'mode': 'min', 'patience': 5}`
-- Prefer ReduceLROnPlateau scheduler (works best with PAI), or keep their scheduler type
-- If keeping their scheduler, adapt schedArgs to their scheduler's parameters
-- Find and remove any `scheduler.step()` calls in their training loop - PAI handles this automatically
+**Example 2 - User has Adadelta optimizer with StepLR scheduler:**
+Original:
+```python
+optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+```
+
+Correct PAI conversion (PRESERVES their choices):
+```python
+GPA.pai_tracker.set_optimizer(torch.optim.Adadelta)  # SAME optimizer type
+GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
+optimArgs = {'params': model.parameters(), 'lr': args.lr}  # SAME args
+schedArgs = {'step_size': 1, 'gamma': args.gamma}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+```
+
+**Example 3 - User has SGD optimizer with CosineAnnealingLR:**
+Original:
+```python
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+```
+
+Correct PAI conversion (PRESERVES their choices):
+```python
+GPA.pai_tracker.set_optimizer(torch.optim.SGD)  # SAME optimizer type
+GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)  # SAME scheduler type
+optimArgs = {'params': model.parameters(), 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4}  # SAME args
+schedArgs = {'T_max': 200}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+```
+
+**MANDATORY RULES:**
+1. **DO NOT** change the optimizer type (keep Adam/SGD/AdamW/Adadelta/etc. exactly as user had)
+2. **DO NOT** change the scheduler type (keep StepLR/CosineAnnealingLR/ExponentialLR/etc. exactly as user had)
+3. **DO NOT** change optimizer arguments (preserve lr, weight_decay, momentum, betas, etc.)
+4. **DO NOT** change scheduler arguments (preserve step_size, gamma, T_max, patience, etc.)
+5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically
+6. If user has NO scheduler, use `set_scheduler(None)` or omit the set_scheduler call
 
 **If their setup is complex (scattered across functions, custom classes, framework-managed, etc.):**
 
@@ -348,15 +448,19 @@ if training_complete:
 
 elif restructured:
     # Model was restructured (dendrites added/incorporated)
-    # Reinitialize optimizer with same settings from Step 5
-    optimArgs = {'params': model.parameters(), 'lr': learning_rate}  # Copy from Step 5
-    schedArgs = {'mode': 'max', 'patience': 5}  # Copy from Step 5
+    # Reinitialize optimizer with EXACT SAME settings from Step 5
+    # Example: if Step 5 used Adadelta with StepLR:
+    optimArgs = {'params': model.parameters(), 'lr': args.lr}  # EXACT SAME as Step 5
+    schedArgs = {'step_size': 1, 'gamma': args.gamma}  # EXACT SAME as Step 5
     optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 ```
 
-**Important:** Just pass the actual validation value (accuracy or loss). PAI handles the maximization/minimization internally based on the `maximizing_score` setting from Step 4.
-
-Make sure optimArgs and schedArgs match exactly what you used in Step 5.
+**🚨 CRITICAL:** 
+- Use the EXACT SAME optimArgs and schedArgs from Step 5
+- If Step 5 used StepLR, use StepLR args here (step_size, gamma)
+- If Step 5 used CosineAnnealingLR, use those args here (T_max, etc.)
+- DO NOT change optimizer/scheduler types or arguments in the restructured block
+- Just pass the actual validation value (val_acc or val_loss). PAI handles maximization/minimization internally.
 
 **Pattern 2 - If they used `set_optimizer_instance` (Step 5, second option):**
 
@@ -384,6 +488,37 @@ elif restructured:
 
 When `restructured=True`, recreate the optimizer exactly as it was originally defined - if their setup was complex with function calls or multiple steps, copy all of that.
 
+**IMPORTANT: Modify their training loop to handle dynamic completion**
+
+PAI automatically decides when training is complete (when dendrites stop improving validation score). Because of this, their training loop needs to be able to run indefinitely or for many epochs.
+
+**Find their training loop:**
+```python
+for epoch in range(1, args.epochs + 1):
+    # training code
+```
+
+**🚨 CRITICAL: Change it to this EXACT pattern (DO NOT use epoch = 0):**
+
+```python
+epoch = -1  # 🚨 MUST BE -1, NOT 0! (will increment to 0 at loop start)
+while True:
+    epoch += 1
+    # training code
+    # ... validation ...
+    # PAI's training_complete will break the loop
+```
+
+**Why epoch = -1 and not 0:**
+- The loop immediately increments `epoch += 1` BEFORE any training code
+- Starting at -1 means the first epoch will be 0 (or 1 if they increment before use)
+- This matches their original loop behavior where `range(1, args.epochs + 1)` starts at 1
+- **NEVER use `epoch = 0` - this would make the first epoch 1, breaking compatibility**
+
+Tell them: "I've modified your training loop to allow PAI to control when training ends via the `training_complete` flag. PAI will automatically break the loop when adding more dendrites no longer improves validation score."
+
+**⚠️ WARNING:** If their code has epoch-dependent behavior (learning rate schedules, early stopping, etc.), make sure those still work correctly with the modified loop structure.
+
 **After making all the code changes:** Tell them:
 > "I've integrated PerforatedAI into your training script. Note: I set `set_testing_dendrite_capacity(True)` which is a debugging flag that helps verify dendrites are being added correctly. We'll change this to `False` for full training after confirming everything works."
 
@@ -391,15 +526,62 @@ When `restructured=True`, recreate the optimizer exactly as it was originally de
 
 Before running the first experiment, check with them about optional configurations that can improve results and analysis:
 
-#### 7.1 Additional Score Tracking
+#### 7.1 Additional Score Tracking (Training and Test)
 
-Ask: "Would you like me to add training and test score tracking? This helps in two ways:
-1. I can make better optimization recommendations by seeing training vs validation trends
-2. You'll get automatic reports of best test scores for each architecture, not just validation scores"
+**Understanding the three dataset types:**
+- **Training set**: Used for training the model (every epoch)
+- **Validation set**: Used to track performance and make dendrite decisions (every epoch) - this is the MAIN metric
+- **Test set**: Typically evaluated ONLY at the end for final results (optional)
 
-If yes, modify their training loop to track scores:
+**🚨 CRITICAL: The validation metric is ALREADY tracked by PAI via `add_validation_score()`. DO NOT duplicate it.**
 
-**For training scores** - Track during the training loop (don't run a separate evaluate):
+**First, check if they have a test set:**
+
+Look for a `test_loader`, `test_dataset`, or separate test evaluation function in their code. 
+
+**If they have a test set:**
+
+Ask: "I see you have a test set that's normally evaluated at the end. Would you like me to add:
+1. Training score tracking every epoch (helps detect overfitting)
+2. Test score tracking every epoch (lets you see test scores for EVERY architecture/dendrite count in `_best_arch_scores.csv`, not just your final architecture)"
+
+**If they DON'T have a test set (only train/val):**
+
+Ask: "Would you like me to add training score tracking every epoch? This helps me make better optimization recommendations by comparing training vs validation trends (e.g., detecting overfitting)."
+
+**If yes, modify their training loop:**
+
+**Pattern with all three datasets (train, validation, test):**
+
+```python
+# Each epoch
+train_acc = train(model, train_loader)
+val_acc = validate(model, val_loader)
+test_acc = test(model, test_loader)  # Usually only done at end, but can track every epoch
+
+# Track extra scores (training and test)
+GPA.pai_tracker.add_extra_score(train_acc, "train")
+GPA.pai_tracker.add_extra_score(test_acc, "test")
+
+# Main validation metric for dendrite decisions (NOT duplicated in add_extra_score)
+model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+```
+
+**Pattern with only two datasets (train, validation):**
+
+```python
+# Each epoch
+train_acc = train(model, train_loader)
+val_acc = validate(model, val_loader)
+
+# Track training score only
+GPA.pai_tracker.add_extra_score(train_acc, "train")
+
+# Main validation metric for dendrite decisions
+model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
+```
+
+**Implementation: For training scores** - Track during the training loop (don't run a separate evaluate):
 ```python
 # Inside the training loop, accumulate metrics
 train_loss_total = 0
@@ -418,16 +600,30 @@ for batch in train_loader:
     train_correct += (outputs.argmax(1) == targets).sum().item()  # For classification
     train_total += targets.size(0)
 
-# After epoch, calculate and log training score
-train_acc = train_correct / train_total  # Or train_loss_total / len(train_loader)
+# After training epoch, calculate training score
+train_acc = train_correct / train_total  # Or use train_loss_total / len(train_loader) for loss
 GPA.pai_tracker.add_extra_score(train_acc, "train")
 ```
 
-**For test scores** - Run evaluation on test set:
+**Implementation: For test scores** - Use their existing test/evaluate function:
 ```python
-# After validation, if they have a test set
-test_acc = evaluate(model, test_loader)  # Or test_loss
+# After validation, evaluate on test set (if they have one)
+test_acc = test(model, test_loader)  # Or evaluate(model, test_loader)
 GPA.pai_tracker.add_extra_score(test_acc, "test")
+```
+
+**Advanced: If they track MULTIPLE metrics on the same dataset:**
+
+For example, top-1 and top-5 accuracy:
+```python
+val_acc1 = evaluate_top1(model, val_loader)
+val_acc5 = evaluate_top5(model, val_loader)
+
+# Main metric for dendrite decisions
+model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc1, model)
+
+# Secondary metric for analysis only
+GPA.pai_tracker.add_extra_score(val_acc5, "validation_top5")
 ```
 
 Make these changes in their script.
@@ -524,7 +720,9 @@ Switch to debugging mode:
 
 After the initial setup and verification, you can now run full training.
 
-**When your training is complete, come back and say: "Analyze my perforated results"**
+**When your training is complete:**
+- Say **"Analyze my perforated results"** to review outputs and get optimization recommendations (uses perforatedai-analyze skill)
+- Say **"Debug my perforated model"** if you encounter issues during training
 
 ---
 
@@ -532,13 +730,32 @@ After the initial setup and verification, you can now run full training.
 
 When the user says **"Debug my perforated model"**, help them debug or optimize an existing PerforatedAI integration.
 
-**IMPORTANT: Never run their training script. Only read files, analyze code, make edits, and ask the user to run the script and provide error messages.**
+---
 
-**Step 1: Get their training script**
+**🚨 CRITICAL RULE: DO NOT RUN THE USER'S TRAINING SCRIPT 🚨**
 
-Ask: "What's the path to your training script?"
+**You are FORBIDDEN from:**
+- Running their training script with `run_in_terminal`
+- Running any Python scripts that train models
+- Executing their code to "test" or "check for errors"
 
-Read the script and analyze the current PAI setup. **Do not run it.**
+**You are ONLY allowed to:**
+- Read their code files
+- Analyze their code
+- Make edits to their code
+- Ask them to run the script and provide output/errors
+
+**If you need to see errors:** ASK THE USER TO RUN THE SCRIPT and copy-paste the error to you.
+
+---
+
+**Step 1: Get their training script and the issue**
+
+Ask: "What's the path to your training script, and what issue are you experiencing? If you're getting a crash or error, please copy-paste the full error message/traceback."
+
+**Wait for their response. Do NOT run their script to find the issue yourself.**
+
+Read the script and analyze the current PAI setup.
 
 **Step 2: Check integration completeness**
 
@@ -569,11 +786,13 @@ Check if `set_testing_dendrite_capacity` is currently set to `False` in their sc
 **If already set to True:**
 - Proceed with debugging - no changes needed
 
-**Step 4: Identify the issue**
+**Step 4: Analyze the issue**
 
-Ask: "What issue are you experiencing? If you're getting a crash or error, please copy-paste the full error message/traceback."
+**If the user hasn't provided the error/issue yet**, ask: "What specific issue are you experiencing? If you're getting a crash or error, please copy-paste the full error message/traceback."
 
-**Wait for the user to provide the issue/error. Do not try to run their script.**
+**🚨 DO NOT run their script to find the error yourself. Wait for them to provide it. 🚨**
+
+Once you have the error/issue description, analyze it:
 
 Common scenarios:
 
@@ -621,219 +840,16 @@ Say: "Please run your training script now and let me know:
 
 ### 3. "Analyze my perforated results" - Review Training Outputs
 
-When the user says **"Analyze my perforated results"**, perform a comprehensive analysis of their PAI training outputs.
+**This functionality has been moved to a separate skill.**
 
-### Step 1: Locate Result Files
+When the user says **"Analyze my perforated results"**, they should use the **perforatedai-analyze** skill which provides:
+- Comprehensive analysis of training CSV outputs
+- Performance insights and dendrite impact assessment
+- Optimization recommendations based on results
+- Learning rate and scheduler tuning suggestions
+- Module selection optimization
 
-Find the `save_name` from their training script by searching for the `UPA.initialize_pai()` call. The `save_name` parameter shows where results are stored.
-
-**Only ask "What was your save_name?" if:**
-- The script has a variable or argument for save_name that could change
-- You cannot find the initialize_pai call in their script
-
-The results are stored in: `{save_name}/{save_name}_*.csv`
-
-Look for these files:
-- `{save_name}/{save_name}_scores.csv` - Validation scores over epochs
-- `{save_name}/{save_name}_best_arch_scores.csv` - Best architecture performance at each dendrite count
-- `{save_name}/{save_name}_switch_epochs.csv` - Epochs when dendrites were added
-- `{save_name}/{save_name}_learning_rate.csv` - Learning rate schedule
-- `{save_name}/{save_name}Best_PBScores.csv` - Perforated Backpropagation scores (if enabled)
-
-### Step 2: Read and Analyze Score Files
-
-Read all available CSV files and analyze:
-
-**From `{save_name}_scores.csv`:**
-- Validation score progression over epochs
-- Calculate overall improvement from baseline to final
-- Identify training phases (neuron mode vs dendrite mode)
-- Check for plateaus or instabilities
-
-**From `{save_name}_switch_epochs.csv`:**
-- Identify exactly when dendrites were added (epoch numbers)
-- Correlate dendrite additions with score changes from _scores.csv
-- Determine if dendrite additions coincided with improvements
-
-**From `{save_name}_best_arch_scores.csv`:**
-- Compare performance across different dendrite counts (0, 1, 2, 3, etc.)
-- Identify if there are diminishing returns after a certain number of dendrites
-- **Determine optimal dendrite count:** If score gains plateau or decrease after N dendrites, recommend setting `max_dendrites` to that value
-- Example: If dendrites 0→1→2→3 show good gains but 4→5 show minimal improvement, recommend `max_dendrites=3`
-
-**From `{save_name}_learning_rate.csv`:**
-- Show learning rate schedule
-- Correlate LR changes with score changes
-- Identify if LR scheduling worked well with dendrite additions
-
-**From `{save_name}Best_PBScores.csv` (if exists):**
-- Analyze correlation scores for each module
-- **Identify modules with low correlation scores** (< 0.3 or bottom 20%)
-- **Recommendation:** If certain modules show very low correlation scores, they may not benefit from dendrites
-  - Suggest adding those module IDs to `append_module_ids_to_track()` to skip them
-  - Focus dendrite resources on high-correlation modules instead
-
-### Step 3: Generate Insights
-
-Provide a comprehensive summary including:
-
-1. **Training Summary:**
-   - Initial score vs final score (% improvement)
-   - Total epochs trained
-   - Number of dendrites added
-   - Training phases observed
-
-2. **Performance Analysis:**
-   - Best validation score achieved
-   - Score stability (variance in later epochs)
-   - Whether training converged properly
-
-3. **Dendrite Impact:**
-   - Score improvement after each dendrite addition (from switch_epochs.csv + scores.csv)
-   - Which dendrite additions had the most impact
-   - Whether dendrites helped or hurt performance
-   - Optimal dendrite count based on diminishing returns in best_arch_scores
-
-4. **Comparison to Baseline:**
-   - Baseline score is the first score in best_arch_scores
-   - Calculate parameter count increase (if available)
-   - Assess efficiency: did dendrites provide good accuracy/parameter ratio?
-
-5. **Module-Level Analysis (if PB scores available):**
-   - Which modules benefited most from dendrites (high correlation)
-   - Which modules should be excluded (low correlation)
-
-### Step 4: Show Visualizations
-
-Tell them: "Training visualizations have been automatically generated at `{save_name}/{save_name}.png`. This shows:
-- Score progression over epochs
-- Learning rate schedule
-- Dendrite addition timeline
-- Architecture performance comparison"
-
-### Step 5: Next Steps
-
-Based on the analysis results:
-
-**If training went well (dendrites improved performance):**
-
-Say: "Your dendritic training was successful! Here's what I found worked well and recommendations for optimization."
-
-Then direct them to the [Optimization Recommendations](#optimization-recommendations-after-successful-training) section below.
-
-**If training had issues (dendrites didn't help or training was unstable):**
-
-Say: "I see some issues in your training results. Let's debug:"
-
-- **If dendrites didn't improve performance:**
-  - Check if you're converting the right layers
-  - Is improvement_threshold too strict? Try `[0]`
-  - Try different input_dimensions or module configurations
-  - Reference [Debugging](#debugging-common-issues) section
-  
-- **If training was unstable:**
-  - Consider reducing learning rate
-  - Adjust candidate_weight_initialization_multiplier lower (0.01 instead of 0.1)
-  - Try a different scheduler
-  - Check for dimension mismatches in [Debugging](#debugging-common-issues)
-
----
-
-## Optimization Recommendations After Successful Training
-
-When dendritic training has successfully improved performance, provide targeted recommendations based on the analysis:
-
-### 1. Optimize Dendrite Count
-
-Based on `best_arch_scores.csv` analysis:
-
-**If diminishing returns detected:**
-- Example: Dendrites 0→1→2→3 showed gains of +5%, +3%, +2%, but 4→5 showed only +0.1%
-- **Recommend:** `GPA.pc.set_max_dendrites(3)` to focus resources on high-impact dendrites
-- Explain: "Your results show the biggest improvements came from the first 3 dendrites. Setting max_dendrites=3 will make training more efficient without sacrificing performance."
-
-**If all dendrites contributed equally:**
-- Keep current max_dendrites or increase slightly
-- Suggest running longer to see if more dendrites could help
-
-### 2. Adjust Improvement Threshold
-
-Based on score progression from `scores.csv` and `switch_epochs.csv`:
-
-**If dendrites were added too frequently:**
-- Current threshold may be too lenient
-- **Recommend:** Tighten threshold, e.g., `[0.02, 0.01, 0.001, 0]` instead of `[0.01, 0.001, 0.0001, 0]`
-- This makes dendrite additions more selective
-
-**If dendrites were rarely added but helpful:**
-- Threshold may be too strict
-- **Recommend:** Relax threshold or set to `[0]` to always try adding dendrites when performance plateaus
-
-### 3. Module Selection Optimization
-
-Based on `Best_PBScores.csv` (if available):
-
-**If certain modules show low correlation scores (< 0.3):**
-- **Recommend:** Add those module IDs to exclusion list
-- Example: If `.layer1` and `.conv1` show correlation < 0.2:
-  ```python
-  GPA.pc.append_module_ids_to_track([".layer1", ".conv1"])  # Skip these
-  ```
-- Explain: "These modules showed low dendrite correlation, meaning dendrites didn't help them much. Excluding them will focus resources on high-impact layers."
-
-**If all modules show high correlation:**
-- Current module selection is working well
-- Consider expanding to convert additional layer types if any were excluded
-
-### 4. Learning Rate and Scheduler Tuning
-
-Based on `learning_rate.csv` and correlation with `scores.csv`:
-
-**If learning rate dropped too quickly:**
-- Scores plateaued before dendrites could be fully optimized
-- **Recommend:** Increase scheduler patience or use slower decay
-- Example: `schedArgs = {'mode': 'max', 'patience': 10}` instead of 5
-
-**If learning rate stayed high too long:**
-- Training may have been unstable during dendrite additions
-- **Recommend:** Faster decay or lower initial learning rate
-
-### 5. Weight Initialization for Dendrites
-
-Based on training stability from `scores.csv`:
-
-**If scores showed spikes/instability after dendrite additions:**
-- Dendrite weights may be initialized too large
-- **Recommend:** Lower `candidate_weight_initialization_multiplier`
-- Example: `GPA.pc.set_candidate_weight_initialization_multiplier(0.01)` instead of 0.1
-
-**If scores were very smooth:**
-- Current initialization is working well
-- Could potentially try slightly larger values for faster adaptation
-
-### 6. Training Duration Recommendations
-
-Based on total epochs and convergence:
-
-**If training completed but scores still improving:**
-- **Recommend:** Increase `set_n_epochs_to_switch()` to train longer in each phase
-- Allow more time for dendrites to optimize before adding more
-
-**If training converged early:**
-- Current settings are efficient
-- Could reduce epoch counts for faster experimentation
-
-### 7. Architecture Expansion Strategies
-
-If dendrites significantly improved performance:
-
-**Consider converting additional layers:**
-- If you only converted `["Linear"]`, try adding `["Conv2d", "Linear"]`
-- If you skipped early layers, try including them: remove some IDs from `append_module_ids_to_track()`
-
-**Consider increasing max_dendrites:**
-- If best_arch_scores showed steady improvements across all dendrite counts
-- Try max_dendrites=7 or 10 for potentially higher performance
+Tell them: "For analyzing your training results, please use the perforatedai-analyze skill. Just say 'Analyze my perforated results' and the analysis skill will be loaded automatically."
 
 ---
 
@@ -858,4 +874,4 @@ In biological neurons, dendrites perform computation before signals reach the ce
 **For detailed guidance:**
 - Say **"Perforate my model"** to start the interactive setup process
 - Say **"Debug my perforated model"** to debug or optimize an existing integration  
-- Say **"Analyze my perforated results"** to review your training outputs and get optimization recommendations
+- Say **"Analyze my perforated results"** to review your training outputs and get optimization recommendations (uses perforatedai-analyze skill)
