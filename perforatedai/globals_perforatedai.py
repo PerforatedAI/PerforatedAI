@@ -79,7 +79,10 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
 
     def setter(self, value):
         """Set the value of the property."""
-        if self.__dict__.get('_module_name') is not None or self.__dict__.get('_module_type') is not None:
+        if (
+            self.__dict__.get("_module_name") is not None
+            or self.__dict__.get("_module_type") is not None
+        ):
             raise RuntimeError(
                 "Setting custom module config values should only be done "
                 "from JSON config files or the GUI"
@@ -87,8 +90,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         setattr(self, private_name, value)
         # Auto-save: if a config file has been configured (set at end of __init__),
         # persist the new value immediately so the JSON stays in sync.
-        config_file = self.__dict__.get('_config_file')
-        if config_file:
+        config_file = self.__dict__.get("_config_file")
+        if config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
             self.save_config(config_file)
 
     def appender(self, value):
@@ -116,6 +119,7 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
 # JSON serialization helpers  (used by PAIConfig.save_config / load_config)
 # ---------------------------------------------------------------------------
 
+
 def _resolve_dotted_name(dotted_name):
     """Import and return an object identified by a dotted module path.
 
@@ -125,6 +129,7 @@ def _resolve_dotted_name(dotted_name):
     Returns None if the name cannot be resolved.
     """
     import importlib
+
     parts = dotted_name.rsplit(".", 1)
     if len(parts) == 2:
         try:
@@ -134,6 +139,7 @@ def _resolve_dotted_name(dotted_name):
             pass
     # Fall back: try the whole string as a single attribute of builtins
     import builtins
+
     return getattr(builtins, dotted_name, None)
 
 
@@ -154,7 +160,7 @@ def _serialize_pai_value(val):
         return f"{mod}.{val.__name__}" if mod else val.__name__
     if callable(val):
         name = getattr(val, "__name__", None)
-        mod  = getattr(val, "__module__", None)
+        mod = getattr(val, "__module__", None)
         if name and mod:
             return f"{mod}.{name}"
         return str(val)
@@ -163,8 +169,10 @@ def _serialize_pai_value(val):
 
 def _deserialize_pai_value(json_val, type_hint):
     """Convert a JSON value to its Python type using an explicit type hint."""
-    if json_val is None: return None
-    if type_hint is torch.device: return torch.device(str(json_val))
+    if json_val is None:
+        return None
+    if type_hint is torch.device:
+        return torch.device(str(json_val))
     if type_hint is torch.dtype:
         v = getattr(torch, str(json_val).split(".", 1)[-1], None)
         return v if isinstance(v, torch.dtype) else json_val
@@ -172,7 +180,10 @@ def _deserialize_pai_value(json_val, type_hint):
         v = _resolve_dotted_name(json_val) if isinstance(json_val, str) else None
         return v if (v and callable(v)) else json_val
     if type_hint == [type]:  # list whose elements are class objects
-        return [(_resolve_dotted_name(v) if isinstance(v, str) else v) for v in (json_val or [])]
+        return [
+            (_resolve_dotted_name(v) if isinstance(v, str) else v)
+            for v in (json_val or [])
+        ]
     return json_val  # bool, int, float, str, list — JSON value is already correct
 
 
@@ -310,36 +321,89 @@ class PAIConfig:
     # Explicit type map for every config variable — used by load_config to coerce JSON values.
     # [type] means "list whose elements are class/type objects" (need dotted-name resolution).
     _TYPES: dict = {
-        **{k: bool for k in (
-            'use_cuda','confirm_correct_sizes','unwrapped_modules_confirmed',
-            'weight_decay_accepted','checked_skipped_modules','verbose','extra_verbose',
-            'silent','save_old_graph_scores','testing_dendrite_capacity','using_safe_tensors',
-            'drawing_pai','drawing_extra_graphs','test_saves','pai_saves',
-            'reset_best_score_on_switch','learn_dendrites_live','no_extra_n_modes',
-            'retain_all_dendrites','find_best_lr','dont_give_up_unless_learning_rate_lowered',
-            'candidate_weight_init_by_main','perforated_backpropagation','weight_tying_experimental',
-        )},
-        **{k: int for k in (
-            'debugging_output_dimensions','global_candidates','n_epochs_to_switch',
-            'history_lookback','initial_history_after_switches','fixed_switch_num',
-            'first_fixed_switch_num','switch_mode','max_dendrite_tries','max_dendrites',
-            'param_vals_setting',
-        )},
-        **{k: float for k in ('improvement_threshold_raw','candidate_weight_initialization_multiplier')},
-        **{k: str   for k in ('save_name','library_validation_score')},
-        'device': torch.device, 'd_type': torch.dtype, 'pai_forward_function': callable,
-        **{k: list  for k in (
-            'output_dimensions','improvement_threshold',
-            'module_names_to_convert','module_ids_to_convert',
-            'module_names_to_track','module_ids_to_track',
-            'module_names_with_processing','module_names_to_not_save',
-            'library_extra_scores','library_extra_scores_without_graphing',
-        )},
-        **{k: [type] for k in (
-            'modules_to_convert','modules_to_track','modules_to_replace',
-            'replacement_modules','modules_with_processing','modules_processing_classes',
-            'module_by_name_processing_classes',
-        )},
+        **{
+            k: bool
+            for k in (
+                "use_cuda",
+                "confirm_correct_sizes",
+                "unwrapped_modules_confirmed",
+                "weight_decay_accepted",
+                "checked_skipped_modules",
+                "verbose",
+                "extra_verbose",
+                "silent",
+                "save_old_graph_scores",
+                "testing_dendrite_capacity",
+                "using_safe_tensors",
+                "drawing_pai",
+                "drawing_extra_graphs",
+                "test_saves",
+                "pai_saves",
+                "reset_best_score_on_switch",
+                "learn_dendrites_live",
+                "no_extra_n_modes",
+                "retain_all_dendrites",
+                "find_best_lr",
+                "dont_give_up_unless_learning_rate_lowered",
+                "candidate_weight_init_by_main",
+                "perforated_backpropagation",
+                "weight_tying_experimental",
+            )
+        },
+        **{
+            k: int
+            for k in (
+                "debugging_output_dimensions",
+                "global_candidates",
+                "n_epochs_to_switch",
+                "history_lookback",
+                "initial_history_after_switches",
+                "fixed_switch_num",
+                "first_fixed_switch_num",
+                "switch_mode",
+                "max_dendrite_tries",
+                "max_dendrites",
+                "param_vals_setting",
+            )
+        },
+        **{
+            k: float
+            for k in (
+                "improvement_threshold_raw",
+                "candidate_weight_initialization_multiplier",
+            )
+        },
+        **{k: str for k in ("save_name", "library_validation_score")},
+        "device": torch.device,
+        "d_type": torch.dtype,
+        "pai_forward_function": callable,
+        **{
+            k: list
+            for k in (
+                "output_dimensions",
+                "improvement_threshold",
+                "module_names_to_convert",
+                "module_ids_to_convert",
+                "module_names_to_track",
+                "module_ids_to_track",
+                "module_names_with_processing",
+                "module_names_to_not_save",
+                "library_extra_scores",
+                "library_extra_scores_without_graphing",
+            )
+        },
+        **{
+            k: [type]
+            for k in (
+                "modules_to_convert",
+                "modules_to_track",
+                "modules_to_replace",
+                "replacement_modules",
+                "modules_with_processing",
+                "modules_processing_classes",
+                "module_by_name_processing_classes",
+            )
+        },
     }
 
     # Subset of _TYPES: variables that can be overridden on a per-module basis
@@ -347,16 +411,16 @@ class PAIConfig:
     # in :py:meth:`__init__`, so they are meaningful when constructing a
     # module-specific PAIConfig instance.
     _CUSTOMIZABLE: dict = {
-        'verbose':                                    bool,
-        'extra_verbose':                              bool,
-        'silent':                                     bool,
-        'global_candidates':                          int,
-        'output_dimensions':                          list,
-        'candidate_weight_initialization_multiplier': float,
-        'candidate_weight_init_by_main':              bool,
-        'retain_all_dendrites':                       bool,
-        'max_dendrites':                              int,
-        'pai_forward_function':                       callable,
+        "verbose": bool,
+        "extra_verbose": bool,
+        "silent": bool,
+        "global_candidates": int,
+        "output_dimensions": list,
+        "candidate_weight_initialization_multiplier": float,
+        "candidate_weight_init_by_main": bool,
+        "retain_all_dendrites": bool,
+        "max_dendrites": int,
+        "pai_forward_function": callable,
     }
 
     def __getattr__(self, name):
@@ -373,16 +437,14 @@ class PAIConfig:
             Returns None for missing set_ methods, raises AttributeError otherwise.
         """
         if name.startswith("set_"):
-            print(
-                f"Variable '{name[4:]}' does not exist.  Ignoring set attempt."
-            )
+            print(f"Variable '{name[4:]}' does not exist.  Ignoring set attempt.")
             return lambda x: None
         if name.startswith("append_"):
             print(
                 f"List Variable '{name[7:]}' does not exist.  Ignoring append attempt."
             )
             return lambda x: None
-        if name.startswith("get_") and self.__dict__.get('_module_name') is not None:
+        if name.startswith("get_") and self.__dict__.get("_module_name") is not None:
             # Module-specific config: check for a per-module override stored directly in
             # __dict__ (written by load_config when custom JSON data was found for this
             # module).  This covers CUSTOMIZABLE vars that are not initialised for
@@ -411,14 +473,14 @@ class PAIConfig:
         # Must be first: prevents __getattr__ from firing for _config_file
         # during construction (before add_pai_config_var_functions sets it).
         # Also disables auto-save in setters until the end of __init__.
-        self.__dict__['_config_file'] = None
+        self.__dict__["_config_file"] = None
         # None = global config; any string = per-module config
-        self.__dict__['_module_name'] = module_name
+        self.__dict__["_module_name"] = module_name
         # Short class name of the wrapped module (e.g. 'Conv2d'), used as
         # a fallback lookup key when the specific name has no saved settings.
-        self.__dict__['_module_type'] = module_type
+        self.__dict__["_module_type"] = module_type
 
-        if(not module_name):
+        if not module_name:
             ### Global Constants
             # Device configuration
             self.use_cuda = torch.cuda.is_available()
@@ -481,7 +543,9 @@ class PAIConfig:
 
             # Drawing extra graphs beyond the standard ones.
             self.drawing_extra_graphs = True
-            add_pai_config_var_functions(self, "drawing_extra_graphs", self.drawing_extra_graphs)
+            add_pai_config_var_functions(
+                self, "drawing_extra_graphs", self.drawing_extra_graphs
+            )
 
             # Saving test intermediary models, good for experimentation, bad for memory
             self.test_saves = True
@@ -517,19 +581,25 @@ class PAIConfig:
             )
             # Number to average validation scores over
             self.history_lookback = 1
-            add_pai_config_var_functions(self, "history_lookback", self.history_lookback)
+            add_pai_config_var_functions(
+                self, "history_lookback", self.history_lookback
+            )
             # Amount of epochs to run after adding a new set of dendrites before checking
             # to add more
             self.initial_history_after_switches = 0
             add_pai_config_var_functions(
-                self, "initial_history_after_switches", self.initial_history_after_switches
+                self,
+                "initial_history_after_switches",
+                self.initial_history_after_switches,
             )
 
             # Switch after a fixed number of epochs
             self.DOING_FIXED_SWITCH = 2
             # Number of epochs to complete before switching
             self.fixed_switch_num = 250
-            add_pai_config_var_functions(self, "fixed_switch_num", self.fixed_switch_num)
+            add_pai_config_var_functions(
+                self, "fixed_switch_num", self.fixed_switch_num
+            )
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than
             # the above it will be ignored.
@@ -562,13 +632,14 @@ class PAIConfig:
                 self, "learn_dendrites_live", self.learn_dendrites_live
             )
             self.no_extra_n_modes = True
-            add_pai_config_var_functions(self, "no_extra_n_modes", self.no_extra_n_modes)
+            add_pai_config_var_functions(
+                self, "no_extra_n_modes", self.no_extra_n_modes
+            )
 
             # Data type for new modules and dendrite to dendrite / dendrite to neuron
             # weights
             self.d_type = torch.float
             add_pai_config_var_functions(self, "d_type", self.d_type)
-            
 
             # Learning rate management
             # A setting to automatically sweep over previously used learning rates when
@@ -614,7 +685,13 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "modules_to_convert", self.modules_to_convert, list_type=True
             )
-            self.module_names_to_convert = ["PAISequential", "Conv1d", "Conv2d", "Conv3d", "Linear"]
+            self.module_names_to_convert = [
+                "PAISequential",
+                "Conv1d",
+                "Conv2d",
+                "Conv3d",
+                "Linear",
+            ]
             add_pai_config_var_functions(
                 self,
                 "module_names_to_convert",
@@ -623,7 +700,10 @@ class PAIConfig:
             )
             self.module_ids_to_convert = []
             add_pai_config_var_functions(
-                self, "module_ids_to_convert", self.module_ids_to_convert, list_type=True
+                self,
+                "module_ids_to_convert",
+                self.module_ids_to_convert,
+                list_type=True,
             )
 
             # All modules should either be converted or tracked to ensure all modules
@@ -634,7 +714,10 @@ class PAIConfig:
             )
             self.module_names_to_track = []
             add_pai_config_var_functions(
-                self, "module_names_to_track", self.module_names_to_track, list_type=True
+                self,
+                "module_names_to_track",
+                self.module_names_to_track,
+                list_type=True,
             )
             # IDs are for if you want to pass only a single module by its assigned ID rather than the module type by name
             self.module_ids_to_track = []
@@ -716,18 +799,22 @@ class PAIConfig:
 
             # These are settings where libraries must be doing the scoring adding to
             # message from your main script what metric to use
-            self.library_validation_score = ''
+            self.library_validation_score = ""
             add_pai_config_var_functions(
                 self, "library_validation_score", self.library_validation_score
             )
             self.library_extra_scores = []
             add_pai_config_var_functions(
-                self, "library_extra_scores", self.library_extra_scores,
+                self,
+                "library_extra_scores",
+                self.library_extra_scores,
                 list_type=True,
             )
             self.library_extra_scores_without_graphing = []
-            add_pai_config_var_functions(   
-                self, "library_extra_scores_without_graphing", self.library_extra_scores_without_graphing,
+            add_pai_config_var_functions(
+                self,
+                "library_extra_scores_without_graphing",
+                self.library_extra_scores_without_graphing,
                 list_type=True,
             )
 
@@ -750,7 +837,7 @@ class PAIConfig:
         # Suppress all PAI prints
         self.silent = False
         add_pai_config_var_functions(self, "silent", self.silent)
-        
+
         # In place for future implementation options of adding multiple candidate
         # dendrites together
         self.global_candidates = 1
@@ -779,12 +866,9 @@ class PAIConfig:
             self, "retain_all_dendrites", self.retain_all_dendrites
         )
 
-        
         # Max dendrites to add even if they do continue improving scores
         self.max_dendrites = 100
         add_pai_config_var_functions(self, "max_dendrites", self.max_dendrites)
-
-        
 
         # Activation function settings
         # The activation function to use for dendrites
@@ -793,20 +877,28 @@ class PAIConfig:
             self, "pai_forward_function", self.pai_forward_function
         )
 
-        
         # ------------------------------------------------------------------
-        # Auto-load or auto-save {save_name}_config.json in the run directory
+        # Auto-load or auto-save {save_name}_config.json in the {save_name} folder
         # ------------------------------------------------------------------
         import os as _os
-        _save_name = self.__dict__.get('_save_name', 'PAI')
-        _default_path = _os.path.join(_os.getcwd(), f"{_save_name}_config.json")
+
+        _save_name = self.__dict__.get("_save_name", "PAI")
+        _save_folder = _os.path.join(_os.getcwd(), _save_name)
+        _default_path = _os.path.join(_save_folder, f"{_save_name}_config.json")
         if _os.path.exists(_default_path):
-            self.load_config(_default_path, module_name=module_name,
-                             module_type=self.__dict__.get('_module_type'))
-        elif(not module_name):
+            self.load_config(
+                _default_path,
+                module_name=module_name,
+                module_type=self.__dict__.get("_module_type"),
+            )
+        elif (not module_name) and not self.__dict__.get(
+            "_testing_dendrite_capacity", False
+        ):
+            _os.makedirs(_save_folder, exist_ok=True)  # Create folder if needed
             self.save_config(_default_path)
         # Enable auto-save-on-set from this point forward
-        self.__dict__['_config_file'] = _default_path
+        self.__dict__["_config_file"] = _default_path
+
     # ------------------------------------------------------------------
 
     def save_config(self, filename):
@@ -834,9 +926,9 @@ class PAIConfig:
             if not (key.startswith("_") and not key.startswith("__")):
                 continue
             # Skip internal bookkeeping keys that must not round-trip through JSON
-            if key in ('_config_file', '_module_name', '_module_type'):
+            if key in ("_config_file", "_module_name", "_module_type"):
                 continue
-            if callable(val):   # skip bound method refs
+            if callable(val):  # skip bound method refs
                 continue
             clean_key = key[1:]
             try:
@@ -857,27 +949,35 @@ class PAIConfig:
         # Merge short class names from modules_to_convert into module_names_to_convert
         # so the UI (and JS) only needs to check one array.
         type_short_names = [
-            cls.__name__ for cls in self.__dict__.get('_modules_to_convert', [])
+            cls.__name__
+            for cls in self.__dict__.get("_modules_to_convert", [])
             if isinstance(cls, type)
         ]
-        existing = config_dict.get('module_names_to_convert', [])
-        config_dict['module_names_to_convert'] = existing + [n for n in type_short_names if n not in existing]
+        existing = config_dict.get("module_names_to_convert", [])
+        config_dict["module_names_to_convert"] = existing + [
+            n for n in type_short_names if n not in existing
+        ]
 
         # Preserve any per-module settings written by the Studio frontend.
         _existing_ms: dict = {}
         try:
-            with open(filename, 'r') as _f:
-                _existing_ms = json.load(_f).get('module_settings', {})
+            with open(filename, "r") as _f:
+                _existing_ms = json.load(_f).get("module_settings", {})
         except Exception:
             pass
-        config_dict['module_settings'] = _existing_ms
+        config_dict["module_settings"] = _existing_ms
 
         # Publish customizable field type names so the Studio frontend can
         # render appropriate editors without needing to import the library.
-        config_dict['_customizable_fields'] = {
-            k: (v.__name__ if hasattr(v, '__name__') else str(v))
+        config_dict["_customizable_fields"] = {
+            k: (v.__name__ if hasattr(v, "__name__") else str(v))
             for k, v in PAIConfig._CUSTOMIZABLE.items()
         }
+
+        # Ensure the directory exists before saving
+        import os
+
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
 
         with open(filename, "w") as f:
             json.dump(config_dict, f, indent=2)
@@ -910,7 +1010,7 @@ class PAIConfig:
 
         if module_name is not None:
             # ── Per-module load ──────────────────────────────────────────────
-            module_settings = config_dict.get('module_settings', {})
+            module_settings = config_dict.get("module_settings", {})
             # Priority: exact name → type fallback → no-op
             if module_name in module_settings:
                 custom = module_settings[module_name]
@@ -935,11 +1035,14 @@ class PAIConfig:
                 try:
                     self.__dict__[private_key] = (
                         _deserialize_pai_value(json_val, type_hint)
-                        if type_hint is not None else json_val
+                        if type_hint is not None
+                        else json_val
                     )
                     loaded += 1
                 except Exception as exc:
-                    print(f"[PAI Config] Warning: could not load '{key}' for '{resolved_key}': {exc}")
+                    print(
+                        f"[PAI Config] Warning: could not load '{key}' for '{resolved_key}': {exc}"
+                    )
                     skipped += 1
             print(
                 f"[PAI Config] Loaded {loaded} custom vars for '{resolved_key}' from {filename}"
@@ -954,14 +1057,26 @@ class PAIConfig:
             # Skip internal bookkeeping and Studio-only metadata keys.
             # 'module_name' and 'module_type' must never overwrite the
             # instance's _module_name/_module_type (they are internal only).
-            if key in ('config_file', 'module_settings', 'module_name', 'module_type') or key.startswith('_'):
+            if key in (
+                "config_file",
+                "module_settings",
+                "module_name",
+                "module_type",
+            ) or key.startswith("_"):
                 continue
             type_hint = PAIConfig._TYPES.get(key)
             private_key = f"_{key}"
             if hasattr(self, private_key):
                 try:
-                    setattr(self, private_key,
-                            _deserialize_pai_value(json_val, type_hint) if type_hint is not None else json_val)
+                    setattr(
+                        self,
+                        private_key,
+                        (
+                            _deserialize_pai_value(json_val, type_hint)
+                            if type_hint is not None
+                            else json_val
+                        ),
+                    )
                     loaded += 1
                 except Exception as exc:
                     print(f"[PAI Config] Warning: could not load '{key}': {exc}")
@@ -1074,7 +1189,7 @@ try:
 
     # Merge PBP type hints into PAIConfig._TYPES so load_config can correctly
     # round-trip all perforatedbp variables from JSON.
-    if hasattr(perforatedbp_globals, '_TYPES'):
+    if hasattr(perforatedbp_globals, "_TYPES"):
         PAIConfig._TYPES.update(perforatedbp_globals._TYPES)
 
 except ImportError:

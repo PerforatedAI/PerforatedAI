@@ -41,7 +41,7 @@ parser.add_argument('--initialize_pai_parallel', action='store_true',
                    help='Initialize PAI settings for multi-GPU (run once on single GPU)')
 ```
 
-2. **Add conditional initialization code after `initialize_pai` at the location of their DataParallel line:**
+2. **Add conditional initialization code at the location of their DataParallel line:**
 
 Find their DataParallel line:
 ```python
@@ -58,7 +58,31 @@ if not args.initialize_pai_parallel:
 # else: initialization mode - stay on single GPU, will save settings after first batch
 ```
 
-3. **Add initialization mode handling in training loop:**
+2.5. **Setup Optimizer and Scheduler:**
+
+Find where their optimizer and scheduler are currently defined in their script.
+
+**🚨 CRITICAL RULE: PRESERVE USER'S EXACT OPTIMIZER AND SCHEDULER TYPES AND ARGUMENTS**
+
+Replace their optimizer/scheduler code with the PAI pattern **while keeping the EXACT SAME types and arguments.**
+
+**Example:**
+Original:
+```python
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+```
+
+Correct PAI conversion (PRESERVES their choices):
+```python
+GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # SAME optimizer type
+GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
+optimArgs = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
+schedArgs = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+```
+
+4. **Add initialization mode handling in training loop:**
 
 ⚠️ **IMPORTANT: This must be added INSIDE the batch/iteration loop, immediately after `loss.backward()`, so it exits after processing just ONE batch (not after a full epoch).**
 
@@ -154,22 +178,54 @@ if args.pai_load_folder is not None:
     else:
         print(f"Starting from beginning (no switch_x.pt files found in {args.pai_load_folder})")
 
-# ⚠️ STOP - DO NOT add optimizer code yet! ⚠️
-# The PAI setup_optimizer call (from main skill Step 5) MUST be placed HERE,
-# AFTER the checkpoint loading above, BEFORE the DDP wrapper below.
-# This is CRITICAL - if optimizer is created before loading, it will have wrong parameters!
+# NEXT: Add optimizer setup HERE (see substep 2.5 below)
+# THEN: Add DDP wrapper (see substep 3 below)
 ```
 
 **Why this order matters:** When dendrites are added, the model structure changes. `load_system` loads the new structure. The optimizer needs to be created with the correct model parameters, so loading must happen BEFORE optimizer creation.
 
 **⚠️ CRITICAL ORDERING FOR YOUR SCRIPT:**
 1. Model creation + initialize_pai() [already done]
-2. Checkpoint loading [code block above]  ← YOU ARE HERE
-3. **Optimizer creation** [`GPA.pai_tracker.setup_optimizer()`] ← GOES HERE NEXT (main skill Step 5)
-4. DDP wrapper [step 3 below] ← AFTER optimizer
-5. Training loop modifications [steps 4-5 below]
+2. Checkpoint loading [code block above]  ← YOU JUST ADDED THIS
+3. **Optimizer creation** [substep 2.5 below] ← ADD THIS NEXT
+4. DDP wrapper [substep 3 below] ← THEN ADD THIS
+5. Training loop modifications [substeps 4-5 below]
 
-**When you return to the main skill's Step 5 (Optimizer Setup), place the `setup_optimizer` code RIGHT HERE in your script - after the checkpoint loading block above, before the DDP wrapper below.**
+---
+
+**Substep 2.5: Setup Optimizer and Scheduler (ADD BETWEEN CHECKPOINT LOADING AND DDP WRAPPER)**
+
+Find where their optimizer and scheduler are currently defined in their script.
+
+**🚨 CRITICAL RULE: PRESERVE USER'S EXACT OPTIMIZER AND SCHEDULER TYPES AND ARGUMENTS**
+
+**If their setup is clean (2-5 lines in one place):**
+
+Replace their optimizer/scheduler code with the PAI pattern **while keeping the EXACT SAME types and arguments.**
+
+**Example - User has Adam optimizer with StepLR scheduler:**
+Original:
+```python
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+```
+
+Correct PAI conversion (PRESERVES their choices):
+```python
+GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # SAME optimizer type
+GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
+optimArgs = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
+schedArgs = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+```
+
+**⚠️ CRITICAL: Place this code in their script RIGHT AFTER the checkpoint loading block from substep 2, BEFORE the DDP wrapper from substep 3.**
+
+**If their setup is complex (scattered across many lines or conditional):**
+
+Ask the user: "Your optimizer/scheduler setup is complex. Can you point me to where you want PAI's optimizer setup to go, and confirm which optimizer and scheduler types you want to use?"
+
+---
 
 3. **Add conditional DDP wrapper at their DDP location:**
 
@@ -213,6 +269,8 @@ for batch in train_loader:  # Their loop
         GPA.pai_tracker.save_tracker_settings()
         print(f"PAI DDP settings saved to {{save_name}}/")
         print("Initialization complete. Now run without --initialize_pai_parallel flag for training.")
+        # Barrier ensures all ranks finish before any exit
+        torch.distributed.barrier()
         exit(0)
     
     optimizer.step()  # Their code continues
@@ -224,8 +282,6 @@ for batch in train_loader:  # Their loop
 ⚠️ **CRITICAL: DistributedDataParallel requires special handling for PAI tracker functions.**
 
 In the section where they call `add_validation_score` (and any `add_extra_score` calls), replace it with this DDP-aware pattern:
-
-**📋 TESTED WORKING PATTERN - Use this exact structure:**
 
 ```python
 # After validation completes and you have val_score/val_acc/val_loss
@@ -270,6 +326,8 @@ if training_complete:
             os.makedirs(save_name, exist_ok=True)
             with open(f"{save_name}/.training_complete", "w") as f:
                 f.write("complete")
+        # Barrier ensures file write completes before process group destruction
+        torch.distributed.barrier()
         # Clean up distributed process group (all ranks)
         torch.distributed.destroy_process_group()
     sys.exit(0)
@@ -278,6 +336,8 @@ if training_complete:
 elif restructured:
     print("Model restructured! Exiting for restart...")
     if args.distributed:
+        # Barrier ensures all ranks are ready before process group destruction
+        torch.distributed.barrier()
         # Clean up distributed process group (all ranks)
         torch.distributed.destroy_process_group()
     exit(0)  # Shell script will restart training automatically
@@ -291,6 +351,7 @@ elif restructured:
 - Only rank 0 calls PAI tracker functions in DDP mode
 - Unwrap model from DDP wrapper (`.module`) before PAI calls
 - Broadcast results to all ranks in DDP mode
+- **CRITICAL:** `torch.distributed.barrier()` calls are mandatory before `destroy_process_group()` to prevent file corruption - barriers ensure all ranks complete their I/O operations before any process exits
 - Call `destroy_process_group()` on all ranks when exiting
 
 6. **Ask critical DDP configuration questions:**
@@ -333,6 +394,12 @@ echo ""
 
 # Continuous training loop with DDP launcher
 while true; do
+    # Check for completion at loop start (in case of restart after completion)
+    if [ -f "${SAVE_NAME}/.training_complete" ]; then
+        echo "Training already completed!"
+        break
+    fi
+    
     # Check if any switch_*.pt checkpoint files exist
     if ls "${SAVE_NAME}"/switch_*.pt 1> /dev/null 2>&1; then
         echo "Resuming training from checkpoint..."
@@ -399,4 +466,17 @@ Replace [NUM_GPUS] with the actual number they specified.
 
 ## Completion
 
-After completing either DataParallel or DDP setup, return control to the main perforatedai skill to continue with Step 5 (Optimizer Setup).
+After completing either DataParallel or DDP setup:
+
+**✅ Multi-GPU setup is COMPLETE. You have:**
+- Added command-line arguments
+- Added checkpoint loading (DDP only)
+- Added optimizer setup
+- Added DDP/DataParallel wrapper
+- Modified training loop for initialization mode
+- Modified validation loop for rank 0 handling (DDP only)
+- Created train_distributed.sh shell script (DDP only)
+
+**📍 RETURN TO MAIN SKILL:**
+- **SKIP Step 5** (optimizer already added) 
+-Go directly to main skill **Step 6 (Validation Loop)**

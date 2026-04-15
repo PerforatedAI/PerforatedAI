@@ -8,15 +8,17 @@
 
 1. **Install this repo** (see [Manual Setup](#1---main-script) below)
 
-2. **If not working in this folder:** Copy the skill to your project using the install script
+2. **If not working in this folder:** Copy the skill to your project using the install script.  This MUST be to the top level folder of where your editor is open.
+
    ```bash
    bash /path/to/PerforatedAI/.github/skills/perforatedai/install-skill.sh /path/to/your/project
    ```
 
 3. **Open in VS Code/Claude** and say:
-   - **"Perforate my model"** - Interactive setup for new integrations
-   - **"Debug my perforated model"** - Debug or optimize existing integration
-   - **"Analyze my perforated results"** - Review training outputs and get recommendations
+   - **"Perforate my model using the skill in .github/skills"** - Interactive setup for new integrations
+   - **"Debug my perforated model using the skill in .github/skills"** - Debug or optimize existing integration
+   - **"Analyze my perforated results using the skill in .github/skills"** - Review training outputs and get recommendations
+   
 
 ## Manual Integration Guide
 
