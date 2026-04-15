@@ -25,7 +25,7 @@ try:
     from perforatedbp import modules_pbp as MPB
 except ModuleNotFoundError as e:
     # Only pass if perforatedbp package itself is missing
-    if e.name == 'perforatedbp':
+    if e.name == "perforatedbp":
         pass
     else:
         # perforatedbp exists but is missing a dependency
@@ -589,7 +589,7 @@ def convert_module(
                         "this next time"
                     )
                     print(
-                        "Type 'net' + enter to inspect your network and "
+                        "inspect your network to "
                         "see what the module type containing this layer is."
                     )
                     print("Then do one of the following:")
@@ -700,12 +700,12 @@ def convert_network(net, layer_name=""):
                 "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time"
             )
             print(
-                "Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
+                "Inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
             )
             # If did miss some then set trace to debug
             if len(missed_ones) != 0:
                 print(
-                "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
+                    "------------------------------------------------------------------\nType 'c' + enter to continue the run to confirm you do not want them to be refined"
                 )
 
                 pdb.set_trace()
@@ -1032,6 +1032,7 @@ def save_net(net, folder, name):
     else:
         torch.save(net, save_point + name + ".pt")
 
+
 def save_pai_net(net, folder, name):
     """Save the final pai network
 
@@ -1068,12 +1069,13 @@ def save_pai_net(net, folder, name):
         os.mkdir(save_point)
 
     if GPA.pc.get_using_safe_tensors():
-        if(GPA.pc.get_weight_tying_experimental()):
+        if GPA.pc.get_weight_tying_experimental():
             save_model_with_weight_tying(net, save_point + name + "_pai.pt")
         else:
             save_file(net.state_dict(), save_point + name + "_pai.pt")
     else:
         torch.save(net, save_point + name + "_pai.pt")
+
 
 def manual_load_state_dict(model, state_dict):
     own_state = model.state_dict()
@@ -1169,23 +1171,27 @@ def load_net_from_dict(net, state_dict):
         The loaded network.
 
     """
-    if(GPA.pc.get_verbose()):
-        print('loading net from dict')
+    if GPA.pc.get_verbose():
+        print("loading net from dict")
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print(
             "PAI load_net and load_system uses a state_dict so it must be\n"
             "called with a net after initialize_pai has been called"
         )
-        print("This is being flagged because you are attempting to load a model\n"
+        print(
+            "This is being flagged because you are attempting to load a model\n"
             "that does not have any pai_modules in it.  Confirm that you are calling\n"
             "initialize_pai on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
         pdb.set_trace()
         sys.exit(-1)
-    if(GPA.pc.get_verbose()):
-        print('setting up arrays and simulating cycles for %d pai modules' % len(pai_modules))
+    if GPA.pc.get_verbose():
+        print(
+            "setting up arrays and simulating cycles for %d pai modules"
+            % len(pai_modules)
+        )
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
         module_name = get_module_base_name(module)
@@ -1247,21 +1253,25 @@ def load_net_from_dict(net, state_dict):
                 print(
                     "if one starts with .model or .base etc and the other does not, this is the problem."
                 )
-                
-                print("\n4 - If you are using this module but then not actually including\n"
+
+                print(
+                    "\n4 - If you are using this module but then not actually including\n"
                     "the correct output tensor in the forward.  For example\n"
                     "if you are using an LSTM and forwarding hidden instead of otput\n"
                     "but your processors are set up to work with output"
                 )
-                print("\n5 - if you are not properly calling backward at all."
+                print(
+                    "\n5 - if you are not properly calling backward at all."
                     " If this is the first module in your network it is more"
                     "likely this is the problem"
                 )
-                print("\n6 - You have converted a module that is in a frozen"
+                print(
+                    "\n6 - You have converted a module that is in a frozen"
                     " part of the network and thus no gradients are flowing"
                 )
-                print("\n7 - You are running multiple experiments at once with the same save_name."
-                      " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
+                print(
+                    "\n7 - You are running multiple experiments at once with the same save_name."
+                    " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
                 )
 
                 pdb.set_trace()
@@ -1303,7 +1313,7 @@ def load_net_from_dict(net, state_dict):
             manual_load_state_dict(net, state_dict)
         else:
             print(f"Error loading state_dict: {e}")
-            print("\ntype \'c\' to print full state dicts\n")
+            print("\ntype 'c' to print full state dicts\n")
             pdb.set_trace()
             print("net state dict is:")
             print(net.state_dict())
@@ -1366,8 +1376,9 @@ def deep_copy_pai(net):
     """
 
     # Clear gradients before saving the model
-    if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and \
-        (GPA.pai_tracker.member_vars["optimizer_instance"] != []):
+    if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and (
+        GPA.pai_tracker.member_vars["optimizer_instance"] != []
+    ):
         GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
     GPA.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
@@ -1375,15 +1386,15 @@ def deep_copy_pai(net):
 
 def prepare_final_model(net):
     """Prepare model for final save by removing scaffolding.
-    
+
     This performs all cleanup steps to convert a PAI model with scaffolding
     into a clean final model ready for inference or distribution.
-    
+
     Parameters
     ----------
     net : nn.Module
         The network to prepare.
-        
+
     Returns
     -------
     nn.Module
@@ -1394,15 +1405,15 @@ def prepare_final_model(net):
     net = BPA.blockwise_network(net)
     net = deep_copy_pai(net)
     net = CL.refresh_net(net)
-    
+
     # Remove tracker_string (not needed for final model)
-    if hasattr(net, 'tracker_string'):
+    if hasattr(net, "tracker_string"):
         del net.tracker_string
-    
+
     # Make parameters contiguous
     for param in net.parameters():
         param.data = param.data.contiguous()
-    
+
     return net
 
 
@@ -1498,9 +1509,11 @@ def count_params(net):
     if GPA.pc.get_perforated_backpropagation():
         return UPB.pb_count_params(net)
     parameters = net.named_parameters()
-    unique_params = {p.data_ptr(): p for name, p in parameters if 'parent_module' not in name}.values()
+    unique_params = {
+        p.data_ptr(): p for name, p in parameters if "parent_module" not in name
+    }.values()
     return sum(p.numel() for p in unique_params)
-    
+
 
 def change_learning_modes(net, folder, name, doing_pai):
     """Change between neuron and dendrite learning modes
@@ -1664,17 +1677,17 @@ def find_param_name_by_id(model, param_id):
 
 def add_method_delegation_to_module(wrapper_module, method_name):
     """Add delegating methods to a wrapper module that has a main_module attribute.
-    
+
     This adds the specified methods to the wrapper module instance so they
     properly delegate to the wrapped main_module. Works for any wrapper module
     (TrackedNeuronModule, PAINeuronModule, etc.) that has a main_module attribute.
-    
+
     Args:
         wrapper_module: A wrapper module instance with a main_module attribute
         method_name: The method name to delegate (e.g., '_gradient_checkpointing_func')
     """
     import types
-    
+
     if hasattr(wrapper_module.main_module, method_name):
         # Create a delegating method that forwards to main_module
         def make_delegated_method(name):
@@ -1687,31 +1700,33 @@ def add_method_delegation_to_module(wrapper_module, method_name):
                 if callable(main_module_attr):
                     return main_module_attr(*args, **kwargs)
                 return main_module_attr
+
             return delegated_method
-        
+
         # Bind it to this specific instance
-        setattr(wrapper_module, method_name, types.MethodType(
-            make_delegated_method(method_name), 
-            wrapper_module
-        ))
+        setattr(
+            wrapper_module,
+            method_name,
+            types.MethodType(make_delegated_method(method_name), wrapper_module),
+        )
 
 
 def apply_method_delegation_to_model(model, method_name, main_module_type):
     """Recursively apply method delegation to all wrapper modules with main_module in a model.
-    
+
     This traverses the entire model and adds method delegation for any module that has
     a main_module attribute and optionally matches specified types.
-    
+
     Args:
         model: The PyTorch model to traverse
         method_name: The method name to delegate (e.g., '_gradient_checkpointing_func')
         main_module_type: main_module type name to filter by.
                           Example: 'Qwen2DecoderLayer'
-    
+
     Example:
         # Apply gradient checkpointing delegation to all decoder layers
         apply_method_delegation_to_model(
-            model, 
+            model,
             '_gradient_checkpointing_func',
             main_module_type='Qwen2DecoderLayer'
         )
@@ -1719,28 +1734,28 @@ def apply_method_delegation_to_model(model, method_name, main_module_type):
     count = 0
     for name, module in model.named_modules():
         # Check if module has main_module attribute (it's a wrapper)
-        if hasattr(module, 'main_module'):
+        if hasattr(module, "main_module"):
             # Check if we should apply based on main_module type
             should_apply = True
             if main_module_type is not None:
                 main_module_type_name = type(module.main_module).__name__
                 should_apply = main_module_type_name == main_module_type
-            
+
             if should_apply:
                 add_method_delegation_to_module(module, method_name)
                 count += 1
-    
+
     print(f"[PAI] Applied method delegation to {count} wrapper module instances")
 
 
 def make_json_serializable(obj):
     """Recursively convert non-JSON-serializable objects to strings.
-    
+
     Parameters
     ----------
     obj : any
         The object to convert
-        
+
     Returns
     -------
     any
@@ -1759,12 +1774,12 @@ def make_json_serializable(obj):
 
 def extract_gpa_config():
     """Extract all configuration from GPA.pc by calling all get_* methods.
-    
+
     Returns
     -------
     dict
         Dictionary with all GPA.pc configuration values and type metadata
-        
+
     Examples
     --------
     >>> config = extract_gpa_config()
@@ -1772,36 +1787,42 @@ def extract_gpa_config():
     """
     config = {}
     config_types = {}
-    
+
     # Get all attributes from GPA.pc
     for attr_name in dir(GPA.pc):
         # Check if it starts with 'get_'
-        if attr_name.startswith('get_'):
+        if attr_name.startswith("get_"):
             try:
                 # Get the method
                 method = getattr(GPA.pc, attr_name)
-                
+
                 # Check if it's callable
                 if callable(method):
                     # Call it and store result with key as name without 'get_'
                     key = attr_name[4:]  # Remove 'get_' prefix
                     value = method()
-                    
+
                     # Check if this is an array (has corresponding append_ method)
-                    append_method_name = f'append_{key}'
+                    append_method_name = f"append_{key}"
                     is_array = hasattr(GPA.pc, append_method_name)
-                    
+
                     if is_array and isinstance(value, (list, tuple)):
                         # Store array element type
                         if len(value) > 0:
                             element_type = type(value[0]).__name__
                         else:
                             element_type = None  # empty array, no conversion needed
-                        config_types[key] = {'is_array': True, 'element_type': element_type}
+                        config_types[key] = {
+                            "is_array": True,
+                            "element_type": element_type,
+                        }
                     else:
                         # Store value type
-                        config_types[key] = {'is_array': False, 'type': type(value).__name__}
-                    
+                        config_types[key] = {
+                            "is_array": False,
+                            "type": type(value).__name__,
+                        }
+
                     # Make sure value is JSON serializable
                     config[key] = make_json_serializable(value)
             except Exception as e:
@@ -1809,105 +1830,118 @@ def extract_gpa_config():
                 if GPA.pc.get_verbose():
                     print(f"Skipping {attr_name}: {e}")
                 continue
-    
+
     # Add types metadata to config
-    config['_types'] = config_types
-    
+    config["_types"] = config_types
+
     return config
 
 
 def convert_to_type(value, type_name):
     """Convert a value to the specified type.
-    
+
     Parameters
     ----------
     value : any
         The value to convert
     type_name : str
         The target type name
-        
+
     Returns
     -------
     any
         The converted value
     """
-    if type_name == 'NoneType' or value is None:
+    if type_name == "NoneType" or value is None:
         return None
-    elif type_name == 'bool':
+    elif type_name == "bool":
         if isinstance(value, str):
-            return value.lower() in ('true', '1', 'yes')
+            return value.lower() in ("true", "1", "yes")
         return bool(value)
-    elif type_name == 'int':
+    elif type_name == "int":
         return int(value)
-    elif type_name == 'float':
+    elif type_name == "float":
         return float(value)
-    elif type_name == 'str':
+    elif type_name == "str":
         return str(value)
-    elif type_name == 'list':
+    elif type_name == "list":
         if not isinstance(value, list):
             return [value]
         return value
-    elif type_name == 'dict':
+    elif type_name == "dict":
         if not isinstance(value, dict):
             return {}
         return value
-    elif type_name == 'type':
+    elif type_name == "type":
         # Handle type objects - convert string representation back to type
         if isinstance(value, str):
             # Try to evaluate the type string (e.g., "<class 'torch.nn.Linear'>")
             # Extract the class path from the string
             if value.startswith("<class '") and value.endswith("'>"):
-                class_path = value[8:-2]  # Extract 'torch.nn.Linear' from "<class 'torch.nn.Linear'>"
-                parts = class_path.split('.')
+                class_path = value[
+                    8:-2
+                ]  # Extract 'torch.nn.Linear' from "<class 'torch.nn.Linear'>"
+                parts = class_path.split(".")
                 # Try to import and get the type
                 try:
-                    module_name = '.'.join(parts[:-1])
+                    module_name = ".".join(parts[:-1])
                     class_name = parts[-1]
                     module = __import__(module_name, fromlist=[class_name])
                     return getattr(module, class_name)
                 except Exception as e:
-                    print(f"Warning: Could not convert type string '{value}' to actual type: {e}")
+                    print(
+                        f"Warning: Could not convert type string '{value}' to actual type: {e}"
+                    )
                     return value
             return value
         return value
-    elif type_name == 'dtype':
+    elif type_name == "dtype":
         # Handle torch dtype objects
         if isinstance(value, str):
             # Convert string like "torch.float32" to actual dtype
             import torch
+
             try:
                 # Try to get the dtype from torch module
-                if value.startswith('torch.'):
-                    dtype_name = value.split('.')[1]  # Get 'float32' from 'torch.float32'
+                if value.startswith("torch."):
+                    dtype_name = value.split(".")[
+                        1
+                    ]  # Get 'float32' from 'torch.float32'
                     return getattr(torch, dtype_name)
                 else:
                     return getattr(torch, value)
             except Exception as e:
-                print(f"Warning: Could not convert dtype string '{value}' to actual dtype: {e}")
+                print(
+                    f"Warning: Could not convert dtype string '{value}' to actual dtype: {e}"
+                )
                 return value
         return value
-    elif type_name == 'device':
+    elif type_name == "device":
         # Handle torch device objects
         if isinstance(value, str):
             # Convert string like "cuda" or "cpu" to torch.device
             import torch
+
             try:
                 return torch.device(value)
             except Exception as e:
-                print(f"Warning: Could not convert device string '{value}' to actual device: {e}")
+                print(
+                    f"Warning: Could not convert device string '{value}' to actual device: {e}"
+                )
                 return value
         return value
-    elif type_name == 'builtin_function_or_method':
+    elif type_name == "builtin_function_or_method":
         # Handle torch functions like torch.sigmoid, torch.relu, etc.
         if isinstance(value, str):
             # Parse string like "<built-in method sigmoid of type object at 0x...>"
             # to extract the function name
             import torch
+
             try:
-                if '<built-in method ' in value and ' of type object' in value:
+                if "<built-in method " in value and " of type object" in value:
                     # Extract function name between '<built-in method ' and ' of type object'
-                    start = value.find('<built-in method ') + len('<built-in method ')
-                    end = value.find(' of type object')
+                    start = value.find("<built-in method ") + len("<built-in method ")
+                    end = value.find(" of type object")
                     func_name = value[start:end]
                     # Try to get the function from torch module
                     if hasattr(torch, func_name):
@@ -1918,7 +1952,9 @@ def convert_to_type(value, type_name):
                 else:
                     return value
             except Exception as e:
-                print(f"Warning: Could not convert builtin function string '{value}': {e}")
+                print(
+                    f"Warning: Could not convert builtin function string '{value}': {e}"
+                )
                 return value
         return value
     else:
@@ -1931,14 +1967,14 @@ def convert_to_type(value, type_name):
 
 def convert_to_type_array(value, element_type):
     """Convert an array's elements to the specified type.
-    
+
     Parameters
     ----------
     value : list or tuple
         The array to convert
     element_type : str or None
         The target type name for elements, None if array was empty
-        
+
     Returns
     -------
     list
@@ -1954,17 +1990,17 @@ def convert_to_type_array(value, element_type):
 
 def set_gpa_config(config):
     """Set GPA.pc configuration by calling all set_* methods.
-    
+
     This is the reverse of extract_gpa_config(). It takes a configuration
     dictionary and calls the corresponding set_* methods on GPA.pc.
     Uses type metadata to ensure values are converted to the correct type.
-    
+
     Parameters
     ----------
     config : dict
         Dictionary with configuration values (keys without 'set_' prefix)
         and optional '_types' metadata
-        
+
     Examples
     --------
     >>> config = {'verbose': True, 'device': 'cuda'}
@@ -1973,18 +2009,18 @@ def set_gpa_config(config):
     """
     set_count = 0
     skip_count = 0
-    
+
     # Extract type information
-    config_types = config.get('_types', {})
-    
+    config_types = config.get("_types", {})
+
     for key, value in config.items():
         # Skip the types metadata
-        if key == '_types':
+        if key == "_types":
             continue
-            
+
         # Construct the set method name
-        set_method_name = f'set_{key}'
-        
+        set_method_name = f"set_{key}"
+
         # Check if the set method exists
         if hasattr(GPA.pc, set_method_name):
             try:
@@ -1993,15 +2029,15 @@ def set_gpa_config(config):
                     # Convert value to correct type if we have type info
                     if key in config_types:
                         type_info = config_types[key]
-                        if type_info.get('is_array', False):
+                        if type_info.get("is_array", False):
                             # Convert array elements to correct type
-                            element_type = type_info.get('element_type', 'str')
+                            element_type = type_info.get("element_type", "str")
                             value = convert_to_type_array(value, element_type)
                         else:
                             # Convert single value to correct type
-                            value_type = type_info.get('type', 'str')
+                            value_type = type_info.get("type", "str")
                             value = convert_to_type(value, value_type)
-                    
+
                     method(value)
                     set_count += 1
                     if GPA.pc.get_verbose():
@@ -2014,10 +2050,10 @@ def set_gpa_config(config):
             skip_count += 1
             if GPA.pc.get_verbose():
                 print(f"No setter found for {key} (looking for {set_method_name})")
-    
+
     if GPA.pc.get_verbose():
         print(f"Applied {set_count} PAI configuration settings ({skip_count} skipped)")
-    
+
     return set_count
 
 
@@ -2025,20 +2061,20 @@ try:
     from huggingface_hub import PyTorchModelHubMixin, hf_hub_download, HfApi
 
     def upload_to_huggingface(
-        model, 
-        repo_id, 
+        model,
+        repo_id,
         license="apache-2.0",
         pipeline_tag=None,
         repo_url=None,
         tags=None,
         include_pai_config=True,
-        **kwargs
+        **kwargs,
     ):
         """Upload a model to HuggingFace Hub.
-        
+
         Uploads model weights and PAI configuration to HuggingFace Hub.
         The configuration is saved in config.json and can be restored when loading.
-        
+
         Parameters
         ----------
         model : nn.Module
@@ -2057,16 +2093,16 @@ try:
             Whether to include all GPA.pc configuration in the model config, by default True
         **kwargs
             Additional arguments passed to HfApi (token, private, etc.)
-            
+
         Returns
         -------
         str
             URL of the uploaded model
-            
+
         Examples
         --------
         >>> url = upload_to_huggingface(
-        ...     model, 
+        ...     model,
         ...     "username/my-model",
         ...     license="mit",
         ...     pipeline_tag="image-classification",
@@ -2079,16 +2115,16 @@ try:
             raise ImportError(
                 "huggingface_hub is required. Install it with: pip install huggingface_hub"
             )
-        
+
         import tempfile
         import os
-        
+
         # Prepare model same way as save_pai_net does
         model = prepare_final_model(model)
-        
+
         # Calculate parameter count
         param_count = count_params(model)
-        
+
         # Format parameter count for tags (e.g., "11m" for 11 million)
         if param_count >= 1e9:
             param_tag = f"{param_count/1e9:.0f}b"
@@ -2098,32 +2134,32 @@ try:
             param_tag = f"{param_count/1e3:.0f}k"
         else:
             param_tag = str(param_count)
-        
+
         # Create a temporary directory for files
         with tempfile.TemporaryDirectory() as tmpdir:
             # Save model weights
             model_path = os.path.join(tmpdir, "model.safetensors")
             save_file(model.state_dict(), model_path)
-            
+
             # Create config with PAI configuration
             config = {}
             if include_pai_config:
                 pai_config = extract_gpa_config()
-                config['pai_config'] = pai_config
+                config["pai_config"] = pai_config
                 if GPA.pc.get_verbose():
                     print(f"Extracted {len(pai_config)} PAI configuration parameters")
-            
+
             # Add parameter count at top level
-            config['num_parameters'] = param_count
-            
+            config["num_parameters"] = param_count
+
             # Add metadata
             if license:
-                config['license'] = license
+                config["license"] = license
             if pipeline_tag:
-                config['pipeline_tag'] = pipeline_tag
+                config["pipeline_tag"] = pipeline_tag
             if repo_url:
-                config['repo_url'] = repo_url
-            
+                config["repo_url"] = repo_url
+
             # Add tags with parameter count
             if tags is None:
                 tags = []
@@ -2131,91 +2167,92 @@ try:
                 tags = [tags]
             else:
                 tags = tags.copy()  # Don't modify the original list
-            
+
             # Add perforated-ai tag if not present
             if "perforated-ai" not in tags:
                 tags.insert(0, "perforated-ai")
-            
+
             # Add parameter count tag if not present
             if param_tag not in tags:
                 tags.append(param_tag)
-            
-            config['tags'] = tags
-            
+
+            config["tags"] = tags
+
             # Save config.json
             config_path = os.path.join(tmpdir, "config.json")
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 json.dump(config, f, indent=2)
-            
+
             # Upload to HuggingFace
             api = HfApi()
-            
+
             # Extract token from kwargs if present
-            token = kwargs.pop('token', None)
-            private = kwargs.pop('private', None)
-            
+            token = kwargs.pop("token", None)
+            private = kwargs.pop("private", None)
+
             # Create repo if it doesn't exist
             try:
-                api.create_repo(repo_id=repo_id, token=token, private=private, exist_ok=True)
+                api.create_repo(
+                    repo_id=repo_id, token=token, private=private, exist_ok=True
+                )
             except Exception as e:
                 print(f"Repo may already exist: {e}")
-            
+
             # Upload folder
             api.upload_folder(
-                folder_path=tmpdir,
-                repo_id=repo_id,
-                token=token,
-                **kwargs
+                folder_path=tmpdir, repo_id=repo_id, token=token, **kwargs
             )
-        
+
         print(f"Model uploaded to: https://huggingface.co/{repo_id}")
         if include_pai_config:
             print(f"PAI configuration saved in config.json")
         print(f"To reload, use: model = from_hf_pretrained(model, '{repo_id}')")
-        
+
         return f"https://huggingface.co/{repo_id}"
 
     def from_hf_pretrained(net, repo_id):
         """Load a PerforatedAI model from HuggingFace Hub using PyTorchModelHubMixin.
-        
+
         Args:
             net: The base model architecture (will be converted to PAI format)
             repo_id: HuggingFace Hub repository ID (e.g., "username/model-name")
-        
+
         Returns:
             net: The loaded model with PAI modules initialized
         """
-        
+
         # Wrap in a class that inherits from PyTorchModelHubMixin
         class PAIHFModel(net.__class__, PyTorchModelHubMixin):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-        
+
         # Create an instance that can use from_pretrained
         wrapped_net = PAIHFModel.__new__(PAIHFModel)
         wrapped_net.__dict__ = net.__dict__
         wrapped_net.__class__ = PAIHFModel
-        
+
         # Download config.json to restore PAI configuration
         try:
             config_path = hf_hub_download(repo_id=repo_id, filename="config.json")
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 config = json.load(f)
-                if 'pai_config' in config:
-                    #print(f"Restoring PAI configuration from HuggingFace")
-                    set_gpa_config(config['pai_config'])
+                if "pai_config" in config:
+                    # print(f"Restoring PAI configuration from HuggingFace")
+                    set_gpa_config(config["pai_config"])
                 else:
                     print("Warning: No pai_config found in config.json")
         except Exception as e:
             print(f"Warning: Could not load PAI config from HuggingFace: {e}")
-        
+
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors")
         state_dict = load_file(model_path)
         wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
+
 except:
+
     def upload_to_huggingface(*args, **kwargs):
         raise ImportError(
             "huggingface_hub is required for upload_to_huggingface. "

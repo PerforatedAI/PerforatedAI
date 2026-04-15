@@ -32,9 +32,9 @@ fi
 # Create .github/skills directory in target if it doesn't exist
 mkdir -p "$TARGET_PROJECT/.github/skills"
 
-echo -e "${GREEN}Installing PerforatedAI skill...${NC}"
-echo "Source: $SCRIPT_DIR"
-echo "Target: $TARGET_PROJECT/.github/skills/perforatedai"
+echo -e "${GREEN}Installing PerforatedAI skills...${NC}"
+echo "Source: $SCRIPT_DIR/.."
+echo "Target: $TARGET_PROJECT/.github/skills"
 
 # Copy skill files, dereferencing symlinks but excluding large working directories
 rsync -rL \
@@ -53,9 +53,9 @@ rsync -rL \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     --info=progress2 \
-    "$SCRIPT_DIR/" "$TARGET_PROJECT/.github/skills/perforatedai/"
+    "$SCRIPT_DIR/../" "$TARGET_PROJECT/.github/skills/"
 
-echo -e "${GREEN}✓ PerforatedAI skill installed successfully!${NC}"
+echo -e "${GREEN}✓ PerforatedAI skills installed successfully!${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Open VS Code in your project: code $TARGET_PROJECT"

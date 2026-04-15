@@ -304,64 +304,11 @@ GPA.pc.set_output_dimensions([...])  # Based on your tensor shape
 
 Explain your reasoning for each choice based on what you saw in their model when you make the change.
 
-**→ Next: Proceed to Step 4. ⚠️ NOTE: Step 4 starts with MANDATORY multi-GPU detection. Do NOT initialize the model until detection is complete.**
+**→ Next: Proceed to Step 4.**
 
 ---
 
-### Step 4: Detect Multi-GPU Setup and Initialize Model
-
-🚨 **BLOCKING REQUIREMENT: Your FIRST action in this step MUST be to detect if they use DataParallel or DistributedDataParallel.**
-
-⛔ **DO NOT initialize the model yet. DO NOT call initialize_pai() yet. DETECTION FIRST.**
-
----
-
-#### Step 4.1: MANDATORY Multi-GPU Detection (DO THIS BEFORE ANYTHING ELSE)
-
-🔴 **STOP: Read their script and detect multi-GPU setup BEFORE doing ANY model initialization.**
-
-**Analyze their script to check if they're using DataParallel or DistributedDataParallel:**
-
-**Search for these patterns:**
-- `torch.nn.DataParallel(model, ...)` or `nn.DataParallel(model, ...)`
-- `torch.nn.parallel.DistributedDataParallel(model, ...)` or `DDP(model, ...)`
-- Command-line arguments like `--parallel`, `--multi-gpu`, `--distributed`, `--world-size`, `--local_rank`
-- Environment checks like `torch.cuda.device_count() > 1`
-- Import statements: `from torch.nn.parallel import DistributedDataParallel`
-- `torch.distributed.init_process_group` calls
-
-**After searching, report what you found:**
-
-Tell the user: "I searched your script for DataParallel/DDP usage and found: [NONE / DataParallel / DistributedDataParallel]"
-
-**🔍 DECISION POINT - Choose your path based on what you found:**
-
-**❌ NO DataParallel/DDP found:**
-- Proceed to Step 4.2 below for standard single-GPU setup
-- This is the simple path - no special handling needed
-
-**✅ DataParallel FOUND:**
-- **If optional** (command-line argument): Ask "I see your script has an option to use DataParallel. Are you planning to use it?"
-- **If hardcoded**: Tell them "I see your script uses DataParallel."
-- Proceed to Step 4.3 (Multi-GPU Setup)
-
-**✅ DistributedDataParallel FOUND:**
-- **If optional** (command-line argument): Ask "I see your script has an option to use DistributedDataParallel. Are you planning to use it?"
-- **If hardcoded**: Tell them "I see your script uses DistributedDataParallel."
-- Proceed to Step 4.3 (Multi-GPU Setup)
-
-**⚠️ You MUST explicitly report your findings before proceeding to the next step.**
-
----
-
-#### Step 4.2: Standard Single-GPU Setup (No DataParallel/DDP)
-
-**Only use this section if you confirmed NO DataParallel/DDP in Step 4.1 above.**
-
-🔴 **CHECKPOINT: Before proceeding, verify:**
-- Did you search for DataParallel/DDP in Step 4.1? (YES/NO)
-- Did you find NONE? (YES/NO)
-- If you answered NO to either: **STOP and go back to Step 4.1**
+### Step 4: Initialize Model
 
 Find where their model is created. Before adding PAI initialization, **first analyze their validation loop** to determine if they're maximizing or minimizing a metric.
 
@@ -397,218 +344,69 @@ Tell them: "I analyzed your validation loop and found you're tracking [metric_na
 
 Make this change in their script.
 
-**After completing this, jump to Step 4.9: Verification Checkpoint at the end of this step.**
+**→ Next: Proceed to Step 5.**
 
 ---
 
-#### Step 4.3: Multi-GPU Setup (DataParallel or DDP)
+### Step 5: Detect and Handle Multi-GPU Setup
 
-**Only use this section if you detected DataParallel or DistributedDataParallel in Step 4.1 above.**
+🚨 **MANDATORY: Check for DataParallel or DistributedDataParallel BEFORE proceeding to optimizer setup.**
 
-� **CHECKPOINT: Before proceeding, verify:**
-- Did you search for DataParallel/DDP in Step 4.1? (YES/NO)
-- Did you FIND DataParallel or DDP? (YES/NO)
-- Did you report this to the user? (YES/NO)
-- If you answered NO to any: **STOP and go back to Step 4.1**
+**Analyze their script to check if they're using DataParallel or DistributedDataParallel:**
 
-�🚨 **CRITICAL - BLOCKING REQUIREMENT - DO NOT SKIP** 🚨
+**Search for these patterns:**
+- `torch.nn.DataParallel(model, ...)` or `nn.DataParallel(model, ...)`
+- `torch.nn.parallel.DistributedDataParallel(model, ...)` or `DDP(model, ...)`
+- Command-line arguments like `--parallel`, `--multi-gpu`, `--distributed`, `--world-size`, `--local_rank`
+- Environment checks like `torch.cuda.device_count() > 1`
+- Import statements: `from torch.nn.parallel import DistributedDataParallel`
+- `torch.distributed.init_process_group` calls
 
-Multi-GPU training with PerforatedAI has **7+ specific code changes** that MUST be implemented. These instructions are in a separate specialized skill.
+**After searching, report what you found:**
 
-**⛔ MANDATORY ACTION - You MUST complete ALL of the following:**
+Tell the user: "I searched your script for DataParallel/DDP usage and found: [NONE / DataParallel / DistributedDataParallel]"
 
-1. **IMMEDIATELY use `read_file` tool** to load: `.github/skills/perforatedai-distributed/SKILL.md`
-   - This is NOT optional
-   - This is NOT a suggestion
-   - **DO THIS NOW before proceeding**
+**🔍 DECISION POINT - Choose your path based on what you found:**
 
-2. **Follow EVERY step in the loaded skill:**
-   - For **DataParallel**: Complete all 3 substeps (args, wrapper, training loop)
-   - For **DDP**: Complete all 7 substeps including:
-     - Substep 1: Command-line arguments
-     - Substep 2: Checkpoint loading BEFORE optimizer
-     - Substep 3: Conditional DDP wrapper with find_unused_parameters=True
-     - Substep 4: Training loop initialization handling
-     - Substep 5: Validation loop with rank 0 handling and broadcasting
-     - Substep 6: **ASK user for GPU count** (REQUIRED - you must ask this question)
-     - Substep 7: **CREATE train_distributed.sh shell script** (REQUIRED - you must create this file)
+**❌ NO DataParallel/DDP found:**
+- Skip the rest of this step and proceed directly to Step 6 (Setup Optimizer)
+- No special multi-GPU handling needed
 
-3. **🚨 DDP DELIVERABLES - BOTH ARE MANDATORY 🚨**
-   
-   **Python Script Changes:**
-   - [ ] Command-line arguments added
-   - [ ] Checkpoint loading added BEFORE optimizer
-   - [ ] DDP wrapper with find_unused_parameters=True
-   - [ ] Training loop initialization exit
-   - [ ] Validation loop with rank 0 handling
-   - [ ] Broadcasting and process group cleanup
-   - [ ] Completion marker file creation
-   
-   **Shell Script (train_distributed.sh):**
-   - [ ] Asked user: "How many GPUs do you want to use?"
-   - [ ] Created file using `create_file` tool
-   - [ ] File contains initialization step + continuous loop
-   - [ ] Made executable with `chmod +x train_distributed.sh`
-   - [ ] Told user to run `./train_distributed.sh`
+**✅ DataParallel OR DistributedDataParallel FOUND:**
 
-**🚨 WARNING: If you proceed to Step 4.9 without:**
-- Reading the perforatedai-distributed skill file
-- Implementing ALL code changes from that skill
-- Creating the shell script (for DDP)
+🚨 **STOP - BLOCKING REQUIREMENT - READ THIS FIRST** 🚨
 
-**You have FAILED this step and must go back.**
+**Before doing ANYTHING else, you MUST:**
+
+1. **If optional** (command-line argument): Ask "I see your script has an option to use DataParallel/DDP. Are you planning to use it?"
+   - Wait for their answer
+   - If NO: Skip the rest of this step and proceed to Step 6 (Setup Optimizer)
+   - If YES: Continue with step 2 below
+
+2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]."
+
+3. **IMMEDIATELY execute this tool call as your NEXT action:**
+   ```
+   Use read_file tool to load: .github/skills/perforatedai-distributed/SKILL.md
+   Read the entire file from line 1 to line 500.
+   ```
+
+4. **After loading the distributed skill, FOLLOW EVERY INSTRUCTION in that file from start to finish.**
+   - Do NOT return to this skill until the distributed skill tells you to
+   - Do NOT skip any steps in the distributed skill
+   - The distributed skill will guide you back here when complete
+
+**⛔ YOU MAY NOT PROCEED PAST THIS POINT WITHOUT LOADING THE DISTRIBUTED SKILL FIRST ⛔**
+
+**If you proceed without reading the distributed skill file, you have FAILED and must start over.**
+
+**After completing the distributed skill, proceed to Step 7 (Update Training Loop). Note: Skip Step 6 because the distributed skill already handled optimizer setup.**
 
 ---
 
-**🔴 MANDATORY CHECKPOINT - Complete BEFORE going to Step 4.9:**
+### Step 6: Setup Optimizer and Scheduler
 
-**If you just completed DataParallel setup, verify:**
-- [ ] Added `--initialize_pai_parallel` command-line argument
-- [ ] Modified DataParallel wrapper with conditional logic
-- [ ] Added training loop exit code after first batch
-
-**If you just completed DDP setup, you MUST verify ALL of these:**
-
-🚨 **CRITICAL - DDP SHELL SCRIPT IS MANDATORY - DO NOT SKIP** 🚨
-
-Answer these questions:
-1. ❓ "Did I ASK the user: 'How many GPUs do you want to use for training?'"
-2. ❓ "Did I CREATE a file called `train_distributed.sh` using the `create_file` tool?"
-3. ❓ "Did I run `chmod +x train_distributed.sh` to make it executable?"
-4. ❓ "Did I tell the user to run `./train_distributed.sh` to train?"
-
-**If you answered NO to ANY of these questions:**
-- ❌ **YOU FAILED DDP SETUP**
-- ⛔ **GO BACK TO STEP 4.3**  
-- 🚨 **Load the perforatedai-distributed skill again and complete substep 7**
-- 🚨 **The shell script is NOT OPTIONAL for DDP - it is REQUIRED**
-
-**DDP Setup is NOT complete until you have:**
-- [ ] Modified 7 locations in their Python script
-- [ ] Asked about GPU count
-- [ ] Created `train_distributed.sh` file (verify with `ls` command if unsure)
-- [ ] Made script executable with `chmod +x`
-- [ ] Told user how to run the shell script
-
-**⛔ DO NOT proceed to Step 4.9 until ALL checkboxes above are checked.**
-
----
-
-**After completing ALL steps AND checkpoint verification above, NOW proceed to Step 4.9 for verification.**
-
----
-
-#### Step 4.9: Verification Checkpoint (MANDATORY - Do Not Skip)
-
-🛑 **STOP: Before proceeding to Step 5, verify you completed the correct setup path:**
-
-**Did you perform Step 4.1 Multi-GPU Detection?**
-
-**You MUST answer these questions:**
-1. ❓ "Did I search the user's script for DataParallel/DDP patterns?"
-2. ❓ "Did I report to the user what I found (NONE / DataParallel / DistributedDataParallel)?"
-
-**If you answered NO to either question:**
-- ❌ **YOU SKIPPED STEP 4.1**
-- ⛔ **GO BACK TO STEP 4.1 NOW**
-- 🚨 **Do NOT proceed to Step 5 until detection is complete**
-
----
-
-**If you completed detection, which path did you take?**
-
-✅ **Path A: Single-GPU (No DataParallel/DDP)**
-- [ ] I searched for DataParallel/DDP in Step 4.1 and found NONE
-- [ ] I reported this finding to the user
-- [ ] I completed Step 4.2: Added `initialize_pai()` with correct `maximizing_score`
-- [ ] Ready to proceed to Step 5
-
-✅ **Path B: Multi-GPU with DataParallel or DDP**
-
-**First, which type did you use?**
-- DataParallel → Verify DataParallel checklist below
-- DistributedDataParallel (DDP) → Verify DDP checklist below
-
-**For DataParallel users:**
-- [ ] I searched for DataParallel in Step 4.1 and found it
-- [ ] I reported this finding to the user
-- [ ] I used `read_file` to load the perforatedai-distributed skill
-- [ ] I completed all 3 DataParallel substeps
-- [ ] Ready to proceed to Step 5
-
-**For DDP users - MANDATORY VERIFICATION:**
-
-🚨 **SHELL SCRIPT VERIFICATION - THIS IS BLOCKING** 🚨
-
-**You MUST answer YES to ALL of these:**
-1. ❓ "Did I search for DDP in Step 4.1 and find DistributedDataParallel?" (YES/NO)
-2. ❓ "Did I use `read_file` to load `.github/skills/perforatedai-distributed/SKILL.md`?" (YES/NO)
-3. ❓ "Did I complete ALL 7 DDP substeps from that skill?" (YES/NO)
-4. ❓ "Did I ASK the user how many GPUs they want to use?" (YES/NO)
-5. ❓ "Did I CREATE the file `train_distributed.sh` using the create_file tool?" (YES/NO)
-6. ❓ "Can I verify the file exists (did I run it or tell user about it)?" (YES/NO)
-
-**If you answered NO to ANY question above:**
-- ❌ **DDP SETUP IS INCOMPLETE**
-- ⛔ **GO BACK TO STEP 4.3**
-- 🚨 **The shell script is MANDATORY for DDP - not optional**
-- 🚨 **DDP will NOT work without the shell script**
-
-**DDP Deliverables - BOTH must be complete:**
-- [ ] Modified Python training script with all 7 code changes
-- [ ] Created `train_distributed.sh` bash script with user's GPU configuration
-- [ ] Made script executable with `chmod +x train_distributed.sh`
-- [ ] Told user to run `./train_distributed.sh` to start training
-
-**All checkboxes must be checked to proceed to Step 5.**
-
-**✅ Once verified, proceed to Step 5.**
-
----
-
-### Step 5: Setup Optimizer and Scheduler
-
-🔴 **BLOCKING CHECKPOINT - DDP Users Must Read This First** 🔴
-
-**BEFORE proceeding with optimizer setup, if you detected DistributedDataParallel in Step 4.1:**
-
-Answer this question:
-❓ "Did I create the file `train_distributed.sh` and tell the user about it?"
-
-**If NO:**
-- ⛔ **STOP IMMEDIATELY**
-- 🚨 **You CANNOT proceed to Step 5 without the shell script**
-- 🚨 **DDP REQUIRES the shell script - it will not work without it**
-- ⛔ **GO BACK to Step 4.3 and complete substep 7 of the DDP setup**
-- Load `.github/skills/perforatedai-distributed/SKILL.md` and complete substep 7
-- Create the shell script before returning here
-
-**If YES (shell script created):** Continue below.
-
----
-
-**🚨 CRITICAL for DDP users - READ THIS FIRST:**
-
-If using DistributedDataParallel, the checkpoint loading code (`UPA.load_system()`) was added in Step 4.3. The optimizer setup code you're about to create **MUST be placed in their script AFTER that checkpoint loading block**.
-
-**Correct code placement order in their script:**
-```python
-# 1. Model creation + initialize_pai [Step 4]
-model = UPA.initialize_pai(model, ...)
-
-# 2. Checkpoint loading [Step 4.3 - DDP only]
-if args.pai_load_folder is not None:
-    model = UPA.load_system(model, ...)  # Loads model with new dendrites
-
-# 3. Optimizer setup [Step 5 - YOU ARE HERE] ← PLACE YOUR CODE HERE
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, ...)
-
-# 4. DDP wrapper [Step 4.3]
-if not args.initialize_pai_parallel:
-    model = torch.nn.parallel.DistributedDataParallel(model, ...)
-```
-
-**⚠️ If you placed optimizer setup BEFORE checkpoint loading, the optimizer will have wrong parameters! Go back and fix the order.**
+**⚠️ NOTE: If you handled DataParallel or DDP in Step 5, SKIP this step - the distributed skill already set up the optimizer. Only use this step for single-GPU setups.**
 
 ---
 
@@ -691,11 +489,13 @@ GPA.pai_tracker.set_optimizer_instance(optimizer)
 
 Tell them: "Your optimizer setup is complex, so I'm using the simpler integration method. PAI will work with your existing optimizer configuration."
 
-### Step 6: Update Training Loop
+---
+
+### Step 7: Update Training Loop
 
 Find their validation step in the training loop. You need to update it to use PAI's `add_validation_score` function.
 
-**Pattern 1 - If they used PAI optimizer setup (Step 5, first option):**
+**Pattern 1 - If they used PAI optimizer setup (Step 6, first option):**
 
 Find where validation completes and they have a validation score. Add the PAI score tracking and restructuring logic.
 
@@ -726,13 +526,13 @@ elif restructured:
 ```
 
 **🚨 CRITICAL:** 
-- Use the EXACT SAME optimArgs and schedArgs from Step 5
-- If Step 5 used StepLR, use StepLR args here (step_size, gamma)
-- If Step 5 used CosineAnnealingLR, use those args here (T_max, etc.)
+- Use the EXACT SAME optimArgs and schedArgs from Step 6
+- If Step 6 used StepLR, use StepLR args here (step_size, gamma)
+- If Step 6 used CosineAnnealingLR, use those args here (T_max, etc.)
 - DO NOT change optimizer/scheduler types or arguments in the restructured block
 - Just pass the actual validation value (val_acc or val_loss). PAI handles maximization/minimization internally.
 
-**Pattern 2 - If they used `set_optimizer_instance` (Step 5, second option):**
+**Pattern 2 - If they used `set_optimizer_instance` (Step 6, second option):**
 
 Find where validation completes. Add the PAI score tracking and restructuring logic.
 
@@ -792,7 +592,7 @@ Tell them: "I've modified your training loop to allow PAI to control when traini
 **After making all the code changes:** Tell them:
 > "I've integrated PerforatedAI into your training script. Note: I set `set_testing_dendrite_capacity(True)` which is a debugging flag that helps verify dendrites are being added correctly. We'll change this to `False` for full training after confirming everything works."
 
-### Step 7: Optional Configuration Tuning
+### Step 8: Optional Configuration Tuning
 
 Before running the first experiment, check with them about optional configurations that can improve results and analysis:
 
@@ -944,7 +744,7 @@ Make the changes and explain: "I've configured PAI to only add dendrites to your
 
 Tell them: "Configuration complete! Now let's verify the integration works."
 
-### Step 8: Verify Dendrite Integration
+### Step 9: Verify Dendrite Integration
 
 Tell them:
 
