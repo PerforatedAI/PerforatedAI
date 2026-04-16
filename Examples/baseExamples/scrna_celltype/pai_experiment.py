@@ -17,20 +17,20 @@ def _configure_pai():
     Apply PAI configuration before model initialisation.
 
     Four settings are required for correct behaviour with transformers:
-      - module_names_to_convert=["Linear"]: avoids ipdb prompts on LayerNorm etc.
+      - module_names_to_perforate=["Linear"]: avoids ipdb prompts on LayerNorm etc.
       - unwrapped_modules_confirmed=True: suppresses confirmation for non-Linear layers
       - input_dimensions=[-1, -1, 0]: declares 3D transformer tensors (batch, seq, features)
       - testing_dendrite_capacity=False: DOING_HISTORY mode; without this PAI exits after ~4 epochs
     """
     from perforatedai import globals_perforatedai as GPA
 
-    GPA.pc.set_module_names_to_convert(['Linear'])
+    GPA.pc.set_module_names_to_perforate(['Linear'])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_input_dimensions([-1, -1, 0])
     GPA.pc.set_testing_dendrite_capacity(False)
 
     print('PAI configured:')
-    print('  module_names_to_convert  ["Linear"]')
+    print('  module_names_to_perforate  ["Linear"]')
     print('  unwrapped_modules_confirmed  True')
     print('  input_dimensions  [-1, -1, 0]  (3D transformer)')
     print('  testing_dendrite_capacity  False  (DOING_HISTORY)')

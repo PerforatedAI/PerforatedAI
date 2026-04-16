@@ -60,7 +60,7 @@ def main():
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_max_dendrites(6)
     GPA.pc.set_perforated_backpropagation(False)
-    GPA.pc.set_module_names_to_convert(["Conv3d"])
+    GPA.pc.set_module_names_to_perforate(["Conv3d"])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_verbose(False)

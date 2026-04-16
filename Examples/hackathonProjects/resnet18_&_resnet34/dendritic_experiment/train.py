@@ -152,7 +152,7 @@ def run_experiment(model, model_name, trainloader, testloader, device, use_pai=F
 
         # Configure PAI *BEFORE* initialization (Critical for conversion flags)
         print("Configuring PAI settings...")
-        GPA.pc.set_modules_to_convert([TargetedConv2d])
+        GPA.pc.set_modules_to_perforate([TargetedConv2d])
         
         # Fix: Track other layers so optimizer doesn't crash
         GPA.pc.append_modules_to_track([nn.Conv2d, nn.Linear, nn.BatchNorm2d])
