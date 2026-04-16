@@ -194,7 +194,7 @@ def run_sweep_experiment():
 
     # Configure PAI with sweep parameters
     print("Configuring PAI settings from sweep...")
-    GPA.pc.set_modules_to_convert([TargetedConv2d])
+    GPA.pc.set_modules_to_perforate([TargetedConv2d])
     GPA.pc.append_modules_to_track([nn.Conv2d, nn.Linear, nn.BatchNorm2d])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)

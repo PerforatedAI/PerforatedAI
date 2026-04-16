@@ -628,7 +628,7 @@ def setup_pai_config(
         print("  SafeTensors Mode: ENABLED (fixes PB .item() error)")
     
     # ========== MODULE CONFIGURATION (Matching PAI Official Examples) ==========
-    # Like EfficientNet example uses: append_module_names_to_convert(['MBConv', 'Conv2dNormActivation'])
+    # Like EfficientNet example uses: append_module_names_to_perforate(['MBConv', 'Conv2dNormActivation'])
     # We explicitly tell PAI which YOLO module types should get dendrites
     #
     # YOLOv11n Module Types:
@@ -637,10 +637,10 @@ def setup_pai_config(
     # - EXCLUDE: Detect, DFL, SPPF (detection-specific)
     
     # Main feature extraction blocks - ADD DENDRITES TO THESE
-    main_blocks_to_convert = ['C3k2', 'C3k', 'C2PSA', 'Bottleneck', 'PSABlock']
-    if hasattr(GPA.pc, 'append_module_names_to_convert'):
-        GPA.pc.append_module_names_to_convert(main_blocks_to_convert)
-        print(f"  Module Types to CONVERT: {main_blocks_to_convert}")
+    main_blocks_to_perforate = ['C3k2', 'C3k', 'C2PSA', 'Bottleneck', 'PSABlock']
+    if hasattr(GPA.pc, 'append_module_names_to_perforate'):
+        GPA.pc.append_module_names_to_perforate(main_blocks_to_perforate)
+        print(f"  Module Types to CONVERT: {main_blocks_to_perforate}")
     
     # Normalization/activation layers - TRACK but don't add dendrites
     layers_to_track = ['BatchNorm2d', 'SiLU', 'Identity', 'Upsample', 'MaxPool2d', 'Concat']

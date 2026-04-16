@@ -21,7 +21,7 @@ def convert_network(net, layer_name=""):
     if type(net) in GPA.pc.get_modules_to_replace():
         net = UPA.replace_predefined_modules(net)
     # If the net itself should be converted make the converstion
-    if type(net) in GPA.pc.get_modules_to_convert():
+    if type(net) in GPA.pc.get_modules_to_perforate():
         if layer_name == "":
             print(
                 "converting a single layer without a name, add a layer_name param to the call"

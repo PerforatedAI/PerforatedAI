@@ -567,10 +567,10 @@ def prepare_dendritic_model(
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_unwrapped_modules_confirmed(True)
 
-    GPA.pc.set_modules_to_convert([nn.Linear])
+    GPA.pc.set_modules_to_perforate([nn.Linear])
     GPA.pc.set_modules_to_track([])
     GPA.pc.set_module_names_to_track([])
-    GPA.pc.set_module_ids_to_convert([])
+    GPA.pc.set_module_ids_to_perforate([])
     GPA.pc.set_module_ids_to_track([])
 
     if exclude_output_proj:

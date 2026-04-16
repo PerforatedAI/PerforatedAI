@@ -31,14 +31,6 @@ except ModuleNotFoundError as e:
         # perforatedbp exists but is missing a dependency
         raise
 
-
-except ModuleNotFoundError as e:
-    # Only pass if perforatedbp package itself is missing
-    if e.name == 'perforatedbp':
-        pass
-    else:
-        # perforatedbp exists but is missing a dependency
-        raise
 import copy
 
 from safetensors.torch import load_file
@@ -353,7 +345,7 @@ def convert_module(
                     tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
                 continue
-            if sub_name in GPA.pc.get_module_ids_to_convert():
+            if sub_name in GPA.pc.get_module_ids_to_perforate():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
                 setattr(
@@ -391,9 +383,9 @@ def convert_module(
                     tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             elif (
-                type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_convert()
+                type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_perforate()
                 or type(net.get_submodule(submodule_id)).__name__
-                in GPA.pc.get_module_names_to_convert()
+                in GPA.pc.get_module_names_to_perforate()
             ):
                 if GPA.pc.get_verbose():
                     print(
@@ -469,7 +461,7 @@ def convert_module(
                     net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
                 continue
-            if sub_name in GPA.pc.get_module_ids_to_convert():
+            if sub_name in GPA.pc.get_module_ids_to_perforate():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
                 setattr(
@@ -532,10 +524,10 @@ def convert_module(
                     net, member, tracked_module_class(getattr(net, member), sub_name)
                 )
             elif (
-                type(getattr(net, member, None)) in GPA.pc.get_modules_to_convert()
+                type(getattr(net, member, None)) in GPA.pc.get_modules_to_perforate()
                 or type(getattr(net, member, None)).__name__
-                in GPA.pc.get_module_names_to_convert()
-                or (sub_name in GPA.pc.get_module_ids_to_convert())
+                in GPA.pc.get_module_names_to_perforate()
+                or (sub_name in GPA.pc.get_module_ids_to_perforate())
             ):
                 if GPA.pc.get_verbose():
                     print(
@@ -602,7 +594,7 @@ def convert_module(
                     print("Then do one of the following:")
                     print(
                         " - Add the module type to "
-                        "GPA.pc.get_module_names_to_convert() to wrap it entirely"
+                        "GPA.pc.get_module_names_to_perforate() to wrap it entirely"
                     )
                     print(
                         " - If the norm layer is part of a sequential wrap "
@@ -643,8 +635,8 @@ def convert_network(net, layer_name=""):
         MPB.set_main_parameters(net)
     if type(net) in GPA.pc.get_modules_to_replace():
         net = replace_predefined_modules(net)
-    if (type(net) in GPA.pc.get_modules_to_convert()) or (
-        type(net).__name__ in GPA.pc.get_module_names_to_convert()
+    if (type(net) in GPA.pc.get_modules_to_perforate()) or (
+        type(net).__name__ in GPA.pc.get_module_names_to_perforate()
     ):
         if layer_name == "":
             print(
@@ -707,7 +699,7 @@ def convert_network(net, layer_name=""):
                 "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time"
             )
             print(
-                "Inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert"
+                "Inspect your network and see what the module types of these values are to add them to PGB.module_names_to_perforate"
             )
             # If did miss some then set trace to debug
             if len(missed_ones) != 0:
@@ -1234,6 +1226,7 @@ def load_net_from_dict(net, state_dict):
             "initialize_pai on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
+        import pdb # This needs to be here for cython for some reason.
         pdb.set_trace()
         sys.exit(-1)
     if GPA.pc.get_verbose():

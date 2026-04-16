@@ -12,7 +12,6 @@
    pip install perforatedai
    ```
 
-
 2. **If not working in this folder:** Copy the skill to your project using the install script.  This MUST be to the top level folder of where your editor is open.
 
    ```bash

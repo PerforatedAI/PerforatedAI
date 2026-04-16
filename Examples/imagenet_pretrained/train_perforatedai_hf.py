@@ -442,7 +442,7 @@ def main(args):
             GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
         GPA.pc.append_module_ids_to_track(['.b1'])
         GPA.pc.append_module_ids_to_track(['.fc', '.conv1', '.bn1'])
-        GPA.pc.append_module_names_to_convert(["BasicBlock", "Bottleneck"])
+        GPA.pc.append_module_names_to_perforate(["BasicBlock", "Bottleneck"])
         
         if args.hf_mode == 2:
             GPA.pc.append_module_ids_to_track(['.fc'])
