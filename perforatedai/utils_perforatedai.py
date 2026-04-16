@@ -32,6 +32,13 @@ except ModuleNotFoundError as e:
         raise
 
 
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == 'perforatedbp':
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 import copy
 
 from safetensors.torch import load_file
@@ -1032,6 +1039,48 @@ def save_net(net, folder, name):
     else:
         torch.save(net, save_point + name + ".pt")
 
+def save_pai_net(net, folder, name):
+    """Save the final pai network
+
+    This can be called after training to save the final network
+    with all scaffolding removed so only the refined weights remain
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to save.
+    folder : str
+        The folder to save the network in.
+    name : str
+        The name to save the network under.
+
+    Returns
+    -------
+    None
+
+    """
+    # if running a DDP only save with first thread
+    if "RANK" in os.environ:
+        if int(os.environ["RANK"]) != 0:
+            return
+
+    # print('calling save: %s' % name)
+    # GPA.pai_tracker.archive_layer()
+    # These deep copys are required or the real model will also have its layers replaced
+    net = prepare_final_model(net)
+    if not os.path.isdir(folder):
+        os.makedirs(folder)
+    save_point = folder + "/"
+    if not os.path.isdir(save_point):
+        os.mkdir(save_point)
+
+    if GPA.pc.get_using_safe_tensors():
+        if(GPA.pc.get_weight_tying_experimental()):
+            save_model_with_weight_tying(net, save_point + name + "_pai.pt")
+        else:
+            save_file(net.state_dict(), save_point + name + "_pai.pt")
+    else:
+        torch.save(net, save_point + name + "_pai.pt")
 
 def save_pai_net(net, folder, name):
     """Save the final pai network
@@ -1269,10 +1318,10 @@ def load_net_from_dict(net, state_dict):
                     "\n6 - You have converted a module that is in a frozen"
                     " part of the network and thus no gradients are flowing"
                 )
-                print(
-                    "\n7 - You are running multiple experiments at once with the same save_name."
-                    " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
+                print("\n7 - You are running multiple experiments at once with the same save_name."
+                      " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
                 )
+                import pdb
 
                 pdb.set_trace()
 
@@ -1386,15 +1435,15 @@ def deep_copy_pai(net):
 
 def prepare_final_model(net):
     """Prepare model for final save by removing scaffolding.
-
+    
     This performs all cleanup steps to convert a PAI model with scaffolding
     into a clean final model ready for inference or distribution.
-
+    
     Parameters
     ----------
     net : nn.Module
         The network to prepare.
-
+        
     Returns
     -------
     nn.Module
