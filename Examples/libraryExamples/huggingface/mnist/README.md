@@ -5,8 +5,8 @@
 To work with hugginface some internal mechanisms of the trainer must be changed to do Perforated AI steps where they need to be done.  We have created a repo that is a fork which has everything in the correct place.  Get it and install requirements by running:
 
     pip install -r requirements.txt
-    git clone https://github.com/PerforatedAI/PerforatedAI-Transformers.git
-    cd PerforatedAI-Transformers
+    git clone https://github.com/PerforatedAI/transformers-perforated.git
+    cd transformers-perforated
     pip install -e .
     cd ..
     pip install perforatedai
@@ -14,7 +14,7 @@ To work with hugginface some internal mechanisms of the trainer must be changed 
     
 ## Other Examples
 The rest of this readme covers the mnist example in this folder.  But additional examples are as follows:
-    [BERT Language Modeling](https://github.com/PerforatedAI/PerforatedAI-Transformers/tree/main/examples/pytorch/language-modeling)
+    [BERT Language Modeling](https://github.com/PerforatedAI/transformers-perforated/tree/main/examples/pytorch/language-modeling)
     
 ## Code Changes
 

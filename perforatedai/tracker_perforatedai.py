@@ -1565,12 +1565,7 @@ class PAINeuronModuleTracker:
                         "For PAI training it is recommended to not use "
                         "weight decay in your optimizer"
                     )
-                    print(
-                        "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
-                        "warning or c to continue"
-                    )
-                    GPA.pc.set_weight_decay_accepted(True)
-                    pdb.set_trace()
+
         except:
             pass
         self.member_vars["optimizer_instance"] = optimizer_instance
@@ -1716,12 +1711,6 @@ class PAINeuronModuleTracker:
                 "For PAI training it is recommended to not use "
                 "weight decay in your optimizer"
             )
-            print(
-                "Set GPA.pc.set_weight_decay_accepted(True) to ignore this "
-                "warning or c to continue"
-            )
-            GPA.pc.set_weight_decay_accepted(True)
-            pdb.set_trace()
 
         if ("model" not in opt_args.keys()) and "params" not in opt_args.keys():
             print("In setup_optimizer it will be depreciated to not pass in params yourself in the future")
@@ -1897,14 +1886,23 @@ class PAINeuronModuleTracker:
             )
             pdb.set_trace()
         if not GPA.pc.get_silent():
-
-            print(
-                f'Checking PAI switch with mode {self.member_vars["mode"]}, '
-                f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
-                f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
-                f'total epochs {self.member_vars["total_epochs_run"]}, '
-                f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
-            )
+            if(GPA.pc.get_perforated_backpropagation()):
+                print(
+                    f'Checking PAI switch with mode {self.member_vars["mode"]}, '
+                    f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
+                    f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'total epochs {self.member_vars["total_epochs_run"]}, '
+                    f'n: {switch_number}, p: {GPA.pc.get_p_epochs_to_switch()}, '
+                    f'num_cycles: {self.member_vars["num_cycles"]}'
+                )
+            else:
+                print(
+                    f'Checking PAI switch with mode {self.member_vars["mode"]}, '
+                    f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
+                    f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'total epochs {self.member_vars["total_epochs_run"]}, '
+                    f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
+                )
         if GPA.pc.get_perforated_backpropagation():
             # this will fill in epoch last improved
             TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY
@@ -2222,6 +2220,14 @@ class PAINeuronModuleTracker:
                     with torch.no_grad():
                         if GPA.pc.get_verbose():
                             print(f"Resetting score for {layer.name}")
+                        # Snapshot best_score before reset so we can compute per-epoch improvement
+                        layer.dendrite_module.dendrite_values[
+                            m
+                        ].epoch_start_best_score.copy_(
+                            layer.dendrite_module.dendrite_values[
+                                m
+                            ].best_score.detach()
+                        )
                         layer.dendrite_module.dendrite_values[
                             m
                         ].best_score_improved_this_epoch = (
@@ -2998,6 +3004,10 @@ class PAINeuronModuleTracker:
         None
 
         """
+        # If running DDP only save with rank 0
+        if "RANK" in os.environ:
+            if int(os.environ["RANK"]) != 0:
+                return
         if not self.making_graphs:
             return
 
@@ -3260,7 +3270,6 @@ class PAINeuronModuleTracker:
                     "GPA.pc.set_testing_dendrite_capacity(True) (default). "
                     "You may now set that to False and run a real experiment."
                 )
-                pdb.set_trace()
                 return net, False, True
 
             # If doing neuron training but this dendrite count didn't improve
@@ -3325,10 +3334,12 @@ class PAINeuronModuleTracker:
                         f'beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}',
                     )
                     # Copy current best model from this set of dendrites
-                    shutil.copyfile(
-                        f"{GPA.pc.get_save_name()}/best_model.pt",
-                        f'{GPA.pc.get_save_name()}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
-                    )
+                    # If running DDP only copy with rank 0
+                    if "RANK" not in os.environ or int(os.environ["RANK"]) == 0:
+                        shutil.copyfile(
+                            f"{GPA.pc.get_save_name()}/best_model.pt",
+                            f'{GPA.pc.get_save_name()}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
+                        )
 
                 net = UPA.change_learning_modes(
                     net,
