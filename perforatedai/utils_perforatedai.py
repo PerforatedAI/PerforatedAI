@@ -31,14 +31,6 @@ except ModuleNotFoundError as e:
         # perforatedbp exists but is missing a dependency
         raise
 
-
-except ModuleNotFoundError as e:
-    # Only pass if perforatedbp package itself is missing
-    if e.name == 'perforatedbp':
-        pass
-    else:
-        # perforatedbp exists but is missing a dependency
-        raise
 import copy
 
 from safetensors.torch import load_file
@@ -1234,6 +1226,7 @@ def load_net_from_dict(net, state_dict):
             "initialize_pai on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
+        import pdb # This needs to be here for cython for some reason.
         pdb.set_trace()
         sys.exit(-1)
     if GPA.pc.get_verbose():
