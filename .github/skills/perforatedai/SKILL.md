@@ -251,7 +251,7 @@ Add this configuration:
 ```python
 # PAI Configuration for CNNs
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_module_names_to_convert(["Conv2d", "Linear"])
+GPA.pc.set_module_names_to_perforate(["Conv2d", "Linear"])
 GPA.pc.set_output_dimensions([-1, 0, -1, -1])  # [batch, channels, height, width]
 ```
 
@@ -262,7 +262,7 @@ Add this configuration:
 ```python
 # PAI Configuration for Transformers
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_module_names_to_convert(["Linear"])
+GPA.pc.set_module_names_to_perforate(["Linear"])
 GPA.pc.set_output_dimensions([-1, -1, 0])  # [batch, sequence, features]
 GPA.pc.set_module_ids_to_track([".output_projection"])  # Skip final layer
 ```
@@ -274,7 +274,7 @@ Add this configuration:
 ```python
 # PAI Configuration for ResNet
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
-GPA.pc.set_module_names_to_convert(["BasicBlock", "Bottleneck", "Linear"])
+GPA.pc.set_module_names_to_perforate(["BasicBlock", "Bottleneck", "Linear"])
 GPA.pc.set_module_ids_to_track([".conv1", ".bn1"])
 GPA.pc.set_output_dimensions([-1, 0, -1, -1])  # [batch, channels, height, width]
 ```
@@ -297,7 +297,7 @@ If the model doesn't match the above patterns, analyze it:
 # PAI Configuration - analyzed from your model
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
 GPA.pc.set_max_dendrites(5)
-GPA.pc.set_module_names_to_convert(["Linear"])  # Start conservative
+GPA.pc.set_module_names_to_perforate(["Linear"])  # Start conservative
 GPA.pc.set_output_dimensions([...])  # Based on your tensor shape
 # May need to skip certain layers - we'll see from debug output
 ```
@@ -712,7 +712,7 @@ Ask: "I see your model has [BlockType] modules (e.g., BasicBlock, TransformerLay
 If yes, update the configuration:
 ```python
 # Add to existing module conversions (don't replace)
-GPA.pc.append_module_names_to_convert(["BasicBlock"])  # Or their block type
+GPA.pc.append_module_names_to_perforate(["BasicBlock"])  # Or their block type
 # This adds to the list - Linear and Conv2d layers inside BasicBlock won't be converted
 # because BasicBlock will be converted first
 ```
@@ -869,7 +869,7 @@ Common scenarios:
 **A. "Training errors / crashes"**
 - Once you have the error traceback, analyze it for common issues:
   - Dimension mismatches in `set_output_dimensions()`
-  - Wrong module names in `set_module_names_to_convert()`
+  - Wrong module names in `set_module_names_to_perforate()`
   - Device placement issues (model not on correct device after restructuring)
   - Optimizer not reinitialized after restructuring
 - Check [api-docs/debugging.md](./api-docs/debugging.md) for detailed debugging steps

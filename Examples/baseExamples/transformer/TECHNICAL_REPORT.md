@@ -73,7 +73,7 @@ Dendritic augmentation was applied with the following configuration:
 **Technical Configuration:**
 ```python
 GPA.pc.set_input_dimensions([-1, -1, 0])  
-GPA.pc.set_module_names_to_convert(["Linear"])  
+GPA.pc.set_module_names_to_perforate(["Linear"])  
 ```
 
 ---

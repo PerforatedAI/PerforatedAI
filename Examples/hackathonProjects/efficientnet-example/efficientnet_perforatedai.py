@@ -68,9 +68,9 @@ def train_model(path_dataset: str,
 
     GPA.pc.set_testing_dendrite_capacity(False)
 
-    GPA.pc.append_module_names_to_convert(['MBConv', 'Conv2dNormActivation', ])
-    GPA.pc.set_module_ids_to_convert(['.classifier'])
-    GPA.pc.set_modules_to_convert([])
+    GPA.pc.append_module_names_to_perforate(['MBConv', 'Conv2dNormActivation', ])
+    GPA.pc.set_module_ids_to_perforate(['.classifier'])
+    GPA.pc.set_modules_to_perforate([])
     GPA.pc.set_module_names_to_track(['MBConv', 'Conv2dNormActivation', 'Linear', 'Conv2d'])
 
     model = UPA.initialize_pai(model, maximizing_score=False)

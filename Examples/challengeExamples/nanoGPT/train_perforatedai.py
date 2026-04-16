@@ -287,12 +287,12 @@ GPA.pc.append_module_names_to_track(["MLP"])
 """
 for i in range(0,47):
     GPA.pc.append_module_ids_to_track([".transformer.h." + str(i) + ".mlp"])
-GPA.pc.append_module_ids_to_convert([".transformer.h.47.mlp.c_fc", ".transformer.h.47.mlp.c_proj"])
+GPA.pc.append_module_ids_to_perforate([".transformer.h.47.mlp.c_fc", ".transformer.h.47.mlp.c_proj"])
 """
 print('next try also adding to the final MLP')
 print('next try also adding to the final MLP')
 print('next try also adding to the final MLP')
-GPA.pc.set_module_names_to_convert(GPA.pc.get_module_names_to_convert())
+GPA.pc.set_module_names_to_perforate(GPA.pc.get_module_names_to_perforate())
 GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.pc.set_module_names_to_skip(GPA.pc.get_module_names_to_skip() + ['.lm_head'])
 # GPA.verbose = True

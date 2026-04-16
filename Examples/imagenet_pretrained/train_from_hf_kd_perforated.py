@@ -656,7 +656,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
         # Setup PAI for student — settings depend on model architecture
         is_mobilenet = 'mobilenet' in args.student_hf_repo_id.lower()
         if is_mobilenet:
-            GPA.pc.append_module_names_to_convert(["InvertedResidual"])
+            GPA.pc.append_module_names_to_perforate(["InvertedResidual"])
             if hasattr(model, 'blocks'):
                 # timm mobilenetv3 — uses .blocks and .conv_head
                 num_features = sum(1 for _ in model.blocks)
@@ -668,11 +668,11 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 num_features = sum(1 for _ in model.features)
                 for i in range(num_features):
                     GPA.pc.append_module_ids_to_track([f'.features.{i}'])
-            GPA.pc.append_module_ids_to_convert(['.classifier'])
+            GPA.pc.append_module_ids_to_perforate(['.classifier'])
             GPA.pc.set_testing_dendrite_capacity(False)
         else:
             # ResNet defaults
-            GPA.pc.append_module_names_to_convert(["BasicBlock", "Bottleneck"])
+            GPA.pc.append_module_names_to_perforate(["BasicBlock", "Bottleneck"])
             for i in range(4):
                 GPA.pc.append_module_ids_to_track(['.layer' + str(i + 1)])
             GPA.pc.append_module_ids_to_track(['.b1'])

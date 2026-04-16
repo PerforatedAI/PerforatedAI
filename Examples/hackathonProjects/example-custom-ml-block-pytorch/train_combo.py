@@ -336,10 +336,10 @@ def main(run):
     else:
         GPA.pc.set_dendrite_graph_mode(False)
     if config.conversion == 0:
-        GPA.pc.set_modules_to_convert([nn.Conv2d, nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Conv2d, nn.Linear])
         GPA.pc.set_modules_to_track([])
     elif config.conversion == 1:
-        GPA.pc.set_modules_to_convert([nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Linear])
         GPA.pc.set_modules_to_track([nn.Conv2d])
     
     if(config.max_dendrites == 4):
