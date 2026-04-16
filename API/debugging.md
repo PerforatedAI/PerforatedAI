@@ -309,6 +309,15 @@ However, this will sometimes cause the Parameterized Modules Error above.  In th
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
 
+In newer versions of savetensors the following should also work:
+
+    import safetensors
+    from collections import defaultdict
+    def _ignore_shared_tensors(state_dict):
+        tensors = defaultdict(set)
+        return tensors
+    safetensors.torch._find_shared_tensors = _ignore_shared_tensors
+
 #### Weight Tying
 In some cases this is done intentionally with weight tying. Which is not just a duplicate pointer, but also a known issue where multiple modules actually are using the same weight tensor in their forward.  We have a workaround for this, but it is only experimental for now so your results may vary.
 
@@ -339,6 +348,9 @@ This error can be caused by a few different reasons:
 
     We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
+### No inf checks were recorded prior to update
+
+This error can sometimes come up when amp is being used.  We currently do not have a working around for this.
 
 ## Extra Debugging
 

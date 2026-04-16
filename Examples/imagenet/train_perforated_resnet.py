@@ -1,46 +1,19 @@
 """
-usage:
-CUDA_VISIBLE_DEVICES=0 python -m pdb train_fast_perforatedai_from_config.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
+Replicating our results on a one GPU machine:
+
+Resnet18:
+python train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
+
+current resnet50 experiment:
+CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
+  --model resnet50 --batch-size 32 --lr 0.0125 \
+  --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 \
+  --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
+  --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
+  --candidate-weight-init-mult 0.1 --pai-forward-function relu \
+  --wd 0.001 --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
+  --random-erase 0.1
 """
-
-
-"""
-CUDA_VISIBLE_DEVICES=1 python -m pdb train_fast_perforatedai_from_config.py --model resnet50 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu --perforated-load-path resnet50_c0_wd0.0001_dmode1_20260128_174922
-
-"""
-
-"""
-Original:
-
-Epoch: [89]  [500/506]  eta: 0:00:00  lr: 0.0010000000000000002  img/s: 12316.37788483597  loss: 0.5689 (0.5906)  acc1: 83.2031 (83.4479)  acc5: 95.7031 (95.5636)  time: 0.0253  data: 0.0049  max mem: 3617
-Epoch: [89] Total time: 0:00:13
-Test:   [ 0/20]  eta: 0:00:18  loss: 0.8479 (0.8479)  acc1: 74.6094 (74.6094)  acc5: 95.3125 (95.3125)  time: 0.9173  data: 0.9109  max mem: 3617
-Test:  Total time: 0:00:01
-Test:  Acc@1 70.300 Acc@5 89.820
-Training time 0:22:53
-
-with PAI:
-
-Epoch: [1125]  [500/506]  eta: 0:00:01  lr: 0.00010000000000000003  img/s: 1421.8356206467333  loss: 0.3493 (0.3511)  acc1: 90.2344 (90.1432)  acc5: 96.8750 (97.4715)  time: 0.1801  data: 0.0001  max mem: 9340
-Epoch: [1125] Total time: 0:01:32
-Adding extra score Train Acc 1 of 90.16036168026996
-Adding extra score Train Acc 5 of 97.47517291776981
-Test:   [ 0/20]  eta: 0:00:22  loss: 0.6772 (0.6772)  acc1: 85.1562 (85.1562)  acc5: 96.8750 (96.8750)  time: 1.1152  data: 1.0578  max mem: 9340
-Test:  Total time: 0:00:02
-Test:  Acc@1 73.040 Acc@5 91.420
-
-
-18_thin
-Test:  Acc@1 61.660 Acc@5 85.200
-
-current command, maybe working?:
-CUDA_VISIBLE_DEVICES=0 python train_fast_perforatedai_from_config.py     --model resnet18     --batch-size 32     --lr 0.0125     --val-resize-size 256     --val-crop-size 224     --train-crop-size 224     --full-dataset     --data-path /home/rbrenner/Datasets/imagenet     --convert-count 0     --dendrite-mode 1     --improvement-threshold 0     --candidate-weight-init-mult 0.1     --pai-forward-function relu --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260112_205006
-
-
-
-"""
-
-
 
 import datetime
 import os
@@ -70,15 +43,27 @@ import wandb
 from types import SimpleNamespace
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema=None, scaler=None):
+def train_one_epoch(
+    model,
+    criterion,
+    optimizer,
+    data_loader,
+    device,
+    epoch,
+    args,
+    model_ema=None,
+    scaler=None,
+):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
 
     header = f"Epoch: [{epoch}]"
-    
-    for i, (image, target) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
+
+    for i, (image, target) in enumerate(
+        metric_logger.log_every(data_loader, args.print_freq, header)
+    ):
         start_time = time.time()
         image, target = image.to(device), target.to(device)
         with torch.cuda.amp.autocast(enabled=scaler is not None):
@@ -112,7 +97,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, arg
         metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
         metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
-    
+
     # Add training accuracies to PerforatedAI tracker
     GPA.pai_tracker.add_extra_score(metric_logger.acc1.global_avg, "Train Acc 1")
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Train Acc 5")
@@ -124,7 +109,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     header = f"Test: {log_suffix}"
 
     num_processed_samples = 0
-    
+
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
             image = image.to(device, non_blocking=True)
@@ -140,7 +125,7 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
             metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
             metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
             num_processed_samples += batch_size
-    
+
     # gather the stats from all processes
     num_processed_samples = utils.reduce_across_processes(num_processed_samples)
     if (
@@ -158,12 +143,16 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
 
     metric_logger.synchronize_between_processes()
 
-    print(f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}")
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
 
     # Add validation score to PerforatedAI tracker and check for restructuring
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Val Acc 5")
-    model, restructured, trainingComplete = GPA.pai_tracker.add_validation_score(metric_logger.acc1.global_avg, model)
-    
+    model, restructured, trainingComplete = GPA.pai_tracker.add_validation_score(
+        metric_logger.acc1.global_avg, model
+    )
+
     return model, metric_logger.acc1.global_avg, restructured, trainingComplete
 
 
@@ -171,33 +160,115 @@ def _get_cache_path(filepath):
     import hashlib
 
     h = hashlib.sha1(filepath.encode()).hexdigest()
-    cache_path = os.path.join("~", ".torch", "vision", "datasets", "imagefolder", h[:10] + ".pt")
+    cache_path = os.path.join(
+        "~", ".torch", "vision", "datasets", "imagefolder", h[:10] + ".pt"
+    )
     cache_path = os.path.expanduser(cache_path)
     return cache_path
 
 
 # ImageNet-100 standard class indices (commonly used subset)
 IMAGENET100_CLASSES = [
-    'n01440764', 'n01443537', 'n01484850', 'n01491361', 'n01494475',
-    'n01496331', 'n01498041', 'n01514668', 'n01514859', 'n01518878',
-    'n01530575', 'n01531178', 'n01532829', 'n01534433', 'n01537544',
-    'n01558993', 'n01560419', 'n01580077', 'n01582220', 'n01592084',
-    'n01601694', 'n01608432', 'n01614925', 'n01616318', 'n01622779',
-    'n01629819', 'n01630670', 'n01631663', 'n01632458', 'n01632777',
-    'n01641577', 'n01644373', 'n01644900', 'n01664065', 'n01665541',
-    'n01667114', 'n01667778', 'n01669191', 'n01675722', 'n01677366',
-    'n01682714', 'n01685808', 'n01687978', 'n01688243', 'n01689811',
-    'n01692333', 'n01693334', 'n01694178', 'n01695060', 'n01697457',
-    'n01698640', 'n01704323', 'n01728572', 'n01728920', 'n01729322',
-    'n01729977', 'n01734418', 'n01735189', 'n01737021', 'n01739381',
-    'n01740131', 'n01742172', 'n01744401', 'n01748264', 'n01749939',
-    'n01751748', 'n01753488', 'n01755581', 'n01756291', 'n01768244',
-    'n01770081', 'n01770393', 'n01773157', 'n01773549', 'n01773797',
-    'n01774384', 'n01774750', 'n01775062', 'n01776313', 'n01784675',
-    'n01795545', 'n01796340', 'n01797886', 'n01798484', 'n01806143',
-    'n01806567', 'n01807496', 'n01817953', 'n01818515', 'n01819313',
-    'n01820546', 'n01824575', 'n01828970', 'n01829413', 'n01833805',
-    'n01843065', 'n01843383', 'n01847000', 'n01855032', 'n01855672'
+    "n01440764",
+    "n01443537",
+    "n01484850",
+    "n01491361",
+    "n01494475",
+    "n01496331",
+    "n01498041",
+    "n01514668",
+    "n01514859",
+    "n01518878",
+    "n01530575",
+    "n01531178",
+    "n01532829",
+    "n01534433",
+    "n01537544",
+    "n01558993",
+    "n01560419",
+    "n01580077",
+    "n01582220",
+    "n01592084",
+    "n01601694",
+    "n01608432",
+    "n01614925",
+    "n01616318",
+    "n01622779",
+    "n01629819",
+    "n01630670",
+    "n01631663",
+    "n01632458",
+    "n01632777",
+    "n01641577",
+    "n01644373",
+    "n01644900",
+    "n01664065",
+    "n01665541",
+    "n01667114",
+    "n01667778",
+    "n01669191",
+    "n01675722",
+    "n01677366",
+    "n01682714",
+    "n01685808",
+    "n01687978",
+    "n01688243",
+    "n01689811",
+    "n01692333",
+    "n01693334",
+    "n01694178",
+    "n01695060",
+    "n01697457",
+    "n01698640",
+    "n01704323",
+    "n01728572",
+    "n01728920",
+    "n01729322",
+    "n01729977",
+    "n01734418",
+    "n01735189",
+    "n01737021",
+    "n01739381",
+    "n01740131",
+    "n01742172",
+    "n01744401",
+    "n01748264",
+    "n01749939",
+    "n01751748",
+    "n01753488",
+    "n01755581",
+    "n01756291",
+    "n01768244",
+    "n01770081",
+    "n01770393",
+    "n01773157",
+    "n01773549",
+    "n01773797",
+    "n01774384",
+    "n01774750",
+    "n01775062",
+    "n01776313",
+    "n01784675",
+    "n01795545",
+    "n01796340",
+    "n01797886",
+    "n01798484",
+    "n01806143",
+    "n01806567",
+    "n01807496",
+    "n01817953",
+    "n01818515",
+    "n01819313",
+    "n01820546",
+    "n01824575",
+    "n01828970",
+    "n01829413",
+    "n01833805",
+    "n01843065",
+    "n01843383",
+    "n01847000",
+    "n01855032",
+    "n01855672",
 ]
 
 
@@ -205,37 +276,41 @@ def filter_imagenet100(dataset):
     """Filter dataset to only include ImageNet-100 classes."""
     # Get original class_to_idx mapping
     original_class_to_idx = dataset.class_to_idx
-    
+
     # Create mapping from old indices to new indices
     valid_classes = [cls for cls in IMAGENET100_CLASSES if cls in original_class_to_idx]
     new_class_to_idx = {cls: new_idx for new_idx, cls in enumerate(valid_classes)}
-    old_to_new_idx = {original_class_to_idx[cls]: new_idx for cls, new_idx in new_class_to_idx.items()}
-    
+    old_to_new_idx = {
+        original_class_to_idx[cls]: new_idx for cls, new_idx in new_class_to_idx.items()
+    }
+
     # Filter samples
     filtered_samples = []
     for path, old_idx in dataset.samples:
         if old_idx in old_to_new_idx:
             filtered_samples.append((path, old_to_new_idx[old_idx]))
-    
+
     # Update dataset
     dataset.samples = filtered_samples
     dataset.targets = [s[1] for s in filtered_samples]
     dataset.classes = valid_classes
     dataset.class_to_idx = new_class_to_idx
-    
-    print(f"Filtered dataset to {len(valid_classes)} classes with {len(filtered_samples)} samples")
+
+    print(
+        f"Filtered dataset to {len(valid_classes)} classes with {len(filtered_samples)} samples"
+    )
     return dataset
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
     """Create optimizer and scheduler for the model using PerforatedAI setup.
-    
+
     Args:
         model: The model to create optimizer for
         args: Training arguments
         custom_keys_weight_decay: List of (key, weight_decay) tuples for custom weight decay
         epoch: Current epoch (used for warmup adjustment after restructuring), None for initial setup
-    
+
     Returns:
         optimizer, lr_scheduler tuple
     """
@@ -244,7 +319,9 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         model,
         args.weight_decay,
         norm_weight_decay=args.norm_weight_decay,
-        custom_keys_weight_decay=custom_keys_weight_decay if len(custom_keys_weight_decay) > 0 else None,
+        custom_keys_weight_decay=(
+            custom_keys_weight_decay if len(custom_keys_weight_decay) > 0 else None
+        ),
     )
 
     # Set optimizer class
@@ -276,13 +353,18 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             "weight_decay": args.weight_decay,
         }
     else:
-        raise RuntimeError(f"Invalid optimizer {args.opt}. Only SGD, RMSprop and AdamW are supported.")
-
+        raise RuntimeError(
+            f"Invalid optimizer {args.opt}. Only SGD, RMSprop and AdamW are supported."
+        )
 
     # Set scheduler class and prepare scheduler args
     args.lr_scheduler = args.lr_scheduler.lower()
-    warmup_epochs_remaining = args.lr_warmup_epochs if epoch is None else max(0, args.lr_warmup_epochs - epoch)
-    
+    warmup_epochs_remaining = (
+        args.lr_warmup_epochs
+        if epoch is None
+        else max(0, args.lr_warmup_epochs - epoch)
+    )
+
     # Prepare main scheduler args
     if args.lr_scheduler == "steplr":
         main_schedArgs = {
@@ -315,7 +397,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
     if warmup_epochs_remaining > 0 and args.lr_scheduler != "reducelronplateau":
         # Set scheduler to SequentialLR for PerforatedAI
         GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.SequentialLR)
-        
+
         # Determine main scheduler class
         if args.lr_scheduler == "steplr":
             main_scheduler_class = torch.optim.lr_scheduler.StepLR
@@ -323,7 +405,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             main_scheduler_class = torch.optim.lr_scheduler.CosineAnnealingLR
         elif args.lr_scheduler == "exponentiallr":
             main_scheduler_class = torch.optim.lr_scheduler.ExponentialLR
-        
+
         # Determine warmup scheduler class and args
         if args.lr_warmup_method == "linear":
             warmup_scheduler_class = torch.optim.lr_scheduler.LinearLR
@@ -341,16 +423,18 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             raise RuntimeError(
                 f"Invalid warmup lr method '{args.lr_warmup_method}'. Only linear and constant are supported."
             )
-        
+
         # Create SequentialLR args with both scheduler classes and their kwargs
         sequential_schedArgs = {
             "schedulers": [
                 (warmup_scheduler_class, warmup_schedArgs),
-                (main_scheduler_class, main_schedArgs)
+                (main_scheduler_class, main_schedArgs),
             ],
-            "milestones": [warmup_epochs_remaining]
+            "milestones": [warmup_epochs_remaining],
         }
-        optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, sequential_schedArgs)
+        optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(
+            model, optimArgs, sequential_schedArgs
+        )
     else:
         # No warmup needed, just create optimizer and scheduler through PerforatedAI
         if args.lr_scheduler == "steplr":
@@ -361,11 +445,11 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
             GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ExponentialLR)
         elif args.lr_scheduler == "reducelronplateau":
             GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
-        
-        optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, main_schedArgs)
-        
-        
-        
+
+        optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(
+            model, optimArgs, main_schedArgs
+        )
+
     return optimizer, lr_scheduler
 
 
@@ -410,7 +494,7 @@ def load_data(traindir, valdir, args):
         # Filter to ImageNet-100 unless full dataset is requested
         if not args.full_dataset:
             dataset = filter_imagenet100(dataset)
-        
+
         if args.cache_dataset:
             print(f"Saving dataset_train to {cache_path}")
             utils.mkdir(os.path.dirname(cache_path))
@@ -429,7 +513,9 @@ def load_data(traindir, valdir, args):
             weights = torchvision.models.get_weight(args.weights)
             preprocessing = weights.transforms(antialias=True)
             if args.backend == "tensor":
-                preprocessing = torchvision.transforms.Compose([torchvision.transforms.PILToTensor(), preprocessing])
+                preprocessing = torchvision.transforms.Compose(
+                    [torchvision.transforms.PILToTensor(), preprocessing]
+                )
 
         else:
             preprocessing = presets.ClassificationPresetEval(
@@ -447,7 +533,7 @@ def load_data(traindir, valdir, args):
         # Filter to ImageNet-100 unless full dataset is requested
         if not args.full_dataset:
             dataset_test = filter_imagenet100(dataset_test)
-        
+
         if args.cache_dataset:
             print(f"Saving dataset_test to {cache_path}")
             utils.mkdir(os.path.dirname(cache_path))
@@ -459,7 +545,9 @@ def load_data(traindir, valdir, args):
             train_sampler = RASampler(dataset, shuffle=True, repetitions=args.ra_reps)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-        test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test, shuffle=False)
+        test_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset_test, shuffle=False
+        )
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
@@ -474,18 +562,26 @@ def main(args):
         run = wandb.init(
             project="ImageNet-100 PerforatedAI",
             name=f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}",
-            config=vars(args)
+            config=vars(args),
         )
         print(f"Logging to wandb run: {run.name}")
-    
-    print(f"Config: model={args.model}, convert_count={args.convert_count}, weight_decay={args.weight_decay}")
-    print(f"LR config: scheduler={args.lr_scheduler}, warmup_epochs={args.lr_warmup_epochs}, warmup_method={args.lr_warmup_method}")
-    print(f"Aug config: label_smooth={args.label_smoothing}, mixup={args.mixup_alpha}, cutmix={args.cutmix_alpha}, "
-          f"random_erase={args.random_erase}, dropout={args.dropout}, auto_aug={args.auto_augment}")
-    print(f"PAI config: improvement_threshold={args.improvement_threshold}, "
-          f"init_mult={args.candidate_weight_init_mult}, "
-          f"forward_fn={args.pai_forward_function}, dendrite_mode={args.dendrite_mode}")
-    
+
+    print(
+        f"Config: model={args.model}, convert_count={args.convert_count}, weight_decay={args.weight_decay}"
+    )
+    print(
+        f"LR config: scheduler={args.lr_scheduler}, warmup_epochs={args.lr_warmup_epochs}, warmup_method={args.lr_warmup_method}"
+    )
+    print(
+        f"Aug config: label_smooth={args.label_smoothing}, mixup={args.mixup_alpha}, cutmix={args.cutmix_alpha}, "
+        f"random_erase={args.random_erase}, dropout={args.dropout}, auto_aug={args.auto_augment}"
+    )
+    print(
+        f"PAI config: improvement_threshold={args.improvement_threshold}, "
+        f"init_mult={args.candidate_weight_init_mult}, "
+        f"forward_fn={args.pai_forward_function}, dendrite_mode={args.dendrite_mode}"
+    )
+
     if args.output_dir:
         utils.mkdir(args.output_dir)
 
@@ -495,7 +591,9 @@ def main(args):
         original_lr = args.lr
         args.batch_size = int(args.batch_size * args.batch_lr_factor)
         args.lr = args.lr * args.batch_lr_factor
-        print(f"Applied batch_lr_factor={args.batch_lr_factor}: batch_size {original_batch_size}->{args.batch_size}, lr {original_lr}->{args.lr}")
+        print(
+            f"Applied batch_lr_factor={args.batch_lr_factor}: batch_size {original_batch_size}->{args.batch_size}, lr {original_lr}->{args.lr}"
+        )
 
     utils.init_distributed_mode(args)
     print(args)
@@ -510,12 +608,14 @@ def main(args):
 
     train_dir = os.path.join(args.data_path, "train")
     val_dir = os.path.join(args.data_path, "val")
-    dataset, dataset_test, train_sampler, test_sampler = load_data(train_dir, val_dir, args)
+    dataset, dataset_test, train_sampler, test_sampler = load_data(
+        train_dir, val_dir, args
+    )
 
     num_classes = len(dataset.classes)
     dataset_type = "full ImageNet" if args.full_dataset else "ImageNet-100 subset"
     print(f"Training with {num_classes} classes ({dataset_type})")
-    
+
     # Set up PerforatedAI global parameters
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
     GPA.pc.set_weight_decay_accepted(True)
@@ -527,8 +627,8 @@ def main(args):
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.append_module_names_to_convert(["BasicBlock", "Bottleneck"])
     GPA.pc.set_verbose(False)
-    #GPA.pc.set_max_dendrites(3)
-    
+    # GPA.pc.set_max_dendrites(3)
+
     # Apply PAI settings from command-line args
     if args.improvement_threshold == 0:
         thresh = [0.01, 0.001, 0.0001, 0]
@@ -537,9 +637,11 @@ def main(args):
     elif args.improvement_threshold == 2:
         thresh = [0]
     GPA.pc.set_improvement_threshold(thresh)
-    
-    GPA.pc.set_candidate_weight_initialization_multiplier(args.candidate_weight_init_mult)
-    
+
+    GPA.pc.set_candidate_weight_initialization_multiplier(
+        args.candidate_weight_init_mult
+    )
+
     # Decode pai_forward_function from string
     if args.pai_forward_function == "sigmoid":
         pai_forward_function = torch.sigmoid
@@ -550,7 +652,7 @@ def main(args):
     else:
         pai_forward_function = torch.sigmoid
     GPA.pc.set_pai_forward_function(pai_forward_function)
-    
+
     # Set dendrite mode
     if args.dendrite_mode == 0:
         GPA.pc.set_max_dendrites(0)
@@ -560,9 +662,12 @@ def main(args):
     elif args.dendrite_mode == 2:
         GPA.pc.set_max_dendrites(5)
         GPA.pc.set_perforated_backpropagation(True)
-    
+
     mixup_cutmix = get_mixup_cutmix(
-        mixup_alpha=args.mixup_alpha, cutmix_alpha=args.cutmix_alpha, num_classes=num_classes, use_v2=args.use_v2
+        mixup_alpha=args.mixup_alpha,
+        cutmix_alpha=args.cutmix_alpha,
+        num_classes=num_classes,
+        use_v2=args.use_v2,
     )
     if mixup_cutmix is not None:
 
@@ -581,63 +686,77 @@ def main(args):
         collate_fn=collate_fn,
     )
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.workers, pin_memory=True
+        dataset_test,
+        batch_size=args.batch_size,
+        sampler=test_sampler,
+        num_workers=args.workers,
+        pin_memory=True,
     )
 
     print("Creating model")
     # Check if it's one of our custom models
-    if args.model in ['resnet18_thin', 'resnet10_shallow', 'resnet12_balanced']:
+    if args.model in ["resnet18_thin", "resnet10_shallow", "resnet12_balanced"]:
         model_fn = getattr(custom_resnet, args.model)
         model = model_fn(num_classes=num_classes)
         print(f"Created custom model: {args.model}")
     else:
-        model = torchvision.models.get_model(args.model, weights=args.weights, num_classes=num_classes)
-    
+        model = torchvision.models.get_model(
+            args.model, weights=args.weights, num_classes=num_classes
+        )
+
     # Apply dropout if specified (add dropout after global average pooling, before final classifier)
     if args.dropout > 0.0:
         # For ResNet models, insert dropout before the final fc layer
-        if hasattr(model, 'fc'):
+        if hasattr(model, "fc"):
             in_features = model.fc.in_features
             model.fc = nn.Sequential(
-                nn.Dropout(p=args.dropout),
-                nn.Linear(in_features, num_classes)
+                nn.Dropout(p=args.dropout), nn.Linear(in_features, num_classes)
             )
             print(f"Applied dropout rate: {args.dropout}")
-    
+
     # Apply stochastic depth if specified (for ResNet models)
     if args.stochastic_depth_prob > 0.0:
-        print(f"Note: Stochastic depth rate {args.stochastic_depth_prob} specified, but requires model recreation with stochastic_depth parameter")
-        print(f"Consider using: torchvision.models.resnet18(weights=None, num_classes={num_classes}, stochastic_depth_prob={args.stochastic_depth_prob})")
-    
+        print(
+            f"Note: Stochastic depth rate {args.stochastic_depth_prob} specified, but requires model recreation with stochastic_depth parameter"
+        )
+        print(
+            f"Consider using: torchvision.models.resnet18(weights=None, num_classes={num_classes}, stochastic_depth_prob={args.stochastic_depth_prob})"
+        )
+
     # Note on width/depth multipliers
     if args.width_multiplier != 1.0 or args.depth_multiplier != 1.0:
-        print(f"Note: Width multiplier {args.width_multiplier} and/or depth multiplier {args.depth_multiplier} specified")
-        print(f"These require custom model creation. Consider using smaller models like resnet18 or using torchvision.models.efficientnet with different variants")
-    
+        print(
+            f"Note: Width multiplier {args.width_multiplier} and/or depth multiplier {args.depth_multiplier} specified"
+        )
+        print(
+            f"These require custom model creation. Consider using smaller models like resnet18 or using torchvision.models.efficientnet with different variants"
+        )
 
-    skip_layers = 4-args.convert_count
+    skip_layers = 4 - args.convert_count
 
     for i in range(skip_layers):
-        GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
-    GPA.pc.append_module_ids_to_track(['.conv1', '.b1', '.fc'])
+        GPA.pc.append_module_ids_to_track([".layer" + str(i + 1)])
+    GPA.pc.append_module_ids_to_track([".conv1", ".bn1", "conv1", ".fc"])
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
     save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
-    
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     save_name_with_timestamp = f"{save_name}_{timestamp}"
-    
+
     # Load from checkpoint if path provided, otherwise initialize new
-    if args.perforated_load_path != '':
+    if args.perforated_load_path != "":
         model = UPA.initialize_pai(model, save_name=args.perforated_load_path)
-        model = UPA.load_system(model, args.perforated_load_path, 'latest', True)
+        model = UPA.load_system(model, args.perforated_load_path, "latest", True)
     else:
         model = UPA.initialize_pai(model, save_name=save_name_with_timestamp)
 
-    import pdb; pdb.set_trace()
+    import pdb
+
+    pdb.set_trace()
 
     model.to(device)
 
@@ -650,12 +769,20 @@ def main(args):
     if args.bias_weight_decay is not None:
         custom_keys_weight_decay.append(("bias", args.bias_weight_decay))
     if args.transformer_embedding_decay is not None:
-        for key in ["class_token", "position_embedding", "relative_position_bias_table"]:
+        for key in [
+            "class_token",
+            "position_embedding",
+            "relative_position_bias_table",
+        ]:
             custom_keys_weight_decay.append((key, args.transformer_embedding_decay))
-    
-    # Create optimizer and scheduler
-    optimizer, lr_scheduler = create_optimizer_and_scheduler(model, args, custom_keys_weight_decay)
 
+    # Create optimizer and scheduler
+    optimizer, lr_scheduler = create_optimizer_and_scheduler(
+        model, args, custom_keys_weight_decay
+    )
+    args.lr = (
+        args.lr * 10
+    )  # Increase LR after restructuring to help adapt to new architecture
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
     model_without_ddp = model
@@ -674,7 +801,9 @@ def main(args):
         adjust = args.world_size * args.batch_size * args.model_ema_steps / args.epochs
         alpha = 1.0 - args.model_ema_decay
         alpha = min(1.0, alpha * adjust)
-        model_ema = utils.ExponentialMovingAverage(model_without_ddp, device=device, decay=1.0 - alpha)
+        model_ema = utils.ExponentialMovingAverage(
+            model_without_ddp, device=device, decay=1.0 - alpha
+        )
 
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu", weights_only=True)
@@ -693,7 +822,9 @@ def main(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         if model_ema:
-            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
+            evaluate(
+                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+            )
         else:
             evaluate(model, criterion, data_loader_test, device=device)
         return
@@ -701,7 +832,7 @@ def main(args):
     print("Start training")
     start_time = time.time()
     epoch = args.start_epoch - 1
-    
+
     # Initialize tracking variables for wandb logging
     max_val_acc1 = 0
     max_train_acc1 = 0
@@ -711,55 +842,82 @@ def main(args):
 
     while True:
         epoch += 1
-#    for epoch in range(args.start_epoch, args.epochs):
+        #    for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args, model_ema, scaler)
+        train_one_epoch(
+            model,
+            criterion,
+            optimizer,
+            data_loader,
+            device,
+            epoch,
+            args,
+            model_ema,
+            scaler,
+        )
         # This is done in the pai backend now
         # lr_scheduler.step()
-        
-        model, acc1, restructured, trainingComplete = evaluate(model, criterion, data_loader_test, device=device)
-        
+
+        model, acc1, restructured, trainingComplete = evaluate(
+            model, criterion, data_loader_test, device=device
+        )
+
         # Get training accuracy from PAI tracker extra scores
-        train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get("Train Acc 1", 0)
-        
+        train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get(
+            "Train Acc 1", 0
+        )
+
         # Update max values
         if acc1 > max_val_acc1:
             max_val_acc1 = acc1
             max_train_acc1 = train_acc1
             max_params = UPA.count_params(model)
-        
+
         # Log to wandb
         if run is not None:
-            run.log({
-                "ValAcc": acc1,
-                "TrainAcc": train_acc1,
-                "Param Count": UPA.count_params(model),
-                "Dendrite Count": GPA.pai_tracker.member_vars.get("num_dendrites_added", 0),
-                "epoch": epoch
-            })
-            
+            run.log(
+                {
+                    "ValAcc": acc1,
+                    "TrainAcc": train_acc1,
+                    "Param Count": UPA.count_params(model),
+                    "Dendrite Count": GPA.pai_tracker.member_vars.get(
+                        "num_dendrites_added", 0
+                    ),
+                    "epoch": epoch,
+                }
+            )
+
             # Log architecture maximums when dendrites are added
             if restructured:
                 if GPA.pai_tracker.member_vars["mode"] == "n" and (
-                    dendrite_count != GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
+                    dendrite_count
+                    != GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
                 ):
-                    dendrite_count = GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
-                    run.log({
-                        "Arch Max Val": max_val_acc1,
-                        "Arch Max Train": max_train_acc1,
-                        "Arch Param Count": max_params,
-                        "Arch Dendrite Count": dendrite_count - 1,
-                    })
-        
+                    dendrite_count = GPA.pai_tracker.member_vars.get(
+                        "num_dendrites_added", 0
+                    )
+                    run.log(
+                        {
+                            "Arch Max Val": max_val_acc1,
+                            "Arch Max Train": max_train_acc1,
+                            "Arch Param Count": max_params,
+                            "Arch Dendrite Count": dendrite_count - 1,
+                        }
+                    )
+
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
             model.to(device)
-            optimizer, lr_scheduler = create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=epoch)
+            optimizer, lr_scheduler = create_optimizer_and_scheduler(
+                model, args, custom_keys_weight_decay, epoch=epoch
+            )
 
         if model_ema:
-            evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
-        
+            evaluate(
+                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+            )
+
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
@@ -772,21 +930,29 @@ def main(args):
                 checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth"))
-            utils.save_on_master(checkpoint, os.path.join(args.output_dir, "checkpoint.pth"))
-        
+            utils.save_on_master(
+                checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth")
+            )
+            utils.save_on_master(
+                checkpoint, os.path.join(args.output_dir, "checkpoint.pth")
+            )
+
         # Check if PerforatedAI training is complete
         if trainingComplete:
             print("PerforatedAI training complete!")
-            
+
             # Log final architecture max
             if run is not None:
-                run.log({
-                    "Final Max Val": max_val_acc1,
-                    "Final Max Train": max_train_acc1,
-                    "Final Param Count": max_params,
-                    "Final Dendrite Count": GPA.pai_tracker.member_vars.get("num_dendrites_added", 0),
-                })
+                run.log(
+                    {
+                        "Final Max Val": max_val_acc1,
+                        "Final Max Train": max_train_acc1,
+                        "Final Param Count": max_params,
+                        "Final Dendrite Count": GPA.pai_tracker.member_vars.get(
+                            "num_dendrites_added", 0
+                        ),
+                    }
+                )
             break
     print("Final Param Count:", UPA.count_params(model))
     total_time = time.time() - start_time
@@ -797,24 +963,57 @@ def main(args):
 def get_args_parser(add_help=True):
     import argparse
 
-    parser = argparse.ArgumentParser(description="PyTorch Classification Training with PerforatedAI (Fast - ImageNet-100, Half Resolution)", add_help=add_help)
+    parser = argparse.ArgumentParser(
+        description="PyTorch Classification Training with PerforatedAI (Fast - ImageNet-100, Half Resolution)",
+        add_help=add_help,
+    )
 
-    parser.add_argument("--data-path", default="/home/rbrenner/Datasets/imagenet", type=str, help="dataset path")
+    parser.add_argument(
+        "--data-path",
+        default="/home/rbrenner/Datasets/imagenet",
+        type=str,
+        help="dataset path",
+    )
     parser.add_argument("--model", default="resnet18", type=str, help="model name")
-    parser.add_argument("--device", default="cuda", type=str, help="device (Use cuda or cpu Default: cuda)")
     parser.add_argument(
-        "-b", "--batch-size", default=256, type=int, help="images per gpu, the total batch size is $NGPU x batch_size"
+        "--device",
+        default="cuda",
+        type=str,
+        help="device (Use cuda or cpu Default: cuda)",
     )
     parser.add_argument(
-        "--batch-lr-factor", default=1.0, type=float, help="factor to scale batch size and learning rate (e.g., 0.5 halves batch size and scales lr accordingly)"
+        "-b",
+        "--batch-size",
+        default=256,
+        type=int,
+        help="images per gpu, the total batch size is $NGPU x batch_size",
     )
-    parser.add_argument("--epochs", default=90, type=int, metavar="N", help="number of total epochs to run")
     parser.add_argument(
-        "-j", "--workers", default=16, type=int, metavar="N", help="number of data loading workers (default: 16)"
+        "--batch-lr-factor",
+        default=1.0,
+        type=float,
+        help="factor to scale batch size and learning rate (e.g., 0.5 halves batch size and scales lr accordingly)",
+    )
+    parser.add_argument(
+        "--epochs",
+        default=90,
+        type=int,
+        metavar="N",
+        help="number of total epochs to run",
+    )
+    parser.add_argument(
+        "-j",
+        "--workers",
+        default=16,
+        type=int,
+        metavar="N",
+        help="number of data loading workers (default: 16)",
     )
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
-    parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
+    parser.add_argument(
+        "--momentum", default=0.9, type=float, metavar="M", help="momentum"
+    )
     parser.add_argument(
         "--wd",
         "--weight-decay",
@@ -843,23 +1042,65 @@ def get_args_parser(add_help=True):
         help="weight decay for embedding parameters for vision transformer models (default: None, same value as --wd)",
     )
     parser.add_argument(
-        "--label-smoothing", default=0.0, type=float, help="label smoothing (default: 0.0)", dest="label_smoothing"
+        "--label-smoothing",
+        default=0.0,
+        type=float,
+        help="label smoothing (default: 0.0)",
+        dest="label_smoothing",
     )
-    parser.add_argument("--mixup-alpha", default=0.0, type=float, help="mixup alpha (default: 0.0)")
-    parser.add_argument("--cutmix-alpha", default=0.0, type=float, help="cutmix alpha (default: 0.0)")
-    parser.add_argument("--lr-scheduler", default="steplr", type=str, help="the lr scheduler (default: steplr)")
-    parser.add_argument("--lr-warmup-epochs", default=0, type=int, help="the number of epochs to warmup (default: 0)")
     parser.add_argument(
-        "--lr-warmup-method", default="constant", type=str, help="the warmup method (default: constant)"
+        "--mixup-alpha", default=0.0, type=float, help="mixup alpha (default: 0.0)"
     )
-    parser.add_argument("--lr-warmup-decay", default=0.01, type=float, help="the decay for lr")
-    parser.add_argument("--lr-step-size", default=30, type=int, help="decrease lr every step-size epochs")
-    parser.add_argument("--lr-gamma", default=0.1, type=float, help="decrease lr by a factor of lr-gamma")
-    parser.add_argument("--lr-min", default=0.0, type=float, help="minimum lr of lr schedule (default: 0.0)")
+    parser.add_argument(
+        "--cutmix-alpha", default=0.0, type=float, help="cutmix alpha (default: 0.0)"
+    )
+    parser.add_argument(
+        "--lr-scheduler",
+        default="steplr",
+        type=str,
+        help="the lr scheduler (default: steplr)",
+    )
+    parser.add_argument(
+        "--lr-warmup-epochs",
+        default=0,
+        type=int,
+        help="the number of epochs to warmup (default: 0)",
+    )
+    parser.add_argument(
+        "--lr-warmup-method",
+        default="constant",
+        type=str,
+        help="the warmup method (default: constant)",
+    )
+    parser.add_argument(
+        "--lr-warmup-decay", default=0.01, type=float, help="the decay for lr"
+    )
+    parser.add_argument(
+        "--lr-step-size",
+        default=30,
+        type=int,
+        help="decrease lr every step-size epochs",
+    )
+    parser.add_argument(
+        "--lr-gamma",
+        default=0.1,
+        type=float,
+        help="decrease lr by a factor of lr-gamma",
+    )
+    parser.add_argument(
+        "--lr-min",
+        default=0.0,
+        type=float,
+        help="minimum lr of lr schedule (default: 0.0)",
+    )
     parser.add_argument("--print-freq", default=10, type=int, help="print frequency")
-    parser.add_argument("--output-dir", default=None, type=str, help="path to save outputs")
+    parser.add_argument(
+        "--output-dir", default=None, type=str, help="path to save outputs"
+    )
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
-    parser.add_argument("--start-epoch", default=0, type=int, metavar="N", help="start epoch")
+    parser.add_argument(
+        "--start-epoch", default=0, type=int, metavar="N", help="start epoch"
+    )
     parser.add_argument(
         "--cache-dataset",
         dest="cache_dataset",
@@ -878,15 +1119,44 @@ def get_args_parser(add_help=True):
         help="Only test the model",
         action="store_true",
     )
-    parser.add_argument("--auto-augment", default=None, type=lambda x: None if x == 'None' else x, help="auto augment policy (default: None)")
-    parser.add_argument("--ra-magnitude", default=9, type=int, help="magnitude of auto augment policy")
-    parser.add_argument("--augmix-severity", default=3, type=int, help="severity of augmix policy")
-    parser.add_argument("--random-erase", default=0.0, type=float, help="random erasing probability (default: 0.0)")
+    parser.add_argument(
+        "--auto-augment",
+        default=None,
+        type=lambda x: None if x == "None" else x,
+        help="auto augment policy (default: None)",
+    )
+    parser.add_argument(
+        "--ra-magnitude", default=9, type=int, help="magnitude of auto augment policy"
+    )
+    parser.add_argument(
+        "--augmix-severity", default=3, type=int, help="severity of augmix policy"
+    )
+    parser.add_argument(
+        "--random-erase",
+        default=0.0,
+        type=float,
+        help="random erasing probability (default: 0.0)",
+    )
 
     # Regularization parameters to reduce overfitting (train-val gap)
-    parser.add_argument("--dropout", default=0.0, type=float, help="dropout rate (default: 0.0, no dropout)")
-    parser.add_argument("--width-multiplier", default=1.0, type=float, help="network width multiplier to reduce capacity (default: 1.0, full width)")
-    parser.add_argument("--depth-multiplier", default=1.0, type=float, help="network depth multiplier to reduce capacity (default: 1.0, full depth)")
+    parser.add_argument(
+        "--dropout",
+        default=0.0,
+        type=float,
+        help="dropout rate (default: 0.0, no dropout)",
+    )
+    parser.add_argument(
+        "--width-multiplier",
+        default=1.0,
+        type=float,
+        help="network width multiplier to reduce capacity (default: 1.0, full width)",
+    )
+    parser.add_argument(
+        "--depth-multiplier",
+        default=1.0,
+        type=float,
+        help="network depth multiplier to reduce capacity (default: 1.0, full depth)",
+    )
     parser.add_argument(
         "--stochastic-depth-prob",
         default=0.0,
@@ -895,13 +1165,26 @@ def get_args_parser(add_help=True):
     )
 
     # Mixed precision training parameters
-    parser.add_argument("--amp", action="store_true", help="Use torch.cuda.amp for mixed precision training")
+    parser.add_argument(
+        "--amp",
+        action="store_true",
+        help="Use torch.cuda.amp for mixed precision training",
+    )
 
     # distributed training parameters
-    parser.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
-    parser.add_argument("--dist-url", default="env://", type=str, help="url used to set up distributed training")
     parser.add_argument(
-        "--model-ema", action="store_true", help="enable tracking Exponential Moving Average of model parameters"
+        "--world-size", default=1, type=int, help="number of distributed processes"
+    )
+    parser.add_argument(
+        "--dist-url",
+        default="env://",
+        type=str,
+        help="url used to set up distributed training",
+    )
+    parser.add_argument(
+        "--model-ema",
+        action="store_true",
+        help="enable tracking Exponential Moving Average of model parameters",
     )
     parser.add_argument(
         "--model-ema-steps",
@@ -916,47 +1199,110 @@ def get_args_parser(add_help=True):
         help="decay factor for Exponential Moving Average of model parameters (default: 0.99998)",
     )
     parser.add_argument(
-        "--use-deterministic-algorithms", action="store_true", help="Forces the use of deterministic algorithms only."
+        "--use-deterministic-algorithms",
+        action="store_true",
+        help="Forces the use of deterministic algorithms only.",
     )
     parser.add_argument(
-        "--interpolation", default="bilinear", type=str, help="the interpolation method (default: bilinear)"
+        "--interpolation",
+        default="bilinear",
+        type=str,
+        help="the interpolation method (default: bilinear)",
     )
     # Half resolution defaults (128 instead of 256, 112 instead of 224)
     parser.add_argument(
-        "--val-resize-size", default=128, type=int, help="the resize size used for validation (default: 128 for fast training)"
+        "--val-resize-size",
+        default=128,
+        type=int,
+        help="the resize size used for validation (default: 128 for fast training)",
     )
     parser.add_argument(
-        "--val-crop-size", default=112, type=int, help="the central crop size used for validation (default: 112 for fast training)"
+        "--val-crop-size",
+        default=112,
+        type=int,
+        help="the central crop size used for validation (default: 112 for fast training)",
     )
     parser.add_argument(
-        "--train-crop-size", default=112, type=int, help="the random crop size used for training (default: 112 for fast training)"
+        "--train-crop-size",
+        default=112,
+        type=int,
+        help="the random crop size used for training (default: 112 for fast training)",
     )
-    parser.add_argument("--convert-count", default=0, type=int, help="total number of layers to convert")
-    parser.add_argument("--clip-grad-norm", default=None, type=float, help="the maximum gradient norm (default None)")
-    parser.add_argument("--ra-sampler", action="store_true", help="whether to use Repeated Augmentation in training")
     parser.add_argument(
-        "--ra-reps", default=3, type=int, help="number of repetitions for Repeated Augmentation (default: 3)"
+        "--convert-count", default=0, type=int, help="total number of layers to convert"
     )
-    parser.add_argument("--weights", default=None, type=str, help="the weights enum name to load")
-    parser.add_argument("--backend", default="PIL", type=str.lower, help="PIL or tensor - case insensitive")
+    parser.add_argument(
+        "--clip-grad-norm",
+        default=None,
+        type=float,
+        help="the maximum gradient norm (default None)",
+    )
+    parser.add_argument(
+        "--ra-sampler",
+        action="store_true",
+        help="whether to use Repeated Augmentation in training",
+    )
+    parser.add_argument(
+        "--ra-reps",
+        default=3,
+        type=int,
+        help="number of repetitions for Repeated Augmentation (default: 3)",
+    )
+    parser.add_argument(
+        "--weights", default=None, type=str, help="the weights enum name to load"
+    )
+    parser.add_argument(
+        "--backend",
+        default="PIL",
+        type=str.lower,
+        help="PIL or tensor - case insensitive",
+    )
     parser.add_argument("--use-v2", action="store_true", help="Use V2 transforms")
-    parser.add_argument("--full-dataset", action="store_true", help="Use full ImageNet-1000 instead of ImageNet-100 subset")
-    
+    parser.add_argument(
+        "--full-dataset",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Use full ImageNet-1000 instead of ImageNet-100 subset (default: True)",
+    )
+
     # PerforatedAI parameters
-    parser.add_argument("--improvement-threshold", default=0, type=int, choices=[0, 1, 2], 
-                        help="PAI improvement threshold mode: 0=[0.01,0.001,0.0001,0], 1=[0.001,0.0001,0], 2=[0]")
-    parser.add_argument("--candidate-weight-init-mult", default=0.1, type=float,
-                        help="PAI candidate weight initialization multiplier (default: 0.1)")
-    parser.add_argument("--pai-forward-function", default="sigmoid", type=str, choices=["sigmoid", "relu", "tanh"],
-                        help="PAI forward function (default: sigmoid)")
-    parser.add_argument("--dendrite-mode", default=1, type=int, choices=[0, 1, 2],
-                        help="Dendrite mode: 0=no dendrites, 1=GD dendrites, 2=PB dendrites (default: 2)")
-    parser.add_argument("--perforated-load-path", default="", type=str,
-                        help="Path to load PerforatedAI checkpoint from (default: '', initialize new)")
-    
+    parser.add_argument(
+        "--improvement-threshold",
+        default=0,
+        type=int,
+        choices=[0, 1, 2],
+        help="PAI improvement threshold mode: 0=[0.01,0.001,0.0001,0], 1=[0.001,0.0001,0], 2=[0]",
+    )
+    parser.add_argument(
+        "--candidate-weight-init-mult",
+        default=0.1,
+        type=float,
+        help="PAI candidate weight initialization multiplier (default: 0.1)",
+    )
+    parser.add_argument(
+        "--pai-forward-function",
+        default="sigmoid",
+        type=str,
+        choices=["sigmoid", "relu", "tanh"],
+        help="PAI forward function (default: sigmoid)",
+    )
+    parser.add_argument(
+        "--dendrite-mode",
+        default=1,
+        type=int,
+        choices=[0, 1, 2],
+        help="Dendrite mode: 0=no dendrites, 1=GD dendrites, 2=PB dendrites (default: 2)",
+    )
+    parser.add_argument(
+        "--perforated-load-path",
+        default="",
+        type=str,
+        help="Path to load PerforatedAI checkpoint from (default: '', initialize new)",
+    )
+
     # Wandb logging
     parser.add_argument("--use-wandb", action="store_true", help="Enable wandb logging")
-    
+
     return parser
 
 

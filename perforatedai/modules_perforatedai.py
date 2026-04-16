@@ -18,10 +18,13 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
-except ModuleNotFoundError:
-    pass  # Module not found, pass silently
-except ImportError as e:
-    print(f"Import error occurred: {e}")
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == 'perforatedbp':
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 
 
 # Values for Dendrite training, minimally used in open source version
@@ -241,33 +244,38 @@ class PAINeuronModule(nn.Module):
             print(start_module)
             sys.exit(-1)
         self.name = name
+        # Per-module config: loads custom settings from {save_name}_config.json if present.
+        # Passes both the instance name (id) and the module type so load_config can
+        # fall back to type-level settings when no name-specific entry exists.
+        _module_type_name = type(start_module).__name__
+        self.module_config = GPA.PAIConfig(module_name=self.name, module_type=_module_type_name)
 
         set_wrapped_params(self.main_module)
-        if GPA.pc.get_verbose():
+        if self.module_config.get_verbose():
             print(
                 f"initing a module {self.name} with main type {type(self.main_module)}"
             )
             print(start_module)
 
         # If this main_module is one that requires processing set the processor
-        if type(self.main_module) in GPA.pc.get_modules_with_processing():
-            module_index = GPA.pc.get_modules_with_processing().index(
+        if type(self.main_module) in self.module_config.get_modules_with_processing():
+            module_index = self.module_config.get_modules_with_processing().index(
                 type(self.main_module)
             )
-            self.processor = GPA.pc.get_modules_processing_classes()[module_index]()
-            if GPA.pc.get_verbose():
+            self.processor = self.module_config.get_modules_processing_classes()[module_index]()
+            if self.module_config.get_verbose():
                 print("with processor")
                 print(self.processor)
         elif (
-            type(self.main_module).__name__ in GPA.pc.get_module_names_with_processing()
+            type(self.main_module).__name__ in self.module_config.get_module_names_with_processing()
         ):
-            module_index = GPA.pc.get_module_names_with_processing().index(
+            module_index = self.module_config.get_module_names_with_processing().index(
                 type(self.main_module).__name__
             )
-            self.processor = GPA.pc.get_module_by_name_processing_classes()[
+            self.processor = self.module_config.get_module_by_name_processing_classes()[
                 module_index
             ]()
-            if GPA.pc.get_verbose():
+            if self.module_config.get_verbose():
                 print("with processor")
                 print(self.processor)
         else:
@@ -278,14 +286,14 @@ class PAINeuronModule(nn.Module):
         self.type = "neuron_module"
 
         self.register_buffer(
-            "this_output_dimensions", (torch.tensor(GPA.pc.get_output_dimensions()))
+            "this_output_dimensions", (torch.tensor(self.module_config.get_output_dimensions()))
         )
         if (self.this_output_dimensions == 0).sum() != 1:
             print(f"5 Need exactly one 0 in the input dimensions: {self.name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
+            "this_node_index", torch.tensor(self.module_config.get_output_dimensions().index(0))
         )
         self.dendrite_modules_added = 0
 
@@ -301,6 +309,8 @@ class PAINeuronModule(nn.Module):
             name=self.name,
             output_dimensions=self.this_output_dimensions,
         )
+        print(self.this_output_dimensions[2:])
+        print(type(start_module))
         # If it is linear and default has convolutional dimensions, automatically set to just be batch size and neuron indexes
         if (
             issubclass(type(start_module), nn.Linear)
@@ -322,8 +332,12 @@ class PAINeuronModule(nn.Module):
             np.array(self.this_output_dimensions)[3:] == -1
         ).all():  # Everything past 2 is a negative 1
             self.set_this_output_dimensions(self.this_output_dimensions[0:3])
+        # Apply per-module output_dimensions override from config if present
+        _custom_dims = self.module_config.__dict__.get('_output_dimensions')
+        if _custom_dims is not None:
+            self.set_this_output_dimensions(torch.tensor(_custom_dims))
         GPA.pai_tracker.add_pai_neuron_module(self)
-        if GPA.pc.get_perforated_backpropagation():
+        if self.module_config.get_perforated_backpropagation():
             MPB.set_neuron_parameters(self.main_module)
 
     def __getattr__(self, name):
@@ -427,7 +441,7 @@ class PAINeuronModule(nn.Module):
         Setting for verbose changes level of details in the string output.
         """
         # If verbose print the whole module otherwise just print the module type as a PAIModule
-        if GPA.pc.get_verbose():
+        if self.module_config.get_verbose():
             total_string = self.main_module.__str__()
             total_string = "PAIModule(" + total_string + ")"
             return total_string + self.dendrite_module.__str__()
@@ -489,18 +503,18 @@ class PAINeuronModule(nn.Module):
         by calling PGA.pc.set_checked_skipped_modules(True)
         """
 
-        if GPA.pc.get_verbose():
+        if self.module_config.get_verbose():
             print(f"{self.name} calling set mode {mode}")
         # If returning to neuron training
         if mode == "n":
             self.dendrite_module.set_mode(mode)
             # Initialize the dendrite to neuron connections
             if self.dendrite_modules_added > 0:
-                if GPA.pc.get_learn_dendrites_live():
+                if self.module_config.get_learn_dendrites_live():
                     values = torch.cat(
                         (
                             self.dendrites_to_top[self.dendrite_modules_added - 1],
-                            nn.Parameter(self.candidate_to_top.detach().clone().to(dtype=GPA.pc.get_d_type())),
+                            nn.Parameter(self.candidate_to_top.detach().clone().to(dtype=self.module_config.get_d_type())),
                         ),
                         0,
                     )
@@ -514,7 +528,7 @@ class PAINeuronModule(nn.Module):
                                     device=self.dendrites_to_top[
                                         self.dendrite_modules_added - 1
                                     ].device,
-                                    dtype=GPA.pc.get_d_type(),
+                                    dtype=self.module_config.get_d_type(),
                                 )
                             ),
                         ),
@@ -522,15 +536,15 @@ class PAINeuronModule(nn.Module):
                     )
                 self.dendrites_to_top.append(
                     nn.Parameter(
-                        values.detach().clone().to(device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
+                        values.detach().clone().to(device=self.module_config.get_device(), dtype=self.module_config.get_d_type()),
                         requires_grad=True,
                     )
                 )
             else:
-                if GPA.pc.get_learn_dendrites_live():
+                if self.module_config.get_learn_dendrites_live():
                     self.dendrites_to_top.append(
                         nn.Parameter(
-                            self.candidate_to_top.detach().clone().to(dtype=GPA.pc.get_d_type()), requires_grad=True
+                            self.candidate_to_top.detach().clone().to(dtype=self.module_config.get_d_type()), requires_grad=True
                         )
                     )
                 else:
@@ -538,8 +552,8 @@ class PAINeuronModule(nn.Module):
                         nn.Parameter(
                             torch.zeros(
                                 (1, self.out_channels),
-                                device=GPA.pc.get_device(),
-                                dtype=GPA.pc.get_d_type(),
+                                device=self.module_config.get_device(),
+                                dtype=self.module_config.get_d_type(),
                             )
                             .detach()
                             .clone(),
@@ -547,7 +561,7 @@ class PAINeuronModule(nn.Module):
                         )
                     )
             self.dendrite_modules_added += 1
-            if GPA.pc.get_perforated_backpropagation():
+            if self.module_config.get_perforated_backpropagation():
                 MPB.set_module_n_pb(self)
                 MPB.set_neuron_parameters(self.dendrites_to_top)
 
@@ -585,14 +599,14 @@ class PAINeuronModule(nn.Module):
                 print(
                     "You can also set right now in this pdb terminal to have this not happen more after checking all modules this cycle."
                 )
-                if not GPA.pc.get_checked_skipped_modules():
+                if not self.module_config.get_checked_skipped_modules():
                     import pdb
 
                     pdb.set_trace()
                 return False
             # Only change mode if it makes it past the above exception
             self.dendrite_module.set_mode(mode)
-            if GPA.pc.get_perforated_backpropagation():
+            if self.module_config.get_perforated_backpropagation():
                 MPB.set_module_p_pb(self)
         return True
 
@@ -631,10 +645,10 @@ class PAINeuronModule(nn.Module):
         """
 
         # If debugging all input dimensions, quit program on first forward call
-        if GPA.pc.get_debugging_output_dimensions() == 2:
+        if self.module_config.get_debugging_output_dimensions() == 2:
             print("all input dim problems now printed")
             sys.exit(0)
-        if GPA.pc.get_extra_verbose():
+        if self.module_config.get_extra_verbose():
             print(f"{self.name} calling forward")
         # Call the main modules forward
         out = self.main_module(*args, **kwargs)
@@ -664,13 +678,17 @@ class PAINeuronModule(nn.Module):
                     if dim == self.this_node_index:
                         continue
                     to_top = to_top.unsqueeze(dim)
-                if GPA.pc.get_confirm_correct_sizes():
+                if self.module_config.get_confirm_correct_sizes():
                     to_top = to_top.expand(
                         list(dendrite_outs[i].size())[0 : self.this_node_index]
                         + [self.out_channels]
                         + list(dendrite_outs[i].size())[self.this_node_index + 1 :]
                     )
                 out = out + (dendrite_outs[i].to(out.device) * to_top.to(out.device))
+
+        # If learning live, add the candidate's output to the neuron's output via the live weight
+        if self.module_config.get_perforated_backpropagation():
+            out = MPB.apply_live_candidate_to_output(self, out, candidate_nonlinear_outs)
 
         # Catch if processors are required
         if type(out) is tuple:
@@ -1076,6 +1094,16 @@ class PAIDendriteModule(nn.Module):
                     MPB.init_candidates(self, j)
             if GPA.pc.get_perforated_backpropagation():
                 MPB.set_candidate_parameters(self.dendrites_to_candidates)
+            # Initialize best_dendrites_to_candidates_saved to snapshot peak-correlation weights at epoch boundaries
+            self.best_dendrites_to_candidates_saved = []
+            for j in range(0, GPA.pc.get_global_candidates()):
+                self.best_dendrites_to_candidates_saved.append(
+                    torch.zeros(
+                        (self.num_dendrites, self.out_channels),
+                        device=GPA.pc.get_device(),
+                        dtype=GPA.pc.get_d_type(),
+                    )
+                )
 
     def clear_processors(self):
         """Clear processors."""
@@ -1135,6 +1163,13 @@ class PAIDendriteModule(nn.Module):
                         "This was a flag that will be needed if using multiple candidates. "
                         "It's not set up yet but nice work finding it."
                     )
+                    print(
+                        "Note: with multiple candidates, best-score ranking in new_best() uses "
+                        "unnormalized covariance (prev_dendrite_candidate_correlation) rather than "
+                        "the normalized correlation coefficient. Candidates with larger output "
+                        "magnitude will be favored regardless of true correlation quality. "
+                        "Fix by tracking running sigma_V and sigma_E and dividing in new_best()."
+                    )
                     pdb.set_trace()
                 plane_max_index = 0
                 self.layers.append(
@@ -1143,7 +1178,7 @@ class PAIDendriteModule(nn.Module):
                 self.layers[self.num_dendrites].to(GPA.pc.get_device())
                 if self.num_dendrites > 0:
                     self.dendrites_to_dendrites[self.num_dendrites].copy_(
-                        self.dendrites_to_candidates[plane_max_index]
+                        self.best_dendrites_to_candidates_saved[plane_max_index]
                     )
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
                     self.processors.append(self.candidate_processors[plane_max_index])

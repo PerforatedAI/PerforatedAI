@@ -619,7 +619,7 @@ def main(args):
 
     for i in range(skip_layers):
         GPA.pc.append_module_ids_to_track(['.layer'+str(i+1)])
-    GPA.pc.append_module_ids_to_track(['.conv1', '.b1', '.fc'])
+    GPA.pc.append_module_ids_to_track(['.conv1', '.bn1', 'conv1', '.fc'])
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name

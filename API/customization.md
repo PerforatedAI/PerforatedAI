@@ -268,7 +268,7 @@ If you want to load the best model for any reason you can call:
 This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
     
 
-If you want to load a simplified pb model just for inference, or for finetuning a pretrained dendritic model without adding more dendrites, you can do so with the following after load_system
+If you want to load a simplified pb model just for inference, or for finetuning a tained dendritic model without adding more dendrites, you can do so with the following after load_system
 
     model = UPA.load_system(model, your save name, 'best_model', True)
     ...
@@ -336,8 +336,8 @@ The following can be added if you want dendrite training cycles to be capped at 
     
 When this is its default of False you may still want to shorten Dendrite training time, while not completely stopping it while Dendrites are still improving.  To that end you can adjust the following settings:
 
-    GPA.pc.set_dendrite_improvement_threshold(0.1)
-    GPA.pc.set_dendrite_improvement_thresholdRaw(1e-5)
+    GPA.pc.set_pai_improvement_threshold(0.1)
+    GPA.pc.set_pai_improvement_thresholdRaw(1e-5)
 
 These values specify how much the Dendrites must be improving in order to continue training them.  The default settings are that if at least one Dendrite in the entire network has improved its score by at least 10% and at least 1e-5 over the last GPA.pc.get_p_epochs_to_switch() epochs then Dendrite training will continue.  If it seems like the Dendrite training just keeps going up indefinitely these are the values that should be changed.  Some larger models will even continue going up just due to random noise when a learning rate of 0 if these numbers are set too low.
 

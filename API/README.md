@@ -1,5 +1,27 @@
 # PAI-API
 
+## Quick Start with AI Coding Assistant
+
+**The easiest way to get started** is to use our Claude skill with your AI coding assistant! This gives you instant expert guidance on implementing PerforatedAI in your projects.
+
+### Using the Claude Skill
+
+1. **Install this repo** (see [Manual Setup](#1---main-script) below)
+
+2. **If not working in this folder:** Copy the skill to your project using the install script.  This MUST be to the top level folder of where your editor is open.
+
+   ```bash
+   bash /path/to/PerforatedAI/.github/skills/perforatedai/install-skill.sh /path/to/your/project
+   ```
+
+3. **Open in VS Code/Claude** and say:
+   - **"Perforate my model using the skill in .github/skills"** - Interactive setup for new integrations
+   - **"Debug my perforated model using the skill in .github/skills"** - Debug or optimize existing integration
+   - **"Analyze my perforated results using the skill in .github/skills"** - Review training outputs and get recommendations
+   
+
+## Manual Integration Guide
+
 This README provides a walkthrough for how to add dendrites to your code.  When starting a new project first just add the sections from this README. Once they have been added you can run your code and it will give you errors and warnings about if any "customization" coding is required for your architecture.  The ways to fix these are in [customization.md](customization.md).  Additionally the customization README begins by describing alternative options to the recommended settings here.  After running your pipeline you can view the graphs in the PB that show the correlation values and experiment with the other settings in customization.md that may help get better results. [output.md](output.md) describes what you're seeing in the graphs.
 
 ## 1 - Main Script
@@ -7,6 +29,10 @@ This README provides a walkthrough for how to add dendrites to your code.  When 
 First install perforatedai from the main folder with:
 
     pip install -e .
+
+or from PyPi with
+
+    pip install perforatedai
 
 ### 1.1 - Imports
 These are all the imports you will need at the top of your main training file.  They will be needed in all of your files that call these functions if some of the below ends up being put into other files.

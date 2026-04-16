@@ -114,14 +114,18 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
         set -x
-        ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG/"
-        if [ ! -e $RELEASE_DIR ]; then 
-          mkdir -p $RELEASE_DIR
-        fi
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+          echo "Clone attempt $i failed, retrying..."
+          sleep $((i * 5 + RANDOM % 10))
+          if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+        done
+        RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
+        mkdir -p $RELEASE_DIR
         cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        cd perforatedai-releases-repo
         git config user.name "PAI GitHub Actions"
         git config user.email "actions@perforatedai.dev.local"
         
@@ -135,11 +139,11 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout develop
+          git checkout main
           git pull --rebase
 
           # Add files and commit (file is always new since push failed)
-          git add -f $RELEASE_DIR
+          git add -f perforatedai-releases/$TAG/
           if git diff --cached --quiet; then
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -153,7 +157,7 @@ jobs:
           fi
 
           # Try to push with retry logic
-          if git push origin develop; then
+          if git push origin main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -189,24 +193,32 @@ jobs:
       run: |
         set -x
         echo "Cloning the repository..."
-        git clone https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI.git
-        cd PerforatedAI
-        git checkout develop
+        yum install -y https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.rpm || true
+        yum install -y git
+        git --version
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git && break
+          echo "Clone attempt $i failed, retrying..."
+          sleep $((i * 5 + RANDOM % 10))
+          if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+        done
+        cd PerforatedAI-Releases
         pwd
         ls -al 
 
     - name: List files in the cloned repo
-      working-directory: PerforatedAI
+      working-directory: PerforatedAI-Releases
       run: 
         set -x
         ls -la 
 
     - name: Run auditwheel for all Python versions with retry
-      working-directory: PerforatedAI
+      working-directory: PerforatedAI-Releases
       run: |
         set -x
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG"
+        RELEASE_DIR="./perforatedai-releases/$TAG"
         cd $RELEASE_DIR
         auditwheel repair *.whl
         ls wheelhouse/
@@ -228,7 +240,7 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout develop
+          git checkout main
           git pull --rebase
           # Add files and commit (manylinux wheels are always new)
           git add -f .
@@ -245,7 +257,7 @@ jobs:
             fi
           fi
           # Try to push with retry logic
-          if git push origin HEAD:develop; then
+          if git push origin HEAD:main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -270,7 +282,7 @@ jobs:
       - buildCI-manyLinux
     strategy:
       matrix:
-        python-version: [3.8, 3.9, 3.10.x, 3.11, 3.12, 3.13]
+        python-version: [3.8, 3.9, '3.10', 3.11, 3.12, 3.13]
       fail-fast: false
 
     steps:
@@ -306,14 +318,18 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
         set -x
-        ## Workaround race conditions commits between python versions -
         TAG=${{ github.ref_name }}
-        RELEASE_DIR="./releases/$TAG/"
-        if [ ! -e $RELEASE_DIR ]; then 
-          mkdir -p $RELEASE_DIR
-        fi
+        CLONE_RETRIES=5
+        for i in $(seq 1 $CLONE_RETRIES); do
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+          echo "Clone attempt $i failed, retrying..."
+          sleep $((i * 5 + RANDOM % 10))
+          if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+        done
+        RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
+        mkdir -p $RELEASE_DIR
         cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        cd perforatedai-releases-repo
         git config user.name "PAI GitHub Actions"
         git config user.email "actions@perforatedai.dev.local"
         
@@ -327,10 +343,10 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout develop
+          git checkout main
           git pull --rebase
           # Add files and commit (file is always new since push failed)
-          git add -f $RELEASE_DIR
+          git add -f perforatedai-releases/$TAG/
           if git diff --cached --quiet; then
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -343,7 +359,7 @@ jobs:
             fi
           fi
           # Try to push with retry logic
-          if git push origin develop; then
+          if git push origin main; then
             echo "Push successful!"
             SUCCESS=true
           else
@@ -368,7 +384,7 @@ jobs:
       - buildCI-macOS 
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10.x, 3.11, 3.12]
+        python-version: [3.6, 3.7, 3.8, 3.9, '3.10', 3.11, 3.12]
       fail-fast: false
     steps:
     - name: Checkout code
@@ -397,6 +413,8 @@ jobs:
         Copy-Item perforatedai\network_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\utils_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\library_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\clean_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\blockwise_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
         Copy-Item setupCython.py pai_module\setup.py
         cd pai_module
@@ -410,12 +428,18 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.NEW_SECRET }}
       run: |
         $TAG = "${{ github.ref_name }}"
-        $RELEASE_DIR = "releases/$TAG/"
-        if (!(Test-Path -Path $RELEASE_DIR)) {
-          New-Item -ItemType Directory -Path $RELEASE_DIR -Force
+        $CLONE_RETRIES = 5
+        for ($i = 1; $i -le $CLONE_RETRIES; $i++) {
+          git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo
+          if ($LASTEXITCODE -eq 0) { break }
+          Write-Host "Clone attempt $i failed, retrying..."
+          Start-Sleep -Seconds ($i * 5 + (Get-Random -Maximum 10))
+          if ($i -eq $CLONE_RETRIES) { exit 1 }
         }
+        $RELEASE_DIR = "perforatedai-releases-repo\perforatedai-releases\$TAG\"
+        New-Item -ItemType Directory -Path $RELEASE_DIR -Force
         Copy-Item pai_module\dist\*.whl -Destination $RELEASE_DIR -Recurse -Force
-        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        Set-Location perforatedai-releases-repo
         git config user.name "PAI GitHub Actions"
         git config user.email "actions@perforatedai.dev.local"
         
@@ -429,10 +453,10 @@ jobs:
           
           # Fresh pull before each attempt
           git fetch origin
-          git checkout develop
+          git checkout main
           git pull --rebase
           # Add files and commit (file is always new since push failed)
-          git add -f $RELEASE_DIR
+          git add -f "perforatedai-releases\$TAG\"
           if (git diff --cached --quiet) {
             # No changes to commit, just continue loop without incrementing retry count
             echo "Nothing to commit, continuing..."
@@ -445,7 +469,7 @@ jobs:
             }
           }
           # Try to push with retry logic
-          $pushResult = git push origin develop 2>&1
+          $pushResult = git push origin main 2>&1
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Push successful!"
             $SUCCESS = $true
@@ -517,12 +541,17 @@ jobs:
         run: |
           set -x
           TAG=${{ github.ref_name }}
-          RELEASE_DIR="./releases/$TAG/"
-          if [ ! -e $RELEASE_DIR ]; then 
-            mkdir -p $RELEASE_DIR
-          fi
+          CLONE_RETRIES=5
+          for i in $(seq 1 $CLONE_RETRIES); do
+            git clone --depth 1 --branch main https://x-access-token:${{ secrets.NEW_SECRET }}@github.com/PerforatedAI/PerforatedAI-Releases.git perforatedai-releases-repo && break
+            echo "Clone attempt $i failed, retrying..."
+            sleep $((i * 5 + RANDOM % 10))
+            if [ $i -eq $CLONE_RETRIES ]; then exit 1; fi
+          done
+          RELEASE_DIR="perforatedai-releases-repo/perforatedai-releases/$TAG/"
+          mkdir -p $RELEASE_DIR
           cp -Rf pai_module/dist/*.whl $RELEASE_DIR/
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cd perforatedai-releases-repo
           git config user.name "PAI GitHub Actions"
           git config user.email "actions@perforatedai.dev.local"
           
@@ -536,10 +565,10 @@ jobs:
             
             # Fresh pull before each attempt
             git fetch origin
-            git checkout develop
+            git checkout main
             git pull --rebase
             # Add files and commit (file is always new since push failed)
-            git add -f $RELEASE_DIR
+            git add -f perforatedai-releases/$TAG/
             if git diff --cached --quiet; then
               # No changes to commit, just continue loop without incrementing retry count
               echo "Nothing to commit, continuing..."
@@ -552,7 +581,7 @@ jobs:
               fi  
             fi             
             # Try to push with retry logic
-            if git push origin develop; then
+            if git push origin main; then
               echo "Push successful!"
               SUCCESS=true
             else

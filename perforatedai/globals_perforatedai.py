@@ -79,7 +79,20 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
 
     def setter(self, value):
         """Set the value of the property."""
+        if (
+            self.__dict__.get("_module_name") is not None
+            or self.__dict__.get("_module_type") is not None
+        ):
+            raise RuntimeError(
+                "Setting custom module config values should only be done "
+                "from JSON config files or the GUI"
+            )
         setattr(self, private_name, value)
+        # Auto-save: if a config file has been configured (set at end of __init__),
+        # persist the new value immediately so the JSON stays in sync.
+        config_file = self.__dict__.get("_config_file")
+        if config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
+            self.save_config(config_file)
 
     def appender(self, value):
         """Append a value to the property if it is a list."""
@@ -100,6 +113,78 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         setattr(obj, f"get_{var_name}", getter_val.__get__(obj))
     setattr(obj, f"set_{var_name}", setter.__get__(obj))
     setattr(obj, f"append_{var_name}", appender.__get__(obj))
+
+
+# ---------------------------------------------------------------------------
+# JSON serialization helpers  (used by PAIConfig.save_config / load_config)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_dotted_name(dotted_name):
+    """Import and return an object identified by a dotted module path.
+
+    E.g. 'torch.nn.modules.conv.Conv2d'  → nn.Conv2d class
+         'torch.sigmoid'                 → torch.sigmoid function
+
+    Returns None if the name cannot be resolved.
+    """
+    import importlib
+
+    parts = dotted_name.rsplit(".", 1)
+    if len(parts) == 2:
+        try:
+            mod = importlib.import_module(parts[0])
+            return getattr(mod, parts[1], None)
+        except Exception:
+            pass
+    # Fall back: try the whole string as a single attribute of builtins
+    import builtins
+
+    return getattr(builtins, dotted_name, None)
+
+
+def _serialize_pai_value(val):
+    """Recursively convert a PAIConfig value to a JSON-serialisable form."""
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, (int, float, str)):
+        return val
+    if isinstance(val, torch.device):
+        return str(val)
+    if isinstance(val, torch.dtype):
+        return str(val)
+    if isinstance(val, list):
+        return [_serialize_pai_value(v) for v in val]
+    if isinstance(val, type):
+        mod = getattr(val, "__module__", "") or ""
+        return f"{mod}.{val.__name__}" if mod else val.__name__
+    if callable(val):
+        name = getattr(val, "__name__", None)
+        mod = getattr(val, "__module__", None)
+        if name and mod:
+            return f"{mod}.{name}"
+        return str(val)
+    return str(val)
+
+
+def _deserialize_pai_value(json_val, type_hint):
+    """Convert a JSON value to its Python type using an explicit type hint."""
+    if json_val is None:
+        return None
+    if type_hint is torch.device:
+        return torch.device(str(json_val))
+    if type_hint is torch.dtype:
+        v = getattr(torch, str(json_val).split(".", 1)[-1], None)
+        return v if isinstance(v, torch.dtype) else json_val
+    if type_hint is callable:
+        v = _resolve_dotted_name(json_val) if isinstance(json_val, str) else None
+        return v if (v and callable(v)) else json_val
+    if type_hint == [type]:  # list whose elements are class objects
+        return [
+            (_resolve_dotted_name(v) if isinstance(v, str) else v)
+            for v in (json_val or [])
+        ]
+    return json_val  # bool, int, float, str, list — JSON value is already correct
 
 
 class PAIConfig:
@@ -233,6 +318,111 @@ class PAIConfig:
         Whether Perforated Backpropagation is enabled.
     """
 
+    # Explicit type map for every config variable — used by load_config to coerce JSON values.
+    # [type] means "list whose elements are class/type objects" (need dotted-name resolution).
+    _TYPES: dict = {
+        **{
+            k: bool
+            for k in (
+                "use_cuda",
+                "confirm_correct_sizes",
+                "unwrapped_modules_confirmed",
+                "weight_decay_accepted",
+                "checked_skipped_modules",
+                "verbose",
+                "extra_verbose",
+                "silent",
+                "save_old_graph_scores",
+                "testing_dendrite_capacity",
+                "using_safe_tensors",
+                "drawing_pai",
+                "drawing_extra_graphs",
+                "test_saves",
+                "pai_saves",
+                "reset_best_score_on_switch",
+                "learn_dendrites_live",
+                "no_extra_n_modes",
+                "retain_all_dendrites",
+                "find_best_lr",
+                "dont_give_up_unless_learning_rate_lowered",
+                "candidate_weight_init_by_main",
+                "perforated_backpropagation",
+                "weight_tying_experimental",
+            )
+        },
+        **{
+            k: int
+            for k in (
+                "debugging_output_dimensions",
+                "global_candidates",
+                "n_epochs_to_switch",
+                "history_lookback",
+                "initial_history_after_switches",
+                "fixed_switch_num",
+                "first_fixed_switch_num",
+                "switch_mode",
+                "max_dendrite_tries",
+                "max_dendrites",
+                "param_vals_setting",
+            )
+        },
+        **{
+            k: float
+            for k in (
+                "improvement_threshold_raw",
+                "candidate_weight_initialization_multiplier",
+            )
+        },
+        **{k: str for k in ("save_name", "library_validation_score")},
+        "device": torch.device,
+        "d_type": torch.dtype,
+        "pai_forward_function": callable,
+        **{
+            k: list
+            for k in (
+                "output_dimensions",
+                "improvement_threshold",
+                "module_names_to_convert",
+                "module_ids_to_convert",
+                "module_names_to_track",
+                "module_ids_to_track",
+                "module_names_with_processing",
+                "module_names_to_not_save",
+                "library_extra_scores",
+                "library_extra_scores_without_graphing",
+            )
+        },
+        **{
+            k: [type]
+            for k in (
+                "modules_to_convert",
+                "modules_to_track",
+                "modules_to_replace",
+                "replacement_modules",
+                "modules_with_processing",
+                "modules_processing_classes",
+                "module_by_name_processing_classes",
+            )
+        },
+    }
+
+    # Subset of _TYPES: variables that can be overridden on a per-module basis
+    # via the Studio.  These are set outside the ``if not module_name:`` block
+    # in :py:meth:`__init__`, so they are meaningful when constructing a
+    # module-specific PAIConfig instance.
+    _CUSTOMIZABLE: dict = {
+        "verbose": bool,
+        "extra_verbose": bool,
+        "silent": bool,
+        "global_candidates": int,
+        "output_dimensions": list,
+        "candidate_weight_initialization_multiplier": float,
+        "candidate_weight_init_by_main": bool,
+        "retain_all_dendrites": bool,
+        "max_dendrites": int,
+        "pai_forward_function": callable,
+    }
+
     def __getattr__(self, name):
         """Handle missing attributes gracefully, especially for PB variables.
 
@@ -247,60 +437,398 @@ class PAIConfig:
             Returns None for missing set_ methods, raises AttributeError otherwise.
         """
         if name.startswith("set_"):
-            print(
-                f"Variable '{name[4:]}' does not exist.  Ignoring set attempt."
-            )
+            print(f"Variable '{name[4:]}' does not exist.  Ignoring set attempt.")
             return lambda x: None
         if name.startswith("append_"):
             print(
                 f"List Variable '{name[7:]}' does not exist.  Ignoring append attempt."
             )
             return lambda x: None
-        else:
-            raise AttributeError(
-                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        if name.startswith("get_") and self.__dict__.get("_module_name") is not None:
+            # Module-specific config: check for a per-module override stored directly in
+            # __dict__ (written by load_config when custom JSON data was found for this
+            # module).  This covers CUSTOMIZABLE vars that are not initialised for
+            # per-module configs (e.g. output_dimensions, which lives inside the
+            # ``if not module_name:`` block).
+            private_key = f"_{name[4:]}"
+            if private_key in self.__dict__:
+                stored = self.__dict__[private_key]
+                return lambda: stored
+            # Fall back to the global pc instance for vars not set on this instance.
+            global_getter = getattr(pc, name, None)
+            if global_getter is not None:
+                return global_getter
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
+    def __init__(self, module_name=None, module_type=None):
+        """Initialize PAIConfig with default settings.
+
+        module_name=None means this is the main global config.
+        If module_name is set this is a per-module config that loads
+        custom settings from module_settings[module_name] (by id) or
+        module_settings[module_type] (by type) in the JSON file.
+        """
+        # Must be first: prevents __getattr__ from firing for _config_file
+        # during construction (before add_pai_config_var_functions sets it).
+        # Also disables auto-save in setters until the end of __init__.
+        self.__dict__["_config_file"] = None
+        # None = global config; any string = per-module config
+        self.__dict__["_module_name"] = module_name
+        # Short class name of the wrapped module (e.g. 'Conv2d'), used as
+        # a fallback lookup key when the specific name has no saved settings.
+        self.__dict__["_module_type"] = module_type
+
+        if not module_name:
+            ### Global Constants
+            # Device configuration
+            self.use_cuda = torch.cuda.is_available()
+            add_pai_config_var_functions(self, "use_cuda", self.use_cuda)
+            self.device = torch.device("cuda" if self.use_cuda else "cpu")
+            add_pai_config_var_functions(self, "device", self.device)
+
+            # User should never set this manually
+            self.save_name = "PAI"
+            add_pai_config_var_functions(self, "save_name", self.save_name)
+
+            # Debug settings
+            self.debugging_output_dimensions = 0
+            add_pai_config_var_functions(
+                self, "debugging_output_dimensions", self.debugging_output_dimensions
+            )
+            # Debugging input tensor sizes.
+            # This will slow things down very slightly and is not necessary but can help
+            # catch when dimensions were not filled in correctly.
+            self.confirm_correct_sizes = False
+            add_pai_config_var_functions(
+                self, "confirm_correct_sizes", self.confirm_correct_sizes
             )
 
-    def __init__(self):
-        """Initialize PAIConfig with default settings."""
-        ### Global Constants
-        # Device configuration
-        self.use_cuda = torch.cuda.is_available()
-        add_pai_config_var_functions(self, "use_cuda", self.use_cuda)
-        self.device = torch.device("cuda" if self.use_cuda else "cpu")
-        add_pai_config_var_functions(self, "device", self.device)
+            # Confirmation flags for non-recommended options
+            self.unwrapped_modules_confirmed = False
+            add_pai_config_var_functions(
+                self, "unwrapped_modules_confirmed", self.unwrapped_modules_confirmed
+            )
+            self.weight_decay_accepted = False
+            add_pai_config_var_functions(
+                self, "weight_decay_accepted", self.weight_decay_accepted
+            )
+            self.checked_skipped_modules = False
+            add_pai_config_var_functions(
+                self, "checked_skipped_modules", self.checked_skipped_modules
+            )
+            # Analysis settings
+            self.save_old_graph_scores = True
+            add_pai_config_var_functions(
+                self, "save_old_graph_scores", self.save_old_graph_scores
+            )
+            # Testing settings
+            self.testing_dendrite_capacity = True
+            add_pai_config_var_functions(
+                self, "testing_dendrite_capacity", self.testing_dendrite_capacity
+            )
 
-        # User should never set this manually
-        self.save_name = "PAI"
-        add_pai_config_var_functions(self, "save_name", self.save_name)
+            # File format settings
+            self.using_safe_tensors = True
+            add_pai_config_var_functions(
+                self, "using_safe_tensors", self.using_safe_tensors
+            )
 
-        # Debug settings
-        self.debugging_output_dimensions = 0
-        add_pai_config_var_functions(
-            self, "debugging_output_dimensions", self.debugging_output_dimensions
-        )
-        # Debugging input tensor sizes.
-        # This will slow things down very slightly and is not necessary but can help
-        # catch when dimensions were not filled in correctly.
-        self.confirm_correct_sizes = False
-        add_pai_config_var_functions(
-            self, "confirm_correct_sizes", self.confirm_correct_sizes
-        )
+            # Graph and visualization settings
+            # A graph setting which can be set to false if you want to do your own
+            # training visualizations
+            self.drawing_pai = True
+            add_pai_config_var_functions(self, "drawing_pai", self.drawing_pai)
 
-        # Confirmation flags for non-recommended options
-        self.unwrapped_modules_confirmed = False
-        add_pai_config_var_functions(
-            self, "unwrapped_modules_confirmed", self.unwrapped_modules_confirmed
-        )
-        self.weight_decay_accepted = False
-        add_pai_config_var_functions(
-            self, "weight_decay_accepted", self.weight_decay_accepted
-        )
-        self.checked_skipped_modules = False
-        add_pai_config_var_functions(
-            self, "checked_skipped_modules", self.checked_skipped_modules
-        )
+            # Drawing extra graphs beyond the standard ones.
+            self.drawing_extra_graphs = True
+            add_pai_config_var_functions(
+                self, "drawing_extra_graphs", self.drawing_extra_graphs
+            )
 
+            # Saving test intermediary models, good for experimentation, bad for memory
+            self.test_saves = True
+            add_pai_config_var_functions(self, "test_saves", self.test_saves)
+            # To be filled in later. pai_saves will remove some extra scaffolding for
+            # slight memory and speed improvements
+            self.pai_saves = False
+            add_pai_config_var_functions(self, "pai_saves", self.pai_saves)
+            # Improvement thresholds
+            # Percentage improvement increase needed to call a new best validation score
+            self.improvement_threshold = [0.001, 0.0001, 0.0]
+            add_pai_config_var_functions(
+                self, "improvement_threshold", self.improvement_threshold
+            )
+
+            # Raw increase needed
+            self.improvement_threshold_raw = 1e-5
+            add_pai_config_var_functions(
+                self, "improvement_threshold_raw", self.improvement_threshold_raw
+            )
+            # SWITCH MODE SETTINGS
+
+            # Add dendrites every time to debug implementation
+            self.DOING_SWITCH_EVERY_TIME = 0
+
+            # Switch when validation hasn't improved over x epochs
+            self.DOING_HISTORY = 1
+            # Epochs to try before deciding to load previous best and add dendrites
+            # Be sure this is higher than scheduler patience
+            self.n_epochs_to_switch = 10
+            add_pai_config_var_functions(
+                self, "n_epochs_to_switch", self.n_epochs_to_switch
+            )
+            # Number to average validation scores over
+            self.history_lookback = 1
+            add_pai_config_var_functions(
+                self, "history_lookback", self.history_lookback
+            )
+            # Amount of epochs to run after adding a new set of dendrites before checking
+            # to add more
+            self.initial_history_after_switches = 0
+            add_pai_config_var_functions(
+                self,
+                "initial_history_after_switches",
+                self.initial_history_after_switches,
+            )
+
+            # Switch after a fixed number of epochs
+            self.DOING_FIXED_SWITCH = 2
+            # Number of epochs to complete before switching
+            self.fixed_switch_num = 250
+            add_pai_config_var_functions(
+                self, "fixed_switch_num", self.fixed_switch_num
+            )
+            # An additional flag if you want your first switch to occur later than all the
+            # rest for initial pretraining.  This is a new minimum, if its lower than
+            # the above it will be ignored.
+            self.first_fixed_switch_num = 1
+            add_pai_config_var_functions(
+                self, "first_fixed_switch_num", self.first_fixed_switch_num
+            )
+
+            # A setting to not add dendrites and just do regular training
+            # Warning, this will also never trigger training_complete
+            self.DOING_NO_SWITCH = 3
+
+            # Default switch mode
+            self.switch_mode = self.DOING_HISTORY
+            add_pai_config_var_functions(self, "switch_mode", self.switch_mode)
+
+            # Reset settings
+            # Resets score on switch
+            # This can be useful if you need many epochs to catch up to the best score
+            # from the previous version after adding dendrites
+            self.reset_best_score_on_switch = False
+            add_pai_config_var_functions(
+                self, "reset_best_score_on_switch", self.reset_best_score_on_switch
+            )
+
+            # Advanced settings
+            # Not used in open source implementation, leave as default
+            self.learn_dendrites_live = False
+            add_pai_config_var_functions(
+                self, "learn_dendrites_live", self.learn_dendrites_live
+            )
+            self.no_extra_n_modes = True
+            add_pai_config_var_functions(
+                self, "no_extra_n_modes", self.no_extra_n_modes
+            )
+
+            # Data type for new modules and dendrite to dendrite / dendrite to neuron
+            # weights
+            self.d_type = torch.float
+            add_pai_config_var_functions(self, "d_type", self.d_type)
+
+            # Learning rate management
+            # A setting to automatically sweep over previously used learning rates when
+            # adding new dendrites
+            # Sometimes it's best to go back to initial LR, but often its best to start
+            # at a lower LR
+            self.find_best_lr = True
+            add_pai_config_var_functions(self, "find_best_lr", self.find_best_lr)
+            # Enforces the above even if the previous epoch didn't lower the learning rate
+            self.dont_give_up_unless_learning_rate_lowered = True
+            add_pai_config_var_functions(
+                self,
+                "dont_give_up_unless_learning_rate_lowered",
+                self.dont_give_up_unless_learning_rate_lowered,
+            )
+
+            # Dendrite attempt settings
+            # Set to 1 if you want to quit as soon as one dendrite fails
+            # Higher values will try new random dendrite weights this many times before
+            # accepting that more dendrites don't improve
+            self.max_dendrite_tries = 2
+            add_pai_config_var_functions(
+                self, "max_dendrite_tries", self.max_dendrite_tries
+            )
+
+            # Scheduler parameter settings
+            # Have learning rate params be by total epoch
+            self.PARAM_VALS_BY_TOTAL_EPOCH = 0
+            # Reset the params at every switch
+            self.PARAM_VALS_BY_UPDATE_EPOCH = 1
+            # Reset params for dendrite starts but not for normal restarts
+            # Not used for open source version
+            self.PARAM_VALS_BY_NEURON_EPOCH_START = 2
+            # Default setting
+            self.param_vals_setting = self.PARAM_VALS_BY_UPDATE_EPOCH
+            add_pai_config_var_functions(
+                self, "param_vals_setting", self.param_vals_setting
+            )
+            # Lists for module types and names to add dendrites to
+            # For these lists no specifier means type, name is module name
+            # and ids is the individual modules id, eg. model.conv2
+            self.modules_to_convert = []
+            add_pai_config_var_functions(
+                self, "modules_to_convert", self.modules_to_convert, list_type=True
+            )
+            self.module_names_to_convert = [
+                "PAISequential",
+                "Conv1d",
+                "Conv2d",
+                "Conv3d",
+                "Linear",
+            ]
+            add_pai_config_var_functions(
+                self,
+                "module_names_to_convert",
+                self.module_names_to_convert,
+                list_type=True,
+            )
+            self.module_ids_to_convert = []
+            add_pai_config_var_functions(
+                self,
+                "module_ids_to_convert",
+                self.module_ids_to_convert,
+                list_type=True,
+            )
+
+            # All modules should either be converted or tracked to ensure all modules
+            # are accounted for
+            self.modules_to_track = []
+            add_pai_config_var_functions(
+                self, "modules_to_track", self.modules_to_track, list_type=True
+            )
+            self.module_names_to_track = []
+            add_pai_config_var_functions(
+                self,
+                "module_names_to_track",
+                self.module_names_to_track,
+                list_type=True,
+            )
+            # IDs are for if you want to pass only a single module by its assigned ID rather than the module type by name
+            self.module_ids_to_track = []
+            add_pai_config_var_functions(
+                self, "module_ids_to_track", self.module_ids_to_track, list_type=True
+            )
+
+            # Replacement modules happen before the conversion,
+            # so replaced modules will then also be run through the conversion steps
+            # These are for modules that need to be replaced before addition of dendrites
+            # See the resnet example in models_perforatedai
+            self.modules_to_replace = []
+            add_pai_config_var_functions(
+                self, "modules_to_replace", self.modules_to_replace, list_type=True
+            )
+            # Modules to replace the above modules with
+            self.replacement_modules = []
+            add_pai_config_var_functions(
+                self, "replacement_modules", self.replacement_modules, list_type=True
+            )
+
+            # Dendrites default to modules which are one tensor input and one tensor
+            # output in forward()
+            # Other modules require to be labeled as modules with processing and assigned
+            # processing classes
+            # This can be done by module type or module name see customization.md in API
+            # for example
+            self.modules_with_processing = []
+            add_pai_config_var_functions(
+                self,
+                "modules_with_processing",
+                self.modules_with_processing,
+                list_type=True,
+            )
+            self.modules_processing_classes = []
+            add_pai_config_var_functions(
+                self,
+                "modules_processing_classes",
+                self.modules_processing_classes,
+                list_type=True,
+            )
+            self.module_names_with_processing = []
+            add_pai_config_var_functions(
+                self,
+                "module_names_with_processing",
+                self.module_names_with_processing,
+                list_type=True,
+            )
+            self.module_by_name_processing_classes = []
+            add_pai_config_var_functions(
+                self,
+                "module_by_name_processing_classes",
+                self.module_by_name_processing_classes,
+                list_type=True,
+            )
+
+            # Similarly here as above. Some huggingface models have multiple pointers to
+            # the same modules which cause problems
+            # If you want to only save one of the multiple pointers you can set which ones
+            # not to save here
+            self.module_names_to_not_save = [".base_model"]
+            add_pai_config_var_functions(
+                self,
+                "module_names_to_not_save",
+                self.module_names_to_not_save,
+                list_type=True,
+            )
+
+            # Perforated Backpropagation settings
+            self.perforated_backpropagation = False
+            add_pai_config_var_functions(
+                self, "perforated_backpropagation", self.perforated_backpropagation
+            )
+
+            self.weight_tying_experimental = False
+            add_pai_config_var_functions(
+                self, "weight_tying_experimental", self.weight_tying_experimental
+            )
+
+            # These are settings where libraries must be doing the scoring adding to
+            # message from your main script what metric to use
+            self.library_validation_score = ""
+            add_pai_config_var_functions(
+                self, "library_validation_score", self.library_validation_score
+            )
+            self.library_extra_scores = []
+            add_pai_config_var_functions(
+                self,
+                "library_extra_scores",
+                self.library_extra_scores,
+                list_type=True,
+            )
+            self.library_extra_scores_without_graphing = []
+            add_pai_config_var_functions(
+                self,
+                "library_extra_scores_without_graphing",
+                self.library_extra_scores_without_graphing,
+                list_type=True,
+            )
+
+            # Input dimensions needs to be set every time. It is set to what format of
+            # planes you are expecting.
+            # Neuron index should be set to 0, variable indexes should be set to -1.
+            # For example, if your format is [batchsize, nodes, x, y]
+            # output_dimensions is [-1, 0, -1, -1].
+            # if your format is, [batchsize, time index, nodes] output_dimensions is
+            # [-1, -1, 0]
+            self.output_dimensions = [-1, 0, -1, -1]
+            add_pai_config_var_functions(
+                self, "output_dimensions", self.output_dimensions, list_type=True
+            )
         # Verbosity settings
         self.verbose = False
         add_pai_config_var_functions(self, "verbose", self.verbose)
@@ -309,71 +837,11 @@ class PAIConfig:
         # Suppress all PAI prints
         self.silent = False
         add_pai_config_var_functions(self, "silent", self.silent)
-        # Analysis settings
-        self.save_old_graph_scores = True
-        add_pai_config_var_functions(
-            self, "save_old_graph_scores", self.save_old_graph_scores
-        )
-
-        # Testing settings
-        self.testing_dendrite_capacity = True
-        add_pai_config_var_functions(
-            self, "testing_dendrite_capacity", self.testing_dendrite_capacity
-        )
-
-        # File format settings
-        self.using_safe_tensors = True
-        add_pai_config_var_functions(
-            self, "using_safe_tensors", self.using_safe_tensors
-        )
 
         # In place for future implementation options of adding multiple candidate
         # dendrites together
         self.global_candidates = 1
         add_pai_config_var_functions(self, "global_candidates", self.global_candidates)
-
-        # Graph and visualization settings
-        # A graph setting which can be set to false if you want to do your own
-        # training visualizations
-        self.drawing_pai = True
-        add_pai_config_var_functions(self, "drawing_pai", self.drawing_pai)
-
-        # Drawing extra graphs beyond the standard ones.
-        self.drawing_extra_graphs = True
-        add_pai_config_var_functions(self, "drawing_extra_graphs", self.drawing_extra_graphs)
-
-        # Saving test intermediary models, good for experimentation, bad for memory
-        self.test_saves = True
-        add_pai_config_var_functions(self, "test_saves", self.test_saves)
-        # To be filled in later. pai_saves will remove some extra scaffolding for
-        # slight memory and speed improvements
-        self.pai_saves = False
-        add_pai_config_var_functions(self, "pai_saves", self.pai_saves)
-
-        # Input dimensions needs to be set every time. It is set to what format of
-        # planes you are expecting.
-        # Neuron index should be set to 0, variable indexes should be set to -1.
-        # For example, if your format is [batchsize, nodes, x, y]
-        # output_dimensions is [-1, 0, -1, -1].
-        # if your format is, [batchsize, time index, nodes] output_dimensions is
-        # [-1, -1, 0]
-        self.output_dimensions = [-1, 0, -1, -1]
-        add_pai_config_var_functions(
-            self, "output_dimensions", self.output_dimensions, list_type=True
-        )
-
-        # Improvement thresholds
-        # Percentage improvement increase needed to call a new best validation score
-        self.improvement_threshold = [0.001, 0.0001, 0.0]
-        add_pai_config_var_functions(
-            self, "improvement_threshold", self.improvement_threshold
-        )
-
-        # Raw increase needed
-        self.improvement_threshold_raw = 1e-5
-        add_pai_config_var_functions(
-            self, "improvement_threshold_raw", self.improvement_threshold_raw
-        )
 
         # Weight initialization settings
         # Multiplier when randomizing dendrite weights
@@ -391,73 +859,6 @@ class PAIConfig:
             self.candidate_weight_init_by_main,
         )
 
-        # SWITCH MODE SETTINGS
-
-        # Add dendrites every time to debug implementation
-        self.DOING_SWITCH_EVERY_TIME = 0
-
-        # Switch when validation hasn't improved over x epochs
-        self.DOING_HISTORY = 1
-        # Epochs to try before deciding to load previous best and add dendrites
-        # Be sure this is higher than scheduler patience
-        self.n_epochs_to_switch = 10
-        add_pai_config_var_functions(
-            self, "n_epochs_to_switch", self.n_epochs_to_switch
-        )
-        # Number to average validation scores over
-        self.history_lookback = 1
-        add_pai_config_var_functions(self, "history_lookback", self.history_lookback)
-        # Amount of epochs to run after adding a new set of dendrites before checking
-        # to add more
-        self.initial_history_after_switches = 0
-        add_pai_config_var_functions(
-            self, "initial_history_after_switches", self.initial_history_after_switches
-        )
-
-        # Switch after a fixed number of epochs
-        self.DOING_FIXED_SWITCH = 2
-        # Number of epochs to complete before switching
-        self.fixed_switch_num = 250
-        add_pai_config_var_functions(self, "fixed_switch_num", self.fixed_switch_num)
-        # An additional flag if you want your first switch to occur later than all the
-        # rest for initial pretraining.  This is a new minimum, if its lower than
-        # the above it will be ignored.
-        self.first_fixed_switch_num = 1
-        add_pai_config_var_functions(
-            self, "first_fixed_switch_num", self.first_fixed_switch_num
-        )
-
-        # A setting to not add dendrites and just do regular training
-        # Warning, this will also never trigger training_complete
-        self.DOING_NO_SWITCH = 3
-
-        # Default switch mode
-        self.switch_mode = self.DOING_HISTORY
-        add_pai_config_var_functions(self, "switch_mode", self.switch_mode)
-
-        # Reset settings
-        # Resets score on switch
-        # This can be useful if you need many epochs to catch up to the best score
-        # from the previous version after adding dendrites
-        self.reset_best_score_on_switch = False
-        add_pai_config_var_functions(
-            self, "reset_best_score_on_switch", self.reset_best_score_on_switch
-        )
-
-        # Advanced settings
-        # Not used in open source implementation, leave as default
-        self.learn_dendrites_live = False
-        add_pai_config_var_functions(
-            self, "learn_dendrites_live", self.learn_dendrites_live
-        )
-        self.no_extra_n_modes = True
-        add_pai_config_var_functions(self, "no_extra_n_modes", self.no_extra_n_modes)
-
-        # Data type for new modules and dendrite to dendrite / dendrite to neuron
-        # weights
-        self.d_type = torch.float
-        add_pai_config_var_functions(self, "d_type", self.d_type)
-
         # Dendrite retention settings
         # A setting to keep dendrites even if they do not improve scores
         self.retain_all_dendrites = False
@@ -465,46 +866,9 @@ class PAIConfig:
             self, "retain_all_dendrites", self.retain_all_dendrites
         )
 
-        # Learning rate management
-        # A setting to automatically sweep over previously used learning rates when
-        # adding new dendrites
-        # Sometimes it's best to go back to initial LR, but often its best to start
-        # at a lower LR
-        self.find_best_lr = True
-        add_pai_config_var_functions(self, "find_best_lr", self.find_best_lr)
-        # Enforces the above even if the previous epoch didn't lower the learning rate
-        self.dont_give_up_unless_learning_rate_lowered = True
-        add_pai_config_var_functions(
-            self,
-            "dont_give_up_unless_learning_rate_lowered",
-            self.dont_give_up_unless_learning_rate_lowered,
-        )
-
-        # Dendrite attempt settings
-        # Set to 1 if you want to quit as soon as one dendrite fails
-        # Higher values will try new random dendrite weights this many times before
-        # accepting that more dendrites don't improve
-        self.max_dendrite_tries = 2
-        add_pai_config_var_functions(
-            self, "max_dendrite_tries", self.max_dendrite_tries
-        )
         # Max dendrites to add even if they do continue improving scores
         self.max_dendrites = 100
         add_pai_config_var_functions(self, "max_dendrites", self.max_dendrites)
-
-        # Scheduler parameter settings
-        # Have learning rate params be by total epoch
-        self.PARAM_VALS_BY_TOTAL_EPOCH = 0
-        # Reset the params at every switch
-        self.PARAM_VALS_BY_UPDATE_EPOCH = 1
-        # Reset params for dendrite starts but not for normal restarts
-        # Not used for open source version
-        self.PARAM_VALS_BY_NEURON_EPOCH_START = 2
-        # Default setting
-        self.param_vals_setting = self.PARAM_VALS_BY_UPDATE_EPOCH
-        add_pai_config_var_functions(
-            self, "param_vals_setting", self.param_vals_setting
-        )
 
         # Activation function settings
         # The activation function to use for dendrites
@@ -513,128 +877,220 @@ class PAIConfig:
             self, "pai_forward_function", self.pai_forward_function
         )
 
-        # Lists for module types and names to add dendrites to
-        # For these lists no specifier means type, name is module name
-        # and ids is the individual modules id, eg. model.conv2
-        self.modules_to_convert = [nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear]
-        add_pai_config_var_functions(
-            self, "modules_to_convert", self.modules_to_convert, list_type=True
-        )
-        self.module_names_to_convert = ["PAISequential"]
-        add_pai_config_var_functions(
-            self,
-            "module_names_to_convert",
-            self.module_names_to_convert,
-            list_type=True,
-        )
-        self.module_ids_to_convert = []
-        add_pai_config_var_functions(
-            self, "module_ids_to_convert", self.module_ids_to_convert, list_type=True
-        )
+        # ------------------------------------------------------------------
+        # Auto-load or auto-save {save_name}_config.json in the {save_name} folder
+        # ------------------------------------------------------------------
+        import os as _os
 
-        # All modules should either be converted or tracked to ensure all modules
-        # are accounted for
-        self.modules_to_track = []
-        add_pai_config_var_functions(
-            self, "modules_to_track", self.modules_to_track, list_type=True
-        )
-        self.module_names_to_track = []
-        add_pai_config_var_functions(
-            self, "module_names_to_track", self.module_names_to_track, list_type=True
-        )
-        # IDs are for if you want to pass only a single module by its assigned ID rather than the module type by name
-        self.module_ids_to_track = []
-        add_pai_config_var_functions(
-            self, "module_ids_to_track", self.module_ids_to_track, list_type=True
-        )
+        _save_name = self.__dict__.get("_save_name", "PAI")
+        _save_folder = _os.path.join(_os.getcwd(), _save_name)
+        _default_path = _os.path.join(_save_folder, f"{_save_name}_config.json")
+        if _os.path.exists(_default_path):
+            self.load_config(
+                _default_path,
+                module_name=module_name,
+                module_type=self.__dict__.get("_module_type"),
+            )
+        elif (not module_name) and not self.__dict__.get(
+            "_testing_dendrite_capacity", False
+        ):
+            _os.makedirs(_save_folder, exist_ok=True)  # Create folder if needed
+            self.save_config(_default_path)
+        # Enable auto-save-on-set from this point forward
+        self.__dict__["_config_file"] = _default_path
 
-        # Replacement modules happen before the conversion,
-        # so replaced modules will then also be run through the conversion steps
-        # These are for modules that need to be replaced before addition of dendrites
-        # See the resnet example in models_perforatedai
-        self.modules_to_replace = []
-        add_pai_config_var_functions(
-            self, "modules_to_replace", self.modules_to_replace, list_type=True
-        )
-        # Modules to replace the above modules with
-        self.replacement_modules = []
-        add_pai_config_var_functions(
-            self, "replacement_modules", self.replacement_modules, list_type=True
-        )
+    # ------------------------------------------------------------------
 
-        # Dendrites default to modules which are one tensor input and one tensor
-        # output in forward()
-        # Other modules require to be labeled as modules with processing and assigned
-        # processing classes
-        # This can be done by module type or module name see customization.md in API
-        # for example
-        self.modules_with_processing = []
-        add_pai_config_var_functions(
-            self,
-            "modules_with_processing",
-            self.modules_with_processing,
-            list_type=True,
-        )
-        self.modules_processing_classes = []
-        add_pai_config_var_functions(
-            self,
-            "modules_processing_classes",
-            self.modules_processing_classes,
-            list_type=True,
-        )
-        self.module_names_with_processing = []
-        add_pai_config_var_functions(
-            self,
-            "module_names_with_processing",
-            self.module_names_with_processing,
-            list_type=True,
-        )
-        self.module_by_name_processing_classes = []
-        add_pai_config_var_functions(
-            self,
-            "module_by_name_processing_classes",
-            self.module_by_name_processing_classes,
-            list_type=True,
-        )
+    def save_config(self, filename):
+        """Save the current PAIConfig state to a JSON file.
 
-        # Similarly here as above. Some huggingface models have multiple pointers to
-        # the same modules which cause problems
-        # If you want to only save one of the multiple pointers you can set which ones
-        # not to save here
-        self.module_names_to_not_save = [".base_model"]
-        add_pai_config_var_functions(
-            self,
-            "module_names_to_not_save",
-            self.module_names_to_not_save,
-            list_type=True,
-        )
+        Parameters
+        ----------
+        filename : str
+            Destination file path (created or overwritten).
 
-        # Perforated Backpropagation settings
-        self.perforated_backpropagation = False
-        add_pai_config_var_functions(
-            self, "perforated_backpropagation", self.perforated_backpropagation
-        )
+        Notes
+        -----
+        Values that are not natively JSON-serialisable (torch.device,
+        torch.dtype, nn.Module subclasses, callables) are stored as their
+        dotted-string representations so they can be round-tripped by
+        :py:meth:`load_config`.
+        """
+        import json
 
-        self.weight_tying_experimental = False
-        add_pai_config_var_functions(
-            self, "weight_tying_experimental", self.weight_tying_experimental
-        )
+        config_dict = {}
 
-        # These are settings where libraries must be doing the scoring adding to
-        # message from your main script what metric to use
-        self.library_validation_score = ''
-        add_pai_config_var_functions(
-            self, "library_validation_score", self.library_validation_score
-        )
-        self.library_extra_scores = []
-        add_pai_config_var_functions(
-            self, "library_extra_scores", self.library_extra_scores,
-            list_type=True,
-        )
-        self.library_extra_scores_without_graphing = []
-        add_pai_config_var_functions(   
-            self, "library_extra_scores_without_graphing", self.library_extra_scores_without_graphing,
-            list_type=True,
+        # Private-storage vars added by add_pai_config_var_functions
+        # e.g. self._module_ids_to_convert → key 'module_ids_to_convert'
+        for key, val in sorted(self.__dict__.items()):
+            if not (key.startswith("_") and not key.startswith("__")):
+                continue
+            # Skip internal bookkeeping keys that must not round-trip through JSON
+            if key in ("_config_file", "_module_name", "_module_type"):
+                continue
+            if callable(val):  # skip bound method refs
+                continue
+            clean_key = key[1:]
+            try:
+                config_dict[clean_key] = _serialize_pai_value(val)
+            except Exception:
+                config_dict[clean_key] = str(val)
+
+        # Plain constants (DOING_*, PARAM_VALS_BY_*, etc.)
+        for key, val in self.__dict__.items():
+            if key.startswith("_") or callable(val):
+                continue
+            if key not in config_dict:
+                try:
+                    config_dict[key] = _serialize_pai_value(val)
+                except Exception:
+                    config_dict[key] = str(val)
+
+        # Merge short class names from modules_to_convert into module_names_to_convert
+        # so the UI (and JS) only needs to check one array.
+        type_short_names = [
+            cls.__name__
+            for cls in self.__dict__.get("_modules_to_convert", [])
+            if isinstance(cls, type)
+        ]
+        existing = config_dict.get("module_names_to_convert", [])
+        config_dict["module_names_to_convert"] = existing + [
+            n for n in type_short_names if n not in existing
+        ]
+
+        # Preserve any per-module settings written by the Studio frontend.
+        _existing_ms: dict = {}
+        try:
+            with open(filename, "r") as _f:
+                _existing_ms = json.load(_f).get("module_settings", {})
+        except Exception:
+            pass
+        config_dict["module_settings"] = _existing_ms
+
+        # Publish customizable field type names so the Studio frontend can
+        # render appropriate editors without needing to import the library.
+        config_dict["_customizable_fields"] = {
+            k: (v.__name__ if hasattr(v, "__name__") else str(v))
+            for k, v in PAIConfig._CUSTOMIZABLE.items()
+        }
+
+        # Ensure the directory exists before saving
+        import os
+
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+        with open(filename, "w") as f:
+            json.dump(config_dict, f, indent=2)
+        print(f"[PAI Config] Saved {len(config_dict)} variables \u2192 {filename}")
+
+    def load_config(self, filename, module_name=None, module_type=None):
+        """Load PAIConfig state from a JSON file produced by :py:meth:`save_config`.
+
+        If *module_name* is ``None`` (default) every serialisable variable in
+        the file is restored on this instance.
+
+        If *module_name* is given the lookup priority is:
+          1. ``module_settings[module_name]`` (exact name / id match)
+          2. ``module_settings[module_type]``  (type-level fallback)
+          3. No-op — the defaults already set by ``__init__`` are kept.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the JSON file to read.
+        module_name : str, optional
+            Display name (id) of the module whose custom settings should be loaded.
+        module_type : str, optional
+            Short class name of the module type, used as a fallback key.
+        """
+        import json
+
+        with open(filename, "r") as f:
+            config_dict = json.load(f)
+
+        if module_name is not None:
+            # ── Per-module load ──────────────────────────────────────────────
+            module_settings = config_dict.get("module_settings", {})
+            # Priority: exact name → type fallback → no-op
+            if module_name in module_settings:
+                custom = module_settings[module_name]
+                resolved_key = module_name
+            elif module_type and module_type in module_settings:
+                custom = module_settings[module_type]
+                resolved_key = module_type
+            else:
+                # No custom settings for this module or type — keep defaults.
+                return
+            loaded = 0
+            skipped = 0
+            for key, json_val in custom.items():
+                if key not in PAIConfig._CUSTOMIZABLE:
+                    continue
+                type_hint = PAIConfig._TYPES.get(key)
+                private_key = f"_{key}"
+                # Write directly to __dict__ so we bypass any setter guards and also
+                # correctly handle vars that are not pre-initialised on per-module
+                # configs (e.g. output_dimensions, which only lives inside the
+                # ``if not module_name:`` block of __init__).
+                try:
+                    self.__dict__[private_key] = (
+                        _deserialize_pai_value(json_val, type_hint)
+                        if type_hint is not None
+                        else json_val
+                    )
+                    loaded += 1
+                except Exception as exc:
+                    print(
+                        f"[PAI Config] Warning: could not load '{key}' for '{resolved_key}': {exc}"
+                    )
+                    skipped += 1
+            print(
+                f"[PAI Config] Loaded {loaded} custom vars for '{resolved_key}' from {filename}"
+                + (f" ({skipped} skipped)" if skipped else "")
+            )
+            return
+
+        # ── Global load: every variable in the JSON ──────────────────────────
+        loaded = 0
+        skipped = 0
+        for key, json_val in config_dict.items():
+            # Skip internal bookkeeping and Studio-only metadata keys.
+            # 'module_name' and 'module_type' must never overwrite the
+            # instance's _module_name/_module_type (they are internal only).
+            if key in (
+                "config_file",
+                "module_settings",
+                "module_name",
+                "module_type",
+            ) or key.startswith("_"):
+                continue
+            type_hint = PAIConfig._TYPES.get(key)
+            private_key = f"_{key}"
+            if hasattr(self, private_key):
+                try:
+                    setattr(
+                        self,
+                        private_key,
+                        (
+                            _deserialize_pai_value(json_val, type_hint)
+                            if type_hint is not None
+                            else json_val
+                        ),
+                    )
+                    loaded += 1
+                except Exception as exc:
+                    print(f"[PAI Config] Warning: could not load '{key}': {exc}")
+                    skipped += 1
+            elif hasattr(self, key) and not callable(getattr(self, key, None)):
+                try:
+                    setattr(self, key, json_val)
+                    loaded += 1
+                except Exception:
+                    skipped += 1
+
+        print(
+            f"[PAI Config] Loaded {loaded} variables from {filename}"
+            + (f" ({skipped} skipped)" if skipped else "")
         )
 
 
@@ -730,6 +1186,11 @@ try:
             add_pai_config_var_functions(
                 pc, var_name, getattr(perforatedbp_globals, var_name)
             )
+
+    # Merge PBP type hints into PAIConfig._TYPES so load_config can correctly
+    # round-trip all perforatedbp variables from JSON.
+    if hasattr(perforatedbp_globals, "_TYPES"):
+        PAIConfig._TYPES.update(perforatedbp_globals._TYPES)
 
 except ImportError:
     print("Building dendrites without Perforated Backpropagation")

@@ -36,7 +36,6 @@ Load from HuggingFace and run a single session:
 Upload a locally loaded model to HuggingFace (uses the current model definition and weights):
 
     python train_perforatedai_hf.py \
-      --dataset flowers102 \
       --model resnet18 \
       --perforatedai \
       --hf-mode 1 \
