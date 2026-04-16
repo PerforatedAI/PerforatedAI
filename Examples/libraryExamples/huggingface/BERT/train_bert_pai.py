@@ -571,19 +571,19 @@ def main():
         if args.wrap_full_model:
             # Wrap the encoder layers in addition to the classifier
             print("Wrapping full model")
-            GPA.pc.append_module_names_to_convert(["RobertaLayer"])
+            GPA.pc.append_module_names_to_perforate(["RobertaLayer"])
             GPA.pc.append_module_names_with_processing(["RobertaLayer"])
             GPA.pc.append_module_by_name_processing_classes([PBM.MultiOutputProcesser])
         else:
             # Only add dendrites to the classifier
             print("Only adding dendrites to classifier")
-            GPA.pc.set_modules_to_convert([])  # Reset modules to convert
+            GPA.pc.set_modules_to_perforate([])  # Reset modules to convert
             GPA.pc.append_module_names_to_track(["RobertaLayer", "RobertaPooler"])
 
             # Wrap the classifier with our custom wrapper
             if hasattr(base_model, "classifier"):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.pc.append_module_names_to_convert("ClassifierWrapper")
+                GPA.pc.append_module_names_to_perforate("ClassifierWrapper")
         """
         model = RobertaForSequenceClassificationPB(
             base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob
@@ -598,24 +598,24 @@ def main():
         if args.wrap_full_model:
             # Wrap the encoder layers in addition to the classifier
             print("Wrapping full model")
-            GPA.pc.append_module_names_to_convert(["TransformerBlock"])
+            GPA.pc.append_module_names_to_perforate(["TransformerBlock"])
             GPA.pc.append_module_names_with_processing(["TransformerBlock"])
             GPA.pc.append_module_by_name_processing_classes([PBM.multiOutputProcesser])
         else:
             # Only add dendrites to the classifier
             print("Only adding dendrites to classifier")
-            GPA.pc.set_modules_to_convert([])  # Reset modules to convert
+            GPA.pc.set_modules_to_perforate([])  # Reset modules to convert
             GPA.pc.append_module_names_to_track(["TransformerBlock"])
 
             # Wrap the classifier with our custom wrapper
             if hasattr(base_model, "classifier"):
                 base_model.classifier = ClassifierWrapper(base_model.classifier)
-                GPA.pc.append_module_names_to_convert(["ClassifierWrapper"])
+                GPA.pc.append_module_names_to_perforate(["ClassifierWrapper"])
 
             # Also wrap pre_classifier if it exists
             if hasattr(base_model, "pre_classifier"):
                 base_model.pre_classifier = ClassifierWrapper(base_model.pre_classifier)
-                GPA.pc.append_module_names_to_convert(["ClassifierWrapper"])
+                GPA.pc.append_module_names_to_perforate(["ClassifierWrapper"])
         """
         model = BertForSequenceClassificationPB(
             base_model, dsn=args.dsn, dropout=args.hidden_dropout_prob

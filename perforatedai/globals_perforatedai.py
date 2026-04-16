@@ -288,11 +288,11 @@ class PAIConfig:
         Current parameter tracking mode.
     pai_forward_function : callable
         Activation function used for dendrites.
-    modules_to_convert : list
+    modules_to_perforate : list
         Module types to convert to PAI modules.
-    module_names_to_convert : list
+    module_names_to_perforate : list
         Module names to convert to PAI modules.
-    module_ids_to_convert : list
+    module_ids_to_perforate : list
         Specific module IDs to convert to PAI modules.
     modules_to_track : list
         Module types to track but not convert.
@@ -382,8 +382,8 @@ class PAIConfig:
             for k in (
                 "output_dimensions",
                 "improvement_threshold",
-                "module_names_to_convert",
-                "module_ids_to_convert",
+                "module_names_to_perforate",
+                "module_ids_to_perforate",
                 "module_names_to_track",
                 "module_ids_to_track",
                 "module_names_with_processing",
@@ -395,7 +395,7 @@ class PAIConfig:
         **{
             k: [type]
             for k in (
-                "modules_to_convert",
+                "modules_to_perforate",
                 "modules_to_track",
                 "modules_to_replace",
                 "replacement_modules",
@@ -681,11 +681,11 @@ class PAIConfig:
             # Lists for module types and names to add dendrites to
             # For these lists no specifier means type, name is module name
             # and ids is the individual modules id, eg. model.conv2
-            self.modules_to_convert = []
+            self.modules_to_perforate = []
             add_pai_config_var_functions(
-                self, "modules_to_convert", self.modules_to_convert, list_type=True
+                self, "modules_to_perforate", self.modules_to_perforate, list_type=True
             )
-            self.module_names_to_convert = [
+            self.module_names_to_perforate = [
                 "PAISequential",
                 "Conv1d",
                 "Conv2d",
@@ -694,15 +694,15 @@ class PAIConfig:
             ]
             add_pai_config_var_functions(
                 self,
-                "module_names_to_convert",
-                self.module_names_to_convert,
+                "module_names_to_perforate",
+                self.module_names_to_perforate,
                 list_type=True,
             )
-            self.module_ids_to_convert = []
+            self.module_ids_to_perforate = []
             add_pai_config_var_functions(
                 self,
-                "module_ids_to_convert",
-                self.module_ids_to_convert,
+                "module_ids_to_perforate",
+                self.module_ids_to_perforate,
                 list_type=True,
             )
 
@@ -921,7 +921,7 @@ class PAIConfig:
         config_dict = {}
 
         # Private-storage vars added by add_pai_config_var_functions
-        # e.g. self._module_ids_to_convert → key 'module_ids_to_convert'
+        # e.g. self._module_ids_to_perforate → key 'module_ids_to_perforate'
         for key, val in sorted(self.__dict__.items()):
             if not (key.startswith("_") and not key.startswith("__")):
                 continue
@@ -946,15 +946,15 @@ class PAIConfig:
                 except Exception:
                     config_dict[key] = str(val)
 
-        # Merge short class names from modules_to_convert into module_names_to_convert
+        # Merge short class names from modules_to_perforate into module_names_to_perforate
         # so the UI (and JS) only needs to check one array.
         type_short_names = [
             cls.__name__
-            for cls in self.__dict__.get("_modules_to_convert", [])
+            for cls in self.__dict__.get("_modules_to_perforate", [])
             if isinstance(cls, type)
         ]
-        existing = config_dict.get("module_names_to_convert", [])
-        config_dict["module_names_to_convert"] = existing + [
+        existing = config_dict.get("module_names_to_perforate", [])
+        config_dict["module_names_to_perforate"] = existing + [
             n for n in type_short_names if n not in existing
         ]
 

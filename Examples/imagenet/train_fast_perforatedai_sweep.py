@@ -544,7 +544,7 @@ def main(args, run=None):
     GPA.pc.set_initial_history_after_switches(2)
     GPA.pc.set_test_saves(True)
     GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.append_module_names_to_convert(["BasicBlock", "Bottleneck"])
+    GPA.pc.append_module_names_to_perforate(["BasicBlock", "Bottleneck"])
     GPA.pc.set_verbose(False)
     GPA.pc.set_max_dendrites(3)
     

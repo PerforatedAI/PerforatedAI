@@ -137,6 +137,17 @@ This means you entered None for the saveName, likely args.saveName did not have 
     
 If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
 
+## Optimizer Loop Error
+
+    RuntimeError: For non-complex input tensors, argument alpha must not be a complex number.
+
+This can come up for some schedulers when the loop actually goes longer than the scheduler's settings for the max number of epochs.  In these cases if you want to keep the current scheduler you must use the mode to switch on fixed epoch counts rather than waiting for a plateau.  E.g.:
+
+    # Use fixed-epoch switch mode: add dendrites every 80 epochs
+    GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
+    GPA.pc.set_fixed_switch_num(original count)
+    GPA.pc.set_first_fixed_switch_num(original count)
+
 
 ## Size Mismatch
 
@@ -330,7 +341,7 @@ In some cases this is done intentionally with weight tying. Which is not just a 
 
 This error can be caused by a few different reasons:
 1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
-2 - Your model definition or modules_to_convert and moduleNamesToConvert lists are different between your training script and your inference script.
+2 - Your model definition or modules_to_perforate and moduleNamesToConvert lists are different between your training script and your inference script.
 
 ## Errors that are currently not fixable
 

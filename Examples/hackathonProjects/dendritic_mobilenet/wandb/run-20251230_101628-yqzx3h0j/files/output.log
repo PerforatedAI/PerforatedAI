@@ -92,7 +92,7 @@ Any modules in the second list should be added to module_names_to_track
 ------------------------------------------------------------------
 Type 'c' + enter to continue the run to confirm you do not want them to be refined
 Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip this next time
-Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_convert
+Type 'net' + enter to inspect your network and see what the module types of these values are to add them to PGB.module_names_to_perforate
 > d:\hackathon\dendritic-edge-vision-v3\perforatedai\perforatedai\utils_perforatedai.py(699)convert_network()
 -> print("confirmed")
 confirmed

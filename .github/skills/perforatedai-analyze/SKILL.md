@@ -38,6 +38,8 @@ Look for these files:
 - `{save_name}/{save_name}_switch_epochs.csv` - Epochs when dendrites were added
 - `{save_name}/{save_name}_learning_rate.csv` - Learning rate schedule
 - `{save_name}/{save_name}Best_PBScores.csv` - Perforated Backpropagation scores (if enabled)
+- `{save_name}/*noImprove_lr*` files - Check if these exist (indicates no dendrites were added)
+- `{save_name}/{save_name}_train_scores.csv` - Training scores if tracked (for overfitting detection)
 
 ### Step 2: Read and Analyze Score Files
 
@@ -53,6 +55,18 @@ Read all available CSV files and analyze:
 - Identify exactly when dendrites were added (epoch numbers)
 - Correlate dendrite additions with score changes from _scores.csv
 - Determine if dendrite additions coincided with improvements
+- **Check if dendrites were added before actual plateau:** Look at score history before each switch - if scores were still improving significantly when dendrites were added, they may have been added prematurely
+
+**Check for noImprove_lr files:**
+- **If `noImprove_lr` files exist in the save folder:** This means dendrites were NEVER added during training
+- This is a critical issue - training completed without ever attempting to add dendrites
+- See troubleshooting section for loop settings recommendations
+
+**From `{save_name}_train_scores.csv` (if exists):**
+- Compare training scores vs validation/test scores
+- **If training scores significantly better than validation/test:** Indicates overfitting
+- Calculate the gap between train and validation performance
+- Recommend regularization if gap is large (>5-10% difference)
 
 **From `{save_name}_best_arch_scores.csv`:**
 - Compare performance across different dendrite counts (0, 1, 2, 3, etc.)
@@ -89,19 +103,27 @@ Provide a comprehensive summary including:
    - Whether training converged properly
 
 3. **Dendrite Impact:**
+   - **CRITICAL:** Check if dendrites were added at all (absence of switch_epochs data or presence of noImprove_lr files)
    - Score improvement after each dendrite addition (from switch_epochs.csv + scores.csv)
    - Which dendrite additions had the most impact
    - Whether dendrites helped or hurt performance
    - Optimal dendrite count based on diminishing returns in best_arch_scores
+   - Timing of additions: Were dendrites added prematurely (before plateau) or at appropriate times?
 
-4. **Comparison to Baseline:**
+4. **Generalization Analysis (if training scores available):**
+   - Train vs validation/test score gap
+   - Whether the model is overfitting (train >> val/test)
+   - If overfitting is present, recommend regularization strategies
+
+5. **Comparison to Baseline:**
    - Baseline score is the first score in best_arch_scores
    - Calculate parameter count increase (if available)
    - Assess efficiency: did dendrites provide good accuracy/parameter ratio?
 
-5. **Module-Level Analysis (if PB scores available):**
+6. **Module-Level Analysis (if PB scores available):**
    - Which modules benefited most from dendrites (high correlation)
    - Which modules should be excluded (low correlation)
+   - Parameter distribution: Which layers received the most dendrites?
 
 ### Step 4: Show Visualizations
 
@@ -125,6 +147,36 @@ Then direct them to the [Optimization Recommendations](#optimization-recommendat
 
 Say: "I see some issues in your training results. Let's troubleshoot:"
 
+- **If NO dendrites were added (noImprove_lr files exist or switch_epochs.csv is empty):**
+  - **This means training completed without ever attempting dendrite addition**
+  - **Most likely cause:** Your training loop exited before PAI could detect a plateau and attempt adding dendrites
+  - **Recommend:** Verify your training loop structure:
+    - **CRITICAL:** Training should use an infinite loop (`while True:`) with PAI's `training_complete` flag controlling when to exit
+    - The loop should only break when `training_complete` returns `True` after `add_validation_score()`
+    - Check `set_n_epochs_to_switch()` allows enough time (e.g., 20-30 epochs per phase)
+    - Check `set_n_epochs_for_switch_history()` - needs sufficient history to detect plateau (e.g., 10 epochs)
+  - **Example problem:** If you used `for epoch in range(50):` instead of `while True:`, training may have ended before PAI finished
+  - **Correct pattern:**
+    ```python
+    epoch = -1
+    while True:
+        epoch += 1
+        # training code
+        model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_score, model)
+        if training_complete:
+            break
+    ```
+  - The PAI system needs: warmup epochs + history epochs + time to detect plateau before attempting dendrite addition
+  - **To control/minimize training time with infinite loop:**
+    - Use `GPA.pc.set_max_dendrites(N)` to limit how many dendrites are added (e.g., `set_max_dendrites(3)` stops after 3 dendrites)
+    - Training will complete faster since fewer dendrite phases are needed
+    - Optionally use `FIXED_SWITCH_MODE` for more consistent/predictable training time:
+      ```python
+      GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+      GPA.pc.set_n_epochs_to_switch(20)  # Adds dendrite every 20 epochs
+      ```
+    - With FIXED mode, you know exactly when dendrites are added, making total training time predictable
+  
 - **If dendrites didn't improve performance:**
   - Check if you're converting the right layers
   - Is improvement_threshold too strict? Try `[0]`
@@ -157,7 +209,7 @@ Based on `best_arch_scores.csv` analysis:
 - Keep current max_dendrites or increase slightly
 - Suggest running longer to see if more dendrites could help
 
-### 2. Adjust Improvement Threshold
+### 2. Adjust Improvement Threshold and Switch Timing
 
 Based on score progression from `scores.csv` and `switch_epochs.csv`:
 
@@ -165,6 +217,16 @@ Based on score progression from `scores.csv` and `switch_epochs.csv`:
 - Current threshold may be too lenient
 - **Recommend:** Tighten threshold, e.g., `[0.02, 0.01, 0.001, 0]` instead of `[0.01, 0.001, 0.0001, 0]`
 - This makes dendrite additions more selective
+
+**If dendrites were added BEFORE scores actually plateaued:**
+- Look at score history in the epochs before each dendrite addition
+- If scores were still improving significantly (e.g., +2% in the last few epochs), dendrites were added prematurely
+- **Premature dendrite addition wastes capacity** - the base network could have improved more first
+- **Recommend for FIXED switch mode:** Increase `set_n_epochs_to_switch()` to give more time before adding dendrites
+- **Recommend for HISTORY switch mode:** 
+  - Raise the improvement threshold (e.g., from `[0.001]` to `[0.005]` or `[0.01]`)
+  - Increase `set_n_epochs_for_switch_history()` to require longer plateau (e.g., from 10 to 15 epochs)
+- **Goal:** Only add dendrites when base network has truly plateaued
 
 **If dendrites were rarely added but helpful:**
 - Threshold may be too strict
@@ -174,6 +236,11 @@ Based on score progression from `scores.csv` and `switch_epochs.csv`:
 
 Based on `Best_PBScores.csv` (if available):
 
+**What PBScores mean:**
+- **PBScores measure correlation between dendrite activations and network gradients**
+- Higher scores (> 0.02) = dendrites aligned well with learning signal = good dendrite placement
+- Lower scores (< 0.01) = dendrites poorly aligned = wasting parameters
+
 **If certain modules show low correlation scores (< 0.3):**
 - **Recommend:** Add those module IDs to exclusion list
 - Example: If `.layer1` and `.conv1` show correlation < 0.2:
@@ -181,8 +248,9 @@ Based on `Best_PBScores.csv` (if available):
   GPA.pc.append_module_ids_to_track([".layer1", ".conv1"])  # Skip these
   ```
 - Explain: "These modules showed low dendrite correlation, meaning dendrites didn't help them much. Excluding them will focus resources on high-impact layers."
+- **For parameter efficiency:** This is especially important - don't waste parameters on modules that won't benefit
 
-**If all modules show high correlation:**
+**If all modules show high correlation (> 0.02):**
 - Current module selection is working well
 - Consider expanding to convert additional layer types if any were excluded
 
@@ -242,6 +310,101 @@ If dendrites significantly improved performance:
 **Consider increasing max_dendrites:**
 - If best_arch_scores showed steady improvements across all dendrite counts
 - Try max_dendrites=7 or 10 for potentially higher performance
+
+### 8. Regularization and Generalization
+
+Based on comparison between training and validation/test scores:
+
+**If training scores are significantly better than validation/test scores (overfitting):**
+- **Example:** Train accuracy 95%, Val accuracy 82% (13% gap)
+- **Problem:** Model is memorizing training data rather than learning generalizable features
+- **Impact on PAI:** Improvements to training scores won't translate to better validation/test performance
+
+**Recommended regularization techniques:**
+- **Add dropout:** Insert dropout layers between converted modules
+  ```python
+  # Example: Add dropout before Linear layers
+  model.dropout = nn.Dropout(0.3)  # Start with 0.3-0.5
+  ```
+- **Weight decay:** Increase L2 regularization in optimizer
+  ```python
+  optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)  # Try 1e-4 to 1e-3
+  ```
+- **Label smoothing:** Soften target labels to prevent overconfidence (classification only)
+  ```python
+  # For cross-entropy loss
+  criterion = nn.CrossEntropyLoss(label_smoothing=0.1)  # Try 0.05-0.2
+  ```
+- **Batch normalization:** Add batch norm layers to reduce internal covariate shift
+  ```python
+  # Example: After conv/linear layers
+  nn.BatchNorm2d(channels)  # For Conv2d
+  nn.BatchNorm1d(features)  # For Linear
+  ```
+- **Gradient clipping:** Prevent exploding gradients during training
+  ```python
+  torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+  ```
+- **Data augmentation:** Add more aggressive augmentation to training data (for vision tasks)
+- **Mixup/CutMix:** Mix training examples together (advanced technique)
+- **Reduce model complexity:** Use fewer/smaller dendrites or convert fewer layers
+- **Early stopping:** Stop when validation score plateaus even if training improves
+
+**Goal:** Get training and validation scores closer together (within 2-5%). This ensures that when dendrites improve training performance, it translates to real test improvements.
+
+### 9. Parameter Efficiency Strategy
+
+Based on `Best_PBScores.csv` analysis and model size considerations:
+
+**IMPORTANT: Dendrites ADD parameters to your model**
+- Dendrites are a more efficient way to add capacity than simply making the base network bigger
+- BUT they still increase total parameter count
+- **Each dendrite adds:** `input_dimensions × output_dimensions` parameters per module
+
+**If you want to use PAI for optimization (keep/reduce model size):**
+
+**CRITICAL: You must reduce the original model FIRST, then perforate:**
+- ❌ **WRONG:** Take a large model → perforate it → hope it gets smaller (it won't - it gets bigger)
+- ✅ **CORRECT:** Take a large model → reduce width/depth → perforate the smaller model → match original performance with fewer base parameters
+
+**Example workflow:**
+```python
+# Original model: 512 hidden units, 10M parameters, 85% accuracy
+# Step 1: Reduce to 256 hidden units → 2.5M parameters, 78% accuracy (worse)
+# Step 2: Perforate reduced model → 4M parameters, 85% accuracy (matched!)
+# Result: Same accuracy with 60% fewer parameters
+```
+
+**If your perforated model is LARGER than your original:**
+- You may have reduced too little or perforated too many layers
+- **Recommended strategy:** Perforate fewer layers, focusing on layers closer to the OUTPUT (top of network)
+- **Use PBScores to guide this:** 
+  - Look at `Best_PBScores.csv` to see which layers got the most dendrites
+  - If early layers (close to input) have many dendrites, consider excluding them
+  - **Later layers are more efficient:** They have already-processed features, so dendrites there are more impactful per parameter
+  
+**If you want to push parameter efficiency even further:**
+- **Check PBScores first to identify which modules benefit most:**
+  - Look at `Best_PBScores.csv` - modules with scores > 0.02 are efficient dendrite users
+  - **Only convert modules with good PBScores** - don't waste parameters on low-scoring modules
+  - Example: If `.fc` has 0.1 correlation but `.conv1` has 0.01, skip `.conv1`
+- **Perforate only the last 1-3 layers** instead of the whole network
+  ```python
+  # Example: Only perforate final classifier
+  GPA.pc.append_module_ids_to_track([".conv1", ".conv2", ".layer1", ".layer2"])  # Skip these
+  # Now only .layer3 and .fc will be perforated
+  ```
+- **Reduce base width more aggressively** and let dendrites compensate
+- **Use PBScores to find the highest-impact layers** and only perforate those
+- **If PBScores show most modules have low correlation (< 0.01):**
+  - This suggests dendrites aren't helping much overall
+  - Consider only tracking (excluding) all but the 1-2 highest-scoring modules
+  - Focus all dendrite capacity on the modules that actually benefit
+
+**Parameter count visibility:**
+- Count parameters before and after: `sum(p.numel() for p in model.parameters())`
+- Check `Best_PBScores.csv` to see dendrite distribution across layers
+- Calculate efficiency ratio: `(accuracy_gain / parameter_increase) × 100`
 
 ---
 

@@ -247,10 +247,10 @@ def main(config):
     GPA.pc.set_pai_forward_function(pai_forward_function)
 
     if args.dendrite_conversion == 'All Layers':
-        GPA.pc.set_modules_to_convert([nn.Conv2d, nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Conv2d, nn.Linear])
         GPA.pc.set_modules_to_track([])
     else:
-        GPA.pc.set_modules_to_convert([nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Linear])
         GPA.pc.set_modules_to_track([nn.Conv2d])
 
     GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)

@@ -45,7 +45,7 @@ DendriticConv2d (6 branches per layer):
 └── Loss: Variance-based (magnitude + diversity)
 
 PAI Integration:
-├── GPA.pc.set_module_ids_to_convert([".model.22.cv3.0.2", ".model.22.cv3.1.2", ".model.22.cv3.2.2"])
+├── GPA.pc.set_module_ids_to_perforate([".model.22.cv3.0.2", ".model.22.cv3.1.2", ".model.22.cv3.2.2"])
 ├── Monkeypatched MPA.PAINeuronModule.clear_dendrites()
 └── GPA.pai_tracker.add_validation_score() per epoch
 ```
