@@ -75,7 +75,7 @@ Original file is located at
 # GPA.pc.testing_dendrite_capacity = False
 # 
 # # ✅ initialize BEFORE moving to GPU
-# model = UPA.initialize_pai(model)
+# model = UPA.perforate_model(model)
 # model = model.to(DEVICE)
 # 
 # criterion = nn.CrossEntropyLoss()

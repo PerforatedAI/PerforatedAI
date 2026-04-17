@@ -410,7 +410,7 @@ def main():
     preface = "trained/"
     
     if(int(config.dendrite_mode) < 2):
-        model = UPA.initialize_pai(model, save_name=name_str)
+        model = UPA.perforate_model(model, save_name=name_str)
         model = UPA.load_system(model, preface + name_str, 'best_model', True)
         param_count = UPA.count_params(model)
         dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]

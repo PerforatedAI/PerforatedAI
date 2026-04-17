@@ -14,7 +14,7 @@ The submission includes two controlled experiments using the same backbone archi
 - A baseline MobileNetV3-Small model without dendrites
 - A dendritically optimized version using PerforatedAI’s library
 
-All architectural changes related to dendrites are implemented using PerforatedAI’s required APIs, including initialize_pai() and add_validation_score(), making this a clean and reproducible comparison.
+All architectural changes related to dendrites are implemented using PerforatedAI’s required APIs, including perforate_model() and add_validation_score(), making this a clean and reproducible comparison.
 
 ## Project Impact
 
@@ -76,7 +76,7 @@ https://www.kaggle.com/datasets/kritikseth/fruit-and-vegetable-image-recognition
 - /kaggle/input/fruit-and-vegetable-image-recognition/test  
 
 The dendritic training script uses PerforatedAI’s required APIs, including:
-- UPA.initialize_pai(...)
+- UPA.perforate_model(...)
 - GPA.pai_tracker.add_validation_score(...)
 
 ## Results

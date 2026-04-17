@@ -52,7 +52,7 @@ def main():
     wandb.init(project=PROJECT_NAME, name=RUN_NAME)
 
     # ============================================================
-    # 🔴 PAI CONFIG — MUST BE SET *BEFORE* initialize_pai
+    # 🔴 PAI CONFIG — MUST BE SET *BEFORE* perforate_model
     # ============================================================
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_max_dendrites(2)
@@ -77,7 +77,7 @@ def main():
     ).to(DEVICE)
 
     # 🔴 tracker is created HERE
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         save_name="PAI_MONAI_Compressed",
         maximizing_score=True,

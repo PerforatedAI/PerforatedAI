@@ -106,7 +106,7 @@ Inside your main you now have access to the current config.  This can be used as
 
 ### Retaining Perforated AI Logs
 
-When calling initialize_pai a save name must be set to determine the folder to save dendrite tests.
+When calling perforate_model a save name must be set to determine the folder to save dendrite tests.
 If you want to retain all of your tests separately you can label your save_name with
 the wandb sweep configuration values.
 
@@ -121,7 +121,7 @@ the wandb sweep configuration values.
     name_str = "_".join(name_parts)
     run.name = name_str
 
-    model = UPA.initialize_pai(model, save_name=run.name)
+    model = UPA.perforate_model(model, save_name=run.name)
 
 ## Logging
 Then inside your script you'll also need to add logging.  You can add as much or as little as you'd like

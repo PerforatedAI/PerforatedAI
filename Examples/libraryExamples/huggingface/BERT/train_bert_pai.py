@@ -624,7 +624,7 @@ def main():
         raise ValueError(f"Unsupported model: {args.model_name}")
 
     # Convert model to be compatible with PB and initialize PB tracking
-    UPA.initialize_pai(
+    UPA.perforate_model(
         model,
         save_name=GPA.pc.get_save_name(),
         maximizing_score=args.maximizing_score,

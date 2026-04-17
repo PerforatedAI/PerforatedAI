@@ -236,7 +236,7 @@ if __name__ == '__main__':
     model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
     model = model.to(memory_format=torch.channels_last)
 
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
     logging.info(f'Network:\n'
                  f'\t{model.n_channels} input channels\n'

@@ -170,7 +170,7 @@ def main():
     GPA.pc.set_testing_dendrite_capacity(False)
 
     model = Net(args.width)
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
     model = model.to(device)
     

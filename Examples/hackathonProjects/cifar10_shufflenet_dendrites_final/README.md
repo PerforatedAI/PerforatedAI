@@ -5,7 +5,7 @@
 This project explores the use of **Perforated AI’s dendritic architecture** for image classification on the CIFAR-10 dataset.  
 I apply dendrites to a lightweight **ShuffleNetV2** model to study how adaptive capacity can improve learning once a model begins to plateau.
 
-This submission follows the official PerforatedAI workflow using `initialize_pai` and `add_validation_score`, and is structured exactly as required for the hackathon.
+This submission follows the official PerforatedAI workflow using `perforate_model` and `add_validation_score`, and is structured exactly as required for the hackathon.
 
 **Team:**
 

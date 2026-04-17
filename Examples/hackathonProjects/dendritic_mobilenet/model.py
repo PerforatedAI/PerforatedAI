@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 # Removed direct import of DendriticLinear as it is not in the installed package.
-# PAI will convert nn.Linear to dendritic logic via initialize_pai.
+# PAI will convert nn.Linear to dendritic logic via perforate_model.
 
 class DendriticVisionModel(nn.Module):
     def __init__(self, num_classes=10, dendrite_count=4):
@@ -32,7 +32,7 @@ class DendriticVisionModel(nn.Module):
         
         # The Dendritic Layer replacement
         # We use a standard Linear layer here. 
-        # UPA.initialize_pai(model) in train.py will convert this to a dendritic module.
+        # UPA.perforate_model(model) in train.py will convert this to a dendritic module.
         self.dendritic_output = nn.Linear(in_features, num_classes)
 
     def forward(self, x):

@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # NOTE: This model is intentionally defined as a Standard MLP.
-# The PerforatedAI library (UPA.initialize_pai) will automatically 
+# The PerforatedAI library (UPA.perforate_model) will automatically 
 # convert these Linear layers into Dendritic Layers at runtime.
 
 class DendriticModel(nn.Module):

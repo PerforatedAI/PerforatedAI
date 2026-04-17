@@ -39,7 +39,7 @@ def run_benchmarks(dataset_name="mnist", epochs=6):
         model = BaselineModel()
 
     # ---- PAI CONVERSION (MANDATORY) ----
-    model = UPA.initialize_pai(model, maximizing_score=True)
+    model = UPA.perforate_model(model, maximizing_score=True)
     model.to(device)
 
     # ---- PAI CONFIGURATION ----

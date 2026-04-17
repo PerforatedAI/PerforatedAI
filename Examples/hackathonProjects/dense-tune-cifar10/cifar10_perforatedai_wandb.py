@@ -252,7 +252,7 @@ def main(run=None):
     
     # Initialize model with PAI
     model = DendriticCIFARNet(dropout=args.dropout, width_mult=args.width_mult).to(device)
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
     
     # Optimizer setup
     GPA.pai_tracker.set_optimizer(optim.SGD)

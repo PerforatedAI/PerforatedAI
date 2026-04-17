@@ -401,7 +401,7 @@ def main(run=None):
 
     model = Net(num_classes, args.width, config.dropout, config.dropout).to(device)
 
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
 
     # Setup the optimizer and scheduler
     GPA.pai_tracker.set_optimizer(optim.Adadelta)

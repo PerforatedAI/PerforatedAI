@@ -392,7 +392,7 @@ def dqn(
 
     # Initialize the PAI for the policy network
     logging.info("Initializing Perforated AI for policy network")
-    policy_net = UPA.initialize_pai(policy_net)  # PA
+    policy_net = UPA.perforate_model(policy_net)  # PA
     if not replay_off:
         r_buffer = replay_buffer(REPLAY_BUFFER_SIZE)
         replay_start_size = REPLAY_START_SIZE

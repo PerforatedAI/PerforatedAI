@@ -113,8 +113,8 @@ This configuration represents the experimental results shown in the W&B visualiz
 | **Total (Base)** | **7,498,767** | **3,164,559** | **-4,334,208 (-57.8%)** |
 
 **Parameter Evolution with Dendritic Augmentation:**
-- Base model (before initialize_pai): 3,164,559 params
-- After initialize_pai (19 layers with dendrites): ~5,047,710 params (+~1,883,151 from initial dendrites)
+- Base model (before perforate_model): 3,164,559 params
+- After perforate_model (19 layers with dendrites): ~5,047,710 params (+~1,883,151 from initial dendrites)
 - After 2 dynamic additions: **6,944,316 params** (+~1,896,606 from dynamic dendrites)
 
 **Final Comparison:**
@@ -145,8 +145,8 @@ After the original experiment, the code was optimized (lines 185-208 in `train.p
 **Key Insight:** The output projection shows ~50% reduction even WITHOUT dendrites because the dendritic model uses a 128-dim base architecture instead of 256-dim (output size: 128×9,999 vs 256×9,999 parameters).
 
 **Parameter Evolution with Dendritic Augmentation (Output Excluded):**
-- Base model (before initialize_pai): 2,966,287 params
-- After initialize_pai (18 layers with dendrites, output excluded): 3,362,064 params (+395,777, +13.3%)
+- Base model (before perforate_model): 2,966,287 params
+- After perforate_model (18 layers with dendrites, output excluded): 3,362,064 params (+395,777, +13.3%)
 - After 1st dynamic addition: 3,759,888 params (+397,824)
 - After 2nd dynamic addition: 4,164,624 params (+404,736)
 - After 3rd dynamic addition: **4,573,968 params** (+409,344)
@@ -198,7 +198,7 @@ The vanilla Transformer demonstrated classic overfitting behavior: excellent tra
 The dendritic model's parameter evolution showed significant adaptive capacity events during training:
 
 - Initial parameters: 3.16M (base model before PerforatedAI)
-- After initialize_pai: 5.05M (initial dendrites added to all 19 layers)
+- After perforate_model: 5.05M (initial dendrites added to all 19 layers)
 - After 2 dynamic additions: 6.94M (final, approximately +1.9M from dynamic dendrites)
 
 These automatic capacity expansions were triggered by the validation performance plateau detection mechanism. Notably, the increased capacity did not lead to overfitting, unlike the vanilla model's behavior with its fixed 7.5M parameters.

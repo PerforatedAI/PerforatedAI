@@ -52,7 +52,7 @@ A large benefit PAI provides is automatic conversion of networks to work with de
 The call to initializePB should be done directly after the model is initialized, before cuda and parallel calls.
     
     model = yourModel()
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
 ## 3 - Setup Optimizer
 

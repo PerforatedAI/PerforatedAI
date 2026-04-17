@@ -246,7 +246,7 @@ def main(run=None):
     
     # Initialize PAI - this wraps the model with dendritic capabilities
     print("Initializing PerforatedAI dendrites...")
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
     model = model.to(device)
     
     # Setup optimizer and scheduler using PAI tracker

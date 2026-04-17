@@ -86,7 +86,7 @@ class DQNAgent:
         
         # --- MODEL SETUP ---
         self.model = DQN(state_size, action_size).to(self.device)
-        self.model = UPA.initialize_pai(self.model)
+        self.model = UPA.perforate_model(self.model)
         
         # Warmup
         print("🔥 Warming up PAI layers...")

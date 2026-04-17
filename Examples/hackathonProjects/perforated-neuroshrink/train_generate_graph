@@ -76,7 +76,7 @@ def main():
     GPA.pc.set_n_epochs_to_switch(15)
 
     model = Net().to(device)
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
     # 🔴 CRITICAL FIX: NO UNPACKING
     GPA.pai_tracker.set_optimizer(optim.Adam)

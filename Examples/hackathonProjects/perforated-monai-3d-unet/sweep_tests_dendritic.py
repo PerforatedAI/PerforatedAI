@@ -98,7 +98,7 @@ def train():
         num_res_units=2,
     ).to(DEVICE)
 
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         save_name=f"PAI_MONAI_{cfg.model_variant}",
         maximizing_score=True,

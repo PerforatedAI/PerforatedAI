@@ -174,7 +174,7 @@ def run_experiment(model, model_name, trainloader, testloader, device, use_pai=F
         GPA.pc.set_testing_dendrite_capacity(False)  # Disable testing mode to prevent debugger
         
         # Initialize PAI on the modified model
-        model = UPA.initialize_pai(model, maximizing_score=True)
+        model = UPA.perforate_model(model, maximizing_score=True)
         GPA.pc.set_save_name(f"PAI_{model_name}")
         
         # Check PB status
