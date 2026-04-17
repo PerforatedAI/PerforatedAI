@@ -73,7 +73,7 @@ def train_model(path_dataset: str,
     GPA.pc.set_modules_to_perforate([])
     GPA.pc.set_module_names_to_track(['MBConv', 'Conv2dNormActivation', 'Linear', 'Conv2d'])
 
-    model = UPA.initialize_pai(model, maximizing_score=False)
+    model = UPA.perforate_model(model, maximizing_score=False)
 
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)

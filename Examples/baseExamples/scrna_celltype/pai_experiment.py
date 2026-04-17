@@ -39,7 +39,7 @@ def _configure_pai():
 def _set_output_dimensions(model) -> int:
     """
     PAI defaults to 2D output [-1, 0] for every wrapped layer.
-    Transformer internal layers output 3D — correct them after initialize_pai.
+    Transformer internal layers output 3D — correct them after perforate_model.
     The classifier is 2D (post mean-pool) and is left unchanged.
     """
     count = 0
@@ -80,7 +80,7 @@ def run_pai(train_adata, test_adata, label_col: str,
     sched     = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience=5, factor=0.5)
 
     raw_params = sum(p.numel() for p in pai_model.parameters() if p.requires_grad)
-    pai_model  = UPA.initialize_pai(pai_model)
+    pai_model  = UPA.perforate_model(pai_model)
     n_dims_set = _set_output_dimensions(pai_model)
     GPA.pai_tracker.set_optimizer_instance(opt)
 

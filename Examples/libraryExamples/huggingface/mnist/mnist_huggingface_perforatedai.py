@@ -64,7 +64,7 @@ test_loader = torch.utils.data.DataLoader(test_dset, shuffle=False, batch_size=6
 
 model = BasicNet()
 GPA.metric = "eval_accuracy"
-model = UPA.initialize_pai(model)
+model = UPA.perforate_model(model)
 
 training_args = TrainingArguments(
     "basic-trainer",

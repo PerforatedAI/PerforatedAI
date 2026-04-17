@@ -217,7 +217,7 @@ train_loader, val_loader, test_loader = (
 
 model = LightningMNISTClassifier()
 
-model.model = UPA.initialize_pai(model.model)
+model.model = UPA.perforate_model(model.model)
 
 # Set Early Stopping to be when the system sends a single "bad epoch" meaning training is complete
 early_stopping = EarlyStopping("Good Epochs", mode="max", patience=0)

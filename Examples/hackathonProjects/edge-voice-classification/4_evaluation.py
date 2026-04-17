@@ -99,7 +99,7 @@ def load_perforated_model(save_name, num_classes):
     GPA.pc.set_unwrapped_modules_confirmed(True)
     
     # Initialize PAI
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model, 
         doing_pai=True,
         save_name=save_name,

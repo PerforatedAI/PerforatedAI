@@ -314,7 +314,7 @@ def main(run=None):
     ).to(device)
 
     # Initialize Perforated AI
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
 
     # Setup optimizer and scheduler through PAI tracker
     GPA.pai_tracker.set_optimizer(optim.Adadelta)

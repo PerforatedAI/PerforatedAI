@@ -27,7 +27,7 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 model = Net().to(device)
-model = UPA.initialize_pai(model)
+model = UPA.perforate_model(model)
 
 GPA.pai_tracker.set_optimizer(optim.Adadelta)
 optimizer = GPA.pai_tracker.setup_optimizer(

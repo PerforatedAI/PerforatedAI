@@ -24,11 +24,11 @@ When the user says **"Analyze my perforated results"**, perform a comprehensive 
 
 ### Step 1: Locate Result Files
 
-Find the `save_name` from their training script by searching for the `UPA.initialize_pai()` call. The `save_name` parameter shows where results are stored.
+Find the `save_name` from their training script by searching for the `UPA.perforate_model()` call. The `save_name` parameter shows where results are stored.
 
 **Only ask "What was your save_name?" if:**
 - The script has a variable or argument for save_name that could change
-- You cannot find the initialize_pai call in their script
+- You cannot find the perforate_model call in their script
 
 The results are stored in: `{save_name}/{save_name}_*.csv`
 

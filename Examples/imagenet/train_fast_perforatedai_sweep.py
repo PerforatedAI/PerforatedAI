@@ -698,7 +698,7 @@ def main(args, run=None):
     name_str = "_".join(name_parts)
     run.name = name_str
 
-    model = UPA.initialize_pai(model, save_name=run.name)
+    model = UPA.perforate_model(model, save_name=run.name)
 
     model.to(device)
 

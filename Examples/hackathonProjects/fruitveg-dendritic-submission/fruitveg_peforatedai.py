@@ -340,8 +340,8 @@ def main():
     # Configure PerforatedAI
     configure_perforatedai(args)
 
-    # Required by rules: initialize_pai()
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    # Required by rules: perforate_model()
+    model = UPA.perforate_model(model, save_name=args.save_name)
     model.to(device)
 
     # Required pattern: optimizer/scheduler via tracker

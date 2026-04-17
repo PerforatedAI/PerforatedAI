@@ -104,7 +104,7 @@ def run_training(config=None, split_ratio=1.0, use_dendrites=True):
             GPA.pc.set_testing_dendrite_capacity(False)
             
             # Initialize PAI
-            model = UPA.initialize_pai(model, save_name=name_str)
+            model = UPA.perforate_model(model, save_name=name_str)
         
         wandb.run.name = name_str
         model = model.to(device)

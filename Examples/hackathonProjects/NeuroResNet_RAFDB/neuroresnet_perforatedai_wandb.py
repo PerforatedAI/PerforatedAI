@@ -193,7 +193,7 @@ def main(run=None):
 
     # INIT MODEL & PAI
     model = NeuroResNet(num_classes=7).to(device)
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
 
     # OPTIMIZER SETUP
     GPA.pai_tracker.set_optimizer(optim.AdamW)

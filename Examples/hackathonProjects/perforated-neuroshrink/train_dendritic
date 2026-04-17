@@ -2,6 +2,6 @@ from model import Net
 from perforatedai import utils_perforatedai as UPA
 
 model = Net()
-model = UPA.initialize_pai(model)
+model = UPA.perforate_model(model)
 
 print("Dendritic params:", sum(p.numel() for p in model.parameters()))

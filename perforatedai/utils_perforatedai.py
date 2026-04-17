@@ -38,7 +38,7 @@ from safetensors.torch import save_file
 from safetensors.torch import safe_open
 
 
-def initialize_pai(
+def perforate_model(
     model,
     doing_pai=True,
     save_name="PAI",
@@ -383,7 +383,8 @@ def convert_module(
                     tracked_module_class(net.get_submodule(submodule_id), sub_name),
                 )
             elif (
-                type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_perforate()
+                type(net.get_submodule(submodule_id))
+                in GPA.pc.get_modules_to_perforate()
                 or type(net.get_submodule(submodule_id)).__name__
                 in GPA.pc.get_module_names_to_perforate()
             ):
@@ -580,8 +581,8 @@ def convert_module(
             ):
                 if not GPA.pc.get_unwrapped_modules_confirmed():
                     print(
-                        "potentially found a norm Layer that wont be "
-                        "converted, this is not recommended: %s" % (sub_name)
+                        "potentially found a norm Layer that "
+                        "is not accounted for, this is not recommended: %s" % (sub_name)
                     )
                     print(
                         "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip "
@@ -1031,6 +1032,7 @@ def save_net(net, folder, name):
     else:
         torch.save(net, save_point + name + ".pt")
 
+
 def save_pai_net(net, folder, name):
     """Save the final pai network
 
@@ -1067,12 +1069,13 @@ def save_pai_net(net, folder, name):
         os.mkdir(save_point)
 
     if GPA.pc.get_using_safe_tensors():
-        if(GPA.pc.get_weight_tying_experimental()):
+        if GPA.pc.get_weight_tying_experimental():
             save_model_with_weight_tying(net, save_point + name + "_pai.pt")
         else:
             save_file(net.state_dict(), save_point + name + "_pai.pt")
     else:
         torch.save(net, save_point + name + "_pai.pt")
+
 
 def save_pai_net(net, folder, name):
     """Save the final pai network
@@ -1218,12 +1221,12 @@ def load_net_from_dict(net, state_dict):
     if pai_modules == []:
         print(
             "PAI load_net and load_system uses a state_dict so it must be\n"
-            "called with a net after initialize_pai has been called"
+            "called with a net after perforate_model has been called"
         )
         print(
             "This is being flagged because you are attempting to load a model\n"
             "that does not have any pai_modules in it.  Confirm that you are calling\n"
-            "initialize_pai on the correct model, and the same model is the one\n"
+            "perforate_model on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
         import pdb # This needs to be here for cython for some reason.
@@ -1273,7 +1276,7 @@ def load_net_from_dict(net, state_dict):
                 )
                 print(
                     "\n2 - This can happen if you adjusted your model "
-                    "definition after calling initialize_pai"
+                    "definition after calling perforate_model"
                 )
                 print(
                     "for example with torch.compile. If the module name "
@@ -1282,12 +1285,12 @@ def load_net_from_dict(net, state_dict):
                 )
                 print(
                     "this is likely the case for your problem. Fix by "
-                    "calling initialize_pai after all other model "
+                    "calling perforate_model after all other model "
                     "initialization steps"
                 )
                 first_key = next(iter(state_dict.keys()))
                 print(
-                    "\n3 - This can happen is if the model where you called initialize_pai\n"
+                    "\n3 - This can happen is if the model where you called perforate_model\n"
                     "and the model within add_validation_score are not the same. \n"
                     "Check if the module above and .%s have the same prefix\n"
                     % first_key
@@ -1311,11 +1314,10 @@ def load_net_from_dict(net, state_dict):
                     "\n6 - You have converted a module that is in a frozen"
                     " part of the network and thus no gradients are flowing"
                 )
-                print("\n7 - You are running multiple experiments at once with the same save_name."
-                      " When running concurrent trials be sure to add save_name=<unique_name> to initialize_pai."
+                print(
+                    "\n7 - You are running multiple experiments at once with the same save_name."
+                    " When running concurrent trials be sure to add save_name=<unique_name> to perforate_model."
                 )
-                import pdb
-
                 pdb.set_trace()
 
         # Perform as many cycles as the state dict has
@@ -1428,15 +1430,15 @@ def deep_copy_pai(net):
 
 def prepare_final_model(net):
     """Prepare model for final save by removing scaffolding.
-    
+
     This performs all cleanup steps to convert a PAI model with scaffolding
     into a clean final model ready for inference or distribution.
-    
+
     Parameters
     ----------
     net : nn.Module
         The network to prepare.
-        
+
     Returns
     -------
     nn.Module

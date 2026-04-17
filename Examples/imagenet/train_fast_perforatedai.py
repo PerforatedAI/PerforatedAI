@@ -541,7 +541,7 @@ def main(args):
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
     model.to(device)
 

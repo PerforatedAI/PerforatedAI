@@ -401,7 +401,7 @@ GPA.pc.set_cap_at_n(True)  # this was not set before
 # GPA.extraVerbose = False
 if pretrain_prefc:
     pretrain_prefc_only(model)
-model = UPA.initialize_pai(model, maximizing_score=False, save_name="PAI_prefc")
+model = UPA.perforate_model(model, maximizing_score=False, save_name="PAI_prefc")
 
 import pdb
 

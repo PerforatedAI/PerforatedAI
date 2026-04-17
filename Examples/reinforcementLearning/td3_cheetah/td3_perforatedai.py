@@ -186,7 +186,7 @@ class TD3:
 
         # Perforated AI Initialization
         pai_model = Pair(actor, critic)
-        pai_model = UPA.initialize_pai(
+        pai_model = UPA.perforate_model(
             pai_model, 
             save_name=f'alt_PAI_{hidden_dim}',
         )

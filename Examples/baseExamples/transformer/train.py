@@ -206,7 +206,7 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
         # Final projection doesn't need dendrites
         GPA.pc.append_module_ids_to_track([".output_projection"])
         # Initialize model with dendrites
-        model = UPA.initialize_pai(
+        model = UPA.perforate_model(
             model,
             doing_pai=True,
             save_name=f"dendritic_{args.embed_dim}d_{args.num_layers}l",
@@ -253,7 +253,7 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
 
     best_val_perplexity = float("inf")
     training_start_time = time.time()
-    initial_params = model.count_parameters()  # Params after initialize_pai
+    initial_params = model.count_parameters()  # Params after perforate_model
     initial_dendrites = (
         initial_params - base_params
     )  # Dendrites added at initialization
@@ -261,7 +261,7 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
 
     print(f"\n📊 Dendrite Initialization:")
     print(f"  Base model parameters: {base_params:,}")
-    print(f"  After initialize_pai: {initial_params:,}")
+    print(f"  After perforate_model: {initial_params:,}")
     print(
         f"  Initial dendrites added: +{initial_dendrites:,} (+{initial_dendrites/base_params*100:.1f}%)\n"
     )

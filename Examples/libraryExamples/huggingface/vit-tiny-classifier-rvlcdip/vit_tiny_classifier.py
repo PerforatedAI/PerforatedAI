@@ -649,7 +649,7 @@ def main():
         init_pai(max_dendrites=args.max_dendrites)
         #GPA.pc.set_output_dimensions([-1, -1, 0])
         GPA.pc.set_testing_dendrite_capacity(False)
-        model = UPA.initialize_pai(
+        model = UPA.perforate_model(
             model,
             doing_pai=True,
             save_name=args.save_name,

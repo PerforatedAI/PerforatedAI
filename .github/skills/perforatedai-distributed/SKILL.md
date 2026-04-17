@@ -9,7 +9,7 @@ This skill handles DataParallel and DistributedDataParallel (DDP) setup for Perf
 
 **Prerequisites:**
 - User has already completed detection in main perforatedai skill (Step 4.1)
-- Model initialization with `UPA.initialize_pai()` has been added
+- Model initialization with `UPA.perforate_model()` has been added
 - User confirmed they want to use DataParallel or DDP
 
 ---
@@ -37,7 +37,7 @@ Tell them:
 Find their argparse section (or add one if they don't have it) and add:
 
 ```python
-parser.add_argument('--initialize_pai_parallel', action='store_true', 
+parser.add_argument('--perforate_model_parallel', action='store_true', 
                    help='Initialize PAI settings for multi-GPU (run once on single GPU)')
 ```
 
@@ -51,7 +51,7 @@ model = torch.nn.DataParallel(model)
 Replace it with:
 ```python
 # PAI multi-GPU setup - initialize on single GPU, then use DataParallel
-if not args.initialize_pai_parallel:
+if not args.perforate_model_parallel:
     # Normal training mode - load settings and wrap with DataParallel
     GPA.pai_tracker.initialize_tracker_settings()
     model = torch.nn.DataParallel(model)
@@ -95,19 +95,35 @@ for batch in train_loader:  # Their loop
     loss.backward()
     
     # PAI initialization mode - save settings and exit after FIRST batch
-    if args.initialize_pai_parallel:
+    if args.perforate_model_parallel:
         GPA.pai_tracker.save_tracker_settings()
         print(f"PAI multi-GPU settings saved to {{save_name}}/")
-        print("Initialization complete. Now run without --initialize_pai_parallel flag for training.")
+        print("Initialization complete. Now run without --perforate_model_parallel flag for training.")
         exit(0)
     
     optimizer.step()  # Their code continues
     # ...
 ```
 
+**Optional: Add gradient pre-initialization (if encountering gradient-related errors):**
+
+DataParallel typically doesn't require this, but if they encounter errors about undefined gradients, add this AFTER `optimizer.zero_grad()` and BEFORE `loss.backward()`:
+
+```python
+optimizer.zero_grad()
+
+# Pre-initialize gradients for multi-GPU compatibility (optional)
+for param in model.parameters():
+    if param.requires_grad and param.grad is None:
+        param.grad = torch.zeros_like(param)
+
+loss.backward()
+optimizer.step()
+```
+
 Tell them:
 > "I've set up your script for DataParallel. To train:
-> 1. First run: `python train.py --initialize_pai_parallel` (runs on single GPU, exits after ONE batch)
+> 1. First run: `python train.py --perforate_model_parallel` (runs on single GPU, exits after ONE batch)
 > 2. Second run: `python train.py` (uses DataParallel for multi-GPU training)
 > 3. If you change any PAI configuration settings later, re-run step 1"
 
@@ -135,7 +151,7 @@ Tell them:
 Find their argparse section (or add one if they don't have it) and add:
 
 ```python
-parser.add_argument('--initialize_pai_parallel', action='store_true', 
+parser.add_argument('--perforate_model_parallel', action='store_true', 
                    help='Initialize PAI settings for DDP (run once)')
 parser.add_argument('--pai_load_folder', type=str, default=None,
                    help='Folder to load PAI state from (for automatic resumption)')
@@ -143,12 +159,12 @@ parser.add_argument('--pai_load_folder', type=str, default=None,
 
 2. **Add checkpoint loading logic BEFORE optimizer creation:**
 
-⚠️ **CRITICAL: This must be added RIGHT AFTER model creation and `initialize_pai()`, BEFORE creating the optimizer.**
+⚠️ **CRITICAL: This must be added RIGHT AFTER model creation and `perforate_model()`, BEFORE creating the optimizer.**
 
-Find where they create their model and call `initialize_pai`:
+Find where they create their model and call `perforate_model`:
 ```python
 model = YourModel(...)
-model = UPA.initialize_pai(model, save_name="...", maximizing_score=...)
+model = UPA.perforate_model(model, save_name="...", maximizing_score=...)
 model = model.to(device)
 ```
 
@@ -185,7 +201,7 @@ if args.pai_load_folder is not None:
 **Why this order matters:** When dendrites are added, the model structure changes. `load_system` loads the new structure. The optimizer needs to be created with the correct model parameters, so loading must happen BEFORE optimizer creation.
 
 **⚠️ CRITICAL ORDERING FOR YOUR SCRIPT:**
-1. Model creation + initialize_pai() [already done]
+1. Model creation + perforate_model() [already done]
 2. Checkpoint loading [code block above]  ← YOU JUST ADDED THIS
 3. **Optimizer creation** [substep 2.5 below] ← ADD THIS NEXT
 4. DDP wrapper [substep 3 below] ← THEN ADD THIS
@@ -237,7 +253,7 @@ model = torch.nn.parallel.DistributedDataParallel(model, ...)
 Replace it with:
 ```python
 # PAI DDP setup - initialize on single GPU, then use DDP
-if not args.initialize_pai_parallel:
+if not args.perforate_model_parallel:
     # Normal training mode - initialize settings and wrap with DDP
     GPA.pai_tracker.initialize_tracker_settings()
     
@@ -252,7 +268,69 @@ if not args.initialize_pai_parallel:
 
 **IMPORTANT:** If their original DDP call had other arguments (like `device_ids`, `output_device`, `broadcast_buffers`, etc.), preserve those arguments and add `find_unused_parameters=True` to them.
 
-4. **Add initialization mode handling in training loop:**
+4. **Add gradient pre-initialization for DDP compatibility:**
+
+⚠️ **CRITICAL: This fixes a DDP crash caused by PerforatedAI's selective training.**
+
+**Problem:** PerforatedAI's selective training (Cascade Correlation) means some parameters intentionally don't receive gradients during backward(). DDP requires ALL parameters to have gradients during allreduce, or it crashes with: `RuntimeError: Encountered gradient which is undefined, but still allreduced by DDP reducer`.
+
+**Solution:** Pre-initialize all parameter gradients to zeros AFTER `optimizer.zero_grad()` and BEFORE `loss.backward()`.
+
+**🔴 EXACT PLACEMENT REQUIREMENT:**
+
+Find their training loop and locate this sequence:
+```python
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()
+```
+
+Insert the gradient pre-initialization code BETWEEN `optimizer.zero_grad()` and `loss.backward()`:
+
+```python
+optimizer.zero_grad()
+
+# Pre-initialize gradients for DDP compatibility
+# PerforatedAI's selective training means some params won't get gradients from backward()
+# Initialize them to zero so DDP's allreduce doesn't encounter None
+if args.distributed:
+    for param in model.parameters():
+        if param.requires_grad and param.grad is None:
+            param.grad = torch.zeros_like(param)
+
+loss.backward()
+optimizer.step()
+```
+
+**Why this placement:**
+1. `optimizer.zero_grad()` clears old gradients (prevents memory leak)
+2. Pre-initialization ensures all params have gradient tensors (prevents DDP crash)
+3. `loss.backward()` accumulates real gradients onto the zeros (correct behavior)
+4. Parameters that don't receive gradients stay at zero (harmless for DDP allreduce)
+
+**⚠️ If they use AMP (Automatic Mixed Precision):**
+
+They might have two code paths (with/without scaler). Add the same fix to BOTH:
+
+```python
+optimizer.zero_grad()
+
+# Pre-initialize gradients for DDP compatibility
+if args.distributed:
+    for param in model.parameters():
+        if param.requires_grad and param.grad is None:
+            param.grad = torch.zeros_like(param)
+
+if scaler is not None:
+    scaler.scale(loss).backward()
+    scaler.step(optimizer)
+    scaler.update()
+else:
+    loss.backward()
+    optimizer.step()
+```
+
+5. **Add initialization mode handling in training loop:**
 
 ⚠️ **IMPORTANT: This must be added INSIDE the batch/iteration loop, immediately after `loss.backward()`, so it exits after processing just ONE batch (not after a full epoch).**
 
@@ -265,10 +343,10 @@ for batch in train_loader:  # Their loop
     loss.backward()
     
     # PAI initialization mode - save settings and exit after FIRST batch
-    if args.initialize_pai_parallel:
+    if args.perforate_model_parallel:
         GPA.pai_tracker.save_tracker_settings()
         print(f"PAI DDP settings saved to {{save_name}}/")
-        print("Initialization complete. Now run without --initialize_pai_parallel flag for training.")
+        print("Initialization complete. Now run without --perforate_model_parallel flag for training.")
         # Barrier ensures all ranks finish before any exit
         torch.distributed.barrier()
         exit(0)
@@ -277,7 +355,7 @@ for batch in train_loader:  # Their loop
     # ...
 ```
 
-5. **Modify the validation loop to handle DDP correctly:**
+6. **Modify the validation loop to handle DDP correctly:**
 
 ⚠️ **CRITICAL: DistributedDataParallel requires special handling for PAI tracker functions.**
 
@@ -354,7 +432,7 @@ elif restructured:
 - **CRITICAL:** `torch.distributed.barrier()` calls are mandatory before `destroy_process_group()` to prevent file corruption - barriers ensure all ranks complete their I/O operations before any process exits
 - Call `destroy_process_group()` on all ranks when exiting
 
-6. **Ask critical DDP configuration questions:**
+7. **Ask critical DDP configuration questions:**
 
 Before creating the shell script, ask:
 
@@ -367,7 +445,7 @@ Before creating the shell script, ask:
 
 Wait for their answers.
 
-7. **Create shell script with their configuration:**
+8. **Create shell script with their configuration:**
 
 Based on their answers, create a file `train_distributed.sh` in the same directory.
 
@@ -379,13 +457,13 @@ Based on their answers, create a file `train_distributed.sh` in the same directo
 # PerforatedAI DistributedDataParallel Training Script
 # This script handles automatic restarting when dendrites are added
 
-SAVE_NAME="[their_save_name]"  # Use the save_name from UPA.initialize_pai
+SAVE_NAME="[their_save_name]"  # Use the save_name from UPA.perforate_model
 PYTHON_SCRIPT="[their_script_name]"  # Their actual script filename
 NUM_GPUS=[their_num_gpus]  # Number of GPUs they specified
 
 echo "Step 1: Initializing PAI DDP settings..."
 # Run initialization on single GPU (no DDP launcher)
-python $PYTHON_SCRIPT --initialize_pai_parallel
+python $PYTHON_SCRIPT --perforate_model_parallel
 
 echo ""
 echo "Initialization complete. Starting continuous DDP training loop..."
@@ -443,7 +521,7 @@ python -m torch.distributed.launch --nproc_per_node=$NUM_GPUS $PYTHON_SCRIPT --p
 ```
 
 Fill in the actual values:
-- Replace `[their_save_name]` with the save_name from `UPA.initialize_pai()` call
+- Replace `[their_save_name]` with the save_name from `UPA.perforate_model()` call
 - Replace `[their_script_name]` with their Python script filename
 - Replace `[their_num_gpus]` with the number they specified
 - Replace `[their_gpu_ids]` if they specified specific IDs (e.g., "0,1")

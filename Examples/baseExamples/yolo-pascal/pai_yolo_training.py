@@ -715,8 +715,8 @@ def setup_pai_config(
     
     
     # NOTE: We can't configure specific module names here because we don't have the model object yet.
-    # Dynamic detection of shared modules is done in initialize_pai_model instead.
-    print(f"  YOLO Shared Module Handling: Done dynamically in initialize_pai_model")
+    # Dynamic detection of shared modules is done in perforate_model_model instead.
+    print(f"  YOLO Shared Module Handling: Done dynamically in perforate_model_model")
     
     print("=" * 60 + "\n")
 
@@ -909,7 +909,7 @@ def check_gradients(model: nn.Module):
             param.requires_grad = True
         print("[GradCheck] Force-enabled gradients on all parameters.")
 
-def initialize_pai_model(
+def perforate_model_model(
     model: nn.Module,
     save_name: str = "PAI_YOLO",
     maximizing_score: bool = True
@@ -1067,7 +1067,7 @@ def initialize_pai_model(
     # Initialize PAI - use ONLY the basename to avoid path concatenation bugs
     # making_graphs=True saves all PAI visualization artifacts
     try:
-        model = UPA.initialize_pai(
+        model = UPA.perforate_model(
             model,
             save_name=save_name_basename,  # CRITICAL: basename only!
             making_graphs=True,
@@ -1093,7 +1093,7 @@ def initialize_pai_model(
                     param.requires_grad = True
                 
                 # Retry PAI initialization
-                model = UPA.initialize_pai(
+                model = UPA.perforate_model(
                     fresh_model,
                     save_name=save_name_basename,
                     making_graphs=False,  # Skip graphs to reduce complexity
@@ -1580,7 +1580,7 @@ def train_pai_yolo(
     
     # ========== STEP 3: Initialize PAI (If Enabled) ==========
     if use_pai:
-        model = initialize_pai_model(
+        model = perforate_model_model(
             model,
             save_name=save_name,
             maximizing_score=True
@@ -2237,7 +2237,7 @@ def train_pai_yolo_simple(
     
     # Extract and initialize PAI on the model
     model = extract_yolo_model(yolo)
-    model = initialize_pai_model(
+    model = perforate_model_model(
         model,
         save_name=save_name,
         maximizing_score=True

@@ -7,7 +7,7 @@ But before reading this please take note, if the system is crashing **do not jus
 ## New Best Scores are not Being Tiggered
 Check GPA.pc.get_improvement_threshold().  If the improvement is very small it may not be beating the previous best by a high enough margin.  You can also set GPA.pc.set_verbose(True) to check if this is the case.
 
-Also ensure that maximizing_score is set properly in initialize_pai.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
+Also ensure that maximizing_score is set properly in perforate_model.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
 
 ## Errors Where Warnings are Printed
 
@@ -65,6 +65,29 @@ This also usually means the processors were not set up correctly. Look at 1.2 fr
 This means that the pbValueTracker was not properly initialized.  This can happen for two reasons. The first is if you are running on multiple GPUs.  With a single GPU pbValueTracker are setup automatically but when running on multiple GPUs this has to be setup by hand using the saveTrackerSettings and initializeTrackerSettings functions.  Look at the DataParallel section from the customization readme.
 
 The other reason this can happen is if you initialize a Dendrite layer, but then you don't actually use it.  I.e, it is not being called in the forward and backwards pass of the network.  In these cases look into your forward functions and try to track down why the layer is not properly being used. This same effect can take place if you try to add a set of dendrites before performing any training, with our system you should not run initial validation epochs before starting training, or if you do, make sure to not add Dendrites during those cycles.
+
+## DDP Gradient Errors
+
+    RuntimeError: Encountered gradient which is undefined, but still allreduced by DDP reducer.
+
+This error occurs when using DistributedDataParallel (DDP) with PerforatedAI. It happens because PerforatedAI's selective training (Cascade Correlation) means some parameters don't receive gradients during backward(), but DDP expects all parameters to have gradients for allreduce.
+
+**Fix:** Pre-initialize all parameter gradients to zeros AFTER `optimizer.zero_grad()` and BEFORE `loss.backward()`:
+
+```python
+optimizer.zero_grad()
+
+# Pre-initialize gradients for DDP compatibility
+if args.distributed:
+    for param in model.parameters():
+        if param.requires_grad and param.grad is None:
+            param.grad = torch.zeros_like(param)
+
+loss.backward()
+optimizer.step()
+```
+
+This ensures DDP's allreduce doesn't encounter None gradients while still allowing PerforatedAI's selective training to work correctly.
     
 ## dype Errors
 
@@ -114,7 +137,7 @@ This is the error you will get if you need to access an attribute of a module th
     #model.yourModule.SOMEVARIABLE
     model.yourModule.mainModule.SOMEVARIABLE
     
-This is done automatically for most variables.  But for special varialbes and functions that start with a _ python does not do it for you.  In these cases if the above is not easily accessible because it is in the backend of a library you are working with, you can also do the following after initialize_pai
+This is done automatically for most variables.  But for special varialbes and functions that start with a _ python does not do it for you.  In these cases if the above is not easily accessible because it is in the backend of a library you are working with, you can also do the following after perforate_model
 
     UPA.apply_method_delegation_to_model(model, "method_name", module_type)
 

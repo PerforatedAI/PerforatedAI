@@ -576,7 +576,7 @@ def prepare_dendritic_model(
     if exclude_output_proj:
         GPA.pc.set_module_ids_to_track([".output_layer"])
 
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         doing_pai=True,
         save_name=save_name,
