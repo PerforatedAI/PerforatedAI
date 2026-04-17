@@ -30,9 +30,7 @@ def convert_network(net, layer_name=""):
         net = PerforatedModule(net, layer_name)
     # Otherwise, check the module recursively if there are other modules to convert
     else:
-        net = UPA.convert_module(
-            net, 0, "", [], [], PerforatedModule, PAITrackedModule
-        )
+        net = UPA.convert_module(net, 0, "", [], [], PerforatedModule, PAITrackedModule)
     return net
 
 
@@ -64,8 +62,6 @@ def load_pai_model_from_dict(net, state_dict):
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print("No PAI modules were found something went wrong with convert network")
-        import pdb
-
         pdb.set_trace()
         sys.exit()
     for module in pai_modules:
@@ -85,7 +81,7 @@ def load_pai_model_from_dict(net, state_dict):
             module.processor_array.append(processor)
         else:
             module.processor_array.append(None)
-        
+
         # Create ParameterList for skip_weights based on num_cycles
         num_params = num_cycles // 2
         skip_weights_list = nn.ParameterList()
@@ -95,7 +91,7 @@ def load_pai_model_from_dict(net, state_dict):
                 param = nn.Parameter(torch.randn(state_dict[param_key].shape))
                 skip_weights_list.append(param)
         module.skip_weights = skip_weights_list
-        
+
         # module.register_buffer('skip_weights', torch.zeros(state_dict[module_name + '.skip_weights'].shape))
         module.register_buffer("view_tuple", state_dict[module_name + ".view_tuple"])
 
@@ -143,7 +139,7 @@ class PerforatedModule(nn.Module):
             self.processor = GPA.pc.get_module_by_name_processing_classes()[
                 module_index
             ]()
-        
+
     def simulate_cycles(self, num_cycles, nodeCount):
         for i in range(0, num_cycles, 2):
             self.layer_array.append(copy.deepcopy(self.layer_array[0]))
@@ -205,7 +201,7 @@ class PerforatedModule(nn.Module):
         for out_index in range(0, len(self.layer_array)):
             current_out = dendrite_outs[out_index]
 
-            if len(self.layer_array) > 1 and hasattr(self, 'skip_weights'):
+            if len(self.layer_array) > 1 and hasattr(self, "skip_weights"):
                 for in_index in range(0, out_index):
                     # Use out_index - 1 because skip_weights[0] is never used
                     current_out = (

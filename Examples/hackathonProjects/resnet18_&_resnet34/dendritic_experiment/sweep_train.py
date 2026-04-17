@@ -208,7 +208,7 @@ def run_sweep_experiment():
     GPA.pc.set_testing_dendrite_capacity(False)  # CRITICAL: Disable test mode
     
     # Initialize PAI
-    model = UPA.initialize_pai(model, maximizing_score=True)
+    model = UPA.perforate_model(model, maximizing_score=True)
     GPA.pc.set_save_name(f"PAI_sweep_{run.name}")
     
     if GPA.pc.get_perforated_backpropagation():

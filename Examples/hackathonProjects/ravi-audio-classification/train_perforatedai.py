@@ -194,7 +194,7 @@ def train_perforatedai(args):
     model = CNN14ESC50(num_classes=config.MODEL['num_classes'])
     
     # Convert model to PAI model (adds dendrite capability to layers)
-    model = UPA.initialize_pai(model, save_name="PAI_CNN14")
+    model = UPA.perforate_model(model, save_name="PAI_CNN14")
     
     model = model.to(device)
     print(f"Initial parameters: {UPA.count_params(model):,}")

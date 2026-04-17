@@ -281,7 +281,7 @@ def main(config):
     GPA.pc.set_verbose(False)
     GPA.pc.set_silent(True)
 
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
     print(model)
 
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
@@ -384,7 +384,7 @@ def main(config):
 
     if not str2bool(args.improved_dendritic_optimization):
         from perforatedbp import utils_pbp as PBU
-        model = UPA.initialize_pai(model)
+        model = UPA.perforate_model(model)
         model = UPA.load_system(model, 'PAI', 'best_model', True)
         PBU.pb_save_net(model,'PAI','best_model')
         model = AudioClassifier(input_length, classes, num_conv=args.num_conv, num_linear=args.num_linear, width=args.network_width, linear_dropout=args.dropout, noise_std=args.noise_std, growth_mode=args.channel_growth_mode)

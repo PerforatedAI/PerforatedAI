@@ -681,7 +681,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
         # Setup PAI for student — settings depend on model architecture
         GPA.pc.set_n_epochs_to_switch(25)
         GPA.pc.set_weight_decay_accepted(True)
-        model = UPA.initialize_pai(model, save_name="PAI-" + args.student_hf_repo_id.split('/')[-1])
+        model = UPA.perforate_model(model, save_name="PAI-" + args.student_hf_repo_id.split('/')[-1])
         model = model.to(device)
         if is_mobilenet:
             model.classifier.set_this_output_dimensions([-1,  0])

@@ -67,7 +67,7 @@ import torch
 model = YourModel()
 
 # Automatically add dendritic capabilities
-model = UPA.initialize_pai(model)
+model = UPA.perforate_model(model)
 
 # Setup optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)

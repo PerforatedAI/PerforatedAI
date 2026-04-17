@@ -5,7 +5,7 @@ def count_params(model):
     return sum(p.numel() for p in model.parameters())
 
 baseline = Net()
-dendritic = UPA.initialize_pai(Net())
+dendritic = UPA.perforate_model(Net())
 
 b = count_params(baseline)
 d = count_params(dendritic)

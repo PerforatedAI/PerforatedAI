@@ -71,7 +71,7 @@ def train_dendritic():
     GPA.pc.set_testing_dendrite_capacity(False) # Disable test mode for real training
 
     # --- PAI Initialization ---
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
     model.to(device)
 
     # We use PAI tracker to manage the optimizer and scheduler

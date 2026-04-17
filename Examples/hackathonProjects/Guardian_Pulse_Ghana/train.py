@@ -54,8 +54,8 @@ class GuardianTrainer:
         GPA.pc.set_unwrapped_modules_confirmed(True)
         GPA.pc.set_weight_decay_accepted(True)
         
-        print("\n⚡ Applying Perforated AI 'initialize_pai' transformation...")
-        self.model = UPA.initialize_pai(
+        print("\n⚡ Applying Perforated AI 'perforate_model' transformation...")
+        self.model = UPA.perforate_model(
             self.model, 
             doing_pai=True,          
             save_name="Guardian_PAI", 

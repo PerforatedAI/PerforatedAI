@@ -258,7 +258,7 @@ def train_sweep():
     
     # Initialize PAI
     print("🔹 Wrapping with PAI...\n")
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         doing_pai=True,
         save_name=f"sweep_{run.id}",

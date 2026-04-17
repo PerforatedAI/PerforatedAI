@@ -248,7 +248,7 @@ def main():
                 GPA.pc.append_module_names_to_not_save([f".model.22.{cv}.{i}.{j}.act"])
                 GPA.pc.append_module_names_to_not_save([f".model.22.{cv}.{i}.{j}.default_act"])
     logger.info("\n4️⃣ Initializing PAI...")
-    model = UPA.initialize_pai(model, save_name="PAI_YOLO", maximizing_score=False, making_graphs=True)
+    model = UPA.perforate_model(model, save_name="PAI_YOLO", maximizing_score=False, making_graphs=True)
     logger.info("\n5️⃣ Verifying PAI wrapping...")
     pai_count = sum(1 for name, module in model.named_modules() if isinstance(module, MPA.PAINeuronModule))
     if pai_count == 0:

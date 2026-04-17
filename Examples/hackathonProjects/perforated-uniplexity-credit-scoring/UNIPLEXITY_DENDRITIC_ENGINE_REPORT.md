@@ -261,7 +261,7 @@ graph TD
     end
     
     subgraph Optimization_Layer_PAI
-    Worker1 --> PAI_Wrap["UPA.initialize_pai"]
+    Worker1 --> PAI_Wrap["UPA.perforate_model"]
     PAI_Wrap -- Wraps --> Model[Base PyTorch Model]
     PAI_Wrap -- Monitors --> Tracker["GPA.pai_tracker"]
     end

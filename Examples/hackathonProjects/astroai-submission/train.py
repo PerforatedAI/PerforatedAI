@@ -99,7 +99,7 @@ def train_with_pai(model, train_loader, val_loader, epochs=100, lr=0.001, device
     model = model.to(device)
     
     # Initialize Perforated AI
-    model = pai.initialize_pai(
+    model = pai.perforate_model(
         model,
         doing_pai=True,
         save_name=save_name,

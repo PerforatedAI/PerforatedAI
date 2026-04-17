@@ -244,7 +244,7 @@ def main(run=None):
     GPA.pc.set_verbose(False) # Set to True for more PAI logging
 
     model = Net(num_classes, config.width, config.dropout, config.dropout).to(device)
-    model = UPA.initialize_pai(model, save_name=args.save_name)
+    model = UPA.perforate_model(model, save_name=args.save_name)
 
     GPA.pai_tracker.set_optimizer(optim.Adadelta)
     GPA.pai_tracker.set_scheduler(StepLR)
