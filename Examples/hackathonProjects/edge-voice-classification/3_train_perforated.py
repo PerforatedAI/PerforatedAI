@@ -251,7 +251,7 @@ def main():
     print("      - max_dendrites: 8")
     
     print("\n Converting to PerforatedAI...")
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         doing_pai=True,
         save_name="dscnn_perforated_10class",

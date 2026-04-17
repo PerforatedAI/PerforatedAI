@@ -28,7 +28,7 @@ These changes allow for dendrites to be added to both networks and have their le
     modelA = create_modelA()
     modelB = create_modelB()
     model  = Pair(modelA, modelB)
-    model  = UPA.initialize_pai(model)
+    model  = UPA.perforate_model(model)
 
     # Set the networks directly
     modelA = model.netA
@@ -98,7 +98,7 @@ This is a similar case as above, but we need to manage more state ourselves. Wit
     modelA = create_modelA()
     modelB = create_modelB()
     model  = Pair(modelA, modelB)
-    model  = UPA.initialize_pai(model)
+    model  = UPA.perforate_model(model)
 
     # Set the networks directly
     modelA = model.netA

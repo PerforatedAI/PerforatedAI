@@ -453,8 +453,8 @@ def main(args):
             # Create base model architecture
             base_model = torchvision.models.get_model(args.model, weights=None, num_classes=1000)
             model = custom_resnet.ResNetPAI(base_model)
-            #Dont call initialize_pai when loading from hf
-            #model = UPA.initialize_pai(model)
+            #Dont call perforate_model when loading from hf
+            #model = UPA.perforate_model(model)
             # Load from HuggingFace
             model = UPA.from_hf_pretrained(model, args.hf_repo_id)
             print(f"Successfully loaded model from HuggingFace")
@@ -465,7 +465,7 @@ def main(args):
             print(f"Loaded ImageNet model with 1000 classes for FC feature extraction")
         
             model = custom_resnet.ResNetPAI(model)
-            model = UPA.initialize_pai(model)
+            model = UPA.perforate_model(model)
             pretrained_path = args.pretrained_path
             if not pretrained_path.endswith(".pt"):
                 raise ValueError(f"--pretrained-path must end with .pt (got: {pretrained_path})")

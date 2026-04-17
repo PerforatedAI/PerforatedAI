@@ -141,7 +141,7 @@ def test_pai_integration():
         # Initialize PAI (testing mode)
         gpa.pc.set_testing_dendrite_capacity(True)
         
-        model = pai.initialize_pai(
+        model = pai.perforate_model(
             model,
             doing_pai=True,
             save_name='test_pai',

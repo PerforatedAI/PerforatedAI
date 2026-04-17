@@ -88,13 +88,13 @@ def main():
     # ========================
     # INIT PAI (AFTER LOADING WEIGHTS)
     # ========================
-    model = UPA.initialize_pai(
+    model = UPA.perforate_model(
         model,
         save_name="PAI_MONAI",
         maximizing_score=True,
     )
 
-    # 🔴 MUST BE SET AGAIN (initialize_pai resets internals)
+    # 🔴 MUST BE SET AGAIN (perforate_model resets internals)
     GPA.pc.set_switch_mode("DOING_HISTORY")
     GPA.pc.set_disable_interactive_debugging(True)
 

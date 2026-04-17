@@ -289,11 +289,11 @@ class PAIConfig:
     pai_forward_function : callable
         Activation function used for dendrites.
     modules_to_perforate : list
-        Module types to convert to PAI modules.
+        Module types to convert to PAI modules for perforation.
     module_names_to_perforate : list
-        Module names to convert to PAI modules.
+        Module names to convert to PAI modules for perforation.
     module_ids_to_perforate : list
-        Specific module IDs to convert to PAI modules.
+        Specific module IDs to convert to PAI modules for perforation.
     modules_to_track : list
         Module types to track but not convert.
     module_names_to_track : list
@@ -706,7 +706,7 @@ class PAIConfig:
                 list_type=True,
             )
 
-            # All modules should either be converted or tracked to ensure all modules
+            # All modules should either be perforated or tracked to ensure all modules
             # are accounted for
             self.modules_to_track = []
             add_pai_config_var_functions(

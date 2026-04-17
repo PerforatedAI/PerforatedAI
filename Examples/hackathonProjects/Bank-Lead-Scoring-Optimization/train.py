@@ -92,7 +92,7 @@ if config.use_dendritic == 1:
     GPA.pc.set_testing_dendrite_capacity(False) 
     GPA.pc.set_n_epochs_to_switch(3) # Wait longer to ensure stability [cite: 96]
     
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
     
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)

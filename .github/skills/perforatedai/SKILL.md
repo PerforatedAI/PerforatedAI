@@ -27,7 +27,7 @@ When the user says **"Perforate my model"**, start the interactive setup process
 Ask for their training script path, then read it and check for:
 - PAI imports: `from perforatedai import globals_perforatedai as GPA` and `utils_perforatedai as UPA`
 - Configuration calls: `GPA.pc.set_*` functions
-- Model initialization: `UPA.initialize_pai()` call
+- Model initialization: `UPA.perforate_model()` call
 - Optimizer setup: `GPA.pai_tracker.setup_optimizer()` or `set_optimizer_instance()`
 - Training loop: `GPA.pai_tracker.add_validation_score()` call
 
@@ -332,7 +332,7 @@ model = model.to(device)
 Change it to:
 ```python
 model = YourModel(...)
-model = UPA.initialize_pai(model, save_name="your_model_dendritic", maximizing_score=True)  # or False
+model = UPA.perforate_model(model, save_name="your_model_dendritic", maximizing_score=True)  # or False
 model = model.to(device)
 ```
 
@@ -832,7 +832,7 @@ Read the script and analyze the current PAI setup.
 Verify all required components are present:
 - ✅ Imports (GPA, UPA)
 - ✅ Configuration (set_testing_dendrite_capacity, set_max_dendrites, etc.)
-- ✅ Model initialization (UPA.initialize_pai)
+- ✅ Model initialization (UPA.perforate_model)
 - ✅ Optimizer setup (setup_optimizer or set_optimizer_instance)
 - ✅ Training loop (add_validation_score)
 

@@ -36,7 +36,7 @@ If you would like to test more than three dendrites the following can be used:
 
 Additional options during initializaiton include:
     
-    UPA.initialize_pai(model, doing_pai=True, save_name='PAI', making_graphs=True, maximizing_score=True)
+    UPA.perforate_model(model, doing_pai=True, save_name='PAI', making_graphs=True, maximizing_score=True)
 
 
 doing_pai can be set to False if you want to run with your current parameters without adding dendrites.
@@ -90,7 +90,7 @@ Along the same lines, all normalization layers should be contained in blocks.  T
     GPA.pc.PAISequential([normalLayer, normalizationLayer])
     
 #### 2.1.1 - How to Tell Modules Which are not Tagged
-When you first call initialize_pai the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
+When you first call perforate_model the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
 
     The following params are not wrapped.
     ------------------------------------------------------------------
@@ -192,14 +192,14 @@ Once it is created simply create one of those objects and run as follows
     model1 = create_model1()
     model2 = create_model2()
     model = Pair(model1, model2)
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
     #Then set the networks directly 
     model1 = model.net1
     model2 = model.net2
 
 Important note, if you do the above things, make sure to also add the same steps and adjustments to the addValidationScore section.
 
-An alternative is to call convertNetwork after initialize_pai but that still needs to be tested more thoroughly.
+An alternative is to call convertNetwork after perforate_model but that still needs to be tested more thoroughly.
     
 ### 4 - Set Input Dimensions
 
@@ -265,7 +265,7 @@ If you want to load the best model for any reason you can call:
 
     model = UPA.load_system(model, your save name, 'best_model', True)
     
-This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
+This function should be called after perforate_model and set_this_output_dimensions, but before setup_optimizer
     
 
 If you want to load a simplified pb model just for inference, or for finetuning a tained dendritic model without adding more dendrites, you can do so with the following after load_system

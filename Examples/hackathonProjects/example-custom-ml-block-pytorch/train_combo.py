@@ -378,7 +378,7 @@ def main(run):
     GPA.pc.set_n_epochs_to_switch(config.switch_speed)
     GPA.pc.set_verbose(True)
 
-    model = UPA.initialize_pai(model, save_name=name_str)
+    model = UPA.perforate_model(model, save_name=name_str)
     print(model)
 
     # Optimizer (Adam with same parameters as Keras)

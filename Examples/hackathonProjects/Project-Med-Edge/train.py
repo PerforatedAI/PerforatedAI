@@ -139,7 +139,7 @@ def train(cfg, use_dendrites=False):
         GPA.pc.set_verbose(True)
         
         # Initialize PAI on the model
-        model = UPA.initialize_pai(model, save_name="DermoNet_PAI")
+        model = UPA.perforate_model(model, save_name="DermoNet_PAI")
         model.to(device)
         
         # PROPER SETUP: Set optimizer and scheduler CLASSES (like MNIST example)

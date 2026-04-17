@@ -213,7 +213,7 @@ def main(run=None):
     GPA.pc.set_unwrapped_modules_confirmed(True)
     
     # Initialize PAI
-    model = UPA.initialize_pai(model, save_name=args.save_name, doing_pai=True)
+    model = UPA.perforate_model(model, save_name=args.save_name, doing_pai=True)
 
     # Setup Optimizer
     # We use SGD with Momentum for ResNet

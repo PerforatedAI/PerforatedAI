@@ -632,10 +632,10 @@ def main(args):
     
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != '':
-        model = UPA.initialize_pai(model, save_name=args.perforated_load_path)
+        model = UPA.perforate_model(model, save_name=args.perforated_load_path)
         model = UPA.load_system(model, args.perforated_load_path, 'latest', True)
     else:
-        model = UPA.initialize_pai(model, save_name=save_name_with_timestamp)
+        model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
 
     import pdb; pdb.set_trace()
 

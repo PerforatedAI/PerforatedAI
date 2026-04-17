@@ -294,7 +294,7 @@ def main():
     GPA.pc.append_module_names_to_track(['BatchNorm2d'])
     GPA.pc.set_unwrapped_modules_confirmed(True)
     
-    perforated_fp32 = UPA.initialize_pai(
+    perforated_fp32 = UPA.perforate_model(
         perforated_fp32,
         doing_pai=True,
         save_name="dscnn_int8_eval",
