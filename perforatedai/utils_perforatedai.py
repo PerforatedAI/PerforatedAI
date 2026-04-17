@@ -1229,6 +1229,7 @@ def load_net_from_dict(net, state_dict):
             "perforate_model on the correct model, and the same model is the one\n"
             "being passed into add_validation_score"
         )
+        import pdb # This needs to be here for cython for some reason.
         pdb.set_trace()
         sys.exit(-1)
     if GPA.pc.get_verbose():
