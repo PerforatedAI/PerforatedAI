@@ -378,14 +378,14 @@ def load_model(model_name, num_classes, perforate=False):
         from perforatedai import utils_perforatedai as UPA
         from perforatedai import library_perforatedai as LPA
 
-        hf_repo_id = "perforated-ai/resnet-18-perforated"
+        hf_repo_id = "perforated-ai/resnet-18-perforated-cascor"
         # Create base model architecture
         base_model = torchvision.models.get_model(
             "resnet18", weights=None, num_classes=1000
         )
         model = LPA.ResNetPAIPreFC(base_model)
-        # Load from HuggingFace
-        model = UPA.from_hf_pretrained(model, hf_repo_id)
+        # Load from HuggingFace (always download latest version)
+        model = UPA.from_hf_pretrained(model, hf_repo_id, force_download=True)
         print(f"Successfully loaded perforated model from HuggingFace: {hf_repo_id}")
 
     elif model_name == "resnet-18-perforated-cascor-fc":
@@ -395,12 +395,19 @@ def load_model(model_name, num_classes, perforate=False):
             f"Successfully loaded torchvision ResNet-18 with pretrained ImageNet weights"
         )
 
+        # Replace fc layer BEFORE perforation so we perforate the correct layer
+        if perforate:
+            in_features = model.fc.in_features
+            model.fc = nn.Linear(in_features, num_classes)
+            print(f"Replaced fc layer for {num_classes} classes (before perforation)")
+
         # Perforate only the fc layer if requested
         if perforate:
             print("Configuring PAI to perforate only the fc layer...")
             GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
             GPA.pc.set_max_dendrites(3)
-            GPA.pc.set_dendrite_tries(1)
+            GPA.pc.set_max_dendrite_tries(1)
+            GPA.pc.set_initial_correlation_batches(10)
             GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
             GPA.pc.set_module_names_to_perforate(["Linear"])
             GPA.pc.set_module_ids_to_track(
@@ -409,7 +416,11 @@ def load_model(model_name, num_classes, perforate=False):
             GPA.pc.set_output_dimensions([-1, 0])  # fc layer output: [batch, features]
 
             # Apply dendritic hyperparameters from wandb config if in sweep
-            if wandb.run is not None and hasattr(wandb, "config"):
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb, "config")
+            ):
                 if "improvement_threshold" in wandb.config:
                     GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
                 if "pai_forward_function" in wandb.config:
@@ -422,7 +433,11 @@ def load_model(model_name, num_classes, perforate=False):
                         GPA.pc.set_pai_forward_function(torch.tanh)
 
             # Build save_name from wandb config if available (for sweeps)
-            if wandb.run is not None and hasattr(wandb, "config"):
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb, "config")
+            ):
                 config_keys = [
                     "model",
                     "dataset",
@@ -464,17 +479,12 @@ def load_model(model_name, num_classes, perforate=False):
         # Wrap in ResNetPAI (adds pre_fc layer)
         model = ResNetPAI(base_model)
 
-        # Load pretrained pre-fc weights from local folder (if exists)
-        pretrained_path = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
-        if os.path.exists(pretrained_path):
-            model = UPA.load_system(model, pretrained_path)
-            print(
-                f"Successfully loaded ResNetPAI with pretrained weights from {pretrained_path}"
-            )
-        else:
-            print(
-                f"Pretrained path {pretrained_path} not found, using base ImageNet weights"
-            )
+
+        # Replace fc layer BEFORE perforation (pre_fc is perforated, not fc)
+        if perforate:
+            in_features = model.fc.in_features
+            model.fc = nn.Linear(in_features, num_classes)
+            print(f"Replaced fc layer for {num_classes} classes (before perforation)")
 
         # Perforate only the pre_fc layer if requested
         if perforate:
@@ -483,7 +493,8 @@ def load_model(model_name, num_classes, perforate=False):
             print("Configuring PAI to perforate only the pre_fc layer...")
             GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
             GPA.pc.set_max_dendrites(3)
-            GPA.pc.set_dendrite_tries(1)
+            GPA.pc.set_max_dendrite_tries(1)
+            GPA.pc.set_initial_correlation_batches(10)
             GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
             GPA.pc.set_module_names_to_perforate(["Linear"])
             GPA.pc.set_module_ids_to_track(
@@ -494,7 +505,11 @@ def load_model(model_name, num_classes, perforate=False):
             )  # pre_fc layer output: [batch, features]
 
             # Apply dendritic hyperparameters from wandb config if in sweep
-            if wandb.run is not None and hasattr(wandb, "config"):
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb, "config")
+            ):
                 if "improvement_threshold" in wandb.config:
                     GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
                 if "pai_forward_function" in wandb.config:
@@ -507,7 +522,11 @@ def load_model(model_name, num_classes, perforate=False):
                         GPA.pc.set_pai_forward_function(torch.tanh)
 
             # Build save_name from wandb config if available (for sweeps)
-            if wandb.run is not None and hasattr(wandb, "config"):
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb, "config")
+            ):
                 config_keys = [
                     "model",
                     "dataset",
@@ -538,6 +557,18 @@ def load_model(model_name, num_classes, perforate=False):
             print(
                 f"Model perforated successfully (pre_fc layer only) - save_name: {save_name}"
             )
+                # Load pretrained pre-fc weights from local folder (if exists)
+        pretrained_folder = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
+        if os.path.exists(pretrained_folder):
+            model = UPA.load_system(model, pretrained_folder, "beforeSwitch_0")
+            print(
+                f"Successfully loaded ResNetPAI with pretrained weights from {pretrained_folder}"
+            )
+        else:
+            print(
+                f"Pretrained folder {pretrained_folder} not found, using base ImageNet weights"
+            )
+
 
     elif model_name == "resnet-34":
         # Load torchvision ResNet-34 with pretrained ImageNet weights
@@ -549,26 +580,28 @@ def load_model(model_name, num_classes, perforate=False):
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
-    # Replace final layer for target number of classes
-    if hasattr(model, "fc"):
-        # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
-        if hasattr(model.fc, "main_module"):
-            in_features = model.fc.main_module.in_features
+    # Replace final layer for target number of classes (only for non-perforated models)
+    # Perforated models already replaced fc layer before perforation
+    if not perforate:
+        if hasattr(model, "fc"):
+            # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
+            if hasattr(model.fc, "main_module"):
+                in_features = model.fc.main_module.in_features
+            else:
+                in_features = model.fc.in_features
+            model.fc = nn.Linear(in_features, num_classes)
+            print(f"Replaced fc layer for {num_classes} classes")
+        elif hasattr(model, "classifier"):
+            # Transformers models use 'classifier'
+            if isinstance(model.classifier, nn.Sequential):
+                in_features = model.classifier[-1].in_features
+                model.classifier[-1] = nn.Linear(in_features, num_classes)
+            else:
+                in_features = model.classifier.in_features
+                model.classifier = nn.Linear(in_features, num_classes)
+            print(f"Replaced classifier layer for {num_classes} classes")
         else:
-            in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, num_classes)
-        print(f"Replaced fc layer for {num_classes} classes")
-    elif hasattr(model, "classifier"):
-        # Transformers models use 'classifier'
-        if isinstance(model.classifier, nn.Sequential):
-            in_features = model.classifier[-1].in_features
-            model.classifier[-1] = nn.Linear(in_features, num_classes)
-        else:
-            in_features = model.classifier.in_features
-            model.classifier = nn.Linear(in_features, num_classes)
-        print(f"Replaced classifier layer for {num_classes} classes")
-    else:
-        raise ValueError(f"Cannot adapt model - unknown classifier layer")
+            raise ValueError(f"Cannot adapt model - unknown classifier layer")
 
     return model
 
@@ -599,7 +632,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
 
     # Use CosineAnnealingLR as main scheduler
     main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=args.epochs - args.lr_warmup_epochs, eta_min=0.0
+        optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
     )
 
     # Add warmup if specified
@@ -643,8 +676,8 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             "momentum": 0.9,
             "weight_decay": args.weight_decay,
         }
-        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)[0]
-        # Note: PAI handles scheduler internally, so we ignore the returned scheduler
+        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+        # Note: PAI handles scheduler internally
 
     # Use while True for perforated models, for loop for non-perforated
     if perforate:
@@ -693,7 +726,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     dendrite_count != GPA.pai_tracker.member_vars["num_dendrites_added"]
                 ):
                     dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
-                    if wandb.run is not None:
+                    if hasattr(wandb, "run") and wandb.run is not None:
                         wandb.log(
                             {
                                 "Arch Max Val": max_val,
@@ -718,10 +751,10 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     "momentum": 0.9,
                     "weight_decay": args.weight_decay,
                 }
-                optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)[0]
+                optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
 
             # Log to WandB - using wandb.md recommended naming
-            if wandb.run is not None:
+            if hasattr(wandb, "run") and wandb.run is not None:
                 wandb.log(
                     {
                         "epoch": epoch + 1,
@@ -745,7 +778,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             if training_complete:
                 print("PAI training complete!")
                 # Log final arch max
-                if wandb.run is not None:
+                if hasattr(wandb, "run") and wandb.run is not None:
                     wandb.log(
                         {
                             "Arch Max Val": max_val,
@@ -790,7 +823,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_epoch = epoch + 1
 
             # Log to WandB if initialized - using wandb.md recommended naming
-            if wandb.run is not None:
+            if hasattr(wandb, "run") and wandb.run is not None:
                 wandb.log(
                     {
                         "epoch": epoch + 1,
@@ -809,7 +842,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             )
 
         # Log final results for non-perforated models only
-        if wandb.run is not None:
+        if hasattr(wandb, "run") and wandb.run is not None:
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
@@ -1158,8 +1191,9 @@ def main():
         args.weight_decay = config.get("weight_decay", 1e-4)
 
     # Initialize WandB if requested or if running in sweep
-    if args.use_wandb or wandb.run is not None:
-        if wandb.run is None:
+    wandb_active = hasattr(wandb, "run") and wandb.run is not None
+    if args.use_wandb or wandb_active:
+        if not wandb_active:
             wandb.init(
                 project=args.wandb_project,
                 config={
@@ -1216,7 +1250,7 @@ def main():
     latency_results = measure_inference_latency(model, test_loader, device)
 
     # Log final results to WandB - using wandb.md recommended naming
-    if wandb.run is not None:
+    if hasattr(wandb, "run") and wandb.run is not None:
         param_count = sum(p.numel() for p in model.parameters())
         wandb.log(
             {

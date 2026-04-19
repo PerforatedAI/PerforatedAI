@@ -91,6 +91,14 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         # Auto-save: if a config file has been configured (set at end of __init__),
         # persist the new value immediately so the JSON stays in sync.
         config_file = self.__dict__.get("_config_file")
+        # Special case: if save_name changed, update the config file path
+        if var_name == "save_name" and config_file:
+            import os as _os
+
+            _save_folder = _os.path.join(_os.getcwd(), value)
+            config_file = _os.path.join(_save_folder, f"{value}_config.json")
+            self.__dict__["_config_file"] = config_file
+            _os.makedirs(_save_folder, exist_ok=True)
         if config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
             self.save_config(config_file)
 
