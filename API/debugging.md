@@ -160,6 +160,14 @@ This means you entered None for the saveName, likely args.saveName did not have 
     
 If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
 
+    WARNING: Parameter does not have parameter_type attribute in n mode
+    You can find this param by going up in the stack and calling:
+    UPA.find_param_name_by_id(model,124630993409104)
+    Ensure that model is either converted or tracked
+
+This means there is a module that was not properly handled during the call to perforate_model.  Is is generally one of two things.  First, confirm that all of your module are either tracked or perforated.  Second, confirm that you are not changing anything about the model definition after perforate_model.  For example, if you are doing transfer learning and replacing your fc layer, make sure to replace it before the call to perforate_model.
+
+
 ## Optimizer Loop Error
 
     RuntimeError: For non-complex input tensors, argument alpha must not be a complex number.
@@ -371,6 +379,8 @@ This error can be caused by a few different reasons:
     Getting a warning with moudles not tracked or wrapped with main_module in the list
 
 This means you are trying to perforate a model that has already been perforated.  This should never be done.
+
+    
 
 
 ## Errors that are currently not fixable

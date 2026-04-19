@@ -2254,12 +2254,13 @@ try:
 
         return f"https://huggingface.co/{repo_id}"
 
-    def from_hf_pretrained(net, repo_id):
+    def from_hf_pretrained(net, repo_id, force_download=False):
         """Load a PerforatedAI model from HuggingFace Hub using PyTorchModelHubMixin.
 
         Args:
             net: The base model architecture (will be converted to PAI format)
             repo_id: HuggingFace Hub repository ID (e.g., "username/model-name")
+            force_download: If True, always download the latest version, bypassing cache (default: False)
 
         Returns:
             net: The loaded model with PAI modules initialized
@@ -2277,7 +2278,7 @@ try:
 
         # Download config.json to restore PAI configuration
         try:
-            config_path = hf_hub_download(repo_id=repo_id, filename="config.json")
+            config_path = hf_hub_download(repo_id=repo_id, filename="config.json", force_download=force_download)
             with open(config_path, "r") as f:
                 config = json.load(f)
                 if "pai_config" in config:
@@ -2289,7 +2290,7 @@ try:
             print(f"Warning: Could not load PAI config from HuggingFace: {e}")
 
         # Download model files from HuggingFace
-        model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors")
+        model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", force_download=force_download)
         state_dict = load_file(model_path)
         wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
