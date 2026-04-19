@@ -186,8 +186,6 @@ If you get this error it means your neurons are not correctly matched in setoutp
     
 This means you did something wrong with the processing classes.  We have seen this before when moduleNamesWithProcessing and moduleByNameProcessingClasses don't line up.  Remember they need to be added in order in both arrays, and if the module is "by name" the processor also has to be added to the "by name" array.
 
-
-
 ## Index Out of Range in saveGraphs
 
     perforatedai.pb_neuron_layer_tracker.pb_neuron_layer_tracker.saveGraphs
@@ -195,6 +193,9 @@ This means you did something wrong with the processing classes.  We have seen th
 
 This error likely means that you added the validation score before the test score.  Test scores must be added before the validation score since graphs are generated when the validation score is added and the tracker must have access to the test scores at that time.
 
+    [rank0]: IndexError: list index out of range
+
+Similarly if you are getting the same error, especially within a DDP system, it can be cause when a switch has just happened but 'latest' is loaded instead of switch_x.  'latest' currently has a bug where it does not have correct records for that single epoch.
 
 ## Things not Getting Converted
 The conversion script runs by going through all member variables and determining all member variables that inherit from nn.Module.  If you have any lists or non nn.Module variables that then have nn.Modules in them it will miss them.  If you have a list just put that list into a nn.ModuleList and it will then find everything.  If you do this, make sure you replace the original variable name because that is what will be used. If you use the "add_module" function this is a sign you might cause this sort of problem.  Do not currently have a workaround for non-module objects that contain module objects, just let us know if that is a situation you are in and there is a reason the top object can't also be a module.
@@ -365,6 +366,12 @@ In some cases this is done intentionally with weight tying. Which is not just a 
 This error can be caused by a few different reasons:
 1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
 2 - Your model definition or modules_to_perforate and moduleNamesToConvert lists are different between your training script and your inference script.
+
+
+    Getting a warning with moudles not tracked or wrapped with main_module in the list
+
+This means you are trying to perforate a model that has already been perforated.  This should never be done.
+
 
 ## Errors that are currently not fixable
 

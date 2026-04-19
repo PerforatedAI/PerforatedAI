@@ -1,0 +1,1249 @@
+"""
+Training script for ResNet models with WandB sweep support.
+
+Supports multiple model variants:
+- resnet-18-perforated-cascor-pretrained: Perforated model from HuggingFace
+- resnet-18-perforated-cascor-fc: ResNet-18 with pretrained ImageNet weights
+- resnet-18-perforated-cascor-pre-fc: ResNet-18 with pretrained ImageNet weights
+- resnet-34: ResNet-34 with pretrained ImageNet weights
+
+Usage:
+python train_from_hf_wandb_sweep.py --model resnet-18-perforated-cascor-pretrained --dataset flowers102
+python train_from_hf_wandb_sweep.py --model resnet-34 --dataset flowers102
+"""
+
+import datetime
+import os
+import sys
+import time
+import torch
+import torch.utils.data
+import torchvision
+import torchvision.transforms
+import utils
+from torch import nn
+from torchvision.transforms.functional import InterpolationMode
+
+import wandb
+
+# Add parent directory to path for resnet_double import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "imagenet"))
+from resnet_double import ResNetPAI
+
+
+def get_dataset_config(dataset_name):
+    """Get recommended hyperparameters for each dataset
+
+    NOTE: Smaller datasets (flowers102, pets, food101) are designed for
+    transfer learning with pretrained ImageNet weights.
+    """
+    configs = {
+        "flowers102": {
+            "num_classes": 102,
+            "image_size": 224,
+            "epochs": 200,
+            "batch_size": 32,
+            "lr": 0.001,  # Lower LR for fine-tuning
+            "lr_scheduler": "cosineannealinglr",
+            "weight_decay": 1e-4,
+            "lr_warmup_epochs": 5,
+            "label_smoothing": 0.1,
+            "use_pretrained": True,  # Use pretrained weights
+        },
+        "pets": {
+            "num_classes": 37,
+            "image_size": 224,
+            "epochs": 50,
+            "batch_size": 32,
+            "lr": 0.001,  # Lower LR for fine-tuning
+            "lr_scheduler": "cosineannealinglr",
+            "weight_decay": 1e-4,
+            "lr_warmup_epochs": 5,
+            "label_smoothing": 0.0,
+            "use_pretrained": True,  # Use pretrained weights
+        },
+        "food101": {
+            "num_classes": 101,
+            "image_size": 224,
+            "epochs": 30,
+            "batch_size": 64,
+            "lr": 0.001,  # Lower LR for fine-tuning
+            "lr_scheduler": "cosineannealinglr",
+            "weight_decay": 1e-4,
+            "lr_warmup_epochs": 5,
+            "label_smoothing": 0.0,
+            "use_pretrained": True,  # Use pretrained weights
+        },
+    }
+    return configs.get(dataset_name.lower(), configs["flowers102"])
+
+
+def train_one_epoch(
+    model, criterion, optimizer, data_loader, device, epoch, print_freq=10
+):
+    model.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
+    metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
+
+    header = f"Epoch: [{epoch}]"
+    for i, (image, target) in enumerate(
+        metric_logger.log_every(data_loader, print_freq, header)
+    ):
+        start_time = time.time()
+        image, target = image.to(device), target.to(device)
+
+        output = model(image)
+        if hasattr(output, "logits"):
+            output = output.logits
+        loss = criterion(output, target)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+        batch_size = image.shape[0]
+        metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
+        metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+        metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+        metric_logger.meters["img/s"].update(batch_size / (time.time() - start_time))
+
+    # Return training metrics
+    return metric_logger.acc1.global_avg, metric_logger.loss.global_avg
+
+
+def evaluate(model, criterion, data_loader, device, print_freq=100):
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = "Test:"
+
+    with torch.inference_mode():
+        for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            image = image.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            output = model(image)
+            if hasattr(output, "logits"):
+                output = output.logits
+            loss = criterion(output, target)
+
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            batch_size = image.shape[0]
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
+    return metric_logger.acc1.global_avg, metric_logger.loss.global_avg
+
+
+def measure_inference_latency(model, data_loader, device, warmup_batches=10):
+    """Measure inference latency and throughput (FPS) of the model."""
+    model.eval()
+
+    print("\n" + "=" * 80)
+    print("MEASURING INFERENCE LATENCY")
+    print("=" * 80)
+
+    batch_times = []
+    total_images = 0
+
+    with torch.inference_mode():
+        # Warmup phase
+        print(f"Warmup: Running {warmup_batches} batches...")
+        for i, (image, _) in enumerate(data_loader):
+            if i >= warmup_batches:
+                break
+            image = image.to(device, non_blocking=True)
+            output = model(image)
+            if hasattr(output, "logits"):
+                output = output.logits
+            if device.type == "cuda":
+                torch.cuda.synchronize()
+
+        # Timing phase
+        print("Measuring latency...")
+        for i, (image, _) in enumerate(data_loader):
+            image = image.to(device, non_blocking=True)
+
+            if device.type == "cuda":
+                torch.cuda.synchronize()
+
+            start_time = time.time()
+            output = model(image)
+            if hasattr(output, "logits"):
+                output = output.logits
+
+            if device.type == "cuda":
+                torch.cuda.synchronize()
+
+            end_time = time.time()
+
+            batch_time = end_time - start_time
+            batch_times.append(batch_time)
+            total_images += image.shape[0]
+
+    # Calculate statistics
+    total_time = sum(batch_times)
+    mean_batch_time = total_time / len(batch_times)
+    fps = total_images / total_time
+    mean_latency_ms = mean_batch_time * 1000
+
+    # Calculate percentiles
+    sorted_times = sorted(batch_times)
+    p50_ms = sorted_times[len(sorted_times) // 2] * 1000
+    p95_ms = sorted_times[int(len(sorted_times) * 0.95)] * 1000
+    p99_ms = sorted_times[int(len(sorted_times) * 0.99)] * 1000
+
+    results = {
+        "fps": fps,
+        "mean_latency_ms": mean_latency_ms,
+        "p50_latency_ms": p50_ms,
+        "p95_latency_ms": p95_ms,
+        "p99_latency_ms": p99_ms,
+        "total_images": total_images,
+        "total_batches": len(batch_times),
+        "total_time_s": total_time,
+    }
+
+    print(f"\nLatency Results:")
+    print(f"  Total images processed: {total_images}")
+    print(f"  Total batches: {len(batch_times)}")
+    print(f"  Total time: {total_time:.2f}s")
+    print(f"  Throughput: {fps:.2f} FPS")
+    print(f"  Mean latency per batch: {mean_latency_ms:.2f}ms")
+    print(f"  P50 latency: {p50_ms:.2f}ms")
+    print(f"  P95 latency: {p95_ms:.2f}ms")
+    print(f"  P99 latency: {p99_ms:.2f}ms")
+    print("=" * 80 + "\n")
+
+    return results
+
+
+def load_dataset(dataset_name, data_path, batch_size, workers):
+    """Load dataset with standard preprocessing."""
+    print(f"Loading {dataset_name} dataset from {data_path}")
+
+    # Dataset-specific configurations
+    dataset_configs = {
+        "flowers102": {
+            "num_classes": 102,
+            "img_size": 224,
+            "train_split": "train",
+            "test_split": "test",
+            "dataset_class": torchvision.datasets.Flowers102,
+        },
+        "pets": {
+            "num_classes": 37,
+            "img_size": 224,
+            "train_split": "trainval",
+            "test_split": "test",
+            "dataset_class": torchvision.datasets.OxfordIIITPet,
+        },
+        "food101": {
+            "num_classes": 101,
+            "img_size": 224,
+            "train_split": "train",
+            "test_split": "test",
+            "dataset_class": torchvision.datasets.Food101,
+        },
+        "cifar100": {
+            "num_classes": 100,
+            "img_size": 32,
+            "train_split": True,  # CIFAR uses True/False
+            "test_split": False,
+            "dataset_class": torchvision.datasets.CIFAR100,
+        },
+        "stl10": {
+            "num_classes": 10,
+            "img_size": 96,
+            "train_split": "train",
+            "test_split": "test",
+            "dataset_class": torchvision.datasets.STL10,
+        },
+    }
+
+    if dataset_name not in dataset_configs:
+        raise ValueError(
+            f"Unknown dataset: {dataset_name}. Supported: {list(dataset_configs.keys())}"
+        )
+
+    config = dataset_configs[dataset_name]
+    img_size = config["img_size"]
+    interpolation = InterpolationMode.BILINEAR
+
+    # Training transforms
+    train_transform = torchvision.transforms.Compose(
+        [
+            torchvision.transforms.RandomResizedCrop(
+                img_size, interpolation=interpolation
+            ),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            ),
+        ]
+    )
+
+    # Validation transforms
+    val_resize_size = img_size if img_size <= 32 else int(img_size * 256 / 224)
+    val_transform = torchvision.transforms.Compose(
+        [
+            torchvision.transforms.Resize(val_resize_size, interpolation=interpolation),
+            torchvision.transforms.CenterCrop(img_size),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            ),
+        ]
+    )
+
+    # Load datasets based on type
+    if dataset_name == "cifar100":
+        dataset_train = config["dataset_class"](
+            root=data_path,
+            train=config["train_split"],
+            download=True,
+            transform=train_transform,
+        )
+        dataset_test = config["dataset_class"](
+            root=data_path,
+            train=config["test_split"],
+            download=True,
+            transform=val_transform,
+        )
+    elif dataset_name == "stl10":
+        dataset_train = config["dataset_class"](
+            root=data_path,
+            split=config["train_split"],
+            download=True,
+            transform=train_transform,
+        )
+        dataset_test = config["dataset_class"](
+            root=data_path,
+            split=config["test_split"],
+            download=True,
+            transform=val_transform,
+        )
+    else:
+        dataset_train = config["dataset_class"](
+            root=data_path,
+            split=config["train_split"],
+            download=True,
+            transform=train_transform,
+        )
+        dataset_test = config["dataset_class"](
+            root=data_path,
+            split=config["test_split"],
+            download=True,
+            transform=val_transform,
+        )
+
+    print(f"Train dataset size: {len(dataset_train)}")
+    print(f"Test dataset size: {len(dataset_test)}")
+
+    # Create data loaders
+    train_loader = torch.utils.data.DataLoader(
+        dataset_train,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=workers,
+        pin_memory=True,
+    )
+    test_loader = torch.utils.data.DataLoader(
+        dataset_test,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=workers,
+        pin_memory=True,
+    )
+
+    return train_loader, test_loader, config["num_classes"]
+
+
+def load_model(model_name, num_classes, perforate=False):
+    """Load model based on model name and adapt for target number of classes."""
+    print(f"\nLoading model: {model_name}")
+
+    # Import PAI if perforating
+    if perforate:
+        from perforatedai import globals_perforatedai as GPA
+        from perforatedai import utils_perforatedai as UPA
+
+    if model_name == "resnet-18-perforated-cascor-pretrained":
+        # Load perforated model from HuggingFace
+        from perforatedai import utils_perforatedai as UPA
+        from perforatedai import library_perforatedai as LPA
+
+        hf_repo_id = "perforated-ai/resnet-18-perforated"
+        # Create base model architecture
+        base_model = torchvision.models.get_model(
+            "resnet18", weights=None, num_classes=1000
+        )
+        model = LPA.ResNetPAIPreFC(base_model)
+        # Load from HuggingFace
+        model = UPA.from_hf_pretrained(model, hf_repo_id)
+        print(f"Successfully loaded perforated model from HuggingFace: {hf_repo_id}")
+
+    elif model_name == "resnet-18-perforated-cascor-fc":
+        # Load torchvision ResNet-18 with pretrained ImageNet weights
+        model = torchvision.models.resnet18(weights="IMAGENET1K_V1")
+        print(
+            f"Successfully loaded torchvision ResNet-18 with pretrained ImageNet weights"
+        )
+
+        # Perforate only the fc layer if requested
+        if perforate:
+            print("Configuring PAI to perforate only the fc layer...")
+            GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
+            GPA.pc.set_max_dendrites(3)
+            GPA.pc.set_dendrite_tries(1)
+            GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
+            GPA.pc.set_module_names_to_perforate(["Linear"])
+            GPA.pc.set_module_ids_to_track(
+                [".layer1", ".layer2", ".layer3", ".layer4", ".conv1", ".bn1"]
+            )  # Skip everything except fc
+            GPA.pc.set_output_dimensions([-1, 0])  # fc layer output: [batch, features]
+
+            # Apply dendritic hyperparameters from wandb config if in sweep
+            if wandb.run is not None and hasattr(wandb, "config"):
+                if "improvement_threshold" in wandb.config:
+                    GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
+                if "pai_forward_function" in wandb.config:
+                    pai_fwd = wandb.config.pai_forward_function
+                    if pai_fwd == "sigmoid":
+                        GPA.pc.set_pai_forward_function(torch.sigmoid)
+                    elif pai_fwd == "relu":
+                        GPA.pc.set_pai_forward_function(torch.relu)
+                    elif pai_fwd == "tanh":
+                        GPA.pc.set_pai_forward_function(torch.tanh)
+
+            # Build save_name from wandb config if available (for sweeps)
+            if wandb.run is not None and hasattr(wandb, "config"):
+                config_keys = [
+                    "model",
+                    "dataset",
+                    "lr",
+                    "weight_decay",
+                    "label_smoothing",
+                    "improvement_threshold",
+                    "pai_forward_function",
+                ]
+                name_parts = [
+                    f"{k}_{wandb.config.get(k, 'default')}"
+                    for k in config_keys
+                    if k in wandb.config
+                ]
+                save_name = (
+                    "_".join(name_parts)
+                    if name_parts
+                    else f"resnet18_fc_{num_classes}cls"
+                )
+            else:
+                save_name = f"resnet18_fc_{num_classes}cls"
+
+            model = UPA.perforate_model(
+                model,
+                save_name=save_name,
+                maximizing_score=True,
+            )
+            print(
+                f"Model perforated successfully (fc layer only) - save_name: {save_name}"
+            )
+
+    elif model_name == "resnet-18-perforated-cascor-pre-fc":
+        # Load ResNetPAI with pretrained weights from pretrained-prefc folder
+        from perforatedai import utils_perforatedai as UPA
+
+        # Create base ResNet-18 with pretrained ImageNet weights
+        base_model = torchvision.models.resnet18(weights="IMAGENET1K_V1")
+
+        # Wrap in ResNetPAI (adds pre_fc layer)
+        model = ResNetPAI(base_model)
+
+        # Load pretrained pre-fc weights from local folder (if exists)
+        pretrained_path = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
+        if os.path.exists(pretrained_path):
+            model = UPA.load_system(model, pretrained_path)
+            print(
+                f"Successfully loaded ResNetPAI with pretrained weights from {pretrained_path}"
+            )
+        else:
+            print(
+                f"Pretrained path {pretrained_path} not found, using base ImageNet weights"
+            )
+
+        # Perforate only the pre_fc layer if requested
+        if perforate:
+            from perforatedai import globals_perforatedai as GPA
+
+            print("Configuring PAI to perforate only the pre_fc layer...")
+            GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
+            GPA.pc.set_max_dendrites(3)
+            GPA.pc.set_dendrite_tries(1)
+            GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
+            GPA.pc.set_module_names_to_perforate(["Linear"])
+            GPA.pc.set_module_ids_to_track(
+                [".layer1", ".layer2", ".layer3", ".layer4", ".conv1", ".bn1", ".fc"]
+            )  # Skip everything except pre_fc
+            GPA.pc.set_output_dimensions(
+                [-1, 0]
+            )  # pre_fc layer output: [batch, features]
+
+            # Apply dendritic hyperparameters from wandb config if in sweep
+            if wandb.run is not None and hasattr(wandb, "config"):
+                if "improvement_threshold" in wandb.config:
+                    GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
+                if "pai_forward_function" in wandb.config:
+                    pai_fwd = wandb.config.pai_forward_function
+                    if pai_fwd == "sigmoid":
+                        GPA.pc.set_pai_forward_function(torch.sigmoid)
+                    elif pai_fwd == "relu":
+                        GPA.pc.set_pai_forward_function(torch.relu)
+                    elif pai_fwd == "tanh":
+                        GPA.pc.set_pai_forward_function(torch.tanh)
+
+            # Build save_name from wandb config if available (for sweeps)
+            if wandb.run is not None and hasattr(wandb, "config"):
+                config_keys = [
+                    "model",
+                    "dataset",
+                    "lr",
+                    "weight_decay",
+                    "label_smoothing",
+                    "improvement_threshold",
+                    "pai_forward_function",
+                ]
+                name_parts = [
+                    f"{k}_{wandb.config.get(k, 'default')}"
+                    for k in config_keys
+                    if k in wandb.config
+                ]
+                save_name = (
+                    "_".join(name_parts)
+                    if name_parts
+                    else f"resnet18_prefc_{num_classes}cls"
+                )
+            else:
+                save_name = f"resnet18_prefc_{num_classes}cls"
+
+            model = UPA.perforate_model(
+                model,
+                save_name=save_name,
+                maximizing_score=True,
+            )
+            print(
+                f"Model perforated successfully (pre_fc layer only) - save_name: {save_name}"
+            )
+
+    elif model_name == "resnet-34":
+        # Load torchvision ResNet-34 with pretrained ImageNet weights
+        model = torchvision.models.resnet34(weights="IMAGENET1K_V1")
+        print(
+            f"Successfully loaded torchvision ResNet-34 with pretrained ImageNet weights"
+        )
+
+    else:
+        raise ValueError(f"Unknown model: {model_name}")
+
+    # Replace final layer for target number of classes
+    if hasattr(model, "fc"):
+        # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
+        if hasattr(model.fc, "main_module"):
+            in_features = model.fc.main_module.in_features
+        else:
+            in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, num_classes)
+        print(f"Replaced fc layer for {num_classes} classes")
+    elif hasattr(model, "classifier"):
+        # Transformers models use 'classifier'
+        if isinstance(model.classifier, nn.Sequential):
+            in_features = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Linear(in_features, num_classes)
+        else:
+            in_features = model.classifier.in_features
+            model.classifier = nn.Linear(in_features, num_classes)
+        print(f"Replaced classifier layer for {num_classes} classes")
+    else:
+        raise ValueError(f"Cannot adapt model - unknown classifier layer")
+
+    return model
+
+
+def train_single_run(args, train_loader, test_loader, num_classes):
+    """Perform a single training run and return best accuracy and epoch."""
+    device = torch.device(args.device)
+
+    # Determine if we should perforate this model
+    perforate = args.model in [
+        "resnet-18-perforated-cascor-fc",
+        "resnet-18-perforated-cascor-pre-fc",
+    ]
+
+    # Load model
+    model = load_model(args.model, num_classes, perforate=perforate)
+    model = model.to(device)
+
+    # Count parameters (log once at start)
+    param_count = sum(p.numel() for p in model.parameters())
+    print(f"Model parameters: {param_count:,}")
+
+    # Setup training
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay
+    )
+
+    # Use CosineAnnealingLR as main scheduler
+    main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=args.epochs - args.lr_warmup_epochs, eta_min=0.0
+    )
+
+    # Add warmup if specified
+    if args.lr_warmup_epochs > 0:
+        warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
+            optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
+        )
+        lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer,
+            schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+            milestones=[args.lr_warmup_epochs],
+        )
+    else:
+        lr_scheduler = main_lr_scheduler
+
+    # Training loop
+    print("\nStarting training...")
+    start_time = time.time()
+    best_acc1 = 0.0
+    best_epoch = 0
+
+    # For perforated models: arch logging variables
+    if perforate:
+        from perforatedai import globals_perforatedai as GPA
+
+        dendrite_count = 0
+        max_val = 0
+        max_train = 0
+        max_test = 0
+        max_params = 0
+        global_max_val = 0
+        global_max_train = 0
+        global_max_test = 0
+        global_max_params = 0
+
+        # Setup optimizer for PAI
+        GPA.pai_tracker.set_optimizer(torch.optim.SGD)
+        optimArgs = {
+            "params": model.parameters(),
+            "lr": args.lr,
+            "momentum": 0.9,
+            "weight_decay": args.weight_decay,
+        }
+        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)[0]
+        # Note: PAI handles scheduler internally, so we ignore the returned scheduler
+
+    # Use while True for perforated models, for loop for non-perforated
+    if perforate:
+        epoch = -1  # Will increment to 0 at start of loop
+        while True:
+            epoch += 1
+            train_acc1, train_loss = train_one_epoch(
+                model,
+                criterion,
+                optimizer,
+                train_loader,
+                device,
+                epoch,
+                args.print_freq,
+            )
+            test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+
+            # Track best accuracy for this architecture
+            if test_acc1 > max_val:
+                max_val = test_acc1
+                max_test = test_acc1
+                max_train = train_acc1
+                max_params = sum(p.numel() for p in model.parameters())
+
+            # Track global best
+            if test_acc1 > global_max_val:
+                global_max_val = test_acc1
+                global_max_test = test_acc1
+                global_max_train = train_acc1
+                global_max_params = sum(p.numel() for p in model.parameters())
+
+            # Track best for return
+            if test_acc1 > best_acc1:
+                best_acc1 = test_acc1
+                best_epoch = epoch + 1
+
+            # Add validation score to PAI tracker
+            model, restructured, training_complete = (
+                GPA.pai_tracker.add_validation_score(test_acc1, model)
+            )
+            model = model.to(device)
+
+            # Log arch max when dendrites are added
+            if restructured:
+                if GPA.pai_tracker.member_vars["mode"] == "n" and (
+                    dendrite_count != GPA.pai_tracker.member_vars["num_dendrites_added"]
+                ):
+                    dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
+                    if wandb.run is not None:
+                        wandb.log(
+                            {
+                                "Arch Max Val": max_val,
+                                "Arch Max Test": max_test,
+                                "Arch Max Train": max_train,
+                                "Arch Param Count": max_params,
+                                "Arch Dendrite Count": GPA.pai_tracker.member_vars[
+                                    "num_dendrites_added"
+                                ]
+                                - 1,
+                            }
+                        )
+                    max_val = 0  # Reset for next arch
+                    max_train = 0
+                    max_test = 0
+                    max_params = 0
+
+                # Reinitialize optimizer after restructuring
+                optimArgs = {
+                    "params": model.parameters(),
+                    "lr": args.lr,
+                    "momentum": 0.9,
+                    "weight_decay": args.weight_decay,
+                }
+                optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)[0]
+
+            # Log to WandB - using wandb.md recommended naming
+            if wandb.run is not None:
+                wandb.log(
+                    {
+                        "epoch": epoch + 1,
+                        "TrainAcc": train_acc1,
+                        "TrainLoss": train_loss,
+                        "ValAcc": test_acc1,
+                        "ValLoss": test_loss,
+                        "TestAcc": test_acc1,
+                        "Param Count": sum(p.numel() for p in model.parameters()),
+                        "Dendrite Count": GPA.pai_tracker.member_vars[
+                            "num_dendrites_added"
+                        ],
+                        "lr": optimizer.param_groups[0]["lr"],
+                    }
+                )
+
+            print(
+                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Dendrites: {GPA.pai_tracker.member_vars['num_dendrites_added']}"
+            )
+
+            if training_complete:
+                print("PAI training complete!")
+                # Log final arch max
+                if wandb.run is not None:
+                    wandb.log(
+                        {
+                            "Arch Max Val": max_val,
+                            "Arch Max Test": max_test,
+                            "Arch Max Train": max_train,
+                            "Arch Param Count": max_params,
+                            "Arch Dendrite Count": GPA.pai_tracker.member_vars[
+                                "num_dendrites_added"
+                            ],
+                        }
+                    )
+                    wandb.log(
+                        {
+                            "Final Max Val": global_max_val,
+                            "Final Max Test": global_max_test,
+                            "Final Max Train": global_max_train,
+                            "Final Param Count": global_max_params,
+                            "Final Dendrite Count": GPA.pai_tracker.member_vars[
+                                "num_dendrites_added"
+                            ],
+                        }
+                    )
+                break
+    else:
+        # Non-perforated training loop
+        for epoch in range(args.epochs):
+            train_acc1, train_loss = train_one_epoch(
+                model,
+                criterion,
+                optimizer,
+                train_loader,
+                device,
+                epoch,
+                args.print_freq,
+            )
+            lr_scheduler.step()
+            test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+
+            # Track best accuracy
+            if test_acc1 > best_acc1:
+                best_acc1 = test_acc1
+                best_epoch = epoch + 1
+
+            # Log to WandB if initialized - using wandb.md recommended naming
+            if wandb.run is not None:
+                wandb.log(
+                    {
+                        "epoch": epoch + 1,
+                        "TrainAcc": train_acc1,
+                        "TrainLoss": train_loss,
+                        "ValAcc": test_acc1,
+                        "ValLoss": test_loss,
+                        "TestAcc": test_acc1,  # For transfer learning, val=test
+                        "Param Count": param_count,
+                        "lr": optimizer.param_groups[0]["lr"],
+                    }
+                )
+
+            print(
+                f"Epoch {epoch+1}/{args.epochs} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}"
+            )
+
+        # Log final results for non-perforated models only
+        if wandb.run is not None:
+            wandb.log(
+                {
+                    "Final Max Val": best_acc1,
+                    "Final Max Test": best_acc1,
+                    "Final Max Train": train_acc1,  # Last epoch's training acc
+                    "Final Param Count": param_count,
+                    "Final Dendrite Count": 0,  # Non-perforated models have 0 dendrites
+                }
+            )
+
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+    print(f"\nTraining complete! Total time: {total_time_str}")
+    print(f"Best Test Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
+
+    return best_acc1, best_epoch, model
+
+
+def get_sweep_config(dataset_name):
+    """Get WandB sweep configuration for a specific dataset."""
+    base_config = {
+        "method": "random",  # Random sampling instead of exhaustive grid
+        "metric": {"name": "Final Max Val", "goal": "maximize"},
+    }
+
+    if dataset_name == "flowers102":
+        # Small dataset - use all 4 models, higher regularization
+        base_config["parameters"] = {
+            "dataset": {"value": "flowers102"},
+            "model": {
+                "values": [
+                    "resnet-18-perforated-cascor-pretrained",
+                    "resnet-18-perforated-cascor-fc",
+                    "resnet-18-perforated-cascor-pre-fc",
+                    "resnet-34",
+                ]
+            },
+            "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
+            "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
+            "label_smoothing": {"values": [0.05, 0.1, 0.15]},
+            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
+            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
+            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+        }
+
+    elif dataset_name == "pets":
+        # Medium dataset - all 4 models, broader LR range
+        base_config["parameters"] = {
+            "dataset": {"value": "pets"},
+            "model": {
+                "values": [
+                    "resnet-18-perforated-cascor-pretrained",
+                    "resnet-18-perforated-cascor-fc",
+                    "resnet-18-perforated-cascor-pre-fc",
+                    "resnet-34",
+                ]
+            },
+            "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
+            "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
+            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
+            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
+            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
+            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+        }
+
+    elif dataset_name == "food101":
+        # Larger dataset - all 4 models, can handle higher LR
+        base_config["parameters"] = {
+            "dataset": {"value": "food101"},
+            "model": {
+                "values": [
+                    "resnet-18-perforated-cascor-pretrained",
+                    "resnet-18-perforated-cascor-fc",
+                    "resnet-18-perforated-cascor-pre-fc",
+                    "resnet-34",
+                ]
+            },
+            "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
+            "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
+            "label_smoothing": {"values": [0.0, 0.05]},
+            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
+            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
+            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+        }
+
+    else:
+        raise ValueError(f"No sweep config defined for dataset: {dataset_name}")
+
+    return base_config
+
+
+def train_with_wandb():
+    """Training function for WandB sweep - gets config from wandb.config."""
+    # Parse base arguments (non-swept parameters)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Training run within WandB sweep")
+    parser.add_argument("--data-path", default="./data", type=str, help="Dataset path")
+    parser.add_argument(
+        "--workers", default=16, type=int, help="Number of data loading workers"
+    )
+    parser.add_argument(
+        "--device", default="cuda", type=str, help="Device (cuda or cpu)"
+    )
+    parser.add_argument("--print-freq", default=10, type=int, help="Print frequency")
+    args, unknown = parser.parse_known_args()  # Ignore unknown args from main script
+
+    # Get swept parameters from wandb.config
+    wandb.init()
+    config = wandb.config
+
+    # Set run name to match save_name pattern (from wandb.md recommendation)
+    config_keys = [
+        "model",
+        "dataset",
+        "lr",
+        "weight_decay",
+        "label_smoothing",
+        "improvement_threshold",
+        "pai_forward_function",
+    ]
+    name_parts = [f"{k}_{config.get(k, 'default')}" for k in config_keys if k in config]
+    if name_parts:
+        wandb.run.name = "_".join(name_parts)
+
+    # Set args from sweep config
+    args.model = config.model
+    args.dataset = config.dataset
+    args.lr = config.lr
+    args.weight_decay = config.weight_decay
+    args.label_smoothing = config.label_smoothing
+
+    # Apply dataset-specific defaults for non-swept parameters
+    dataset_config = get_dataset_config(args.dataset)
+    args.batch_size = dataset_config.get("batch_size", 32)
+    args.epochs = dataset_config.get("epochs", 50)
+    args.lr_warmup_epochs = dataset_config.get("lr_warmup_epochs", 5)
+
+    print(f"\n{'='*80}")
+    print(f"WandB Sweep Run Configuration")
+    print(f"{'='*80}")
+    print(f"Model: {args.model}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Learning rate: {args.lr}")
+    print(f"Weight decay: {args.weight_decay}")
+    print(f"Label smoothing: {args.label_smoothing}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"{'='*80}\n")
+
+    # Load dataset
+    train_loader, test_loader, num_classes = load_dataset(
+        args.dataset, args.data_path, args.batch_size, args.workers
+    )
+
+    # Train
+    best_acc1, best_epoch, model = train_single_run(
+        args, train_loader, test_loader, num_classes
+    )
+
+    # Measure inference latency
+    device = torch.device(args.device)
+    latency_results = measure_inference_latency(model, test_loader, device)
+
+    # Count parameters
+    param_count = sum(p.numel() for p in model.parameters())
+
+    # Log final results - using wandb.md recommended naming
+    wandb.log(
+        {
+            "Final Max Val": best_acc1,
+            "Final Max Test": best_acc1,  # For transfer learning, val=test
+            "Final Param Count": param_count,
+            "best_epoch": best_epoch,
+            "fps": latency_results["fps"],
+            "mean_latency_ms": latency_results["mean_latency_ms"],
+            "p95_latency_ms": latency_results["p95_latency_ms"],
+        }
+    )
+
+    print(f"\n{'='*80}")
+    print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
+    print(f"{'='*80}\n")
+
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Train ResNet models with WandB sweep support"
+    )
+    parser.add_argument(
+        "--sweep-dataset",
+        type=str,
+        choices=["flowers102", "pets", "food101"],
+        help="Initialize and run WandB sweep for this dataset",
+    )
+    parser.add_argument(
+        "--sweep-id",
+        type=str,
+        help="Join an existing sweep by ID (use 'main' to initialize new sweep with --sweep-dataset)",
+    )
+    parser.add_argument(
+        "--sweep-count",
+        type=int,
+        default=100,
+        help="Number of runs for sweep agent (default: 100)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=[
+            "resnet-18-perforated-cascor-pretrained",
+            "resnet-18-perforated-cascor-fc",
+            "resnet-18-perforated-cascor-pre-fc",
+            "resnet-34",
+        ],
+        help="Model to train (required for single runs)",
+    )
+    parser.add_argument(
+        "--dataset",
+        default="flowers102",
+        type=str,
+        choices=["flowers102", "pets", "food101", "cifar100", "stl10"],
+        help="Dataset to train on (default: flowers102)",
+    )
+    parser.add_argument("--data-path", default="./data", type=str, help="Dataset path")
+    parser.add_argument(
+        "--batch-size",
+        default=None,
+        type=int,
+        help="Batch size (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--epochs",
+        default=None,
+        type=int,
+        help="Number of epochs (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--lr",
+        default=None,
+        type=float,
+        help="Learning rate (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--lr-warmup-epochs",
+        default=None,
+        type=int,
+        help="Number of warmup epochs (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--label-smoothing",
+        default=None,
+        type=float,
+        help="Label smoothing (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--weight-decay",
+        default=None,
+        type=float,
+        help="Weight decay (default: dataset-specific)",
+    )
+    parser.add_argument(
+        "--workers", default=16, type=int, help="Number of data loading workers"
+    )
+    parser.add_argument(
+        "--device", default="cuda", type=str, help="Device (cuda or cpu)"
+    )
+    parser.add_argument("--print-freq", default=10, type=int, help="Print frequency")
+    parser.add_argument(
+        "--use-wandb", action="store_true", help="Use Weights & Biases for logging"
+    )
+    parser.add_argument(
+        "--wandb-project",
+        default="resnet-transfer-learning",
+        type=str,
+        help="WandB project name",
+    )
+
+    args = parser.parse_args()
+
+    # Sweep mode: Initialize new sweep or join existing sweep
+    if args.sweep_dataset or args.sweep_id:
+        if args.sweep_id and args.sweep_id != "main":
+            # Join existing sweep
+            print(f"\n{'='*80}")
+            print(f"Joining existing WandB sweep: {args.sweep_id}")
+            print(f"{'='*80}\n")
+
+            wandb.agent(
+                args.sweep_id,
+                function=train_with_wandb,
+                count=args.sweep_count,
+                project=args.wandb_project,
+            )
+
+            print(f"\n{'='*80}")
+            print(f"Sweep agent complete! View results at: https://wandb.ai")
+            print(f"{'='*80}\n")
+            return
+        elif args.sweep_dataset:
+            # Initialize new sweep
+            print(f"\n{'='*80}")
+            print(f"Initializing WandB sweep for {args.sweep_dataset}")
+            print(f"{'='*80}\n")
+
+            sweep_config = get_sweep_config(args.sweep_dataset)
+            sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
+
+            print(f"Sweep initialized: {sweep_id}")
+            print(f"\nTo join this sweep from other machines, run:")
+            print(f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id}")
+            print(f"\nStarting sweep agent (count={args.sweep_count})...\n")
+
+            wandb.agent(sweep_id, function=train_with_wandb, count=args.sweep_count)
+
+            print(f"\n{'='*80}")
+            print(f"Sweep complete! View results at: https://wandb.ai")
+            print(f"{'='*80}\n")
+            return
+        else:
+            parser.error("--sweep-dataset is required when using --sweep-id main")
+
+    # Single run mode: Require --model argument
+    if not args.model:
+        parser.error(
+            "--model is required for single training runs (or use --sweep-dataset for sweeps)"
+        )
+
+    # Single run mode continues here
+    # Apply dataset-specific defaults if not explicitly set
+    config = get_dataset_config(args.dataset)
+
+    if args.batch_size is None:
+        args.batch_size = config.get("batch_size", 32)
+    if args.epochs is None:
+        args.epochs = config.get("epochs", 50)
+    if args.lr is None:
+        args.lr = config.get("lr", 0.001)
+    if args.lr_warmup_epochs is None:
+        args.lr_warmup_epochs = config.get("lr_warmup_epochs", 5)
+    if args.label_smoothing is None:
+        args.label_smoothing = config.get("label_smoothing", 0.1)
+    if args.weight_decay is None:
+        args.weight_decay = config.get("weight_decay", 1e-4)
+
+    # Initialize WandB if requested or if running in sweep
+    if args.use_wandb or wandb.run is not None:
+        if wandb.run is None:
+            wandb.init(
+                project=args.wandb_project,
+                config={
+                    "model": args.model,
+                    "dataset": args.dataset,
+                    "epochs": args.epochs,
+                    "batch_size": args.batch_size,
+                    "lr": args.lr,
+                    "lr_warmup_epochs": args.lr_warmup_epochs,
+                    "label_smoothing": args.label_smoothing,
+                    "weight_decay": args.weight_decay,
+                },
+            )
+        # Update args from wandb config if in sweep
+        if wandb.config:
+            for key in ["model", "lr", "weight_decay", "label_smoothing"]:
+                if key in wandb.config:
+                    setattr(args, key, wandb.config[key])
+
+    print(f"\n{'='*80}")
+    print(f"Training Configuration")
+    print(f"{'='*80}")
+    print(f"Model: {args.model}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Learning rate: {args.lr}")
+    print(f"Weight decay: {args.weight_decay}")
+    print(f"LR warmup epochs: {args.lr_warmup_epochs}")
+    print(f"Label smoothing: {args.label_smoothing}")
+    print(f"Device: {args.device}")
+    print(f"{'='*80}\n")
+
+    # Load dataset
+    train_loader, test_loader, num_classes = load_dataset(
+        args.dataset, args.data_path, args.batch_size, args.workers
+    )
+
+    # Run single training trial
+    print(f"\n{'='*80}")
+    print(f"STARTING TRAINING")
+    print(f"{'='*80}\n")
+
+    best_acc1, best_epoch, model = train_single_run(
+        args, train_loader, test_loader, num_classes
+    )
+
+    print(f"\n{'='*80}")
+    print(f"TRAINING COMPLETE - Best Acc@1: {best_acc1:.3f}, Best Epoch: {best_epoch}")
+    print(f"{'='*80}\n")
+
+    # Measure inference latency
+    device = torch.device(args.device)
+    latency_results = measure_inference_latency(model, test_loader, device)
+
+    # Log final results to WandB - using wandb.md recommended naming
+    if wandb.run is not None:
+        param_count = sum(p.numel() for p in model.parameters())
+        wandb.log(
+            {
+                "Final Max Val": best_acc1,
+                "Final Max Test": best_acc1,  # For transfer learning, val=test
+                "Final Param Count": param_count,
+                "final_best_epoch": best_epoch,
+                "fps": latency_results["fps"],
+                "mean_latency_ms": latency_results["mean_latency_ms"],
+                "p95_latency_ms": latency_results["p95_latency_ms"],
+            }
+        )
+        wandb.finish()
+
+    # Print final results
+    print(f"\n{'='*80}")
+    print(f"FINAL RESULTS")
+    print(f"{'='*80}")
+    print(f"Model: {args.model}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Best Acc@1: {best_acc1:.3f}%")
+    print(f"Best Epoch: {best_epoch}")
+    print(f"FPS: {latency_results['fps']:.2f}")
+    print(f"Mean Latency: {latency_results['mean_latency_ms']:.2f}ms")
+    print(f"P95 Latency: {latency_results['p95_latency_ms']:.2f}ms")
+    print(f"{'='*80}\n")
+
+
+if __name__ == "__main__":
+    main()
