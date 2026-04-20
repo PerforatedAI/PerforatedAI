@@ -479,7 +479,6 @@ def load_model(model_name, num_classes, perforate=False):
         # Wrap in ResNetPAI (adds pre_fc layer)
         model = ResNetPAI(base_model)
 
-
         # Replace fc layer BEFORE perforation (pre_fc is perforated, not fc)
         if perforate:
             in_features = model.fc.in_features
@@ -557,7 +556,7 @@ def load_model(model_name, num_classes, perforate=False):
             print(
                 f"Model perforated successfully (pre_fc layer only) - save_name: {save_name}"
             )
-                # Load pretrained pre-fc weights from local folder (if exists)
+            # Load pretrained pre-fc weights from local folder (if exists)
         pretrained_folder = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
         if os.path.exists(pretrained_folder):
             model = UPA.load_system(model, pretrained_folder, "beforeSwitch_0")
@@ -568,7 +567,6 @@ def load_model(model_name, num_classes, perforate=False):
             print(
                 f"Pretrained folder {pretrained_folder} not found, using base ImageNet weights"
             )
-
 
     elif model_name == "resnet-34":
         # Load torchvision ResNet-34 with pretrained ImageNet weights
@@ -648,6 +646,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     else:
         lr_scheduler = main_lr_scheduler
 
+    # Determine dendrite count for non-perforated models
+    dendrite_count_override = None
+    if args.model == "resnet-18-perforated-cascor-pretrained":
+        dendrite_count_override = 2
+    elif args.model == "resnet-34":
+        dendrite_count_override = 0
+
     # Training loop
     print("\nStarting training...")
     start_time = time.time()
@@ -720,13 +725,23 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             )
             model = model.to(device)
 
-            # Log arch max when dendrites are added
-            if restructured:
+            # Log arch max when dendrites are added (but not if training is complete)
+            if restructured and not training_complete:
                 if GPA.pai_tracker.member_vars["mode"] == "n" and (
                     dendrite_count != GPA.pai_tracker.member_vars["num_dendrites_added"]
                 ):
                     dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
                     if hasattr(wandb, "run") and wandb.run is not None:
+                        # Debug: break if any score is 0
+                        if (
+                            max_val == 0
+                            or max_test == 0
+                            or max_train == 0
+                            or max_params == 0
+                        ):
+                            import pdb
+
+                            pdb.set_trace()
                         wandb.log(
                             {
                                 "Arch Max Val": max_val,
@@ -777,19 +792,34 @@ def train_single_run(args, train_loader, test_loader, num_classes):
 
             if training_complete:
                 print("PAI training complete!")
-                # Log final arch max
+                # Log final arch max and final max
                 if hasattr(wandb, "run") and wandb.run is not None:
-                    wandb.log(
-                        {
-                            "Arch Max Val": max_val,
-                            "Arch Max Test": max_test,
-                            "Arch Max Train": max_train,
-                            "Arch Param Count": max_params,
-                            "Arch Dendrite Count": GPA.pai_tracker.member_vars[
-                                "num_dendrites_added"
-                            ],
-                        }
-                    )
+                    # Only log Arch Max if dendrite count changed (successful dendrite, not deletion)
+                    if (
+                        GPA.pai_tracker.member_vars["num_dendrites_added"]
+                        != dendrite_count
+                    ):
+                        # Debug: break if any score is 0
+                        if (
+                            max_val == 0
+                            or max_test == 0
+                            or max_train == 0
+                            or max_params == 0
+                        ):
+                            import pdb
+
+                            pdb.set_trace()
+                        wandb.log(
+                            {
+                                "Arch Max Val": max_val,
+                                "Arch Max Test": max_test,
+                                "Arch Max Train": max_train,
+                                "Arch Param Count": max_params,
+                                "Arch Dendrite Count": GPA.pai_tracker.member_vars[
+                                    "num_dendrites_added"
+                                ],
+                            }
+                        )
                     wandb.log(
                         {
                             "Final Max Val": global_max_val,
@@ -804,6 +834,8 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 break
     else:
         # Non-perforated training loop
+        best_train = 0.0  # Track training accuracy when best val is achieved
+
         for epoch in range(args.epochs):
             train_acc1, train_loss = train_one_epoch(
                 model,
@@ -817,9 +849,10 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             lr_scheduler.step()
             test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
 
-            # Track best accuracy
+            # Track best accuracy and corresponding training accuracy
             if test_acc1 > best_acc1:
                 best_acc1 = test_acc1
+                best_train = train_acc1
                 best_epoch = epoch + 1
 
             # Log to WandB if initialized - using wandb.md recommended naming
@@ -833,6 +866,11 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         "ValLoss": test_loss,
                         "TestAcc": test_acc1,  # For transfer learning, val=test
                         "Param Count": param_count,
+                        "Dendrite Count": (
+                            dendrite_count_override
+                            if dendrite_count_override is not None
+                            else 0
+                        ),
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
@@ -841,15 +879,31 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 f"Epoch {epoch+1}/{args.epochs} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}"
             )
 
-        # Log final results for non-perforated models only
+        # Log final results for non-perforated models
         if hasattr(wandb, "run") and wandb.run is not None:
+            # For non-perforated models, Arch scores = Final scores (no restructuring)
+            final_dendrite_count = (
+                dendrite_count_override if dendrite_count_override is not None else 0
+            )
+
+            # Log Arch Max scores
+            wandb.log(
+                {
+                    "Arch Max Val": best_acc1,
+                    "Arch Max Test": best_acc1,
+                    "Arch Max Train": best_train,
+                    "Arch Param Count": param_count,
+                    "Arch Dendrite Count": final_dendrite_count,
+                }
+            )
+            # Log Final Max scores
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
                     "Final Max Test": best_acc1,
-                    "Final Max Train": train_acc1,  # Last epoch's training acc
+                    "Final Max Train": best_train,
                     "Final Param Count": param_count,
-                    "Final Dendrite Count": 0,  # Non-perforated models have 0 dendrites
+                    "Final Dendrite Count": final_dendrite_count,
                 }
             )
 
@@ -859,6 +913,24 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     print(f"Best Test Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
 
     return best_acc1, best_epoch, model
+
+
+def get_model_name_from_index(model_index):
+    """Map model index to model name for WandB color coding.
+
+    Args:
+        model_index: Integer from 0-3
+
+    Returns:
+        Model name string
+    """
+    model_mapping = {
+        0: "resnet-18-perforated-cascor-pretrained",
+        1: "resnet-18-perforated-cascor-fc",
+        2: "resnet-18-perforated-cascor-pre-fc",
+        3: "resnet-34",
+    }
+    return model_mapping[model_index]
 
 
 def get_sweep_config(dataset_name):
@@ -872,14 +944,9 @@ def get_sweep_config(dataset_name):
         # Small dataset - use all 4 models, higher regularization
         base_config["parameters"] = {
             "dataset": {"value": "flowers102"},
-            "model": {
-                "values": [
-                    "resnet-18-perforated-cascor-pretrained",
-                    "resnet-18-perforated-cascor-fc",
-                    "resnet-18-perforated-cascor-pre-fc",
-                    "resnet-34",
-                ]
-            },
+            "model_index": {
+                "values": [0, 1, 2, 3]
+            },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
             "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
             "label_smoothing": {"values": [0.05, 0.1, 0.15]},
@@ -892,14 +959,9 @@ def get_sweep_config(dataset_name):
         # Medium dataset - all 4 models, broader LR range
         base_config["parameters"] = {
             "dataset": {"value": "pets"},
-            "model": {
-                "values": [
-                    "resnet-18-perforated-cascor-pretrained",
-                    "resnet-18-perforated-cascor-fc",
-                    "resnet-18-perforated-cascor-pre-fc",
-                    "resnet-34",
-                ]
-            },
+            "model_index": {
+                "values": [0, 1, 2, 3]
+            },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
@@ -912,14 +974,9 @@ def get_sweep_config(dataset_name):
         # Larger dataset - all 4 models, can handle higher LR
         base_config["parameters"] = {
             "dataset": {"value": "food101"},
-            "model": {
-                "values": [
-                    "resnet-18-perforated-cascor-pretrained",
-                    "resnet-18-perforated-cascor-fc",
-                    "resnet-18-perforated-cascor-pre-fc",
-                    "resnet-34",
-                ]
-            },
+            "model_index": {
+                "values": [0, 1, 2, 3]
+            },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "label_smoothing": {"values": [0.0, 0.05]},
@@ -950,13 +1007,16 @@ def train_with_wandb():
     parser.add_argument("--print-freq", default=10, type=int, help="Print frequency")
     args, unknown = parser.parse_known_args()  # Ignore unknown args from main script
 
-    # Get swept parameters from wandb.config
+    # Initialize wandb (project is inherited from sweep context)
     wandb.init()
     config = wandb.config
 
+    # Map model_index to model name
+    model_name = get_model_name_from_index(config.model_index)
+
     # Set run name to match save_name pattern (from wandb.md recommendation)
     config_keys = [
-        "model",
+        "model_index",
         "dataset",
         "lr",
         "weight_decay",
@@ -969,7 +1029,7 @@ def train_with_wandb():
         wandb.run.name = "_".join(name_parts)
 
     # Set args from sweep config
-    args.model = config.model
+    args.model = model_name
     args.dataset = config.dataset
     args.lr = config.lr
     args.weight_decay = config.weight_decay
@@ -1151,14 +1211,24 @@ def main():
             print(f"{'='*80}\n")
 
             sweep_config = get_sweep_config(args.sweep_dataset)
-            sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
+            project_name = args.sweep_dataset  # Use dataset name as project
+            sweep_id = wandb.sweep(sweep_config, project=project_name)
 
             print(f"Sweep initialized: {sweep_id}")
+            print(f"Project: {project_name}")
+            print(f"View at: https://wandb.ai")
             print(f"\nTo join this sweep from other machines, run:")
-            print(f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id}")
+            print(
+                f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id} --wandb-project {project_name}"
+            )
             print(f"\nStarting sweep agent (count={args.sweep_count})...\n")
 
-            wandb.agent(sweep_id, function=train_with_wandb, count=args.sweep_count)
+            wandb.agent(
+                sweep_id,
+                function=train_with_wandb,
+                count=args.sweep_count,
+                project=project_name,
+            )
 
             print(f"\n{'='*80}")
             print(f"Sweep complete! View results at: https://wandb.ai")
