@@ -108,7 +108,7 @@ PAI works with many popular architectures and frameworks. Check out our [Example
 - **[TD3 Reinforcement Learning](https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah)** - TD3 with dendrites for continuous control
 
 ## Advanced Examples
-- **[ImageNet ResNet-18](./Examples/imagenet)** - ResNet-18 with dendritic optimization ([Pretrained Model on Hugging Face](https://huggingface.co/perforated-ai/resnet-18-perforated))
+- **[ImageNet ResNet-18](./Examples/imagenet)** - ResNet-18 with dendritic optimization ([Pretrained Model on Hugging Face](https://huggingface.co/perforated-ai/resnet-18-perforated-gd))
 - **[Edge Impulse Block]([./Examples/hackathonProjects/example-custom-ml-block-pytorch)** - across 800 hyperparameter sweeps dendritic models consistently smarter with any given parameter count on keyword spotting in audio for edge deployment 
 
 ## Framework Integration
