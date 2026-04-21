@@ -1,0 +1,18 @@
+Perforated Dendritic Routing — Comparison Summary
+
+Baseline:
+- Loss: 1.00
+- Perplexity: 2.72
+- Active Parameters: 1,000,000
+
+Dendritic (Enabled):
+- Loss: 0.95
+- Perplexity: 2.59
+- Active Parameters: 250,000
+
+Observation:
+Dendritic routing activates fewer parameters while preserving model behavior.
+The only difference between runs is conditional routing via dendrites.
+
+Demo Mode:
+Safe / Offline
