@@ -88,18 +88,17 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 "from JSON config files or the GUI"
             )
         setattr(self, private_name, value)
-        # Auto-save: if a config file has been configured (set at end of __init__),
+        # Auto-save: if a config file has been configured (set when save_name is set),
         # persist the new value immediately so the JSON stays in sync.
         config_file = self.__dict__.get("_config_file")
-        # Special case: if save_name changed, update the config file path
-        if var_name == "save_name" and config_file:
+        # Special case: if save_name changed to non-empty, update config file path
+        if var_name == "save_name" and value:
             import os as _os
 
             _save_folder = _os.path.join(_os.getcwd(), value)
             config_file = _os.path.join(_save_folder, f"{value}_config.json")
             self.__dict__["_config_file"] = config_file
-            _os.makedirs(_save_folder, exist_ok=True)
-        if config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
+        elif config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
             self.save_config(config_file)
 
     def appender(self, value):
@@ -497,7 +496,7 @@ class PAIConfig:
             add_pai_config_var_functions(self, "device", self.device)
 
             # User should never set this manually
-            self.save_name = "PAI"
+            self.save_name = ""
             add_pai_config_var_functions(self, "save_name", self.save_name)
 
             # Debug settings
@@ -886,26 +885,9 @@ class PAIConfig:
         )
 
         # ------------------------------------------------------------------
-        # Auto-load or auto-save {save_name}_config.json in the {save_name} folder
+        # Config file will be set when save_name is assigned (in perforate_model)
         # ------------------------------------------------------------------
-        import os as _os
-
-        _save_name = self.__dict__.get("_save_name", "PAI")
-        _save_folder = _os.path.join(_os.getcwd(), _save_name)
-        _default_path = _os.path.join(_save_folder, f"{_save_name}_config.json")
-        if _os.path.exists(_default_path):
-            self.load_config(
-                _default_path,
-                module_name=module_name,
-                module_type=self.__dict__.get("_module_type"),
-            )
-        elif (not module_name) and not self.__dict__.get(
-            "_testing_dendrite_capacity", False
-        ):
-            _os.makedirs(_save_folder, exist_ok=True)  # Create folder if needed
-            self.save_config(_default_path)
-        # Enable auto-save-on-set from this point forward
-        self.__dict__["_config_file"] = _default_path
+        # _config_file stays None until save_name is set to a non-empty value
 
     # ------------------------------------------------------------------
 

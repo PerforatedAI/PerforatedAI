@@ -167,6 +167,13 @@ If you get this error in setupOptimizer it means you called setupOptimizer but y
 
 This means there is a module that was not properly handled during the call to perforate_model.  Is is generally one of two things.  First, confirm that all of your module are either tracked or perforated.  Second, confirm that you are not changing anything about the model definition after perforate_model.  For example, if you are doing transfer learning and replacing your fc layer, make sure to replace it before the call to perforate_model.
 
+        optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optimArgs, None)
+            ^^^^^^^^^^^^
+        TypeError: cannot unpack non-iterable _____ object
+
+Coding assistants will sometimes call setup_optimizer like this when there is not a scheduler.  When there is not a scheduler, only optimizer is returned. You don't ignore the second return variable, there isn't one.  So delete that _ or python will try to unpack your optimizer into two values.
+
+
 
 ## Optimizer Loop Error
 

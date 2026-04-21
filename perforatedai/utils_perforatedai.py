@@ -99,6 +99,12 @@ def perforate_model(
         values_per_val_epoch=values_per_val_epoch,
         zooming_graph=zooming_graph,
     )
+    
+    # Save config after perforation
+    if not GPA.pc.get_testing_dendrite_capacity():
+        import os
+        GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
+    
     return model
 
 

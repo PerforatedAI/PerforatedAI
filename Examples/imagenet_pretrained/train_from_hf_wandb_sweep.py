@@ -662,15 +662,14 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     # For perforated models: arch logging variables
     if perforate:
         from perforatedai import globals_perforatedai as GPA
+        from perforatedai import utils_perforatedai as UPA
 
-        dendrite_count = 0
+        last_logged_integrated = -1  # Track last num_dendrites_integrated we logged (-1 = nothing logged yet)
         max_val = 0
         max_train = 0
-        max_test = 0
         max_params = 0
         global_max_val = 0
         global_max_train = 0
-        global_max_test = 0
         global_max_params = 0
 
         # Setup optimizer for PAI
@@ -703,14 +702,12 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             # Track best accuracy for this architecture
             if test_acc1 > max_val:
                 max_val = test_acc1
-                max_test = test_acc1
                 max_train = train_acc1
                 max_params = sum(p.numel() for p in model.parameters())
 
             # Track global best
             if test_acc1 > global_max_val:
                 global_max_val = test_acc1
-                global_max_test = test_acc1
                 global_max_train = train_acc1
                 global_max_params = sum(p.numel() for p in model.parameters())
 
@@ -725,39 +722,37 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             )
             model = model.to(device)
 
-            # Log arch max when dendrites are added (but not if training is complete)
+            # Log arch max when dendrites are successfully integrated (or first switch for base model)
             if restructured and not training_complete:
-                if GPA.pai_tracker.member_vars["mode"] == "n" and (
-                    dendrite_count != GPA.pai_tracker.member_vars["num_dendrites_added"]
-                ):
-                    dendrite_count = GPA.pai_tracker.member_vars["num_dendrites_added"]
+                current_integrated = GPA.pai_tracker.member_vars["num_dendrites_integrated"]
+                # Log if integrated increased (starting from -1 handles base model case)
+                if current_integrated > last_logged_integrated:
                     if hasattr(wandb, "run") and wandb.run is not None:
-                        # Debug: break if any score is 0
-                        if (
-                            max_val == 0
-                            or max_test == 0
-                            or max_train == 0
-                            or max_params == 0
-                        ):
-                            import pdb
-
-                            pdb.set_trace()
+                        # Debug prints
+                        print(f"DEBUG: Logging arch scores for dendrite count {current_integrated}")
+                        print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
+                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                        
                         wandb.log(
                             {
                                 "Arch Max Val": max_val,
-                                "Arch Max Test": max_test,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
-                                "Arch Dendrite Count": GPA.pai_tracker.member_vars[
-                                    "num_dendrites_added"
-                                ]
-                                - 1,
+                                "Arch Dendrite Count": current_integrated,
                             }
                         )
+                    last_logged_integrated = current_integrated
                     max_val = 0  # Reset for next arch
                     max_train = 0
-                    max_test = 0
                     max_params = 0
+                else:
+                    # Debug: why didn't we log?
+                    print(f"DEBUG: NOT logging arch scores")
+                    print(f"  current_integrated: {current_integrated}, last_logged_integrated: {last_logged_integrated}")
+                    print(f"  num_dendrites_added: {GPA.pai_tracker.member_vars['num_dendrites_added']}")
+                    print(f"  mode: {GPA.pai_tracker.member_vars['mode']}")
+                    print(f"  current_n_set_global_best: {GPA.pai_tracker.member_vars['current_n_set_global_best']}")
+                    print(f"  Max val: {max_val}, Max train: {max_train}")
 
                 # Reinitialize optimizer after restructuring
                 optimArgs = {
@@ -767,6 +762,12 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     "weight_decay": args.weight_decay,
                 }
                 optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+            else:
+                # Debug: why didn't restructure trigger?
+                if not restructured:
+                    print(f"DEBUG: No restructure - restructured={restructured}")
+                elif training_complete:
+                    print(f"DEBUG: Training complete - handling in separate block")
 
             # Log to WandB - using wandb.md recommended naming
             if hasattr(wandb, "run") and wandb.run is not None:
@@ -787,47 +788,46 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 )
 
             print(
-                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Dendrites: {GPA.pai_tracker.member_vars['num_dendrites_added']}"
+                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, "
+                f"Dendrites added: {GPA.pai_tracker.member_vars['num_dendrites_added']}, "
+                f"Integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}"
             )
 
             if training_complete:
                 print("PAI training complete!")
                 # Log final arch max and final max
                 if hasattr(wandb, "run") and wandb.run is not None:
-                    # Only log Arch Max if dendrite count changed (successful dendrite, not deletion)
-                    if (
-                        GPA.pai_tracker.member_vars["num_dendrites_added"]
-                        != dendrite_count
-                    ):
-                        # Debug: break if any score is 0
-                        if (
-                            max_val == 0
-                            or max_test == 0
-                            or max_train == 0
-                            or max_params == 0
-                        ):
-                            import pdb
-
-                            pdb.set_trace()
+                    # Log final arch if integrated count increased (max dendrites hit with successful last dendrite)
+                    current_integrated = GPA.pai_tracker.member_vars["num_dendrites_integrated"]
+                    if current_integrated > last_logged_integrated:
+                        # Debug prints
+                        print(f"DEBUG: Logging final arch scores for dendrite count {current_integrated}")
+                        print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
+                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                        
                         wandb.log(
                             {
                                 "Arch Max Val": max_val,
-                                "Arch Max Test": max_test,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
-                                "Arch Dendrite Count": GPA.pai_tracker.member_vars[
-                                    "num_dendrites_added"
-                                ],
+                                "Arch Dendrite Count": current_integrated,
                             }
                         )
+                    else:
+                        # Debug: why didn't we log final arch?
+                        print(f"DEBUG: NOT logging final arch scores")
+                        print(f"  current_integrated: {current_integrated}, last_logged_integrated: {last_logged_integrated}")
+                        print(f"  num_dendrites_added: {GPA.pai_tracker.member_vars['num_dendrites_added']}")
+                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                    
+                    # Always log Final Max scores
                     wandb.log(
                         {
                             "Final Max Val": global_max_val,
-                            "Final Max Test": global_max_test,
                             "Final Max Train": global_max_train,
                             "Final Param Count": global_max_params,
                             "Final Dendrite Count": GPA.pai_tracker.member_vars[
-                                "num_dendrites_added"
+                                "num_dendrites_integrated"
                             ],
                         }
                     )
@@ -890,7 +890,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             wandb.log(
                 {
                     "Arch Max Val": best_acc1,
-                    "Arch Max Test": best_acc1,
                     "Arch Max Train": best_train,
                     "Arch Param Count": param_count,
                     "Arch Dendrite Count": final_dendrite_count,
@@ -900,7 +899,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
-                    "Final Max Test": best_acc1,
                     "Final Max Train": best_train,
                     "Final Param Count": param_count,
                     "Final Dendrite Count": final_dendrite_count,
@@ -1010,6 +1008,10 @@ def train_with_wandb():
     # Initialize wandb (project is inherited from sweep context)
     wandb.init()
     config = wandb.config
+
+    # Override wandb sweep's silent mode (wandb.agent sets this to True)
+    from perforatedai import globals_perforatedai as GPA
+    GPA.pc.set_silent(False)
 
     # Map model_index to model name
     model_name = get_model_name_from_index(config.model_index)

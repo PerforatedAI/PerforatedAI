@@ -975,6 +975,10 @@ class PAINeuronModuleTracker:
         self.member_vars["num_dendrites_added"] = 0
         self.member_var_types["num_dendrites_added"] = "int"
 
+        # How many Dendrites have been successfully integrated (kept)
+        self.member_vars["num_dendrites_integrated"] = 0
+        self.member_var_types["num_dendrites_integrated"] = "int"
+
         # How many cycles have been run, *2 or *2+1 of the above
         self.member_vars["num_cycles"] = 0
         self.member_var_types["num_cycles"] = "int"
@@ -2156,6 +2160,12 @@ class PAINeuronModuleTracker:
 
         GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
         GPA.pai_tracker.member_vars["num_cycles"] += 1
+        # Increment integrated if we have dendrites (means they're integrated)
+        if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+            GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+            if not GPA.pc.get_silent():
+                print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+
 
     def set_neuron_training(self):
         """Signal all layers to start neuron training."""
@@ -3298,6 +3308,7 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["num_dendrites_added"]},'
                         f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]},'
                     )
+                import pdb; pdb.set_trace
                 # If the max number of dendrites has been hit or not doing pai and adding dendtites
                 # then return rather than adding more
                 if (
@@ -3312,6 +3323,11 @@ class PAINeuronModuleTracker:
                             "Max dendrites reached or not doing PAI, finishing training"
                         )
                     net = process_final_network(net)
+                    # Increment integrated if we have dendrites (means they're integrated)
+                    if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+                        GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+                        if not GPA.pc.get_silent():
+                            print(f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
                     return net, True, True
 
                 # Otherwise if its neuron training mode reset the counter of failed dendrites

@@ -304,6 +304,24 @@ GPA.pc.set_output_dimensions([...])  # Based on your tensor shape
 
 Explain your reasoning for each choice based on what you saw in their model when you make the change.
 
+#### Important: Module ID Naming Convention
+
+🚨 **CRITICAL:** When using `set_module_ids_to_track()` or `append_module_ids_to_track()`, all module IDs **MUST start with a "." (dot)**.
+
+**Correct:**
+```python
+GPA.pc.set_module_ids_to_track([".layer1", ".conv1", ".bn1", ".output_projection"])
+GPA.pc.append_module_ids_to_track([".layer2", ".fc"])
+```
+
+**Incorrect (will not work):**
+```python
+GPA.pc.set_module_ids_to_track(["layer1", "conv1", "bn1"])  # ❌ Missing dots
+GPA.pc.append_module_ids_to_track(["layer2", "fc"])  # ❌ Missing dots
+```
+
+The dot prefix is required because PAI uses these as substring matches against the full module path. For example, ".layer1" will match modules like "model.layer1.conv1", "model.layer1.0.bn1", etc.
+
 **→ Next: Proceed to Step 4.**
 
 ---
@@ -516,7 +534,7 @@ if training_complete:
     print("PAI training complete!")
     break
 
-elif restructured:
+elif restructured and not training_complete:
     # Model was restructured (dendrites added/incorporated)
     # Reinitialize optimizer with EXACT SAME settings from Step 5
     # Example: if Step 5 used Adadelta with StepLR:
@@ -546,7 +564,7 @@ if training_complete:
     print("PAI training complete!")
     break
 
-elif restructured:
+elif restructured and not training_complete:
     # Model was restructured - reinitialize optimizer exactly as they had it
     # Copy their ENTIRE original optimizer setup (including any complex initialization)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Their exact setup
