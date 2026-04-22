@@ -402,7 +402,7 @@ Based on `Best_PBScores.csv` analysis and model size considerations:
   - Focus all dendrite capacity on the modules that actually benefit
 
 **Parameter count visibility:**
-- Count parameters before and after: `sum(p.numel() for p in model.parameters())`
+- Count parameters before and after: `UPA.count_params(model)`
 - Check `Best_PBScores.csv` to see dendrite distribution across layers
 - Calculate efficiency ratio: `(accuracy_gain / parameter_increase) × 100`
 

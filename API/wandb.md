@@ -167,7 +167,7 @@ Log training progress and metrics to WandB throughout training:
             "ValAcc": val_acc,
             "ValLoss": val_loss,
             "TestAcc": test_acc,  # Often same as ValAcc for transfer learning
-            "Param Count": sum(p.numel() for p in model.parameters()),
+            "Param Count": UPA.count_params(model),
             "Dendrite Count": GPA.pai_tracker.member_vars["num_dendrites_added"],
             "lr": optimizer.param_groups[0]["lr"],
         })
@@ -195,13 +195,13 @@ not when `num_dendrites_added` increases (since added dendrites may not be succe
     if current_mode == "n" and val_acc > max_val:
         max_val = val_acc
         max_train = train_acc
-        max_params = sum(p.numel() for p in model.parameters())
+        max_params = UPA.count_params(model)
     
     # Track global best (only during neuron training)
     if current_mode == "n" and val_acc > global_max_val:
         global_max_val = val_acc
         global_max_train = train_acc
-        global_max_params = sum(p.numel() for p in model.parameters())
+        global_max_params = UPA.count_params(model)
     
     # After add_validation_score
     model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)

@@ -1424,13 +1424,14 @@ def deep_copy_pai(net):
     This is required because processors must be cleared before calling copy
 
     """
-
-    # Clear gradients before saving the model
-    if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and (
-        GPA.pai_tracker.member_vars["optimizer_instance"] != []
-    ):
-        GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
-    GPA.pai_tracker.clear_all_processors()
+    # Dont check this stuff if its before the perforate_model has been called and you're just copying a regular model
+    if(GPA.pai_tracker != []):
+        # Clear gradients before saving the model
+        if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and (
+            GPA.pai_tracker.member_vars["optimizer_instance"] != []
+        ):
+            GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
+        GPA.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
 
 
