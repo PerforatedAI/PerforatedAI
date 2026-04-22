@@ -619,7 +619,8 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     model = model.to(device)
 
     # Count parameters (log once at start)
-    param_count = sum(p.numel() for p in model.parameters())
+    from perforatedai import utils_perforatedai as UPA
+    param_count = UPA.count_params(model)
     print(f"Model parameters: {param_count:,}")
 
     # Setup training
@@ -704,13 +705,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             if current_mode == "n" and test_acc1 > max_val:
                 max_val = test_acc1
                 max_train = train_acc1
-                max_params = sum(p.numel() for p in model.parameters())
+                max_params = UPA.count_params(model)
 
             # Track global best (only during neuron training)
             if current_mode == "n" and test_acc1 > global_max_val:
                 global_max_val = test_acc1
                 global_max_train = train_acc1
-                global_max_params = sum(p.numel() for p in model.parameters())
+                global_max_params = UPA.count_params(model)
 
             # Track best for return
             if test_acc1 > best_acc1:
@@ -783,7 +784,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         "ValAcc": test_acc1,
                         "ValLoss": test_loss,
                         "TestAcc": test_acc1,
-                        "Param Count": sum(p.numel() for p in model.parameters()),
+                        "Param Count": UPA.count_params(model),
                         "Dendrite Count": GPA.pai_tracker.member_vars[
                             "num_dendrites_added"
                         ],
@@ -1015,6 +1016,7 @@ def train_with_wandb():
 
     # Override wandb sweep's silent mode (wandb.agent sets this to True)
     from perforatedai import globals_perforatedai as GPA
+    from perforatedai import utils_perforatedai as UPA
     GPA.pc.set_silent(False)
 
     # Map model_index to model name
@@ -1074,7 +1076,7 @@ def train_with_wandb():
     latency_results = measure_inference_latency(model, test_loader, device)
 
     # Count parameters
-    param_count = sum(p.numel() for p in model.parameters())
+    param_count = UPA.count_params(model)
 
     # Log final results - using wandb.md recommended naming
     wandb.log(
@@ -1327,7 +1329,8 @@ def main():
 
     # Log final results to WandB - using wandb.md recommended naming
     if hasattr(wandb, "run") and wandb.run is not None:
-        param_count = sum(p.numel() for p in model.parameters())
+        from perforatedai import utils_perforatedai as UPA
+        param_count = UPA.count_params(model)
         wandb.log(
             {
                 "Final Max Val": best_acc1,
