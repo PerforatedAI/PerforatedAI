@@ -699,14 +699,15 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             )
             test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
 
-            # Track best accuracy for this architecture
-            if test_acc1 > max_val:
+            # Track best accuracy for this architecture (only during neuron training, not dendrite training)
+            current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
+            if current_mode == "n" and test_acc1 > max_val:
                 max_val = test_acc1
                 max_train = train_acc1
                 max_params = sum(p.numel() for p in model.parameters())
 
-            # Track global best
-            if test_acc1 > global_max_val:
+            # Track global best (only during neuron training)
+            if current_mode == "n" and test_acc1 > global_max_val:
                 global_max_val = test_acc1
                 global_max_train = train_acc1
                 global_max_params = sum(p.numel() for p in model.parameters())
@@ -716,6 +717,9 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_acc1 = test_acc1
                 best_epoch = epoch + 1
 
+            # Add extra scores for training metrics (must be after add_validation_score)
+            GPA.pai_tracker.add_extra_score(train_acc1, "train")
+            
             # Add validation score to PAI tracker
             model, restructured, training_complete = (
                 GPA.pai_tracker.add_validation_score(test_acc1, model)

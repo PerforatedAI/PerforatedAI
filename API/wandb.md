@@ -190,14 +190,15 @@ not when `num_dendrites_added` increases (since added dendrites may not be succe
     
     # Inside the training loop (each epoch)
     
-    # Track best for current architecture
-    if val_acc > max_val:
+    # Track best for current architecture (IMPORTANT: only during neuron training, not dendrite training)
+    current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
+    if current_mode == "n" and val_acc > max_val:
         max_val = val_acc
         max_train = train_acc
         max_params = sum(p.numel() for p in model.parameters())
     
-    # Track global best
-    if val_acc > global_max_val:
+    # Track global best (only during neuron training)
+    if current_mode == "n" and val_acc > global_max_val:
         global_max_val = val_acc
         global_max_train = train_acc
         global_max_params = sum(p.numel() for p in model.parameters())
@@ -253,6 +254,7 @@ not when `num_dendrites_added` increases (since added dendrites may not be succe
         break  # Exit training loop
 
 **Important Notes:**
+- **Only track max values during neuron training (`mode == 'n'`)**: PAI alternates between training neurons (mode 'n') and training dendrites (mode 'd'). Only neuron training performance should count toward architecture maximums, as dendrite training is for correlation learning, not final performance.
 - Use `num_dendrites_integrated` (successfully integrated dendrites) not `num_dendrites_added` (attempted dendrites) for arch logging
 - Track `last_logged_integrated` to avoid duplicate logging
 - Reset arch max trackers after logging each architecture
