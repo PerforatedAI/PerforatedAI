@@ -86,23 +86,25 @@ The modern approach uses a dedicated sweep function that WandB calls:
         parser.add_argument("--sweep-dataset", type=str, help="Initialize sweep for this dataset")
         parser.add_argument("--sweep-id", type=str, help="Join existing sweep by ID")
         parser.add_argument("--sweep-count", type=int, default=100, help="Number of runs")
+        parser.add_argument("--wandb-entity", type=str, default=None, help="WandB entity name")
         args = parser.parse_args()
         
         if args.sweep_dataset or args.sweep_id:
             if args.sweep_id:
                 # Join existing sweep
                 wandb.agent(args.sweep_id, function=train_with_wandb, 
-                           count=args.sweep_count, project="your-project")
+                           count=args.sweep_count, entity=args.wandb_entity, project="your-project")
             elif args.sweep_dataset:
                 # Initialize new sweep
                 sweep_config = get_sweep_config(args.sweep_dataset)
-                sweep_id = wandb.sweep(sweep_config, project=args.sweep_dataset)
+                sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=args.sweep_dataset)
                 print(f"Sweep initialized: {sweep_id}")
-                print(f"To join from other machines: --sweep-id {sweep_id}")
+                entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
+                print(f"To join from other machines: --sweep-id {sweep_id}{entity_arg}")
                 
                 # Start agent on this machine
                 wandb.agent(sweep_id, function=train_with_wandb, 
-                           count=args.sweep_count, project=args.sweep_dataset)
+                           count=args.sweep_count, entity=args.wandb_entity, project=args.sweep_dataset)
         else:
             # Single run mode
             # Your normal training code here
@@ -140,15 +142,11 @@ Access sweep parameters via `wandb.config`. Apply them when configuring PAI sett
 ### Retaining Perforated AI Logs
 
 When calling perforate_model, set save_name to organize dendrite test results. 
-For sweeps, include config values in the save_name to keep each run's results separate:
+For sweeps, use wandb.run.name directly to ensure save_name matches the WandB run name:
 
-    # Build save_name from wandb config
-    if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb, "config"):
-        config_keys = ["model", "dataset", "lr", "weight_decay", "label_smoothing",
-                       "improvement_threshold", "pai_forward_function"]
-        name_parts = [f"{k}_{wandb.config.get(k, 'default')}" 
-                     for k in config_keys if k in wandb.config]
-        save_name = "_".join(name_parts) if name_parts else "default_run"
+    # Use wandb run name as save_name for consistency
+    if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb.run, "name") and wandb.run.name:
+        save_name = wandb.run.name  # Ensures local folders match WandB run names
     else:
         save_name = "default_run"
     
