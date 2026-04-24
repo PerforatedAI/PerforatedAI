@@ -436,27 +436,11 @@ def load_model(model_name, num_classes, perforate=False):
             if (
                 hasattr(wandb, "run")
                 and wandb.run is not None
-                and hasattr(wandb, "config")
+                and hasattr(wandb.run, "name")
+                and wandb.run.name
             ):
-                config_keys = [
-                    "model",
-                    "dataset",
-                    "lr",
-                    "weight_decay",
-                    "label_smoothing",
-                    "improvement_threshold",
-                    "pai_forward_function",
-                ]
-                name_parts = [
-                    f"{k}_{wandb.config.get(k, 'default')}"
-                    for k in config_keys
-                    if k in wandb.config
-                ]
-                save_name = (
-                    "_".join(name_parts)
-                    if name_parts
-                    else f"resnet18_fc_{num_classes}cls"
-                )
+                # Use wandb run name directly to ensure consistency
+                save_name = wandb.run.name
             else:
                 save_name = f"resnet18_fc_{num_classes}cls"
 
@@ -524,27 +508,11 @@ def load_model(model_name, num_classes, perforate=False):
             if (
                 hasattr(wandb, "run")
                 and wandb.run is not None
-                and hasattr(wandb, "config")
+                and hasattr(wandb.run, "name")
+                and wandb.run.name
             ):
-                config_keys = [
-                    "model",
-                    "dataset",
-                    "lr",
-                    "weight_decay",
-                    "label_smoothing",
-                    "improvement_threshold",
-                    "pai_forward_function",
-                ]
-                name_parts = [
-                    f"{k}_{wandb.config.get(k, 'default')}"
-                    for k in config_keys
-                    if k in wandb.config
-                ]
-                save_name = (
-                    "_".join(name_parts)
-                    if name_parts
-                    else f"resnet18_prefc_{num_classes}cls"
-                )
+                # Use wandb run name directly to ensure consistency
+                save_name = wandb.run.name
             else:
                 save_name = f"resnet18_prefc_{num_classes}cls"
 
@@ -1190,6 +1158,12 @@ def main():
         type=str,
         help="WandB project name",
     )
+    parser.add_argument(
+        "--wandb-entity",
+        default=None,
+        type=str,
+        help="WandB entity name (defaults to your personal account)",
+    )
 
     args = parser.parse_args()
 
@@ -1205,6 +1179,7 @@ def main():
                 args.sweep_id,
                 function=train_with_wandb,
                 count=args.sweep_count,
+                entity=args.wandb_entity,
                 project=args.wandb_project,
             )
 
@@ -1220,14 +1195,15 @@ def main():
 
             sweep_config = get_sweep_config(args.sweep_dataset)
             project_name = args.sweep_dataset  # Use dataset name as project
-            sweep_id = wandb.sweep(sweep_config, project=project_name)
+            sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=project_name)
 
             print(f"Sweep initialized: {sweep_id}")
             print(f"Project: {project_name}")
             print(f"View at: https://wandb.ai")
             print(f"\nTo join this sweep from other machines, run:")
+            entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
             print(
-                f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id} --wandb-project {project_name}"
+                f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id} --wandb-project {project_name}{entity_arg}"
             )
             print(f"\nStarting sweep agent (count={args.sweep_count})...\n")
 
@@ -1235,6 +1211,7 @@ def main():
                 sweep_id,
                 function=train_with_wandb,
                 count=args.sweep_count,
+                entity=args.wandb_entity,
                 project=project_name,
             )
 
@@ -1273,6 +1250,7 @@ def main():
     if args.use_wandb or wandb_active:
         if not wandb_active:
             wandb.init(
+                entity=args.wandb_entity,
                 project=args.wandb_project,
                 config={
                     "model": args.model,
