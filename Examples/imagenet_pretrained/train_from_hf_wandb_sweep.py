@@ -593,16 +593,29 @@ def train_single_run(args, train_loader, test_loader, num_classes):
 
     # Setup training
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
-    optimizer = torch.optim.SGD(
-        model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay
-    )
+    
+    # Setup optimizer
+    if perforate:
+        from perforatedai import globals_perforatedai as GPA
+        from perforatedai import utils_perforatedai as UPA
+        
+        GPA.pai_tracker.set_optimizer(torch.optim.SGD)
+        optimArgs = {
+            "params": model.parameters(),
+            "lr": args.lr,
+            "momentum": 0.9,
+            "weight_decay": args.weight_decay,
+        }
+        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+    else:
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay
+        )
 
-    # Use CosineAnnealingLR as main scheduler
+    # Setup scheduler (same for both perforated and non-perforated)
     main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
     )
-
-    # Add warmup if specified
     if args.lr_warmup_epochs > 0:
         warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
             optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
@@ -630,9 +643,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
 
     # For perforated models: arch logging variables
     if perforate:
-        from perforatedai import globals_perforatedai as GPA
-        from perforatedai import utils_perforatedai as UPA
-
         last_logged_integrated = -1  # Track last num_dendrites_integrated we logged (-1 = nothing logged yet)
         max_val = 0
         max_train = 0
@@ -640,17 +650,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
         global_max_val = 0
         global_max_train = 0
         global_max_params = 0
-
-        # Setup optimizer for PAI
-        GPA.pai_tracker.set_optimizer(torch.optim.SGD)
-        optimArgs = {
-            "params": model.parameters(),
-            "lr": args.lr,
-            "momentum": 0.9,
-            "weight_decay": args.weight_decay,
-        }
-        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
-        # Note: PAI handles scheduler internally
 
     # Use while True for perforated models, for loop for non-perforated
     if perforate:
@@ -686,6 +685,9 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_acc1 = test_acc1
                 best_epoch = epoch + 1
 
+            # Step the scheduler
+            lr_scheduler.step()
+            
             # Add extra scores for training metrics (must be after add_validation_score)
             GPA.pai_tracker.add_extra_score(train_acc1, "train")
             
@@ -706,8 +708,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
                         print(f"  Max val: {max_val}, Max train: {max_train}")
                         
+                        # Log with architecture-specific metric names to prevent overwriting
                         wandb.log(
                             {
+                                f"Arch_{current_integrated}_Max_Val": max_val,
+                                f"Arch_{current_integrated}_Max_Train": max_train,
+                                f"Arch_{current_integrated}_Param_Count": max_params,
+                                # Also log generic metrics for backward compatibility
                                 "Arch Max Val": max_val,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
@@ -727,14 +734,35 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     print(f"  current_n_set_global_best: {GPA.pai_tracker.member_vars['current_n_set_global_best']}")
                     print(f"  Max val: {max_val}, Max train: {max_train}")
 
-                # Reinitialize optimizer after restructuring
+                # Reinitialize optimizer and scheduler after restructuring (same as initial setup)
+                # Apply dendrite LR multiplier if in neuron training mode
+                current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
+                dendrite_lr_mult = wandb.config.get("dendrite_lr_multiplier", 1.0) if hasattr(wandb, "run") and wandb.run is not None else 1.0
+                adjusted_lr = args.lr * dendrite_lr_mult if current_mode == "n" else args.lr
+                
                 optimArgs = {
                     "params": model.parameters(),
-                    "lr": args.lr,
+                    "lr": adjusted_lr,
                     "momentum": 0.9,
                     "weight_decay": args.weight_decay,
                 }
                 optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+                
+                # Recreate scheduler (same as initial setup)
+                main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
+                )
+                if args.lr_warmup_epochs > 0:
+                    warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
+                        optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
+                    )
+                    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+                        optimizer,
+                        schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+                        milestones=[args.lr_warmup_epochs],
+                    )
+                else:
+                    lr_scheduler = main_lr_scheduler
             else:
                 # Debug: why didn't restructure trigger?
                 if not restructured:
@@ -778,8 +806,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
                         print(f"  Max val: {max_val}, Max train: {max_train}")
                         
+                        # Log with architecture-specific metric names to prevent overwriting
                         wandb.log(
                             {
+                                f"Arch_{current_integrated}_Max_Val": max_val,
+                                f"Arch_{current_integrated}_Max_Train": max_train,
+                                f"Arch_{current_integrated}_Param_Count": max_params,
+                                # Also log generic metrics for backward compatibility
                                 "Arch Max Val": max_val,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
@@ -924,6 +957,7 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     elif dataset_name == "pets":
@@ -939,6 +973,7 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     elif dataset_name == "food101":
@@ -954,6 +989,7 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     else:
