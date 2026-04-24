@@ -29,19 +29,23 @@ MODES:
        - Output: entity_project_sweep_by_dendrite.csv
        - Format: Columns = run_name, param_count, dendrite_0_max_val, dendrite_1_max_val, ...
        - Use when: You want to visualize how different dendrite configurations perform
-       - Example: python get_wandb_results.py "URL" -m by-dendrite
+       - Use --dendrite-offset if models start with dendrites already added (e.g., "0:2")
+       - Example: python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
 
 DENDRITE OFFSET:
-    Use --dendrite-offset when runs don't all start at dendrite count 0.
-    Specify "prefix:count" pairs to set starting dendrite counts for runs with specific prefixes.
+    Use --dendrite-offset to specify starting dendrite counts for model indices.
+    Format: "model_index:count" (e.g., "0:2" means model_index_0 starts with 2 dendrites)
     
-    Example:
-        If runs starting with "model_index_0" actually have 2 dendrites already:
-        python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "model_index_0:2"
+    This is used both for:
+    - Suppressing diagnostic warnings about "missing" dendrites
+    - Correctly processing data in by-dendrite mode
     
-    Multiple offsets:
-        python get_wandb_results.py "URL" -m by-dendrite \\
-            --dendrite-offset "model_index_0:2" "model_index_1:3"
+    Examples:
+        # Model 0 starts with 2 dendrites (pretrained)
+        python get_wandb_results.py "URL" --dendrite-offset "0:2"
+        
+        # Multiple models with different starting counts
+        python get_wandb_results.py "URL" --dendrite-offset "0:2" "1:3"
 
 CSV CACHING:
     When using gen-by-run or by-dendrite modes, the script automatically checks for an
@@ -53,12 +57,20 @@ EXAMPLES:
     # Download raw data
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123"
     
-    # Generate line graph format (using cached CSV if available)
+    # Download with dendrite offset (model 0 starts with 2 dendrites)
+    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
+        --dendrite-offset "0:2"
+    
+    # Generate line graph format
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" -m gen-by-run
     
-    # Generate scatter plot with dendrite offsets
+    # Generate scatter plot with dendrite offset
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
-        -m by-dendrite --dendrite-offset "model_index_0:2"
+        -m by-dendrite --dendrite-offset "0:2"
+    
+    # Multiple models with different offsets
+    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
+        -m by-dendrite --dendrite-offset "0:2" "1:3"
     
     # Custom output filename
     python get_wandb_results.py "URL" -m by-dendrite -o my_results.csv
@@ -138,16 +150,29 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
     # Look for these metric names in history
     arch_param_count_keys = ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count']
     arch_max_val_keys = ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val']
+    arch_dendrite_count_keys = ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count']
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
         
-        # Fetch full history (all logged values)
-        history = run.history()
+        # Fetch full history (all logged values) - use scan_history() to get ALL entries
+        # run.history() might sample/limit data, scan_history() returns everything
+        try:
+            # scan_history() returns iterator, convert to list then DataFrame
+            history_list = list(run.scan_history())
+            if not history_list:
+                print(f"    No history data found")
+                continue
+            history = pd.DataFrame(history_list)
+        except Exception as e:
+            print(f"    Error fetching history: {e}")
+            print(f"    Falling back to run.history()...")
+            history = run.history()
+            if history.empty:
+                print(f"    No history data found")
+                continue
         
-        if history.empty:
-            print(f"    No history data found")
-            continue
+        print(f"    Fetched {len(history)} history entries")
         
         # Find which column names exist in this run's history
         arch_param_count_col = None
@@ -162,6 +187,12 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
                 arch_max_val_col = key
                 break
         
+        arch_dendrite_count_col = None
+        for key in arch_dendrite_count_keys:
+            if key in history.columns:
+                arch_dendrite_count_col = key
+                break
+        
         if arch_param_count_col is None and arch_max_val_col is None:
             print(f"    No relevant metrics found in history")
             continue
@@ -170,9 +201,10 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
         for idx, row in history.iterrows():
             arch_param_count = row.get(arch_param_count_col) if arch_param_count_col else None
             arch_max_val = row.get(arch_max_val_col) if arch_max_val_col else None
+            arch_dendrite_count = row.get(arch_dendrite_count_col) if arch_dendrite_count_col else None
             
-            # Skip rows where both metrics are NaN
-            if pd.isna(arch_param_count) and pd.isna(arch_max_val):
+            # Skip rows where all metrics are NaN
+            if pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count):
                 continue
             
             entry = {
@@ -183,6 +215,7 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
                 'timestamp': row.get('_timestamp', None),
                 'arch_param_count': arch_param_count,
                 'arch_max_val': arch_max_val,
+                'arch_dendrite_count': arch_dendrite_count,
             }
             
             # Add config parameters
@@ -283,10 +316,33 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
                 return offset
         return 0
     
-    # Assign dendrite count based on order within each run, with offsets
-    df_filtered['base_count'] = df_filtered.groupby('run_name').cumcount()
-    df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
-    df_filtered['dendrite_count'] = df_filtered['base_count'] + df_filtered['run_offset']
+    # Check if we have logged dendrite counts
+    has_logged_dendrite_count = 'arch_dendrite_count' in df_filtered.columns and df_filtered['arch_dendrite_count'].notna().any()
+    
+    if has_logged_dendrite_count:
+        print("\n=== Using LOGGED Arch Dendrite Count ===")
+        # Use the logged dendrite count from wandb
+        df_filtered['dendrite_count'] = df_filtered['arch_dendrite_count']
+        
+        # Also compute what it would have been for comparison
+        df_filtered['computed_dendrite_count'] = df_filtered.groupby('run_name').cumcount()
+        df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
+        df_filtered['computed_dendrite_count'] = df_filtered['computed_dendrite_count'] + df_filtered['run_offset']
+        
+        # Show comparison to identify discrepancies
+        mismatches = df_filtered[df_filtered['dendrite_count'] != df_filtered['computed_dendrite_count']]
+        if not mismatches.empty:
+            print(f"\n⚠️  WARNING: Found {len(mismatches)} entries where logged dendrite count differs from computed!")
+            print("\nShowing first 10 mismatches:")
+            print(mismatches[['run_name', 'step', 'arch_param_count', 'dendrite_count', 'computed_dendrite_count']].head(10))
+        else:
+            print("✓ Logged dendrite counts match computed counts")
+    else:
+        print("\n=== Computing dendrite count (no logged values found) ===")
+        # Compute dendrite count based on order within each run, with offsets
+        df_filtered['base_count'] = df_filtered.groupby('run_name').cumcount()
+        df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
+        df_filtered['dendrite_count'] = df_filtered['base_count'] + df_filtered['run_offset']
     
     # Pivot: rows are (run_name, param_count), columns are dendrite counts
     scatter_df = df_filtered.pivot_table(
@@ -312,6 +368,114 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
     print(f"  Dendrite columns: {len([col for col in scatter_df.columns if 'dendrite' in col])}")
     
     return scatter_df
+
+
+def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
+    """
+    Print diagnostic information about the data to help identify issues.
+    
+    Args:
+        df: DataFrame with raw log entries
+        dendrite_offsets: Dict mapping run name prefixes to starting dendrite count
+    """
+    if dendrite_offsets is None:
+        dendrite_offsets = {}
+    
+    print("\n" + "="*70)
+    print("DIAGNOSTIC SUMMARY")
+    print("="*70)
+    
+    # Filter to relevant data
+    df_filtered = df[df['arch_param_count'].notna() & df['arch_max_val'].notna()].copy()
+    
+    if df_filtered.empty:
+        print("No data with both arch_param_count and arch_max_val")
+        return
+    
+    # Check for dendrite count column
+    has_dendrite_count = 'arch_dendrite_count' in df_filtered.columns and df_filtered['arch_dendrite_count'].notna().any()
+    
+    print(f"\nTotal entries: {len(df_filtered)}")
+    print(f"Has logged dendrite count: {has_dendrite_count}")
+    print(f"Total unique runs: {df_filtered['run_name'].nunique()}")
+    
+    # Function to get expected starting dendrite for a run name
+    def get_expected_start(run_name):
+        """Get the expected starting dendrite count for a run based on configured offsets"""
+        for prefix, start_count in dendrite_offsets.items():
+            if run_name.startswith(prefix):
+                return start_count
+        return 0  # Default: expect to start from 0
+    
+    # Check ALL runs for issues (not just first 5)
+    if has_dendrite_count:
+        print("\n--- Checking for GAPS/MISSING DENDRITES ---")
+        issues_found = False
+        
+        for run_name in df_filtered['run_name'].unique():
+            run_data = df_filtered[df_filtered['run_name'] == run_name].sort_values('step')
+            dendrite_counts = sorted(run_data['arch_dendrite_count'].unique())
+            
+            # Check for issues
+            if dendrite_counts:
+                actual_sequence = [int(d) for d in dendrite_counts]
+                min_dend = min(actual_sequence)
+                max_dend = max(actual_sequence)
+                
+                # Get expected starting dendrite for this run
+                expected_start = get_expected_start(run_name)
+                
+                # Expected sequence should start from expected_start, not 0
+                # e.g., if model starts with 2 dendrites, expected is [2, 3, 4, ...]
+                expected_sequence = list(range(expected_start, max_dend + 1))
+                missing = set(expected_sequence) - set(actual_sequence)
+                
+                if missing:
+                    issues_found = True
+                    print(f"\n⚠️  ISSUE: Run '{run_name}'")
+                    if expected_start > 0:
+                        # Extract model index from prefix for clearer messaging
+                        model_idx_str = None
+                        for prefix in dendrite_offsets:
+                            if run_name.startswith(prefix):
+                                # Extract number from "model_index_0" format
+                                import re
+                                match = re.match(r'model_index_(\d+)', prefix)
+                                if match:
+                                    model_idx_str = match.group(1)
+                                break
+                        if model_idx_str:
+                            print(f"    Model {model_idx_str} configured to start at dendrite {expected_start}")
+                    print(f"    Expected dendrites ({expected_start} to {max_dend}): {expected_sequence}")
+                    print(f"    Actual dendrites:                       {actual_sequence}")
+                    print(f"    MISSING:                                 {sorted(missing)}")
+                    
+                    # Show distribution
+                    dendrite_dist = run_data['arch_dendrite_count'].value_counts().sort_index()
+                    print(f"    Dendrite count distribution:")
+                    for dend, count in dendrite_dist.items():
+                        print(f"      Dendrite {int(dend)}: {count} entries")
+        
+        if not issues_found:
+            print("  ✓ No missing dendrites or gaps found")
+        
+        # Check for duplicate (param_count, dendrite_count) pairs within runs
+        print("\n--- Checking for duplicate (param_count, dendrite_count) pairs ---")
+        duplicates_found = False
+        for run_name in df_filtered['run_name'].unique():
+            run_data = df_filtered[df_filtered['run_name'] == run_name]
+            duplicates = run_data.groupby(['arch_param_count', 'arch_dendrite_count']).size()
+            duplicates = duplicates[duplicates > 1]
+            if not duplicates.empty:
+                duplicates_found = True
+                print(f"\n⚠️  Run '{run_name}' has duplicate (param_count, dendrite_count) pairs:")
+                for (pc, dc), count in duplicates.items():
+                    print(f"    Param={pc}, Dendrite={int(dc)}: {count} entries")
+        
+        if not duplicates_found:
+            print("  ✓ No duplicates found")
+    
+    print("\n" + "="*70 + "\n")
 
 
 def main():
@@ -346,26 +510,31 @@ Example:
         '--dendrite-offset',
         nargs='*',
         default=[],
-        metavar='PREFIX:COUNT',
-        help='specify starting dendrite count for run name prefixes (e.g., "model_index_0:2" "model_index_1:3")'
+        metavar='MODEL_INDEX:COUNT',
+        help='specify starting dendrite count for model indices. Format: "0:2" "1:3" (model_index_0 starts at 2, model_index_1 starts at 3)'
     )
     
     args = parser.parse_args()
     
-    # Parse dendrite offsets
+    # Parse dendrite offsets - support only numeric format "0:2" which expands to "model_index_0:2"
     dendrite_offsets = {}
     for offset_spec in args.dendrite_offset:
         try:
-            prefix, count = offset_spec.split(':', 1)
-            dendrite_offsets[prefix] = int(count)
+            model_idx, count = offset_spec.split(':', 1)
+            model_idx = int(model_idx)
+            count = int(count)
+            
+            # Expand to full prefix format
+            prefix = f"model_index_{model_idx}"
+            dendrite_offsets[prefix] = count
         except (ValueError, AttributeError):
-            print(f"Warning: Invalid dendrite offset format '{offset_spec}'. Expected 'prefix:count'")
+            print(f"Warning: Invalid dendrite offset format '{offset_spec}'. Expected 'model_index:count' (e.g., '0:2')")
             continue
     
     if dendrite_offsets:
         print(f"Dendrite offsets configured:")
         for prefix, count in dendrite_offsets.items():
-            print(f"  '{prefix}' starts at dendrite count {count}")
+            print(f"  Runs starting with '{prefix}' begin at dendrite count {count}")
     
     # Parse URL to extract entity, project, and sweep_id
     try:
@@ -400,7 +569,74 @@ Example:
             output_file = args.output if args.output else raw_csv_file
             df.to_csv(output_file, index=False)
             print(f"\nResults saved to: {output_file}")
-            return
+    
+    # Always show diagnostic info
+    diagnose_data(df, dendrite_offsets)
+    
+    # After download, check each model_index to suggest offsets if needed
+    if args.mode == 'download':
+        df_filtered = df[df['arch_param_count'].notna() & df['arch_max_val'].notna()].copy()
+        if not df_filtered.empty:
+            has_dendrite_count = 'arch_dendrite_count' in df_filtered.columns and df_filtered['arch_dendrite_count'].notna().any()
+            
+            if has_dendrite_count:
+                import re
+                def extract_model_index(run_name):
+                    match = re.match(r'model_index_(\d+)', run_name)
+                    if match:
+                        return int(match.group(1))
+                    return None
+                
+                # Group runs by model_index
+                model_groups = {}
+                for run_name in df_filtered['run_name'].unique():
+                    model_idx = extract_model_index(run_name)
+                    if model_idx is not None:
+                        if model_idx not in model_groups:
+                            model_groups[model_idx] = []
+                        model_groups[model_idx].append(run_name)
+                
+                # Check each model_index for consistent starting dendrite
+                suggestions = []
+                for model_idx, run_names in model_groups.items():
+                    # Check if already configured (either as model_index_N or just N)
+                    prefix_full = f"model_index_{model_idx}"
+                    if prefix_full in dendrite_offsets:
+                        continue
+                    
+                    # Get all dendrite counts for this model
+                    all_dendrite_counts = []
+                    for run_name in run_names:
+                        run_data = df_filtered[df_filtered['run_name'] == run_name]
+                        dendrite_counts = run_data['arch_dendrite_count'].dropna().unique()
+                        all_dendrite_counts.extend(dendrite_counts)
+                    
+                    if all_dendrite_counts:
+                        min_dendrite = int(min(all_dendrite_counts))
+                        
+                        # If all runs of this model start above 0, suggest offset
+                        if min_dendrite > 0:
+                            suggestions.append((model_idx, min_dendrite))
+                
+                if suggestions:
+                    print(f"\n{'='*70}")
+                    print(f"💡 SUGGESTION")
+                    print(f"{'='*70}")
+                    print(f"Some models start at dendrite counts above 0, indicating pretrained dendrites.")
+                    print(f"To suppress warnings about 'missing' dendrites, add:\n")
+                    
+                    # Build the command with short format (just model index)
+                    offset_args = " ".join([f'"{m}:{d}"' for m, d in suggestions])
+                    print(f"  python {os.path.basename(sys.argv[0])} {args.url} --dendrite-offset {offset_args}")
+                    
+                    print(f"\nDetails:")
+                    for model_idx, start_dend in suggestions:
+                        print(f"  Model {model_idx} starts at dendrite {start_dend}")
+                    print(f"{'='*70}\n")
+    
+    # If download mode, we're done
+    if args.mode == 'download':
+        return
     
     # Process non-download modes
     if args.mode == 'gen-by-run':

@@ -489,7 +489,7 @@ optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedAr
 2. **DO NOT** change the scheduler type (keep StepLR/CosineAnnealingLR/ExponentialLR/etc. exactly as user had)
 3. **DO NOT** change optimizer arguments (preserve lr, weight_decay, momentum, betas, etc.)
 4. **DO NOT** change scheduler arguments (preserve step_size, gamma, T_max, patience, etc.)
-5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically
+5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing schedArgs AND returning a scheduler from the function. If NOT using setup_optimizer with schedArgs, user must manage scheduler.step() themselves.
 6. If user has NO scheduler, use `set_scheduler(None)` or omit the set_scheduler call
 
 **If their setup is complex (scattered across functions, custom classes, framework-managed, etc.):**
@@ -506,6 +506,8 @@ GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
 Tell them: "Your optimizer setup is complex, so I'm using the simpler integration method. PAI will work with your existing optimizer configuration."
+
+**IMPORTANT NOTE:** When using `set_optimizer_instance`, PAI will NOT handle the scheduler. You must keep all existing `scheduler.step()` calls in your training loop.
 
 ---
 
@@ -553,6 +555,8 @@ elif restructured and not training_complete:
 **Pattern 2 - If they used `set_optimizer_instance` (Step 6, second option):**
 
 Find where validation completes. Add the PAI score tracking and restructuring logic.
+
+**NOTE:** When using `set_optimizer_instance`, PAI does NOT handle the scheduler. Keep all existing `scheduler.step()` calls in your training loop.
 
 After validation, add:
 ```python

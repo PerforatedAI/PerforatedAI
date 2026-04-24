@@ -52,10 +52,14 @@ save_name is defaults to 'PAI' but if you run multiple experiments at once this 
 If there is no scheduler just leave it out of the call to setup_optimizer entirely. But as a warning, we have run some experiments where PAI does not work without a scheduler so if you choose to exclude one and PAI does not improve your system we would encourage you to include the ReduceLROnPlateau scheduler and try again.
     
     optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+
+NOTE: If you do not pass schedArgs to setup_optimizer or do not return a scheduler from it, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
     
 If your system is using a more complicated trainer where you can't just declare the optimizer outside of your system like this you are free to call the following instead of all of the above but it won't work quite as well.
 
     GPA.pai_tracker.set_optimizer_instance(trainer.optimizer)
+
+NOTE: If you use set_optimizer_instance, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
 
 If your system has multiple optimizers just pick one of them to use.  However, when you call addValidationScore you should also reinitialize the other optimizer if restructuring happens.
     
