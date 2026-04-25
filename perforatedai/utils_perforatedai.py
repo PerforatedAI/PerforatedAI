@@ -874,6 +874,156 @@ def load_system(
     return net
 
 
+def load_pretrained_model(
+    net,
+    folder,
+    name,
+    remove_dendrite_scaffolding=False,
+):
+    """Load a pretrained perforated model and reset tracker for fresh training.
+
+    This function loads a pretrained model's weights and dendrite structure while
+    resetting all tracker state (epochs, switch history, etc.) to start training
+    from scratch on a new task. This is useful for transfer learning where you want
+    pretrained weights but need fresh training dynamics.
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to load into.
+    folder : str
+        The folder containing the pretrained model.
+    name : str
+        The name of the checkpoint to load (e.g., 'best_model', 'beforeSwitch_0').
+    remove_dendrite_scaffolding : bool, optional
+        If True, removes dendrite scaffolding for inference or finetuning without
+        adding more dendrites using blockwise_network and refresh_net. Default False.
+
+    Returns
+    -------
+    nn.Module
+        The loaded network with reset tracker state.
+
+    Examples
+    --------
+    Load pretrained weights for continued dendrite training:
+    >>> model = load_pretrained_model(model, "pretrained-prefc", "beforeSwitch_0")
+
+    Load pretrained weights for finetuning without adding more dendrites:
+    >>> model = load_pretrained_model(model, "pretrained-prefc", "best_model", 
+    ...                               remove_dendrite_scaffolding=True)
+
+    Notes
+    -----
+    This function:
+    - Loads model weights and dendrite structure from checkpoint
+    - Resets all epoch counters to -1 (will become 0 after first start_epoch)
+    - Resets switch history and validation score tracking
+    - Clears accuracy/loss history arrays
+    - Optionally removes dendrite scaffolding (no more dendrite additions)
+    
+    The tracker is reset to behave as if starting fresh training, while keeping
+    the learned weights and dendrite structure from the pretrained model.
+    """
+    from perforatedai import globals_perforatedai as GPA
+    
+    if GPA.pc.get_verbose():
+        print(f"Loading pretrained model from {folder}/{name}")
+    
+    # Load the model weights and dendrite structure
+    net = load_system(net, folder, name, load_from_manual_save=True)
+    
+    if GPA.pc.get_verbose():
+        print("Resetting tracker state for fresh training...")
+    
+    # Reset epoch counters
+    GPA.pai_tracker.member_vars["num_epochs_run"] = -1
+    GPA.pai_tracker.member_vars["total_epochs_run"] = -1
+    GPA.pai_tracker.member_vars["epoch_last_improved"] = 0
+    GPA.pai_tracker.member_vars["last_switch"] = 0
+    
+    # Reset switch history
+    GPA.pai_tracker.member_vars["switch_epochs"] = []
+    GPA.pai_tracker.member_vars["n_switch_epochs"] = []
+    GPA.pai_tracker.member_vars["p_switch_epochs"] = []
+    GPA.pai_tracker.member_vars["param_counts"] = []
+    
+    # Reset validation scores and tracking
+    GPA.pai_tracker.member_vars["current_best_validation_score"] = 0
+    GPA.pai_tracker.member_vars["global_best_validation_score"] = 0
+    GPA.pai_tracker.member_vars["running_accuracy"] = 0
+    
+    # Clear accuracy/loss history arrays
+    GPA.pai_tracker.member_vars["accuracies"] = []
+    GPA.pai_tracker.member_vars["last_improved_accuracies"] = []
+    GPA.pai_tracker.member_vars["test_accuracies"] = []
+    GPA.pai_tracker.member_vars["n_accuracies"] = []
+    GPA.pai_tracker.member_vars["p_accuracies"] = []
+    GPA.pai_tracker.member_vars["running_accuracies"] = []
+    GPA.pai_tracker.member_vars["training_loss"] = []
+    GPA.pai_tracker.member_vars["training_learning_rates"] = []
+    GPA.pai_tracker.member_vars["test_scores"] = []
+    
+    # Clear extra scores
+    GPA.pai_tracker.member_vars["extra_scores"] = {}
+    GPA.pai_tracker.member_vars["extra_scores_without_graphing"] = {}
+    GPA.pai_tracker.member_vars["n_extra_scores"] = {}
+    
+    # Clear dendrite scores
+    GPA.pai_tracker.member_vars["best_scores"] = []
+    GPA.pai_tracker.member_vars["current_scores"] = []
+    
+    # Clear timing arrays
+    GPA.pai_tracker.member_vars["n_epoch_times"] = []
+    GPA.pai_tracker.member_vars["p_epoch_times"] = []
+    GPA.pai_tracker.member_vars["n_train_times"] = []
+    GPA.pai_tracker.member_vars["p_train_times"] = []
+    GPA.pai_tracker.member_vars["n_val_times"] = []
+    GPA.pai_tracker.member_vars["p_val_times"] = []
+    
+    # Clear overwritten tracking
+    GPA.pai_tracker.member_vars["overwritten_extras"] = []
+    GPA.pai_tracker.member_vars["overwritten_vals"] = []
+    GPA.pai_tracker.member_vars["overwritten_epochs"] = 0
+    
+    # Reset learning rate search state
+    GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = -1
+    GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
+    GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = 0
+    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = -1
+    GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
+    GPA.pai_tracker.member_vars["current_step_count"] = 0
+    
+    # Reset saved time
+    GPA.pai_tracker.saved_time = 0
+    
+    # Keep: num_dendrites_added, num_dendrites_integrated, mode, doing_pai
+    # Keep: maximizing_score, switch_mode, param_vals_setting
+    # These define the model structure and behavior, not training history
+    
+    if GPA.pc.get_verbose():
+        print(
+            f"Tracker reset complete. Dendrites: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}, "
+            f"Mode: {GPA.pai_tracker.member_vars['mode']}"
+        )
+    
+    # Optionally remove dendrite scaffolding
+    if remove_dendrite_scaffolding:
+        if GPA.pc.get_verbose():
+            print("Removing dendrite scaffolding (no dendrite additions)...")
+        
+        from perforatedai import blockwise_perforatedai as BPA
+        from perforatedai import clean_perforatedai as CPA
+        
+        net = BPA.blockwise_network(net)
+        net = CPA.refresh_net(net)
+        
+        if GPA.pc.get_verbose():
+            print("Dendrite scaffolding removed. Model ready for inference or finetuning.")
+    
+    return net
+
+
 import json
 from collections import defaultdict
 from safetensors.torch import save_file, safe_open

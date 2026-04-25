@@ -283,6 +283,75 @@ If you want to load a simplified pb model just for inference, or for finetuning 
 
 Note: all other GPA settings should still be set first
 
+### Transfer Learning with Pretrained Models
+
+If you want to load a pretrained perforated model for transfer learning on a new task (e.g., fine-tuning a model trained on ImageNet to a new dataset), use `load_pretrained_model`. This loads the pretrained weights and dendrite structure while resetting all training state (epochs, switch history, validation scores) to start fresh:
+
+    # Basic usage - loads pretrained weights, resets tracker for continued dendrite training
+    model = UPA.load_pretrained_model(model, pretrained_folder, 'beforeSwitch_0')
+
+    # For finetuning without adding more dendrites (removes dendrite scaffolding)
+    model = UPA.load_pretrained_model(model, pretrained_folder, 'best_model', 
+                                      remove_dendrite_scaffolding=True)
+
+This function should be called after perforate_model and configuring all GPA.pc settings (which will override any settings from the checkpoint).
+
+**Key differences from load_system:**
+- `load_system`: Resumes training from checkpoint with all history intact (epochs, switches, scores)
+- `load_pretrained_model`: Transfer learning - loads weights but resets training state to start fresh
+
+**What gets reset:**
+- All epoch counters (num_epochs_run, total_epochs_run, etc.)
+- Switch history and validation score tracking
+- Accuracy/loss history arrays
+- Learning rate search state
+
+**What is preserved:**
+- Model weights and dendrite structure (num_dendrites_integrated)
+- Training mode (neuron vs dendrite)
+- Your new GPA.pc configuration settings (improvement_threshold, max_dendrites, etc.)
+
+### Loading _pai Models (Inference and Fine-tuning)
+
+During training, if `GPA.pc.set_pai_saves(True)` is enabled, optimized `_pai` versions of checkpoints are automatically saved. These models have all training scaffolding removed and are designed for inference or fine-tuning without the PAI tracker.
+
+To load a `_pai` model:
+
+```python
+from perforatedai import network_perforatedai as NPA
+
+# Create the base model architecture
+model = YourModelClass()
+
+# Load the _pai checkpoint (automatically converts network and sets up dendrites)
+model = NPA.load_pai_model(model, 'PAI/best_model_pai.pt')
+
+# Model is ready for inference (no perforate_model or tracker setup needed)
+output = model(input_data)
+
+# Or fine-tune with standard PyTorch training (dendrites are frozen)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+# ... standard training loop ...
+```
+
+**Key differences:**
+- `load_system`: Loads full training state, requires PAI tracker, enables continued dendrite training
+- `load_pretrained_model`: Loads weights for transfer learning with reset tracker state and continued dendrite training
+- `load_pai_model`: Loads model with dendrites frozen, no PAI tracker needed, for inference or standard fine-tuning
+
+**What load_pai_model does:**
+- Automatically calls `convert_network` to wrap modules in PerforatedModule
+- Reconstructs dendrite structure from checkpoint (via `simulate_cycles`)
+- Loads all weights including dendrite weights
+- No PAI tracker initialization needed
+
+**When to use _pai models:**
+- Pure inference/deployment
+- Fine-tuning with standard PyTorch (no dendrite additions)
+- Sharing models without training dependencies
+- Minimal memory footprint (training scaffolding removed)
+- No plans to add more dendrites
+
     
 ## 8 Optimization
 

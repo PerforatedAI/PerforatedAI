@@ -325,7 +325,7 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
         df_filtered['dendrite_count'] = df_filtered['arch_dendrite_count']
         
         # Also compute what it would have been for comparison
-        df_filtered['computed_dendrite_count'] = df_filtered.groupby('run_name').cumcount()
+        df_filtered['computed_dendrite_count'] = df_filtered.groupby('run_id').cumcount()
         df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
         df_filtered['computed_dendrite_count'] = df_filtered['computed_dendrite_count'] + df_filtered['run_offset']
         
@@ -334,19 +334,22 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
         if not mismatches.empty:
             print(f"\n⚠️  WARNING: Found {len(mismatches)} entries where logged dendrite count differs from computed!")
             print("\nShowing first 10 mismatches:")
-            print(mismatches[['run_name', 'step', 'arch_param_count', 'dendrite_count', 'computed_dendrite_count']].head(10))
+            pd.set_option('display.max_colwidth', None)
+            pd.set_option('display.width', None)
+            pd.set_option('display.max_columns', None)
+            print(mismatches[['run_id', 'step', 'arch_param_count', 'dendrite_count', 'computed_dendrite_count']].head(10))
         else:
             print("✓ Logged dendrite counts match computed counts")
     else:
         print("\n=== Computing dendrite count (no logged values found) ===")
         # Compute dendrite count based on order within each run, with offsets
-        df_filtered['base_count'] = df_filtered.groupby('run_name').cumcount()
+        df_filtered['base_count'] = df_filtered.groupby('run_id').cumcount()
         df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
         df_filtered['dendrite_count'] = df_filtered['base_count'] + df_filtered['run_offset']
     
-    # Pivot: rows are (run_name, param_count), columns are dendrite counts
+    # Pivot: rows are (run_id, run_name, param_count), columns are dendrite counts
     scatter_df = df_filtered.pivot_table(
-        index=['run_name', 'arch_param_count'],
+        index=['run_id', 'run_name', 'arch_param_count'],
         columns='dendrite_count',
         values='arch_max_val',
         aggfunc='first'  # Take first value if duplicates
@@ -355,16 +358,16 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
     # Rename columns to be more descriptive
     scatter_df.columns = [f'dendrite_{int(col)}_max_val' for col in scatter_df.columns]
     
-    # Reset index to make run_name and param_count regular columns
+    # Reset index to make run_id, run_name and param_count regular columns
     scatter_df = scatter_df.reset_index()
     scatter_df = scatter_df.rename(columns={'arch_param_count': 'param_count'})
     
-    # Sort by run_name and param_count
-    scatter_df = scatter_df.sort_values(['run_name', 'param_count'])
+    # Sort by run_id and param_count
+    scatter_df = scatter_df.sort_values(['run_id', 'param_count'])
     
     print(f"\nCreated scatter plot data:")
     print(f"  Total rows: {len(scatter_df)}")
-    print(f"  Unique runs: {scatter_df['run_name'].nunique()}")
+    print(f"  Unique runs: {scatter_df['run_id'].nunique()}")
     print(f"  Dendrite columns: {len([col for col in scatter_df.columns if 'dendrite' in col])}")
     
     return scatter_df
@@ -397,7 +400,7 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
     
     print(f"\nTotal entries: {len(df_filtered)}")
     print(f"Has logged dendrite count: {has_dendrite_count}")
-    print(f"Total unique runs: {df_filtered['run_name'].nunique()}")
+    print(f"Total unique runs: {df_filtered['run_id'].nunique()}")
     
     # Function to get expected starting dendrite for a run name
     def get_expected_start(run_name):
@@ -412,8 +415,9 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
         print("\n--- Checking for GAPS/MISSING DENDRITES ---")
         issues_found = False
         
-        for run_name in df_filtered['run_name'].unique():
-            run_data = df_filtered[df_filtered['run_name'] == run_name].sort_values('step')
+        for run_id in df_filtered['run_id'].unique():
+            run_data = df_filtered[df_filtered['run_id'] == run_id].sort_values('step')
+            run_name = run_data['run_name'].iloc[0]  # Get run_name for this run_id
             dendrite_counts = sorted(run_data['arch_dendrite_count'].unique())
             
             # Check for issues
@@ -432,7 +436,8 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
                 
                 if missing:
                     issues_found = True
-                    print(f"\n⚠️  ISSUE: Run '{run_name}'")
+                    print(f"\n⚠️  ISSUE: Run ID: {run_id}")
+                    print(f"    Run name: {run_name}")
                     if expected_start > 0:
                         # Extract model index from prefix for clearer messaging
                         model_idx_str = None
@@ -462,13 +467,14 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
         # Check for duplicate (param_count, dendrite_count) pairs within runs
         print("\n--- Checking for duplicate (param_count, dendrite_count) pairs ---")
         duplicates_found = False
-        for run_name in df_filtered['run_name'].unique():
-            run_data = df_filtered[df_filtered['run_name'] == run_name]
+        for run_id in df_filtered['run_id'].unique():
+            run_data = df_filtered[df_filtered['run_id'] == run_id]
+            run_name = run_data['run_name'].iloc[0]  # Get run_name for this run_id
             duplicates = run_data.groupby(['arch_param_count', 'arch_dendrite_count']).size()
             duplicates = duplicates[duplicates > 1]
             if not duplicates.empty:
                 duplicates_found = True
-                print(f"\n⚠️  Run '{run_name}' has duplicate (param_count, dendrite_count) pairs:")
+                print(f"\n⚠️  Run ID {run_id} ({run_name}) has duplicate (param_count, dendrite_count) pairs:")
                 for (pc, dc), count in duplicates.items():
                     print(f"    Param={pc}, Dendrite={int(dc)}: {count} entries")
         
@@ -589,16 +595,18 @@ Example:
                 
                 # Group runs by model_index
                 model_groups = {}
-                for run_name in df_filtered['run_name'].unique():
+                for run_id in df_filtered['run_id'].unique():
+                    run_data = df_filtered[df_filtered['run_id'] == run_id]
+                    run_name = run_data['run_name'].iloc[0]
                     model_idx = extract_model_index(run_name)
                     if model_idx is not None:
                         if model_idx not in model_groups:
                             model_groups[model_idx] = []
-                        model_groups[model_idx].append(run_name)
+                        model_groups[model_idx].append(run_id)
                 
                 # Check each model_index for consistent starting dendrite
                 suggestions = []
-                for model_idx, run_names in model_groups.items():
+                for model_idx, run_ids in model_groups.items():
                     # Check if already configured (either as model_index_N or just N)
                     prefix_full = f"model_index_{model_idx}"
                     if prefix_full in dendrite_offsets:
@@ -606,8 +614,8 @@ Example:
                     
                     # Get all dendrite counts for this model
                     all_dendrite_counts = []
-                    for run_name in run_names:
-                        run_data = df_filtered[df_filtered['run_name'] == run_name]
+                    for run_id in run_ids:
+                        run_data = df_filtered[df_filtered['run_id'] == run_id]
                         dendrite_counts = run_data['arch_dendrite_count'].dropna().unique()
                         all_dendrite_counts.extend(dendrite_counts)
                     
