@@ -71,9 +71,13 @@ The modern approach uses a dedicated sweep function that WandB calls:
         GPA.pc.set_silent(False)
         
         # Set run name from config keys (for easier identification)
-        config_keys = ["model", "dataset", "lr", "weight_decay", "label_smoothing", 
-                       "improvement_threshold", "pai_forward_function"]
-        name_parts = [f"{k}_{config.get(k, 'default')}" for k in config_keys if k in config]
+        # Use all config keys (sorted for consistency)
+        config_keys = sorted(config.keys())
+        # Put any key containing 'model' first
+        model_keys = [k for k in config_keys if 'model' in k.lower()]
+        other_keys = [k for k in config_keys if 'model' not in k.lower()]
+        config_keys = model_keys + other_keys
+        name_parts = [f"{k}_{config[k]}" for k in config_keys]
         if name_parts:
             wandb.run.name = "_".join(name_parts)
         
