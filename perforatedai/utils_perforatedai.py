@@ -1474,6 +1474,7 @@ def load_net_from_dict(net, state_dict):
                     "\n7 - You are running multiple experiments at once with the same save_name."
                     " When running concurrent trials be sure to add save_name=<unique_name> to perforate_model."
                 )
+                import pdb # This needs to be here for cython for some reason.
                 pdb.set_trace()
 
         # Perform as many cycles as the state dict has
@@ -1491,9 +1492,11 @@ def load_net_from_dict(net, state_dict):
             tracker_key = tracker_keys[0]
         elif len(tracker_keys) > 1:
             print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
         else:
             print("Error: No tracker_string found in state_dict")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
 
     if hasattr(net, "tracker_string"):
@@ -1501,7 +1504,7 @@ def load_net_from_dict(net, state_dict):
     else:
         net.register_buffer("tracker_string", state_dict[tracker_key])
     try:
-        net.load_state_dict(state_dict)
+        net.load_state_dict(state_dict, strict=GPA.pc.get_strict_loading())
     except Exception as e:
         """
         When modules have high depth to them (i.e. modules within modules not number of layers)
@@ -1513,7 +1516,11 @@ def load_net_from_dict(net, state_dict):
             manual_load_state_dict(net, state_dict)
         else:
             print(f"Error loading state_dict: {e}")
+            print("If the error is due to missing keys (e.g., from code changes), you can try:")
+            print("  GPA.pc.set_strict_loading(False)")
+            print("  Do not change this unless you are certain the missing keys are not important to load and are expected due to code changes or arch changes.")
             print("\ntype 'c' to print full state dicts\n")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
             print("net state dict is:")
             print(net.state_dict())
