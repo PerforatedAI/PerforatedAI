@@ -30,6 +30,13 @@ import wandb
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "imagenet"))
 from resnet_double import ResNetPAI
 
+# Import GPA for global configuration
+from perforatedai import globals_perforatedai as GPA
+
+# TODO: Remove later and do not duplicate if you are making a new sweep
+# Allows loading old checkpoints that are missing new fields like nodes_improved_any
+GPA.pc.set_strict_loading(False)
+
 
 def get_dataset_config(dataset_name):
     """Get recommended hyperparameters for each dataset
