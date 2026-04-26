@@ -542,6 +542,14 @@ class PAIConfig:
                 self, "using_safe_tensors", self.using_safe_tensors
             )
 
+            # Checkpoint loading settings
+            # Whether to use strict=True when loading state_dict
+            # Set to False if loading old checkpoints that are missing new fields
+            self.strict_loading = True
+            add_pai_config_var_functions(
+                self, "strict_loading", self.strict_loading
+            )
+
             # Graph and visualization settings
             # A graph setting which can be set to false if you want to do your own
             # training visualizations
