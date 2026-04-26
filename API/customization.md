@@ -43,7 +43,7 @@ doing_pai can be set to False if you want to run with your current parameters wi
 
 making_graphs can be set to False if you would prefer to make your own graphs for output performance.
 
-maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvement_threshold().  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
+maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvement_threshold().  The default is 1e-4, but setting it to 0.001 will only count a validation score improvement if the current score beats the last recorded threshold-passing score by at least .1%.
 
 save_name is defaults to 'PAI' but if you run multiple experiments at once this must be changed to save outputs to different folders
    
@@ -412,7 +412,11 @@ When this is its default of False you may still want to shorten Dendrite trainin
     GPA.pc.set_pai_improvement_threshold(0.1)
     GPA.pc.set_pai_improvement_thresholdRaw(1e-5)
 
-These values specify how much the Dendrites must be improving in order to continue training them.  The default settings are that if at least one Dendrite in the entire network has improved its score by at least 10% and at least 1e-5 over the last GPA.pc.get_p_epochs_to_switch() epochs then Dendrite training will continue.  If it seems like the Dendrite training just keeps going up indefinitely these are the values that should be changed.  Some larger models will even continue going up just due to random noise when a learning rate of 0 if these numbers are set too low.
+These values specify how much the Dendrites must improve **within a single epoch** to reset the patience counter and continue training. The default settings check every epoch: if at least one Dendrite in the entire network has improved its correlation score by at least 10% AND at least 1e-5 during that epoch, then the patience counter resets and Dendrite training continues. After GPA.pc.get_p_epochs_to_switch() epochs without meeting these thresholds, Dendrite training ends and switches back to neuron training.
+
+Note: These PAI correlation thresholds are different from validation score thresholds (set with GPA.pc.set_improvement_threshold()). Validation thresholds compare the current score against the last score that beat the threshold (which could be from many epochs ago if scores haven't improved enough). PAI thresholds check for improvement within each individual epoch during dendrite training.
+
+If it seems like Dendrite training continues indefinitely, these threshold values should be increased. Some larger models will continue showing score increases from random noise (even with learning rate 0) if these numbers are set too low.
 
 ### Correlation Scores are Low
 If a score is above 0.001 we typically determine that to mean correlation being learned correctly.  Anything less than that is likely just random noise and something is actually going wrong.  In these cases play around with the options of 2.1 and 2.2 above.  See if other wrapping methods or other processing functions are able to achieve better correlation scores.
