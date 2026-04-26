@@ -2460,3 +2460,9 @@ except:
             "huggingface_hub is required for upload_to_huggingface. "
             "Install it with: pip install huggingface_hub"
         )
+
+    def from_hf_pretrained(*args, **kwargs):
+        raise ImportError(
+            "huggingface_hub is required for from_hf_pretrained. "
+            "Install it with: pip install huggingface_hub"
+        )

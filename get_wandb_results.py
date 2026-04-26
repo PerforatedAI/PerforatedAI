@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script to fetch full results from a Weights & Biases (wandb) sweep.
-Extracts all raw log entries for Arch Param Count (X-axis) and Arch Max Val (Y-axis).
+Extracts all raw log entries for Arch and Final metrics (Param Count, Max Val, Dendrite Count).
 
 USAGE:
     python get_wandb_results.py <WANDB_URL> [OPTIONS]
@@ -12,8 +12,9 @@ MODES:
     1. download (default)
        - Downloads all raw log entries from the sweep
        - Output: entity_project_sweep_arch_scores.csv
-       - Columns: run_id, run_name, state, step, timestamp, arch_param_count, 
-                  arch_max_val, config_*
+       - Columns: run_id, run_name, state, step, timestamp, 
+                  arch_param_count, arch_max_val, arch_dendrite_count, config_*
+                  (add --include-final for final_param_count, final_max_val, final_dendrite_count)
        - Use when: You need the raw data for custom analysis
        - Example: python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/abc123"
 
@@ -47,6 +48,19 @@ DENDRITE OFFSET:
         # Multiple models with different starting counts
         python get_wandb_results.py "URL" --dendrite-offset "0:2" "1:3"
 
+FINAL METRICS:
+    Use --include-final to also extract Final Param Count, Final Max Val, and 
+    Final Dendrite Count from wandb logs. These are typically logged once at the 
+    end of each run.
+    
+    This is useful for verifying that the final logged values match the last Arch 
+    values, but should not be used when generating graph CSVs as it will add extra 
+    data points.
+    
+    Example:
+        # Download with Final metrics for verification
+        python get_wandb_results.py "URL" --include-final
+
 CSV CACHING:
     When using gen-by-run or by-dendrite modes, the script automatically checks for an
     existing raw CSV file (entity_project_sweep_arch_scores.csv) and uses it if found,
@@ -74,6 +88,9 @@ EXAMPLES:
     
     # Custom output filename
     python get_wandb_results.py "URL" -m by-dendrite -o my_results.csv
+    
+    # Include Final metrics to verify they match last Arch values
+    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" --include-final
 """
 
 import wandb
@@ -111,7 +128,7 @@ def parse_wandb_url(url: str) -> Tuple[str, str, str]:
     return entity, project, sweep_id
 
 
-def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
+def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: bool = False) -> pd.DataFrame:
     """
     Fetch all runs from a wandb sweep and extract all raw log entries.
     
@@ -119,9 +136,11 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
         entity: wandb entity (username or team name)
         project: wandb project name
         sweep_id: sweep ID (can be full path or just the ID)
+        include_final: whether to include Final metrics (Final Param Count, etc.)
     
     Returns:
-        DataFrame with all raw log entries containing arch_param_count and arch_max_val
+        DataFrame with all raw log entries containing arch metrics and optionally 
+        final metrics (param_count, max_val, dendrite_count)
     """
     # Initialize wandb API
     api = wandb.Api()
@@ -151,6 +170,11 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
     arch_param_count_keys = ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count']
     arch_max_val_keys = ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val']
     arch_dendrite_count_keys = ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count']
+    
+    if include_final:
+        final_param_count_keys = ['Final Param Count', 'final_param_count', 'Final_Param_Count']
+        final_max_val_keys = ['Final Max Val', 'final_max_val', 'Final_Max_Val']
+        final_dendrite_count_keys = ['Final Dendrite Count', 'final_dendrite_count', 'Final_Dendrite_Count']
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
@@ -193,7 +217,31 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
                 arch_dendrite_count_col = key
                 break
         
-        if arch_param_count_col is None and arch_max_val_col is None:
+        final_param_count_col = None
+        final_max_val_col = None
+        final_dendrite_count_col = None
+        
+        if include_final:
+            for key in final_param_count_keys:
+                if key in history.columns:
+                    final_param_count_col = key
+                    break
+            
+            for key in final_max_val_keys:
+                if key in history.columns:
+                    final_max_val_col = key
+                    break
+            
+            for key in final_dendrite_count_keys:
+                if key in history.columns:
+                    final_dendrite_count_col = key
+                    break
+        
+        # Check if we have any relevant metrics
+        has_arch = arch_param_count_col is not None or arch_max_val_col is not None
+        has_final = include_final and (final_param_count_col is not None or final_max_val_col is not None)
+        
+        if not has_arch and not has_final:
             print(f"    No relevant metrics found in history")
             continue
         
@@ -203,8 +251,23 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
             arch_max_val = row.get(arch_max_val_col) if arch_max_val_col else None
             arch_dendrite_count = row.get(arch_dendrite_count_col) if arch_dendrite_count_col else None
             
+            final_param_count = None
+            final_max_val = None
+            final_dendrite_count = None
+            
+            if include_final:
+                final_param_count = row.get(final_param_count_col) if final_param_count_col else None
+                final_max_val = row.get(final_max_val_col) if final_max_val_col else None
+                final_dendrite_count = row.get(final_dendrite_count_col) if final_dendrite_count_col else None
+            
             # Skip rows where all metrics are NaN
-            if pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count):
+            if include_final:
+                all_nan = (pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count) and
+                          pd.isna(final_param_count) and pd.isna(final_max_val) and pd.isna(final_dendrite_count))
+            else:
+                all_nan = (pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count))
+            
+            if all_nan:
                 continue
             
             entry = {
@@ -217,6 +280,11 @@ def get_sweep_results(entity: str, project: str, sweep_id: str) -> pd.DataFrame:
                 'arch_max_val': arch_max_val,
                 'arch_dendrite_count': arch_dendrite_count,
             }
+            
+            if include_final:
+                entry['final_param_count'] = final_param_count
+                entry['final_max_val'] = final_max_val
+                entry['final_dendrite_count'] = final_dendrite_count
             
             # Add config parameters
             for config_key, config_val in run.config.items():
@@ -520,6 +588,12 @@ Example:
         help='specify starting dendrite count for model indices. Format: "0:2" "1:3" (model_index_0 starts at 2, model_index_1 starts at 3)'
     )
     
+    parser.add_argument(
+        '--include-final',
+        action='store_true',
+        help='include Final Param Count, Final Max Val, and Final Dendrite Count metrics (logged at end of run). Useful for verification but not for graph generation.'
+    )
+    
     args = parser.parse_args()
     
     # Parse dendrite offsets - support only numeric format "0:2" which expands to "model_index_0:2"
@@ -564,7 +638,7 @@ Example:
         print(f"Loaded {len(df)} raw log entries from CSV")
     else:
         # Fetch sweep results from wandb
-        df = get_sweep_results(entity, project, sweep_id)
+        df = get_sweep_results(entity, project, sweep_id, include_final=args.include_final)
         
         if df.empty:
             print("No results found!")

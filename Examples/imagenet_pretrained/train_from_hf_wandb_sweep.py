@@ -680,8 +680,8 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 global_max_train = train_acc1
                 global_max_params = UPA.count_params(model)
 
-            # Track best for return
-            if test_acc1 > best_acc1:
+            # Track best for return (only n mode for perforated, since d mode improvements won't be saved)
+            if current_mode == "n" and test_acc1 > best_acc1:
                 best_acc1 = test_acc1
                 best_epoch = epoch + 1
 
@@ -1080,17 +1080,34 @@ def train_with_wandb():
     param_count = UPA.count_params(model)
 
     # Log final results - using wandb.md recommended naming
-    wandb.log(
-        {
-            "Final Max Val": best_acc1,
-            "Final Max Test": best_acc1,  # For transfer learning, val=test
-            "Final Param Count": param_count,
-            "best_epoch": best_epoch,
-            "fps": latency_results["fps"],
-            "mean_latency_ms": latency_results["mean_latency_ms"],
-            "p95_latency_ms": latency_results["p95_latency_ms"],
-        }
-    )
+    # Skip for perforated models since Final metrics are already logged inside training loop with dendrite count
+    perforate = args.model in [
+        "resnet-18-perforated-cascor-fc",
+        "resnet-18-perforated-cascor-pre-fc",
+    ]
+    if not perforate:
+        # Non-perforated models: log Final scores here
+        wandb.log(
+            {
+                "Final Max Val": best_acc1,
+                "Final Max Test": best_acc1,  # For transfer learning, val=test
+                "Final Param Count": param_count,
+                "best_epoch": best_epoch,
+                "fps": latency_results["fps"],
+                "mean_latency_ms": latency_results["mean_latency_ms"],
+                "p95_latency_ms": latency_results["p95_latency_ms"],
+            }
+        )
+    else:
+        # Perforated models: just log latency (Final scores already logged)
+        wandb.log(
+            {
+                "best_epoch": best_epoch,
+                "fps": latency_results["fps"],
+                "mean_latency_ms": latency_results["mean_latency_ms"],
+                "p95_latency_ms": latency_results["p95_latency_ms"],
+            }
+        )
 
     print(f"\n{'='*80}")
     print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
@@ -1118,7 +1135,7 @@ def main():
         "--sweep-count",
         type=int,
         default=300,
-        help="Number of runs for sweep agent (default: 100)",
+        help="Number of runs for sweep agent (default: 300)",
     )
     parser.add_argument(
         "--model",
@@ -1338,21 +1355,40 @@ def main():
     device = torch.device(args.device)
     latency_results = measure_inference_latency(model, test_loader, device)
 
-    # Log final results to WandB - using wandb.md recommended naming
+    # Log results to WandB (Final Max scores already logged inside training loop for perforated models)
     if hasattr(wandb, "run") and wandb.run is not None:
         from perforatedai import utils_perforatedai as UPA
         param_count = UPA.count_params(model)
-        wandb.log(
-            {
-                "Final Max Val": best_acc1,
-                "Final Max Test": best_acc1,  # For transfer learning, val=test
-                "Final Param Count": param_count,
-                "final_best_epoch": best_epoch,
-                "fps": latency_results["fps"],
-                "mean_latency_ms": latency_results["mean_latency_ms"],
-                "p95_latency_ms": latency_results["p95_latency_ms"],
-            }
-        )
+        
+        # Check if this is a perforated model that logs inside training loop
+        perforate = args.model in [
+            "resnet-18-perforated-cascor-fc",
+            "resnet-18-perforated-cascor-pre-fc",
+        ]
+        
+        if not perforate:
+            # Non-perforated models: log Final scores here
+            wandb.log(
+                {
+                    "Final Max Val": best_acc1,
+                    "Final Max Test": best_acc1,  # For transfer learning, val=test
+                    "Final Param Count": param_count,
+                    "final_best_epoch": best_epoch,
+                    "fps": latency_results["fps"],
+                    "mean_latency_ms": latency_results["mean_latency_ms"],
+                    "p95_latency_ms": latency_results["p95_latency_ms"],
+                }
+            )
+        else:
+            # Perforated models: just log latency (Final scores already logged)
+            wandb.log(
+                {
+                    "final_best_epoch": best_epoch,
+                    "fps": latency_results["fps"],
+                    "mean_latency_ms": latency_results["mean_latency_ms"],
+                    "p95_latency_ms": latency_results["p95_latency_ms"],
+                }
+            )
         wandb.finish()
 
     # Print final results
