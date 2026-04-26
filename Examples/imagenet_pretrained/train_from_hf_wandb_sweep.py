@@ -402,12 +402,6 @@ def load_model(model_name, num_classes, perforate=False):
             f"Successfully loaded torchvision ResNet-18 with pretrained ImageNet weights"
         )
 
-        # Replace fc layer BEFORE perforation so we perforate the correct layer
-        if perforate:
-            in_features = model.fc.in_features
-            model.fc = nn.Linear(in_features, num_classes)
-            print(f"Replaced fc layer for {num_classes} classes (before perforation)")
-
         # Perforate only the fc layer if requested
         if perforate:
             print("Configuring PAI to perforate only the fc layer...")
@@ -470,12 +464,6 @@ def load_model(model_name, num_classes, perforate=False):
         # Wrap in ResNetPAI (adds pre_fc layer)
         model = ResNetPAI(base_model)
 
-        # Replace fc layer BEFORE perforation (pre_fc is perforated, not fc)
-        if perforate:
-            in_features = model.fc.in_features
-            model.fc = nn.Linear(in_features, num_classes)
-            print(f"Replaced fc layer for {num_classes} classes (before perforation)")
-
         # Perforate only the pre_fc layer if requested
         if perforate:
             from perforatedai import globals_perforatedai as GPA
@@ -531,7 +519,8 @@ def load_model(model_name, num_classes, perforate=False):
             print(
                 f"Model perforated successfully (pre_fc layer only) - save_name: {save_name}"
             )
-            # Load pretrained pre-fc weights from local folder (if exists)
+
+        # Load pretrained pre-fc weights from local folder (if exists)
         pretrained_folder = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
         if os.path.exists(pretrained_folder):
             model = UPA.load_system(model, pretrained_folder, "beforeSwitch_0")
