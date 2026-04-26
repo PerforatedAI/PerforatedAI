@@ -2254,6 +2254,14 @@ class PAINeuronModuleTracker:
                             ].nodes_best_improved_this_epoch
                             * 0
                         )
+                        layer.dendrite_module.dendrite_values[
+                            m
+                        ].nodes_improved_any = (
+                            layer.dendrite_module.dendrite_values[
+                                m
+                            ].nodes_improved_any
+                            * 0
+                        )
             if GPA.pc.get_perforated_backpropagation():
                 self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_vars["num_epochs_run"] += 1
