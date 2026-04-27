@@ -3339,6 +3339,8 @@ class PAINeuronModuleTracker:
                     return net, True, True
 
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
+                # Check if we should increment integrated count BEFORE change_learning_modes loads old state
+                should_increment_integrated = False
                 if GPA.pai_tracker.member_vars["mode"] == "n":
                     GPA.pai_tracker.member_vars["num_dendrite_tries"] = 0
                     if GPA.pc.get_verbose():
@@ -3346,11 +3348,9 @@ class PAINeuronModuleTracker:
                             "Adding new dendrites without resetting which means "
                             "the last ones improved. Resetting num_dendrite_tries"
                         )
-                    # Increment integrated - dendrites succeeded and we're switching to p mode
+                    # Remember to increment after change_learning_modes (which loads old tracker state)
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
-                        GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                        if not GPA.pc.get_silent():
-                            print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        should_increment_integrated = True
 
                 GPA.pai_tracker.save_graphs(
                     f'_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}'
@@ -3377,6 +3377,13 @@ class PAINeuronModuleTracker:
                     GPA.pai_tracker.member_vars["doing_pai"],
                 )
                 restructuring_status_value = NETWORK_RESTRUCTURED
+                
+                # Now increment after change_learning_modes has loaded the best model
+                # This ensures the increment persists and doesn't get overwritten
+                if should_increment_integrated:
+                    GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+                    if not GPA.pc.get_silent():
+                        print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
 
             # If restructured is true, clear scheduler/optimizer before saving
             if restructuring_status_value != NETWORK_RESTRUCTURED:
