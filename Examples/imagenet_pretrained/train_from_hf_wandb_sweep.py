@@ -768,19 +768,18 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 }
                 
                 # Recreate scheduler (same as initial setup)
-                main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
-                )
                 if args.lr_warmup_epochs > 0:
-                    warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
-                        optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
-                    )
+                    # SequentialLR case - describe component schedulers in schedArgs
                     schedArgs = {
-                        "schedulers": [warmup_lr_scheduler, main_lr_scheduler],
+                        "schedulers": [
+                            (torch.optim.lr_scheduler.ConstantLR, {"factor": 0.01, "total_iters": args.lr_warmup_epochs}),
+                            (torch.optim.lr_scheduler.CosineAnnealingLR, {"T_max": max(1, args.epochs - args.lr_warmup_epochs), "eta_min": 0.0})
+                        ],
                         "milestones": [args.lr_warmup_epochs]
                     }
                     optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
                 else:
+                    # Simple scheduler case
                     schedArgs = {
                         "T_max": max(1, args.epochs - args.lr_warmup_epochs),
                         "eta_min": 0.0
