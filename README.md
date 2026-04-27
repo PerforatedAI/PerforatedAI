@@ -48,7 +48,7 @@ Add dendritic learning to your PyTorch models in minutes.
 ## Install the perforatedai library
 
 ```bash
-pip install -e .
+pip install perforatedai
 ```
 
 ## Add dendrites to your neural network
