@@ -1907,6 +1907,11 @@ class PAINeuronModuleTracker:
                     f'total epochs {self.member_vars["total_epochs_run"]}, '
                     f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
                 )
+            print(
+                f'  Score tracking: current_n_set_global_best={self.member_vars["current_n_set_global_best"]}, '
+                f'global_best={self.member_vars["global_best_validation_score"]:.4f}, '
+                f'current_best={self.member_vars["current_best_validation_score"]:.4f}'
+            )
         if GPA.pc.get_perforated_backpropagation():
             # this will fill in epoch last improved
             TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY
@@ -2160,11 +2165,6 @@ class PAINeuronModuleTracker:
 
         GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
         GPA.pai_tracker.member_vars["num_cycles"] += 1
-        # Increment integrated if we have dendrites (means they're integrated)
-        if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
-            GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-            if not GPA.pc.get_silent():
-                print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
 
 
     def set_neuron_training(self):
@@ -3346,6 +3346,11 @@ class PAINeuronModuleTracker:
                             "Adding new dendrites without resetting which means "
                             "the last ones improved. Resetting num_dendrite_tries"
                         )
+                    # Increment integrated - dendrites succeeded and we're switching to p mode
+                    if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+                        GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+                        if not GPA.pc.get_silent():
+                            print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
 
                 GPA.pai_tracker.save_graphs(
                     f'_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}'

@@ -542,28 +542,41 @@ def load_model(model_name, num_classes, perforate=False):
     else:
         raise ValueError(f"Unknown model: {model_name}")
 
-    # Replace final layer for target number of classes (only for non-perforated models)
-    # Perforated models already replaced fc layer before perforation
-    if not perforate:
-        if hasattr(model, "fc"):
-            # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
-            if hasattr(model.fc, "main_module"):
-                in_features = model.fc.main_module.in_features
-            else:
-                in_features = model.fc.in_features
-            model.fc = nn.Linear(in_features, num_classes)
-            print(f"Replaced fc layer for {num_classes} classes")
-        elif hasattr(model, "classifier"):
-            # Transformers models use 'classifier'
-            if isinstance(model.classifier, nn.Sequential):
-                in_features = model.classifier[-1].in_features
-                model.classifier[-1] = nn.Linear(in_features, num_classes)
-            else:
-                in_features = model.classifier.in_features
-                model.classifier = nn.Linear(in_features, num_classes)
-            print(f"Replaced classifier layer for {num_classes} classes")
+    # Replace final layer for target number of classes
+    if hasattr(model, "fc"):
+        # Check if it's a TrackedNeuronModule (from HuggingFace PAI model) or regular Linear
+        if hasattr(model.fc, "main_module"):
+            in_features = model.fc.main_module.in_features
         else:
-            raise ValueError(f"Cannot adapt model - unknown classifier layer")
+            in_features = model.fc.in_features
+        new_fc = nn.Linear(in_features, num_classes)
+        
+        # If perforate is True, wrap the new fc layer in appropriate PAI module
+        if perforate:
+            from perforatedai.modules_perforatedai import PAINeuronModule, TrackedNeuronModule
+            
+            if model_name == "resnet-18-perforated-cascor-fc":
+                # For fc model: perforate the fc layer
+                model.fc = PAINeuronModule(new_fc, "fc")
+                print(f"Replaced fc layer for {num_classes} classes and converted to PAINeuronModule")
+            elif model_name == "resnet-18-perforated-cascor-pre-fc":
+                # For pre-fc model: track the fc layer (don't perforate it)
+                model.fc = TrackedNeuronModule(new_fc, "fc")
+                print(f"Replaced fc layer for {num_classes} classes and converted to TrackedNeuronModule")
+        else:
+            model.fc = new_fc
+            print(f"Replaced fc layer for {num_classes} classes")
+    elif hasattr(model, "classifier"):
+        # Transformers models use 'classifier'
+        if isinstance(model.classifier, nn.Sequential):
+            in_features = model.classifier[-1].in_features
+            model.classifier[-1] = nn.Linear(in_features, num_classes)
+        else:
+            in_features = model.classifier.in_features
+            model.classifier = nn.Linear(in_features, num_classes)
+        print(f"Replaced classifier layer for {num_classes} classes")
+    else:
+        raise ValueError(f"Cannot adapt model - unknown classifier layer")
 
     return model
 
@@ -602,27 +615,45 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             "momentum": 0.9,
             "weight_decay": args.weight_decay,
         }
-        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+        
+        if args.lr_warmup_epochs > 0:
+            # SequentialLR case - describe component schedulers in schedArgs
+            GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.SequentialLR)
+            schedArgs = {
+                "schedulers": [
+                    (torch.optim.lr_scheduler.ConstantLR, {"factor": 0.01, "total_iters": args.lr_warmup_epochs}),
+                    (torch.optim.lr_scheduler.CosineAnnealingLR, {"T_max": max(1, args.epochs - args.lr_warmup_epochs), "eta_min": 0.0})
+                ],
+                "milestones": [args.lr_warmup_epochs]
+            }
+            optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+        else:
+            # Simple scheduler case
+            GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)
+            schedArgs = {
+                "T_max": max(1, args.epochs - args.lr_warmup_epochs),
+                "eta_min": 0.0
+            }
+            optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     else:
         optimizer = torch.optim.SGD(
             model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay
         )
-
-    # Setup scheduler (same for both perforated and non-perforated)
-    main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
-    )
-    if args.lr_warmup_epochs > 0:
-        warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
-            optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
+        # Setup scheduler for non-perforated
+        main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
         )
-        lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
-            optimizer,
-            schedulers=[warmup_lr_scheduler, main_lr_scheduler],
-            milestones=[args.lr_warmup_epochs],
-        )
-    else:
-        lr_scheduler = main_lr_scheduler
+        if args.lr_warmup_epochs > 0:
+            warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
+                optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
+            )
+            lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer,
+                schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+                milestones=[args.lr_warmup_epochs],
+            )
+        else:
+            lr_scheduler = main_lr_scheduler
 
     # Determine dendrite count for non-perforated models
     dendrite_count_override = None
@@ -681,16 +712,14 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_acc1 = test_acc1
                 best_epoch = epoch + 1
 
-            # Step the scheduler
-            lr_scheduler.step()
-            
             # Add extra scores for training metrics (must be after add_validation_score)
             GPA.pai_tracker.add_extra_score(train_acc1, "train")
-            
+            GPA.pc.set_verbose(True)
             # Add validation score to PAI tracker
             model, restructured, training_complete = (
                 GPA.pai_tracker.add_validation_score(test_acc1, model)
             )
+            GPA.pc.set_verbose(False)
             model = model.to(device)
 
             # Log arch max when dendrites are successfully integrated (or first switch for base model)
@@ -731,18 +760,12 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     print(f"  Max val: {max_val}, Max train: {max_train}")
 
                 # Reinitialize optimizer and scheduler after restructuring (same as initial setup)
-                # Apply dendrite LR multiplier if in neuron training mode
-                current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
-                dendrite_lr_mult = wandb.config.get("dendrite_lr_multiplier", 1.0) if hasattr(wandb, "run") and wandb.run is not None else 1.0
-                adjusted_lr = args.lr * dendrite_lr_mult if current_mode == "n" else args.lr
-                
                 optimArgs = {
                     "params": model.parameters(),
-                    "lr": adjusted_lr,
+                    "lr": args.lr,
                     "momentum": 0.9,
                     "weight_decay": args.weight_decay,
                 }
-                optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
                 
                 # Recreate scheduler (same as initial setup)
                 main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -752,13 +775,17 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
                         optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
                     )
-                    lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
-                        optimizer,
-                        schedulers=[warmup_lr_scheduler, main_lr_scheduler],
-                        milestones=[args.lr_warmup_epochs],
-                    )
+                    schedArgs = {
+                        "schedulers": [warmup_lr_scheduler, main_lr_scheduler],
+                        "milestones": [args.lr_warmup_epochs]
+                    }
+                    optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
                 else:
-                    lr_scheduler = main_lr_scheduler
+                    schedArgs = {
+                        "T_max": max(1, args.epochs - args.lr_warmup_epochs),
+                        "eta_min": 0.0
+                    }
+                    optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
             else:
                 # Debug: why didn't restructure trigger?
                 if not restructured:
@@ -953,7 +980,6 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     elif dataset_name == "pets":
@@ -969,7 +995,6 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     elif dataset_name == "food101":
@@ -985,7 +1010,6 @@ def get_sweep_config(dataset_name):
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-            "dendrite_lr_multiplier": {"values": [1.0, 0.5, 0.1]},
         }
 
     else:
