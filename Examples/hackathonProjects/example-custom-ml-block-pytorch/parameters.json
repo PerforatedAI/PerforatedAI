@@ -30,6 +30,13 @@
             "param": "seed"
         },
         {
+            "name": "Softmax Export",
+            "value": "false",
+            "type": "boolean",
+            "help": "Include softmax in exported ONNX/TFLite models. When false, exported models output raw logits (argmax still works, no quantization issues).",
+            "param": "softmax-export"
+        },
+        {
             "name": "Noise Standard Deviation",
             "value": "None",
             "type": "select",
@@ -177,7 +184,7 @@
             "name": "Improved Dendritic Optimization",
             "value": "false",
             "type": "boolean",
-            "help": "Controls whether improved dendritic optimization should be applied.",
+            "help": "Train dendrites with correlation-based optimization for better performance with the same final architecture.",
             "showIf": {
                 "parameter": "dendritic-optimization",
                 "operator": "eq",

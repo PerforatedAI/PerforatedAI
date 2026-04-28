@@ -97,6 +97,7 @@ parser.add_argument('--out-directory', type=str, default='out', dest='out_direct
 parser.add_argument('--batch-size', type=int, default=128, dest='batch_size')
 parser.add_argument('--learning-rate', type=float, default=0.005, dest='learning_rate')
 parser.add_argument('--seed', type=int, default=-1, help="Random seed for reproducibility. Use -1 for random (non-deterministic) behavior")
+parser.add_argument('--softmax-export', type=str, default='false', help="Include softmax in exported ONNX/TFLite models (default: false for raw logits)", dest='softmax_export')
 parser.add_argument('--noise-std', type=str, default='None', help="Gaussian noise augmentation (None/Low/High)", dest='noise_std')
 
 # Data augmentation parameters (SpecAugment for spectrograms)
@@ -165,6 +166,7 @@ mask_time_bands_val = parse_augmentation_level(args.mask_time_bands, low_val=1, 
 mask_freq_bands_val = parse_augmentation_level(args.mask_freq_bands, low_val=1, high_val=3, none_val=0)
 warp_time_val = str2bool(args.warp_time)
 auto_weight_val = str2bool(args.auto_weight_classes)
+softmax_export_val = str2bool(args.softmax_export)
 
 # Parse layer configurations early (needed for data type detection)
 layer_configs = []
@@ -368,7 +370,7 @@ class AdaptiveClassifier(nn.Module):
         self.mask_time_bands = mask_time_bands
         self.mask_freq_bands = mask_freq_bands
         self.warp_time = warp_time
-        self.export_mode = False  # When True, output probabilities; when False, output logits
+        self.softmax_on = False  # When True, output probabilities; when False, output logits
         self.layer_configs = layer_configs or []
         
         # Build layers dynamically from configuration
@@ -711,7 +713,7 @@ class AdaptiveClassifier(nn.Module):
         
         # Apply softmax only in export mode to output probabilities for Edge Impulse
         # During training, output raw logits for CrossEntropyLoss compatibility
-        if self.export_mode:
+        if self.softmax_on:
             x = torch.nn.functional.softmax(x, dim=1)
         
         return x
@@ -962,10 +964,10 @@ def main(config):
     # Move model to CPU and eval mode to get reference scores
     model = model.cpu()
     model.eval()
-    model.export_mode = False  # Use logits for evaluation
     
     print("\n=== PyTorch Baseline (before ONNX export transformations) ===", flush=True)
-    pytorch_val_loss, pytorch_val_acc = test(model, val_loader, criterion, torch.device('cpu'))
+    cpu_criterion = nn.CrossEntropyLoss()  # Create CPU-compatible criterion without weights
+    pytorch_val_loss, pytorch_val_acc = test(model, val_loader, cpu_criterion, torch.device('cpu'))
     if str2bool(args.split_test):
         pytorch_test_loss, pytorch_test_acc = test(model, test_loader, criterion, torch.device('cpu'))
         print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
@@ -984,7 +986,6 @@ def main(config):
 
     # Test forward pass and capture activation statistics
     model.eval()
-    model.export_mode = False
     
     # Fix padding for conv layers if needed
     for layer in model.layers:
@@ -999,8 +1000,9 @@ def main(config):
                         conv.padding = padding
 
     # Model already in eval mode and on CPU from baseline evaluation
-    # Now enable export mode for ONNX (outputs probabilities)
-    model.export_mode = True
+    # Control softmax in exported models: only enable if softmax_export is True
+    # Default (False) exports raw logits - argmax still works, avoids quantization issues
+    model.softmax_on = softmax_export_val
     
     # Export ONNX with batch size 1 (important for Edge Impulse)
     # Calculate total input size for ONNX export
