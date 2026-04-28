@@ -108,7 +108,7 @@ parser.add_argument('--auto-weight-classes', type=str, default='false', help="Au
 # Layer-by-layer architecture parameters (layers 0-19)
 for i in range(20):
     parser.add_argument(f'--layer-{i}-type', type=str, default='None', dest=f'layer_{i}_type',
-                        choices=['None', 'Dense', '1D Convolution/Pool', '2D Convolution/Pool', 'Dropout'],
+                        choices=['None', 'Dense', '1D Convolution/Pool', '2D Convolution/Pool', 'Dropout', 'Reshape'],
                         help=f"Type of layer {i}")
     # Dense layer parameters
     parser.add_argument(f'--layer-{i}-dense-channels', type=str, default='', dest=f'layer_{i}_dense_channels',
@@ -119,10 +119,12 @@ for i in range(20):
     # 2D Conv/Pool parameters
     parser.add_argument(f'--layer-{i}-conv2d-config', type=str, default='', dest=f'layer_{i}_conv2d_config',
                         help=f"Layer {i} 2D Conv/Pool: channels,kernel_size,layer_count (comma-separated)")
-
     # Dropout parameters
     parser.add_argument(f'--layer-{i}-dropout-rate', type=str, default='', dest=f'layer_{i}_dropout_rate',
                         help=f"Layer {i} Dropout: dropout rate (0.0-1.0)")
+    # Reshape parameters
+    parser.add_argument(f'--layer-{i}-reshape-columns', type=str, default='', dest=f'layer_{i}_reshape_columns',
+                        help=f"Layer {i} Reshape: number of columns (freq bins) to reshape flat input into")
 
 # PerforatedAI dendritic optimization parameters
 parser.add_argument('--dendritic-optimization', type=str, required=False, default="true", dest='dendritic_optimization')
@@ -204,7 +206,12 @@ for i in range(20):
         rate_str = getattr(args, f'layer_{i}_dropout_rate', '')
         if rate_str:
             config['rate'] = float(rate_str)
-    
+
+    elif layer_type == 'Reshape':
+        columns_str = getattr(args, f'layer_{i}_reshape_columns', '')
+        if columns_str:
+            config['columns'] = int(columns_str)
+
     layer_configs.append(config)
 
 os.environ["PAIEMAIL"] = args.perforated_ai_login_email
@@ -327,6 +334,24 @@ if str2bool(args.split_test):
 # -------------------------
 # Generalized Model definition
 # -------------------------
+class _Reshape1D(nn.Module):
+    """Reshapes flat (batch, length) input to (batch, columns, rows) for Conv1d.
+    Equivalent to Keras Reshape((rows, columns)) followed by Conv1D which uses columns as channels.
+
+    Keras Reshape((rows, columns)) fills row-major: output[b, t, c] = input[b, t*columns + c]
+    PyTorch Conv1d expects (batch, channels, length), so we reshape to (batch, rows, columns)
+    matching Keras, then permute to (batch, columns, rows) for Conv1d channel-first format.
+    """
+    def __init__(self, columns: int, rows: int):
+        super().__init__()
+        self.columns = columns
+        self.rows = rows
+
+    def forward(self, x):
+        # Match Keras Reshape((rows, columns)) row-major layout, then permute for Conv1d
+        return x.view(x.size(0), self.rows, self.columns).permute(0, 2, 1).contiguous()
+
+
 class AdaptiveClassifier(nn.Module):
     """
     Adaptive classifier with flexible layer-by-layer configuration.
@@ -377,9 +402,15 @@ class AdaptiveClassifier(nn.Module):
                 has_initial_conv = first_layer_type == '1D Convolution/Pool'
             
             if has_initial_conv:
+                # Will be reshaped in forward() if a Reshape layer precedes, otherwise
+                # unsqueeze(1) gives (batch, 1, length) as a flat sequence.
+                self.freq_bins = 1
+                self.time_steps = self.input_length
                 current_shape = (1, self.input_length)  # (channels, length) for 1D conv
                 current_size = None
             else:
+                self.freq_bins = 1
+                self.time_steps = self.input_length
                 current_shape = None
                 current_size = self.input_length
         
@@ -420,16 +451,16 @@ class AdaptiveClassifier(nn.Module):
                 current_length = current_shape[1] if current_shape else current_size
                 
                 # Add layer_count conv+relu layers
+                # Note: no MaxNorm constraint on Conv1d (Keras Conv1D has no kernel_constraint by default)
                 for _ in range(layer_count):
                     conv = nn.Conv1d(in_channels, channels, kernel_size, padding=kernel_size//2)
                     self.layers.append(conv)
-                    self._constrained_conv_layers.append(conv)
                     self.layers.append(nn.ReLU())
                     in_channels = channels
                 
-                # Single pooling at the end
-                self.layers.append(nn.MaxPool1d(2))
-                current_length = current_length // 2
+                # Single pooling at the end - ceil_mode=True matches Keras padding='same'
+                self.layers.append(nn.MaxPool1d(2, ceil_mode=True))
+                current_length = (current_length + 1) // 2
                 
                 current_shape = (channels, current_length)
                 current_size = None
@@ -464,7 +495,28 @@ class AdaptiveClassifier(nn.Module):
             elif layer_type == 'Dropout':
                 rate = float(config.get('rate', 0.5))
                 self.layers.append(nn.Dropout(rate))
-        
+
+            elif layer_type == 'Reshape':
+                if 'columns' not in config:
+                    raise ValueError("Reshape layer requires 'columns' to be specified (e.g. 13 for MFCC, 40 for motion).")
+                columns = int(config['columns'])
+                # Flatten first if coming from conv layers
+                if current_shape is not None:
+                    self.layers.append(nn.Flatten())
+                    self._flatten_layer_indices.append(len(self.layers) - 1)
+                    if len(current_shape) == 3:
+                        current_size = current_shape[0] * current_shape[1] * current_shape[2]
+                    elif len(current_shape) == 2:
+                        current_size = current_shape[0] * current_shape[1]
+                    current_shape = None
+                # Store reshape as a simple lambda-style module using a custom class
+                rows = current_size // columns
+                self.layers.append(_Reshape1D(columns, rows))
+                self.freq_bins = columns
+                self.time_steps = rows
+                current_shape = (columns, rows)  # (channels, length) for Conv1d
+                current_size = None
+
         # Final output layer
         if current_size is None:
             # Need to flatten
@@ -475,7 +527,20 @@ class AdaptiveClassifier(nn.Module):
                 current_size = current_shape[0] * current_shape[1]
         
         self.layers.append(nn.Linear(current_size, classes))
-    
+
+        # Apply Xavier/Glorot uniform initialization to match Keras default
+        # PyTorch Conv1d/Linear default is kaiming_uniform(a=sqrt(5)) which gives ~2x smaller
+        # weights than Keras's glorot_uniform, causing slower/worse convergence.
+        for module in self.modules():
+            if isinstance(module, (nn.Conv1d, nn.Conv2d)):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+            elif isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+
     def _max_norm_constraint_tensor(self, weight: torch.Tensor, max_value=1.0) -> torch.Tensor:
         if weight.dim() == 3:
             # 1D conv: (out_channels, in_channels, kernel_size)
@@ -599,8 +664,12 @@ class AdaptiveClassifier(nn.Module):
             # Check actual layer type (may be wrapped by PAIModule)
             actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
             
-            if isinstance(actual_layer, nn.Conv1d):
-                # PerforatedAI handles the unsqueeze, just pass through
+            if isinstance(actual_layer, _Reshape1D):
+                x = layer(x)
+            elif isinstance(actual_layer, nn.Conv1d):
+                # If no explicit Reshape layer was used, unsqueeze to (batch, 1, length)
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)
                 x = layer(x)
                 # Check for dimension issues after PerforatedAI transforms
                 if x.dim() != 3 and x.dim() != 2:
@@ -729,8 +798,8 @@ def main(config):
     
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
-    optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999)}
-    schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}  # Set to 1000 to match Keras (no LR scheduling)
+    optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}  # eps=1e-7 matches Keras legacy Adam default (PyTorch default is 1e-8)
+    schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
     optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     # Compute class weights if auto_weight_classes is enabled
@@ -797,6 +866,7 @@ def main(config):
         running_loss = 0.0
         correct = 0
         total = 0
+        all_predicted = []
         with torch.no_grad():
             for inputs, labels in loader:
                 inputs, labels = inputs.to(device), labels.to(device)
@@ -819,6 +889,7 @@ def main(config):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                all_predicted.append(predicted.cpu())
         return running_loss / total, correct / total
 
     # Training loop
@@ -853,11 +924,12 @@ def main(config):
                 first_val_acc = val_acc
                 first_test_acc = test_acc
             print('Restructured dendritic architecture')
-            optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999)}
+            optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}
             schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
-        print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | LR: {current_lr:.2e} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
 
     if str2bool(args.split_test):
         test_loss, test_acc = test(model, test_loader, criterion, device)

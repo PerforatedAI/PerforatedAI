@@ -22,6 +22,8 @@ class PAIModulePyThread(nn.Module):
         self.register_buffer("node_index", original_module.node_index.clone().detach())
         self.register_buffer("num_cycles", original_module.num_cycles)
         self.register_buffer("view_tuple", original_module.view_tuple)
+        # Cache view_tuple as Python tuple to avoid .tolist() during ONNX export
+        self._view_shape = tuple(original_module.view_tuple.tolist())
 
     def process_and_forward(self, *args2, **kwargs2):
         c = args2[0]
@@ -74,10 +76,11 @@ class PAIModulePyThread(nn.Module):
             current_out = dendrite_outs[out_index]
             if len(self.layer_array) > 1:
                 for in_index in range(0, out_index):
+                    skip_weight = self.skip_weights[out_index - 1][in_index, :]
+                    # Use cached Python tuple instead of .tolist() during forward
+                    skip_weight = skip_weight.view(self._view_shape)
                     current_out = current_out + (
-                        self.skip_weights[out_index][in_index, :]
-                        .view(self.view_tuple.tolist())
-                        .to(current_out.device)
+                        skip_weight.to(current_out.device)
                         * dendrite_outs[in_index]
                     )
                 if out_index < len(self.layer_array) - 1:

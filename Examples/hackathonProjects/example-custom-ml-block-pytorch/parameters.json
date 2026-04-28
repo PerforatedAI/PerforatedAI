@@ -226,7 +226,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-0-type"
         },
@@ -279,6 +280,18 @@
             }
         },
         {
+            "name": "0 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-0-reshape-columns",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 1 Type",
             "value": "None",
             "type": "select",
@@ -288,7 +301,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-1-type",
             "showIf": {
@@ -346,6 +360,18 @@
             }
         },
         {
+            "name": "1 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-1-reshape-columns",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 2 Type",
             "value": "None",
             "type": "select",
@@ -355,7 +381,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-2-type",
             "showIf": {
@@ -413,6 +440,18 @@
             }
         },
         {
+            "name": "2 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-2-reshape-columns",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 3 Type",
             "value": "None",
             "type": "select",
@@ -422,7 +461,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-3-type",
             "showIf": {
@@ -480,6 +520,18 @@
             }
         },
         {
+            "name": "3 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-3-reshape-columns",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 4 Type",
             "value": "None",
             "type": "select",
@@ -489,7 +541,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-4-type",
             "showIf": {
@@ -547,6 +600,18 @@
             }
         },
         {
+            "name": "4 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-4-reshape-columns",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 5 Type",
             "value": "None",
             "type": "select",
@@ -556,7 +621,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-5-type",
             "showIf": {
@@ -614,6 +680,18 @@
             }
         },
         {
+            "name": "5 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-5-reshape-columns",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 6 Type",
             "value": "None",
             "type": "select",
@@ -623,7 +701,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-6-type",
             "showIf": {
@@ -681,6 +760,18 @@
             }
         },
         {
+            "name": "6 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-6-reshape-columns",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 7 Type",
             "value": "None",
             "type": "select",
@@ -690,7 +781,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-7-type",
             "showIf": {
@@ -748,6 +840,18 @@
             }
         },
         {
+            "name": "7 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-7-reshape-columns",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 8 Type",
             "value": "None",
             "type": "select",
@@ -757,7 +861,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-8-type",
             "showIf": {
@@ -815,6 +920,18 @@
             }
         },
         {
+            "name": "8 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-8-reshape-columns",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 9 Type",
             "value": "None",
             "type": "select",
@@ -824,7 +941,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-9-type",
             "showIf": {
@@ -882,6 +1000,18 @@
             }
         },
         {
+            "name": "9 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-9-reshape-columns",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 10 Type",
             "value": "None",
             "type": "select",
@@ -891,7 +1021,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-10-type",
             "showIf": {
@@ -949,6 +1080,18 @@
             }
         },
         {
+            "name": "10 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-10-reshape-columns",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 11 Type",
             "value": "None",
             "type": "select",
@@ -958,7 +1101,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-11-type",
             "showIf": {
@@ -1016,6 +1160,18 @@
             }
         },
         {
+            "name": "11 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-11-reshape-columns",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 12 Type",
             "value": "None",
             "type": "select",
@@ -1025,7 +1181,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-12-type",
             "showIf": {
@@ -1083,6 +1240,18 @@
             }
         },
         {
+            "name": "12 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-12-reshape-columns",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 13 Type",
             "value": "None",
             "type": "select",
@@ -1092,7 +1261,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-13-type",
             "showIf": {
@@ -1150,6 +1320,18 @@
             }
         },
         {
+            "name": "13 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-13-reshape-columns",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 14 Type",
             "value": "None",
             "type": "select",
@@ -1159,7 +1341,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-14-type",
             "showIf": {
@@ -1217,6 +1400,18 @@
             }
         },
         {
+            "name": "14 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-14-reshape-columns",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 15 Type",
             "value": "None",
             "type": "select",
@@ -1226,7 +1421,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-15-type",
             "showIf": {
@@ -1284,6 +1480,18 @@
             }
         },
         {
+            "name": "15 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-15-reshape-columns",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 16 Type",
             "value": "None",
             "type": "select",
@@ -1293,7 +1501,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-16-type",
             "showIf": {
@@ -1351,6 +1560,18 @@
             }
         },
         {
+            "name": "16 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-16-reshape-columns",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 17 Type",
             "value": "None",
             "type": "select",
@@ -1360,7 +1581,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-17-type",
             "showIf": {
@@ -1418,6 +1640,18 @@
             }
         },
         {
+            "name": "17 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-17-reshape-columns",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 18 Type",
             "value": "None",
             "type": "select",
@@ -1427,7 +1661,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-18-type",
             "showIf": {
@@ -1485,6 +1720,18 @@
             }
         },
         {
+            "name": "18 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-18-reshape-columns",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
             "name": "Layer 19 Type",
             "value": "None",
             "type": "select",
@@ -1494,7 +1741,8 @@
                 "Dense",
                 "1D Convolution/Pool",
                 "2D Convolution/Pool",
-                "Dropout"
+                "Dropout",
+                "Reshape"
             ],
             "param": "layer-19-type",
             "showIf": {
@@ -1549,6 +1797,18 @@
                 "parameter": "layer-19-type",
                 "operator": "eq",
                 "value": "Dropout"
+            }
+        },
+        {
+            "name": "19 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-19-reshape-columns",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Reshape"
             }
         },
         {
