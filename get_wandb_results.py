@@ -1,82 +1,33 @@
 #!/usr/bin/env python3
 """
-Script to fetch full results from a Weights & Biases (wandb) sweep.
-Extracts all raw log entries for Arch and Final metrics (Param Count, Max Val, Dendrite Count).
+Script to fetch and analyze results from Weights & Biases sweeps.
+Extracts architecture progression and final metrics from wandb logs.
 
-USAGE:
-    python get_wandb_results.py <WANDB_URL> [OPTIONS]
+QUICK START:
+    python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/SWEEP_ID"
 
 MODES:
-    The script supports three output modes controlled by the --mode/-m argument:
+    --mode download (default) - Download raw CSV with all metrics
+    --mode gen-by-run         - Generate pivot table for line graphs (runs as lines)
+    --mode by-dendrite        - Generate scatter plot data (grouped by dendrite count)
 
-    1. download (default)
-       - Downloads all raw log entries from the sweep
-       - Output: entity_project_sweep_arch_scores.csv
-       - Columns: run_id, run_name, state, step, timestamp, 
-                  arch_param_count, arch_max_val, arch_dendrite_count, config_*
-                  (add --include-final for final_param_count, final_max_val, final_dendrite_count)
-       - Use when: You need the raw data for custom analysis
-       - Example: python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/abc123"
+COMMON OPTIONS:
+    --include-final       - Include final metrics (for verification, not graphing)
+    --dendrite-offset     - Specify starting dendrite counts (e.g., "0:2" for pretrained models)
 
-    2. gen-by-run
-       - Creates a pivot table for line graphs where each run is a separate line
-       - Output: entity_project_sweep_by_run.csv
-       - Format: Rows = Arch Param Count, Columns = Run names, Values = Arch Max Val
-       - Use when: You want to compare different runs as lines on a single graph
-       - Example: python get_wandb_results.py "URL" -m gen-by-run
-
-    3. by-dendrite
-       - Creates scatter plot data grouped by dendrite count
-       - Output: entity_project_sweep_by_dendrite.csv
-       - Format: Columns = run_name, param_count, dendrite_0_max_val, dendrite_1_max_val, ...
-       - Use when: You want to visualize how different dendrite configurations perform
-       - Use --dendrite-offset if models start with dendrites already added (e.g., "0:2")
-       - Example: python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
-
-DENDRITE OFFSET:
-    Use --dendrite-offset to specify starting dendrite counts for model indices.
-    Format: "model_index:count" (e.g., "0:2" means model_index_0 starts with 2 dendrites)
-    
-    This is used both for:
-    - Suppressing diagnostic warnings about "missing" dendrites
-    - Correctly processing data in by-dendrite mode
-    
-    Examples:
-        # Model 0 starts with 2 dendrites (pretrained)
-        python get_wandb_results.py "URL" --dendrite-offset "0:2"
-        
-        # Multiple models with different starting counts
-        python get_wandb_results.py "URL" --dendrite-offset "0:2" "1:3"
-
-FINAL METRICS:
-    Use --include-final to also extract Final Param Count, Final Max Val, and 
-    Final Dendrite Count from wandb logs. These are typically logged once at the 
-    end of each run.
-    
-    This is useful for verifying that the final logged values match the last Arch 
-    values, but should not be used when generating graph CSVs as it will add extra 
-    data points.
-    
-    Example:
-        # Download with Final metrics for verification
-        python get_wandb_results.py "URL" --include-final
-
-CSV CACHING:
-    When using gen-by-run or by-dendrite modes, the script automatically checks for an
-    existing raw CSV file (entity_project_sweep_arch_scores.csv) and uses it if found,
-    avoiding unnecessary wandb API calls. To force a fresh download, delete the CSV
-    or use download mode first.
+FULL DOCUMENTATION:
+    For detailed usage, output formats, and workflows, see:
+    .github/skills/perforatedai/api-docs/wandb.md (Analyzing Sweep Results section)
 
 EXAMPLES:
     # Download raw data
-    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123"
+    python get_wandb_results.py "https://wandb.ai/myteam/project/sweeps/abc123"
     
-    # Download with dendrite offset (model 0 starts with 2 dendrites)
-    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
-        --dendrite-offset "0:2"
+    # Generate by-run comparison
+    python get_wandb_results.py "URL" -m gen-by-run
     
-    # Generate line graph format
-    python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" -m gen-by-run
+    # Analyze dendrite progression with pretrained model offset
+    python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
     
     # Generate scatter plot with dendrite offset
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\

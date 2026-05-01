@@ -77,10 +77,11 @@ def get_dataset_config(dataset_name):
             "lr": 0.001,  # Lower LR for fine-tuning
             "lr_scheduler": "cosineannealinglr",
             "weight_decay": 1e-4,
-            "lr_warmup_epochs": 5,
+            "lr_warmup_epochs": 0,
             "label_smoothing": 0.0,
             "use_pretrained": True,  # Use pretrained weights
         },
+
     }
     return configs.get(dataset_name.lower(), configs["flowers102"])
 
@@ -371,7 +372,7 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
     return train_loader, test_loader, config["num_classes"]
 
 
-def load_model(model_name, num_classes, perforate=False):
+def load_model(model_name, num_classes, perforate=False, dataset_name=None):
     """Load model based on model name and adapt for target number of classes."""
     print(f"\nLoading model: {model_name}")
 
@@ -415,6 +416,10 @@ def load_model(model_name, num_classes, perforate=False):
                 [".layer1", ".layer2", ".layer3", ".layer4", ".conv1", ".bn1"]
             )  # Skip everything except fc
             GPA.pc.set_output_dimensions([-1, 0])  # fc layer output: [batch, features]
+
+            # Dataset-specific configurations
+            if dataset_name and dataset_name.lower() == "food101":
+                GPA.pc.set_n_epochs_to_switch(25)
 
             # Apply dendritic hyperparameters from wandb config if in sweep
             if (
@@ -481,6 +486,10 @@ def load_model(model_name, num_classes, perforate=False):
             GPA.pc.set_output_dimensions(
                 [-1, 0]
             )  # pre_fc layer output: [batch, features]
+
+            # Dataset-specific configurations
+            if dataset_name and dataset_name.lower() == "food101":
+                GPA.pc.set_n_epochs_to_switch(25)
 
             # Apply dendritic hyperparameters from wandb config if in sweep
             if (
@@ -592,7 +601,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     ]
 
     # Load model
-    model = load_model(args.model, num_classes, perforate=perforate)
+    model = load_model(args.model, num_classes, perforate=perforate, dataset_name=args.dataset)
     model = model.to(device)
 
     # Count parameters (log once at start)

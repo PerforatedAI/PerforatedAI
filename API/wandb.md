@@ -12,16 +12,13 @@ Note: wandb.login() is typically handled automatically or via environment variab
 ## Set Up the Sweep
 We typically recommend using the random sweep method and maximizing the Final Max Val metric (the best validation score achieved across all architectures).  But other sweep methods are available and minimizing loss is also an appropriate goal.
 
-    def get_sweep_config(dataset_name):
-        """Get WandB sweep configuration for a specific dataset."""
-        base_config = {
-            "method": "random",  # Random sampling
-            "metric": {"name": "Final Max Val", "goal": "maximize"},
-        }
-        
-        # Example for a typical dataset
-        base_config["parameters"] = {
-            "dataset": {"value": dataset_name},
+Define your sweep configuration with the hyperparameters you want to explore:
+
+    sweep_config = {
+        "method": "random",  # Random sampling
+        "metric": {"name": "Final Max Val", "goal": "maximize"},
+        "parameters": {
+            # Standard hyperparameters
             "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4, 1e-3]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
@@ -29,8 +26,7 @@ We typically recommend using the random sweep method and maximizing the Final Ma
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
         }
-        
-        return base_config
+    }
 
 ## Picking Hyperparameters
 In addition to normal hyperparameters you may want to use, these are the ones most important for dendrites:
@@ -87,59 +83,79 @@ The modern approach uses a dedicated sweep function that WandB calls:
     if __name__ == "__main__":
         import argparse
         parser = argparse.ArgumentParser(description="Train with WandB sweep support")
-        parser.add_argument("--sweep-dataset", type=str, help="Initialize sweep for this dataset")
         parser.add_argument("--sweep-id", type=str, help="Join existing sweep by ID")
         parser.add_argument("--sweep-count", type=int, default=100, help="Number of runs")
+        parser.add_argument("--wandb-project", type=str, required=True, help="WandB project name")
         parser.add_argument("--wandb-entity", type=str, default=None, help="WandB entity name")
         args = parser.parse_args()
         
-        if args.sweep_dataset or args.sweep_id:
-            if args.sweep_id:
-                # Join existing sweep
-                wandb.agent(args.sweep_id, function=train_with_wandb, 
-                           count=args.sweep_count, entity=args.wandb_entity, project="your-project")
-            elif args.sweep_dataset:
-                # Initialize new sweep
-                sweep_config = get_sweep_config(args.sweep_dataset)
-                sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=args.sweep_dataset)
-                print(f"Sweep initialized: {sweep_id}")
-                entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
-                print(f"To join from other machines: --sweep-id {sweep_id}{entity_arg}")
-                
-                # Start agent on this machine
-                wandb.agent(sweep_id, function=train_with_wandb, 
-                           count=args.sweep_count, entity=args.wandb_entity, project=args.sweep_dataset)
+        if args.sweep_id:
+            # Join existing sweep
+            wandb.agent(args.sweep_id, function=train_with_wandb, 
+                       count=args.sweep_count, entity=args.wandb_entity, project=args.wandb_project)
         else:
-            # Single run mode
-            # Your normal training code here
+            # Initialize new sweep
+            sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=args.wandb_project)
+            print(f"Sweep initialized: {sweep_id}")
+            print(f"Project: {args.wandb_project}")
+            entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
+            print(f"To join from other machines: --sweep-id {sweep_id} --wandb-project {args.wandb_project}{entity_arg}")
+            
+            # Start agent on this machine
+            wandb.agent(sweep_id, function=train_with_wandb, 
+                       count=args.sweep_count, entity=args.wandb_entity, project=args.wandb_project)
 
 
 ## Using the config values
 
-Access sweep parameters via `wandb.config`. Apply them when configuring PAI settings:
+Access sweep parameters via `wandb.config`. Apply dendritic hyperparameters **inside your model loading function** before calling `perforate_model()`:
 
+    def setup_model(model_name, num_classes, perforate=False):
+        """Load model and configure PAI settings."""
+        # Load your base model
+        model = ...
+        
+        if perforate:
+            # Configure PAI settings
+            GPA.pc.set_modules_to_perforate([".fc", ".classifier"])  # Which layers to add dendrites to
+            GPA.pc.set_output_dimensions([-1, 0])  # Output shape: [batch, features]
+            
+            # Apply dendritic hyperparameters from wandb config if in sweep
+            if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb, "config"):
+                if "improvement_threshold" in wandb.config:
+                    GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
+                
+                if "pai_forward_function" in wandb.config:
+                    pai_fwd = wandb.config.pai_forward_function
+                    if pai_fwd == "sigmoid":
+                        GPA.pc.set_pai_forward_function(torch.sigmoid)
+                    elif pai_fwd == "relu":
+                        GPA.pc.set_pai_forward_function(torch.relu)
+                    elif pai_fwd == "tanh":
+                        GPA.pc.set_pai_forward_function(torch.tanh)
+            
+            # Build save_name from wandb config if available
+            if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb.run, "name") and wandb.run.name:
+                save_name = wandb.run.name  # Use wandb run name for consistency
+            else:
+                save_name = "default_run"
+            
+            # Perforate the model
+            model = UPA.perforate_model(model, save_name=save_name, maximizing_score=True)
+        
+        return model
+    
+    # In train_with_wandb(), use config values for standard hyperparameters:
     def train_with_wandb():
         wandb.init()
         config = wandb.config
         
-        # Apply dendritic hyperparameters from config
-        if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb, "config"):
-            if "improvement_threshold" in config:
-                GPA.pc.set_improvement_threshold(config.improvement_threshold)
-            
-            if "pai_forward_function" in config:
-                pai_fwd = config.pai_forward_function
-                if pai_fwd == "sigmoid":
-                    GPA.pc.set_pai_forward_function(torch.sigmoid)
-                elif pai_fwd == "relu":
-                    GPA.pc.set_pai_forward_function(torch.relu)
-                elif pai_fwd == "tanh":
-                    GPA.pc.set_pai_forward_function(torch.tanh)
-        
-        # Use config values for standard hyperparameters
         lr = config.lr
         weight_decay = config.weight_decay
         label_smoothing = config.label_smoothing
+        
+        # Load model (dendritic configs applied inside load_model)
+        model = setup_model(model_name, num_classes, perforate=True)
         
         # ... rest of your training code
 
@@ -263,24 +279,50 @@ not when `num_dendrites_added` increases (since added dendrites may not be succe
 - Always log Final Max scores when training completes
 - For non-perforated models, Arch Max = Final Max (no restructuring occurs)
 
+### Final Metrics Logging
+
+The logic for logging Final Max scores differs between perforated and non-perforated models:
+
+**For perforated models**: Final metrics are logged inside the training loop when `training_complete=True`. Do NOT log them again in `train_with_wandb()` as this would duplicate or overwrite them.
+
+**For non-perforated models**: Final metrics should be logged in `train_with_wandb()` after training completes, since there's no restructuring logic.
+
+    # In train_with_wandb(), after training completes:
+    best_acc1, best_epoch, model = train_single_run(args, train_loader, test_loader, num_classes)
+    
+    # Determine if model is perforated
+    perforate = args.model in [model names that are perforated here]
+    
+    if not perforate:
+        # Non-perforated models: log Final scores here
+        wandb.log({
+            "Final Max Val": best_acc1,
+            "Final Max Train": best_acc1,
+            "Final Param Count": UPA.count_params(model),
+            "best_epoch": best_epoch,
+        })
+    # else: Perforated models already logged Final scores in training loop
+
 
 ## Running Sweeps
 
 ### Initialize a new sweep:
 ```bash
-python your_script.py --sweep-dataset flowers102 --sweep-count 100
+python your_script.py --wandb-project my-project --sweep-count 100
 ```
 
 This will:
-1. Create the sweep configuration for the dataset
-2. Initialize the sweep on WandB
+1. Create the sweep with your sweep configuration
+2. Initialize the sweep on WandB with the specified project name
 3. Print the sweep ID for joining from other machines
 4. Start running sweep agents on this machine
 
 ### Join an existing sweep from another machine:
 ```bash
-python your_script.py --sweep-id YOUR_SWEEP_ID --sweep-count 100
+python your_script.py --sweep-id YOUR_SWEEP_ID --wandb-project PROJECT_NAME --sweep-count 100
 ```
+
+Note: Always include `--wandb-project` to ensure metrics are logged to the correct project.
 
 ### View results:
 Visit https://wandb.ai to see your sweep dashboard with all runs, metrics, and visualizations.
@@ -288,8 +330,8 @@ Visit https://wandb.ai to see your sweep dashboard with all runs, metrics, and v
 ## Complete Example
 
 See `Examples/imagenet_pretrained/train_from_hf_wandb_sweep.py` for a working implementation that includes:
-- Dataset-specific sweep configurations
 - Model index mapping for better WandB visualization
+- Sweep configuration with hyperparameter ranges
 - Proper arch logging with `num_dendrites_integrated` tracking
 - Silent mode override for verbose output during sweeps
 - Transfer learning with pretrained models
@@ -333,3 +375,124 @@ To re-run specific configurations from successful sweep runs:
     name_str = "model_resnet18_dataset_flowers102_lr_0.001_weight_decay_0.0001"
     config = parse_config_string(name_str, config_keys)
     # Now use config.lr, config.weight_decay, etc.
+
+## Analyzing Sweep Results
+
+After your sweep completes, use `get_wandb_results.py` in the repository root to extract and analyze results from the WandB API.
+
+### Basic Usage
+
+```bash
+python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/SWEEP_ID"
+```
+
+This downloads raw architecture progression data into a CSV file named `entity_project_sweep_arch_scores.csv`.
+
+### Output Modes
+
+The script supports three modes via the `--mode` (or `-m`) argument:
+
+#### 1. Download Mode (default)
+Downloads all raw log entries from the sweep:
+
+```bash
+python get_wandb_results.py "URL"
+```
+
+**Output**: `entity_project_sweep_arch_scores.csv`
+
+**Columns**: `run_id`, `run_name`, `state`, `step`, `timestamp`, `arch_param_count`, `arch_max_val`, `arch_dendrite_count`, `config_*` (hyperparameters)
+
+**When to use**: Need raw data for custom analysis or verification
+
+#### 2. By-Run Mode
+Creates a pivot table for line graphs where each run is a separate line:
+
+```bash
+python get_wandb_results.py "URL" -m gen-by-run
+```
+
+**Output**: `entity_project_sweep_by_run.csv`
+
+**Format**: Rows = Arch Param Count, Columns = Run names, Values = Arch Max Val
+
+**When to use**: Compare different hyperparameter configurations as lines on the same graph
+
+#### 3. By-Dendrite Mode
+Creates scatter plot data grouped by dendrite count:
+
+```bash
+python get_wandb_results.py "URL" -m by-dendrite
+```
+
+**Output**: `entity_project_sweep_by_dendrite.csv`
+
+**Format**: Columns = `run_name`, `param_count`, `dendrite_0_max_val`, `dendrite_1_max_val`, ...
+
+**When to use**: Visualize how adding dendrites improves performance across different runs
+
+### Important Options
+
+#### Final Metrics (`--include-final`)
+Add final metrics (logged at training completion) to the output:
+
+```bash
+python get_wandb_results.py "URL" --include-final
+```
+
+Adds columns: `final_param_count`, `final_max_val`, `final_dendrite_count`
+
+**Use for**: Verifying final logged values match the last architecture values  
+**Don't use for**: Graph generation (creates duplicate data points)
+
+#### Dendrite Offset (`--dendrite-offset`)
+Specify starting dendrite counts for models that begin with dendrites already present (e.g., pretrained models):
+
+```bash
+# Model with index 0 starts with 2 dendrites
+python get_wandb_results.py "URL" --dendrite-offset "0:2"
+
+# Multiple models with different starting counts
+python get_wandb_results.py "URL" --dendrite-offset "0:2" "1:3"
+```
+
+**Format**: `"model_index:count"`
+
+**Used for**:
+- Suppressing diagnostic warnings about "missing" dendrites
+- Correctly processing data in by-dendrite mode
+
+### CSV Caching
+
+When using `gen-by-run` or `by-dendrite` modes, the script automatically checks for an existing raw CSV file and uses it if found, avoiding unnecessary WandB API calls. To force a fresh download, delete the CSV or run download mode first.
+
+### Common Workflows
+
+**Workflow 1: Quick visualization**
+```bash
+# Download and generate by-run comparison
+python get_wandb_results.py "URL" -m gen-by-run
+# Import entity_project_sweep_by_run.csv into Excel/Google Sheets for line graph
+```
+
+**Workflow 2: Analyze dendrite progression**
+```bash
+# Generate dendrite-focused data
+python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
+# Create scatter plot showing performance vs dendrite count
+```
+
+**Workflow 3: Full verification**
+```bash
+# Download with all metrics
+python get_wandb_results.py "URL" --include-final
+# Inspect CSV to verify final values match last arch values
+```
+
+### Understanding the Output
+
+**Arch metrics** (`Arch Max Val`, `Arch Param Count`, `Arch Dendrite Count`): Logged each time the model restructures (adds dendrites). Shows the best validation score achieved for that architecture before adding more dendrites.
+
+**Final metrics** (`Final Max Val`, `Final Max Train`, `Final Param Count`, `Final Dendrite Count`): Logged once at training completion. Represents the overall best performance across all architectures.
+
+**Key insight**: For successful dendrite integration, `Final Max Val` should equal or exceed the best `Arch Max Val` values, and `Final Dendrite Count` should equal `num_dendrites_integrated` (successfully integrated dendrites, not just attempted).
