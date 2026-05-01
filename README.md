@@ -60,18 +60,19 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 import torch
 
-# Initialize your model
+# Initialize your model with your original setup
 model = YourModel()
 
 # Automatically add dendritic capabilities
 model = UPA.perforate_model(model)
 
 # Setup optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001) # This line can be your original setup
 GPA.pai_tracker.set_optimizer_instance(optimizer)
 
 # Train your model until dendrite optimization completes
-while True:
+while True:  # Replace your loop wiht a while True loop.
+    # Keep your original train and validation functions
     train(model, optimizer)
     val_score = validate(model)
     
@@ -83,7 +84,7 @@ while True:
         # Training is complete - best model has been loaded
         break
     elif restructured:
-        # Model was restructured with new dendrites - reinitialize optimizer
+        # Model was restructured with new dendrites - reinitialize optimizer (and scheduler) using your initial setup.
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
