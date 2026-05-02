@@ -1055,13 +1055,15 @@ def train_with_wandb():
     model_name = get_model_name_from_index(config.model_index)
 
     # Set run name to match save_name pattern (from wandb.md recommendation)
+    # Start with run ID for uniqueness
+    name_parts = [wandb.run.id]
     # Use all config keys (sorted for consistency)
     config_keys = sorted(config.keys())
     # Put any key containing 'model' first
     model_keys = [k for k in config_keys if 'model' in k.lower()]
     other_keys = [k for k in config_keys if 'model' not in k.lower()]
     config_keys = model_keys + other_keys
-    name_parts = [f"{k}_{config[k]}" for k in config_keys]
+    name_parts.extend([f"{k}_{config[k]}" for k in config_keys])
     if name_parts:
         wandb.run.name = "_".join(name_parts)
 
