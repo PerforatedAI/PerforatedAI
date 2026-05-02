@@ -77,7 +77,7 @@ def get_dataset_config(dataset_name):
             "lr": 0.001,  # Lower LR for fine-tuning
             "lr_scheduler": "cosineannealinglr",
             "weight_decay": 1e-4,
-            "lr_warmup_epochs": 0,
+            "lr_warmup_epochs": 5,
             "label_smoothing": 0.0,
             "use_pretrained": True,  # Use pretrained weights
         },
