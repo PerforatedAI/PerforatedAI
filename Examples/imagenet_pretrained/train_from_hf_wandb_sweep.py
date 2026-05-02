@@ -72,7 +72,7 @@ def get_dataset_config(dataset_name):
         "food101": {
             "num_classes": 101,
             "image_size": 224,
-            "epochs": 30,
+            "epochs": 50,
             "batch_size": 64,
             "lr": 0.001,  # Lower LR for fine-tuning
             "lr_scheduler": "cosineannealinglr",
