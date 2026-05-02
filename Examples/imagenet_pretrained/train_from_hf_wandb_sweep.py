@@ -722,7 +722,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_epoch = epoch + 1
 
             # Add extra scores for training metrics (must be after add_validation_score)
-            GPA.pai_tracker.add_extra_score(train_acc1, "train")
+            GPA.pai_tracker.add_extra_score(train_acc1, "Train Acc 1")
             GPA.pc.set_verbose(True)
             # Add validation score to PAI tracker
             model, restructured, training_complete = (
