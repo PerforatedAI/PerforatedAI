@@ -872,8 +872,12 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     else:
         # Non-perforated training loop
         best_train = 0.0  # Track training accuracy when best val is achieved
+        epochs_without_improvement = 0
+        max_epochs_without_improvement = 25
+        epoch = -1
 
-        for epoch in range(args.epochs):
+        while epochs_without_improvement < max_epochs_without_improvement:
+            epoch += 1
             train_acc1, train_loss = train_one_epoch(
                 model,
                 criterion,
@@ -891,6 +895,9 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 best_acc1 = test_acc1
                 best_train = train_acc1
                 best_epoch = epoch + 1
+                epochs_without_improvement = 0  # Reset counter on improvement
+            else:
+                epochs_without_improvement += 1
 
             # Log to WandB if initialized - using wandb.md recommended naming
             if hasattr(wandb, "run") and wandb.run is not None:
@@ -913,8 +920,11 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 )
 
             print(
-                f"Epoch {epoch+1}/{args.epochs} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}"
+                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}, "
+                f"Epochs without improvement: {epochs_without_improvement}/{max_epochs_without_improvement}"
             )
+
+        print(f"\nTraining stopped after {epochs_without_improvement} epochs without improvement (total epochs: {epoch+1})")
 
         # Log final results for non-perforated models
         if hasattr(wandb, "run") and wandb.run is not None:
