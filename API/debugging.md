@@ -2,10 +2,12 @@
 
 If you are crashing in ways that aren't caught by the other md files, search for them here before looking up online.
 
+But before reading this please take note, if the system is crashing **do not just add error handling and ignore the errors**.  These errors that come up are all important to the process to fix.  If you just ignore that things are crashing that is not an acceptable workaround and you will not see benefits.
+
 ## New Best Scores are not Being Tiggered
 Check GPA.pc.get_improvement_threshold().  If the improvement is very small it may not be beating the previous best by a high enough margin.  You can also set GPA.pc.set_verbose(True) to check if this is the case.
 
-Also ensure that maximizing_score is set properly in initialize_pai.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
+Also ensure that maximizing_score is set properly in perforate_model.  If you are maximizing an accuracy score this should be true, if you are minimizing a loss score this should be false.  
 
 ## Errors Where Warnings are Printed
 
@@ -63,6 +65,29 @@ This also usually means the processors were not set up correctly. Look at 1.2 fr
 This means that the pbValueTracker was not properly initialized.  This can happen for two reasons. The first is if you are running on multiple GPUs.  With a single GPU pbValueTracker are setup automatically but when running on multiple GPUs this has to be setup by hand using the saveTrackerSettings and initializeTrackerSettings functions.  Look at the DataParallel section from the customization readme.
 
 The other reason this can happen is if you initialize a Dendrite layer, but then you don't actually use it.  I.e, it is not being called in the forward and backwards pass of the network.  In these cases look into your forward functions and try to track down why the layer is not properly being used. This same effect can take place if you try to add a set of dendrites before performing any training, with our system you should not run initial validation epochs before starting training, or if you do, make sure to not add Dendrites during those cycles.
+
+## DDP Gradient Errors
+
+    RuntimeError: Encountered gradient which is undefined, but still allreduced by DDP reducer.
+
+This error occurs when using DistributedDataParallel (DDP) with PerforatedAI. It happens because PerforatedAI's selective training (Cascade Correlation) means some parameters don't receive gradients during backward(), but DDP expects all parameters to have gradients for allreduce.
+
+**Fix:** Pre-initialize all parameter gradients to zeros AFTER `optimizer.zero_grad()` and BEFORE `loss.backward()`:
+
+```python
+optimizer.zero_grad()
+
+# Pre-initialize gradients for DDP compatibility
+if args.distributed:
+    for param in model.parameters():
+        if param.requires_grad and param.grad is None:
+            param.grad = torch.zeros_like(param)
+
+loss.backward()
+optimizer.step()
+```
+
+This ensures DDP's allreduce doesn't encounter None gradients while still allowing PerforatedAI's selective training to work correctly.
     
 ## dype Errors
 
@@ -101,17 +126,21 @@ This can be caused when after restructuring there is a optimizer.step() before a
     net.optimizer_.zero_grad()
     print("PAI: Model restructured and optimizer reinitialized")
 
-
+We have also seen this happen if gradient checkpointing is enabled.  Please turn this off for perforated ai usage. 
 
 ## Attribute Error:
     
-    AttributeError: 'pb_neuron_layer' object has no attribute 'SOMEVARIABLE'
+    AttributeError: 'PAINeuronLayer' object has no attribute 'SOMEVARIABLE'
 
-This is the error you will get if you need to access an attribute of a module that is now wrapped as a pb_neuron_layer.  All you have to do in this case is the following change.
+This is the error you will get if you need to access an attribute of a module that is now wrapped as a PAINeuronLayer.  All you have to do in this case is the following change.
 
     #model.yourModule.SOMEVARIABLE
     model.yourModule.mainModule.SOMEVARIABLE
     
+This is done automatically for most variables.  But for special varialbes and functions that start with a _ python does not do it for you.  In these cases if the above is not easily accessible because it is in the backend of a library you are working with, you can also do the following after perforate_model
+
+    UPA.apply_method_delegation_to_model(model, "method_name", module_type)
+
 ## Initialize Error
 
     AttributeError: 'list' object has no attribute 'set_optimizer_instance'
@@ -130,6 +159,17 @@ This means you entered None for the saveName, likely args.saveName did not have 
     TypeError: 'list' object is not callable
     
 If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
+
+## Optimizer Loop Error
+
+    RuntimeError: For non-complex input tensors, argument alpha must not be a complex number.
+
+This can come up for some schedulers when the loop actually goes longer than the scheduler's settings for the max number of epochs.  In these cases if you want to keep the current scheduler you must use the mode to switch on fixed epoch counts rather than waiting for a plateau.  E.g.:
+
+    # Use fixed-epoch switch mode: add dendrites every 80 epochs
+    GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
+    GPA.pc.set_fixed_switch_num(original count)
+    GPA.pc.set_first_fixed_switch_num(original count)
 
 
 ## Size Mismatch
@@ -303,6 +343,15 @@ However, this will sometimes cause the Parameterized Modules Error above.  In th
 
 To remove this default value if you are using a base_model module which is not a duplicate you must clear this array.
 
+In newer versions of savetensors the following should also work:
+
+    import safetensors
+    from collections import defaultdict
+    def _ignore_shared_tensors(state_dict):
+        tensors = defaultdict(set)
+        return tensors
+    safetensors.torch._find_shared_tensors = _ignore_shared_tensors
+
 #### Weight Tying
 In some cases this is done intentionally with weight tying. Which is not just a duplicate pointer, but also a known issue where multiple modules actually are using the same weight tensor in their forward.  We have a workaround for this, but it is only experimental for now so your results may vary.
 
@@ -315,7 +364,7 @@ In some cases this is done intentionally with weight tying. Which is not just a 
 
 This error can be caused by a few different reasons:
 1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
-2 - Your model definition or modules_to_convert and moduleNamesToConvert lists are different between your training script and your inference script.
+2 - Your model definition or modules_to_perforate and moduleNamesToConvert lists are different between your training script and your inference script.
 
 ## Errors that are currently not fixable
 
@@ -333,6 +382,9 @@ This error can be caused by a few different reasons:
 
     We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
+### No inf checks were recorded prior to update
+
+This error can sometimes come up when amp is being used.  We currently do not have a working around for this.
 
 ## Extra Debugging
 

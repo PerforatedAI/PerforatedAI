@@ -336,10 +336,10 @@ def main(run):
     else:
         GPA.pc.set_dendrite_graph_mode(False)
     if config.conversion == 0:
-        GPA.pc.set_modules_to_convert([nn.Conv2d, nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Conv2d, nn.Linear])
         GPA.pc.set_modules_to_track([])
     elif config.conversion == 1:
-        GPA.pc.set_modules_to_convert([nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Linear])
         GPA.pc.set_modules_to_track([nn.Conv2d])
     
     if(config.max_dendrites == 4):
@@ -378,7 +378,7 @@ def main(run):
     GPA.pc.set_n_epochs_to_switch(config.switch_speed)
     GPA.pc.set_verbose(True)
 
-    model = UPA.initialize_pai(model, save_name=name_str)
+    model = UPA.perforate_model(model, save_name=name_str)
     print(model)
 
     # Optimizer (Adam with same parameters as Keras)

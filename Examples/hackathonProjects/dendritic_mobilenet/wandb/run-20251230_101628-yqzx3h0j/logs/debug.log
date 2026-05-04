@@ -1,0 +1,27 @@
+2025-12-30 10:16:28,262 INFO    Thread-8 (_run_job):15644 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2025-12-30 10:16:28,262 INFO    Thread-8 (_run_job):15644 [wandb_setup.py:_flush():80] Configure stats pid to 15644
+2025-12-30 10:16:28,264 INFO    Thread-8 (_run_job):15644 [wandb_setup.py:_flush():80] Loading settings from C:\Users\Raghunath Sundar\.config\wandb\settings
+2025-12-30 10:16:28,264 INFO    Thread-8 (_run_job):15644 [wandb_setup.py:_flush():80] Loading settings from D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet\wandb\settings
+2025-12-30 10:16:28,264 INFO    Thread-8 (_run_job):15644 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2025-12-30 10:16:28,265 INFO    Thread-8 (_run_job):15644 [wandb_init.py:setup_run_log_directory():714] Logging user logs to D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet\wandb\run-20251230_101628-yqzx3h0j\logs\debug.log
+2025-12-30 10:16:28,265 INFO    Thread-8 (_run_job):15644 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to D:\hackathon\dendritic-edge-vision-v3\PerforatedAI\Examples\hackathonProjects\dendritic_mobilenet\wandb\run-20251230_101628-yqzx3h0j\logs\debug-internal.log
+2025-12-30 10:16:28,265 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():841] calling init triggers
+2025-12-30 10:16:28,267 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():846] wandb.init called with sweep_config: {'batch_size': 32, 'dendrite_count': 8, 'epochs': 2, 'learning_rate': 0.004968869608976851}
+config: {'_wandb': {}}
+2025-12-30 10:16:28,267 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():889] starting backend
+2025-12-30 10:16:30,957 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():892] sending inform_init request
+2025-12-30 10:16:31,008 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():900] backend started and connected
+2025-12-30 10:16:31,011 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_config_callback():1396] config_cb None None {'batch_size': 32, 'dendrite_count': 8, 'epochs': 2, 'learning_rate': 0.004968869608976851}
+2025-12-30 10:16:31,012 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():970] updated telemetry
+2025-12-30 10:16:31,138 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2025-12-30 10:16:32,711 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():1041] starting run threads in backend
+2025-12-30 10:16:32,892 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_console_start():2521] atexit reg
+2025-12-30 10:16:32,892 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2025-12-30 10:16:32,892 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2025-12-30 10:16:32,893 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_redirect():2461] Redirects installed.
+2025-12-30 10:16:32,905 INFO    Thread-8 (_run_job):15644 [wandb_init.py:init():1081] run started, returning control to user process
+2025-12-30 10:18:54,364 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_finish():2287] finishing run raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/yqzx3h0j
+2025-12-30 10:18:54,365 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_atexit_cleanup():2486] got exitcode: 1
+2025-12-30 10:18:54,366 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_restore():2468] restore
+2025-12-30 10:18:54,366 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_restore():2474] restore done
+2025-12-30 10:18:56,163 INFO    Thread-8 (_run_job):15644 [wandb_run.py:_footer_sync_info():3862] logging synced files

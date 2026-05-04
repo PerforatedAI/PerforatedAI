@@ -164,7 +164,7 @@ GPA.pc.set_n_epochs_to_switch(50)
 
 GPA.pc.set_verbose(True) # This gives more details when printing the model
 
-model = UPA.initialize_pai(model)
+model = UPA.perforate_model(model)
 print(model)
 
 # Optimizer (Adam with same parameters as Keras)

@@ -1,0 +1,7 @@
+{"time":"2025-12-30T11:07:28.8448647+05:30","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2025-12-30T11:07:29.5074081+05:30","level":"INFO","msg":"stream: created new stream","id":"zoulw856"}
+{"time":"2025-12-30T11:07:29.5074081+05:30","level":"INFO","msg":"handler: started","stream_id":"zoulw856"}
+{"time":"2025-12-30T11:07:29.5110402+05:30","level":"INFO","msg":"stream: started","id":"zoulw856"}
+{"time":"2025-12-30T11:07:29.5110402+05:30","level":"INFO","msg":"sender: started","stream_id":"zoulw856"}
+{"time":"2025-12-30T11:07:29.5110402+05:30","level":"INFO","msg":"writer: started","stream_id":"zoulw856"}
+{"time":"2025-12-30T12:31:18.6528774+05:30","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/zoulw856/file_stream\": dial tcp: lookup api.wandb.ai: no such host"}

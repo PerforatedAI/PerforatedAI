@@ -1,0 +1,14 @@
+{
+    "accuracy": 65.5,
+    "average certainty": 78.1963,
+    "average duration": 2.72913531,
+    "prediction_count": 400,
+    "prediction_count_correct": 262,
+    "prediction_errors": {
+        "HDPE": 0,
+        "UNKNOWN": 0,
+        "PET": 31,
+        "PP": 58,
+        "PS": 49
+    }
+}

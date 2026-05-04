@@ -1,0 +1,23 @@
+2026-01-06 05:17:13,672 INFO    MainThread:6324 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2026-01-06 05:17:13,674 INFO    MainThread:6324 [wandb_setup.py:_flush():80] Configure stats pid to 6324
+2026-01-06 05:17:13,675 INFO    MainThread:6324 [wandb_setup.py:_flush():80] Loading settings from C:\Users\Kamalesh\.config\wandb\settings
+2026-01-06 05:17:13,675 INFO    MainThread:6324 [wandb_setup.py:_flush():80] Loading settings from C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\wandb\settings
+2026-01-06 05:17:13,676 INFO    MainThread:6324 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2026-01-06 05:17:13,677 INFO    MainThread:6324 [wandb_init.py:setup_run_log_directory():714] Logging user logs to C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\wandb\run-20260106_051713-an22n8oa\logs\debug.log
+2026-01-06 05:17:13,721 INFO    MainThread:6324 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\wandb\run-20260106_051713-an22n8oa\logs\debug-internal.log
+2026-01-06 05:17:13,722 INFO    MainThread:6324 [wandb_init.py:init():841] calling init triggers
+2026-01-06 05:17:13,722 INFO    MainThread:6324 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'_wandb': {}}
+2026-01-06 05:17:13,722 INFO    MainThread:6324 [wandb_init.py:init():889] starting backend
+2026-01-06 05:17:17,762 INFO    MainThread:6324 [wandb_init.py:init():892] sending inform_init request
+2026-01-06 05:17:18,004 INFO    MainThread:6324 [wandb_init.py:init():900] backend started and connected
+2026-01-06 05:17:18,146 INFO    MainThread:6324 [wandb_init.py:init():970] updated telemetry
+2026-01-06 05:17:18,425 INFO    MainThread:6324 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2026-01-06 05:17:20,669 INFO    MainThread:6324 [wandb_init.py:init():1041] starting run threads in backend
+2026-01-06 05:17:33,899 INFO    MainThread:6324 [wandb_run.py:_console_start():2521] atexit reg
+2026-01-06 05:17:33,901 INFO    MainThread:6324 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2026-01-06 05:17:33,902 INFO    MainThread:6324 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2026-01-06 05:17:33,902 INFO    MainThread:6324 [wandb_run.py:_redirect():2461] Redirects installed.
+2026-01-06 05:17:33,953 INFO    MainThread:6324 [wandb_init.py:init():1081] run started, returning control to user process
+2026-01-06 16:45:21,694 INFO    wandb-AsyncioManager-main:6324 [service_client.py:_forward_responses():80] Reached EOF.
+2026-01-06 16:45:21,694 INFO    wandb-AsyncioManager-main:6324 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.

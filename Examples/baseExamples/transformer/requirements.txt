@@ -1,0 +1,8 @@
+torch>=2.0.0
+wandb
+datasets
+numpy
+tqdm
+matplotlib
+safetensors
+

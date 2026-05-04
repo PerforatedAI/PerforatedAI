@@ -18,12 +18,15 @@ class PAIModulePyThread(nn.Module):
         super(PAIModulePyThread, self).__init__()
         self.layer_array = original_module.layer_array
         self.processor_array = original_module.processor_array
-        self.skip_weights = original_module.skip_weights
+        # Remove the unused first index (skip_weights[0] is never used)
+        if hasattr(original_module, 'skip_weights') and len(original_module.skip_weights) > 1:
+            self.skip_weights = original_module.skip_weights[1:]
+        elif hasattr(original_module, 'skip_weights') and len(original_module.skip_weights) == 1:
+            # Only one element, don't create skip_weights
+            pass
         self.register_buffer("node_index", original_module.node_index.clone().detach())
         self.register_buffer("num_cycles", original_module.num_cycles)
         self.register_buffer("view_tuple", original_module.view_tuple)
-        # Cache view_tuple as Python tuple to avoid .tolist() during ONNX export
-        self._view_shape = tuple(original_module.view_tuple.tolist())
 
     def process_and_forward(self, *args2, **kwargs2):
         c = args2[0]
@@ -74,11 +77,12 @@ class PAIModulePyThread(nn.Module):
                 threads[i].join()
         for out_index in range(0, len(self.layer_array)):
             current_out = dendrite_outs[out_index]
-            if len(self.layer_array) > 1:
+            if len(self.layer_array) > 1 and hasattr(self, 'skip_weights'):
                 for in_index in range(0, out_index):
+                    # Use out_index - 1 because skip_weights[0] was removed
                     skip_weight = self.skip_weights[out_index - 1][in_index, :]
                     # Use cached Python tuple instead of .tolist() during forward
-                    skip_weight = skip_weight.view(self._view_shape)
+                    skip_weight = skip_weight.view(self.view_tuple.tolist())
                     current_out = current_out + (
                         skip_weight.to(current_out.device)
                         * dendrite_outs[in_index]

@@ -1,0 +1,36 @@
+# VOC 2007 Dataset Configuration for Ultralytics YOLO
+# Portable - works with relative paths
+
+# Dataset root (relative to this YAML file)
+path: datasets
+
+# Train/val/test splits (relative to 'path')
+train: images/train2007
+val: images/val2007
+test: images/test2007
+
+# Number of classes
+nc: 20
+
+# Class names (Pascal VOC 2007)
+names:
+  0: aeroplane
+  1: bicycle
+  2: bird
+  3: boat
+  4: bottle
+  5: bus
+  6: car
+  7: cat
+  8: chair
+  9: cow
+  10: diningtable
+  11: dog
+  12: horse
+  13: motorbike
+  14: person
+  15: pottedplant
+  16: sheep
+  17: sofa
+  18: train
+  19: tvmonitor

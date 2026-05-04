@@ -1,0 +1,2909 @@
+Using device: cpu
+Loading RAVDESS dataset from c:\Users\Kamalesh\OneDrive\Documents\hack\emotion-recognition\data\ravdess...
+Found 1440 audio files
+Train: 921, Val: 231, Test: 288
+Initializing PerforatedAI dendrites...
+Running Dendrite Experiment
+
+============================================================
+Starting Training with Dendritic Optimization
+============================================================
+Epoch 0 Training: 100%|██████████████████████████████████████| 29/29 [00:48<00:00,  1.66s/it, loss=1.9419, acc=16.94%]
+
+
+Test set: Average loss: 2.1039, Accuracy: 35/231 (15%)
+
+Adding validation score 15.15151515
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 0, last improved epoch 0, total epochs 0, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 1 Training: 100%|██████████████████████████████████████| 29/29 [00:46<00:00,  1.59s/it, loss=1.9817, acc=24.32%]
+
+Test set: Average loss: 2.2824, Accuracy: 31/231 (13%)
+
+Adding validation score 13.41991342
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 1, last improved epoch 1, total epochs 1, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 2 Training: 100%|██████████████████████████████████████| 29/29 [00:44<00:00,  1.55s/it, loss=1.7454, acc=31.60%]
+
+Test set: Average loss: 1.7568, Accuracy: 83/231 (36%)
+
+Adding validation score 35.93073593
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 2, last improved epoch 2, total epochs 2, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 3 Training: 100%|██████████████████████████████████████| 29/29 [00:44<00:00,  1.54s/it, loss=1.6058, acc=32.46%]
+
+Test set: Average loss: 1.8604, Accuracy: 60/231 (26%)
+
+Adding validation score 25.97402597
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 3, last improved epoch 2, total epochs 3, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 4 Training: 100%|██████████████████████████████████████| 29/29 [00:46<00:00,  1.59s/it, loss=1.5884, acc=38.33%]
+
+Test set: Average loss: 2.1024, Accuracy: 49/231 (21%)
+
+Adding validation score 21.21212121
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 4, last improved epoch 2, total epochs 4, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 5 Training: 100%|██████████████████████████████████████| 29/29 [01:04<00:00,  2.21s/it, loss=1.5395, acc=39.20%]
+
+Test set: Average loss: 1.9148, Accuracy: 76/231 (33%)
+
+Adding validation score 32.90043290
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 5, last improved epoch 2, total epochs 5, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 6 Training: 100%|██████████████████████████████████████| 29/29 [01:11<00:00,  2.47s/it, loss=1.4641, acc=42.02%]
+
+Test set: Average loss: 2.8442, Accuracy: 47/231 (20%)
+
+Adding validation score 20.34632035
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 6, last improved epoch 2, total epochs 6, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 7 Training: 100%|██████████████████████████████████████| 29/29 [01:04<00:00,  2.21s/it, loss=1.2724, acc=42.89%]
+
+Test set: Average loss: 1.6440, Accuracy: 92/231 (40%)
+
+Adding validation score 39.82683983
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 7, last improved epoch 7, total epochs 7, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 8 Training: 100%|██████████████████████████████████████| 29/29 [01:07<00:00,  2.34s/it, loss=1.5283, acc=44.30%]
+
+Test set: Average loss: 3.4890, Accuracy: 64/231 (28%)
+
+Adding validation score 27.70562771
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 8, last improved epoch 7, total epochs 8, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 9 Training: 100%|██████████████████████████████████████| 29/29 [01:15<00:00,  2.61s/it, loss=1.5481, acc=44.63%]
+
+Test set: Average loss: 1.5564, Accuracy: 95/231 (41%)
+
+Adding validation score 41.12554113
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 9, last improved epoch 9, total epochs 9, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 10 Training: 100%|█████████████████████████████████████| 29/29 [01:02<00:00,  2.14s/it, loss=1.2678, acc=46.25%]
+
+Test set: Average loss: 2.0097, Accuracy: 73/231 (32%)
+
+Adding validation score 31.60173160
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 10, last improved epoch 9, total epochs 10, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 11 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.39s/it, loss=1.5639, acc=45.28%]
+
+Test set: Average loss: 2.8516, Accuracy: 55/231 (24%)
+
+Adding validation score 23.80952381
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 11, last improved epoch 9, total epochs 11, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 12 Training: 100%|█████████████████████████████████████| 29/29 [01:15<00:00,  2.60s/it, loss=1.7000, acc=49.19%]
+
+Test set: Average loss: 1.8880, Accuracy: 75/231 (32%)
+
+Adding validation score 32.46753247
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 12, last improved epoch 9, total epochs 12, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 13 Training: 100%|█████████████████████████████████████| 29/29 [01:04<00:00,  2.23s/it, loss=1.3353, acc=47.99%]
+
+Test set: Average loss: 2.1282, Accuracy: 78/231 (34%)
+
+Adding validation score 33.76623377
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 13, last improved epoch 9, total epochs 13, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 14 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.41s/it, loss=1.5804, acc=48.97%]
+
+Test set: Average loss: 1.6158, Accuracy: 96/231 (42%)
+
+Adding validation score 41.55844156
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 14, last improved epoch 14, total epochs 14, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 15 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.31s/it, loss=1.2513, acc=49.51%]
+
+Test set: Average loss: 2.1388, Accuracy: 68/231 (29%)
+
+Adding validation score 29.43722944
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 15, last improved epoch 14, total epochs 15, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 16 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.33s/it, loss=1.1149, acc=50.60%]
+
+Test set: Average loss: 1.5825, Accuracy: 88/231 (38%)
+
+Adding validation score 38.09523810
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 16, last improved epoch 14, total epochs 16, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 17 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.38s/it, loss=1.3545, acc=52.66%]
+
+Test set: Average loss: 2.1346, Accuracy: 71/231 (31%)
+
+Adding validation score 30.73593074
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 17, last improved epoch 14, total epochs 17, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 18 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.34s/it, loss=1.4765, acc=52.12%]
+
+Test set: Average loss: 1.5914, Accuracy: 102/231 (44%)
+
+Adding validation score 44.15584416
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 18, last improved epoch 18, total epochs 18, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 19 Training: 100%|█████████████████████████████████████| 29/29 [01:17<00:00,  2.67s/it, loss=1.3796, acc=50.71%]
+
+Test set: Average loss: 2.2396, Accuracy: 76/231 (33%)
+
+Adding validation score 32.90043290
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 19, last improved epoch 18, total epochs 19, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 20 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.33s/it, loss=1.2935, acc=53.75%]
+
+Test set: Average loss: 2.0828, Accuracy: 91/231 (39%)
+
+Adding validation score 39.39393939
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 20, last improved epoch 18, total epochs 20, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 21 Training: 100%|█████████████████████████████████████| 29/29 [01:11<00:00,  2.45s/it, loss=1.3332, acc=53.20%]
+
+Test set: Average loss: 1.3555, Accuracy: 110/231 (48%)
+
+Adding validation score 47.61904762
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 21, last improved epoch 21, total epochs 21, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 22 Training: 100%|█████████████████████████████████████| 29/29 [01:15<00:00,  2.62s/it, loss=1.4933, acc=55.81%]
+
+Test set: Average loss: 2.1856, Accuracy: 91/231 (39%)
+
+Adding validation score 39.39393939
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 22, last improved epoch 21, total epochs 22, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 23 Training: 100%|█████████████████████████████████████| 29/29 [00:55<00:00,  1.90s/it, loss=1.5239, acc=54.07%]
+
+Test set: Average loss: 2.3786, Accuracy: 73/231 (32%)
+
+Adding validation score 31.60173160
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 23, last improved epoch 21, total epochs 23, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 24 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.51s/it, loss=1.0856, acc=54.40%]
+
+Test set: Average loss: 1.6547, Accuracy: 104/231 (45%)
+
+Adding validation score 45.02164502
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 24, last improved epoch 21, total epochs 24, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 25 Training: 100%|█████████████████████████████████████| 29/29 [01:06<00:00,  2.29s/it, loss=1.0755, acc=59.07%]
+
+Test set: Average loss: 1.5042, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 25, last improved epoch 21, total epochs 25, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 26 Training: 100%|█████████████████████████████████████| 29/29 [01:11<00:00,  2.47s/it, loss=0.9988, acc=57.65%]
+
+Test set: Average loss: 1.9533, Accuracy: 92/231 (40%)
+
+Adding validation score 39.82683983
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 26, last improved epoch 21, total epochs 26, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 27 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.33s/it, loss=1.0862, acc=56.24%]
+
+Test set: Average loss: 1.8208, Accuracy: 96/231 (42%)
+
+Adding validation score 41.55844156
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 27, last improved epoch 21, total epochs 27, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 28 Training: 100%|█████████████████████████████████████| 29/29 [01:10<00:00,  2.43s/it, loss=1.1493, acc=59.72%]
+
+Test set: Average loss: 1.1617, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 28, last improved epoch 28, total epochs 28, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 29 Training: 100%|█████████████████████████████████████| 29/29 [01:01<00:00,  2.13s/it, loss=0.9649, acc=59.39%]
+
+Test set: Average loss: 2.6473, Accuracy: 62/231 (27%)
+
+Adding validation score 26.83982684
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 29, last improved epoch 28, total epochs 29, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 30 Training: 100%|█████████████████████████████████████| 29/29 [01:19<00:00,  2.75s/it, loss=1.0585, acc=59.83%]
+
+Test set: Average loss: 2.2684, Accuracy: 82/231 (35%)
+
+Adding validation score 35.49783550
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 30, last improved epoch 28, total epochs 30, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 31 Training: 100%|█████████████████████████████████████| 29/29 [01:14<00:00,  2.56s/it, loss=0.9583, acc=62.11%]
+
+Test set: Average loss: 1.7195, Accuracy: 112/231 (48%)
+
+Adding validation score 48.48484848
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 31, last improved epoch 28, total epochs 31, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 32 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.41s/it, loss=1.2807, acc=60.48%]
+
+Test set: Average loss: 1.3278, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 32, last improved epoch 32, total epochs 32, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 33 Training: 100%|█████████████████████████████████████| 29/29 [01:17<00:00,  2.66s/it, loss=0.9296, acc=60.48%]
+
+Test set: Average loss: 1.5399, Accuracy: 105/231 (45%)
+
+Adding validation score 45.45454545
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 33, last improved epoch 32, total epochs 33, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 34 Training: 100%|█████████████████████████████████████| 29/29 [01:10<00:00,  2.43s/it, loss=0.7572, acc=63.30%]
+
+Test set: Average loss: 1.3319, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 34, last improved epoch 32, total epochs 34, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 35 Training: 100%|█████████████████████████████████████| 29/29 [01:11<00:00,  2.45s/it, loss=0.9440, acc=63.74%]
+
+Test set: Average loss: 1.7030, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 35, last improved epoch 32, total epochs 35, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 36 Training: 100%|█████████████████████████████████████| 29/29 [01:18<00:00,  2.72s/it, loss=1.2623, acc=60.91%]
+
+Test set: Average loss: 1.5015, Accuracy: 107/231 (46%)
+
+Adding validation score 46.32034632
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 36, last improved epoch 32, total epochs 36, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 37 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.50s/it, loss=0.9518, acc=66.56%]
+
+Test set: Average loss: 1.2899, Accuracy: 112/231 (48%)
+
+Adding validation score 48.48484848
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 37, last improved epoch 32, total epochs 37, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 38 Training: 100%|█████████████████████████████████████| 29/29 [01:08<00:00,  2.37s/it, loss=0.8175, acc=62.65%]
+
+Test set: Average loss: 2.9610, Accuracy: 93/231 (40%)
+
+Adding validation score 40.25974026
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 38, last improved epoch 32, total epochs 38, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 39 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.52s/it, loss=1.1428, acc=64.17%]
+
+Test set: Average loss: 2.4926, Accuracy: 70/231 (30%)
+
+Adding validation score 30.30303030
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 39, last improved epoch 32, total epochs 39, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 40 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.51s/it, loss=0.8882, acc=65.04%]
+
+Test set: Average loss: 1.5780, Accuracy: 119/231 (52%)
+
+Adding validation score 51.51515152
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 40, last improved epoch 32, total epochs 40, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 41 Training: 100%|█████████████████████████████████████| 29/29 [01:04<00:00,  2.22s/it, loss=0.9622, acc=66.67%]
+
+Test set: Average loss: 1.6518, Accuracy: 97/231 (42%)
+
+Adding validation score 41.99134199
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 41, last improved epoch 32, total epochs 41, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 42 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.39s/it, loss=0.8575, acc=64.82%]
+
+Test set: Average loss: 1.7706, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 42, last improved epoch 32, total epochs 42, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 43 Training: 100%|█████████████████████████████████████| 29/29 [01:11<00:00,  2.46s/it, loss=0.6892, acc=67.86%]
+
+Test set: Average loss: 1.1620, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 43, last improved epoch 43, total epochs 43, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 44 Training: 100%|█████████████████████████████████████| 29/29 [00:56<00:00,  1.94s/it, loss=0.6864, acc=68.95%]
+
+Test set: Average loss: 1.1675, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 44, last improved epoch 44, total epochs 44, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 45 Training: 100%|█████████████████████████████████████| 29/29 [00:52<00:00,  1.80s/it, loss=0.9482, acc=66.56%]
+
+Test set: Average loss: 1.4580, Accuracy: 113/231 (49%)
+
+Adding validation score 48.91774892
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 45, last improved epoch 44, total epochs 45, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 46 Training: 100%|█████████████████████████████████████| 29/29 [00:51<00:00,  1.78s/it, loss=0.8410, acc=68.19%]
+
+Test set: Average loss: 1.2550, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 46, last improved epoch 44, total epochs 46, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 47 Training: 100%|█████████████████████████████████████| 29/29 [00:48<00:00,  1.68s/it, loss=0.9871, acc=67.32%]
+
+Test set: Average loss: 1.7137, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 47, last improved epoch 44, total epochs 47, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 48 Training: 100%|█████████████████████████████████████| 29/29 [01:06<00:00,  2.30s/it, loss=0.7824, acc=68.51%]
+
+Test set: Average loss: 1.4254, Accuracy: 118/231 (51%)
+
+Adding validation score 51.08225108
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 48, last improved epoch 44, total epochs 48, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 49 Training: 100%|█████████████████████████████████████| 29/29 [01:18<00:00,  2.72s/it, loss=0.9770, acc=69.60%]
+
+Test set: Average loss: 2.5151, Accuracy: 74/231 (32%)
+
+Adding validation score 32.03463203
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 49, last improved epoch 44, total epochs 49, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 50 Training: 100%|█████████████████████████████████████| 29/29 [01:03<00:00,  2.20s/it, loss=0.9740, acc=70.03%]
+
+Test set: Average loss: 1.7438, Accuracy: 105/231 (45%)
+
+Adding validation score 45.45454545
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 50, last improved epoch 44, total epochs 50, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 51 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.41s/it, loss=0.8329, acc=69.82%]
+
+Test set: Average loss: 1.3175, Accuracy: 126/231 (55%)
+
+Adding validation score 54.54545455
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 51, last improved epoch 44, total epochs 51, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 52 Training: 100%|█████████████████████████████████████| 29/29 [01:09<00:00,  2.40s/it, loss=0.7211, acc=71.12%]
+
+Test set: Average loss: 1.6014, Accuracy: 112/231 (48%)
+
+Adding validation score 48.48484848
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 52, last improved epoch 44, total epochs 52, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 53 Training: 100%|█████████████████████████████████████| 29/29 [01:07<00:00,  2.32s/it, loss=1.1733, acc=69.06%]
+
+Test set: Average loss: 1.5161, Accuracy: 121/231 (52%)
+
+Adding validation score 52.38095238
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 53, last improved epoch 44, total epochs 53, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 54 Training: 100%|█████████████████████████████████████| 29/29 [01:13<00:00,  2.53s/it, loss=0.6649, acc=69.92%]
+
+Test set: Average loss: 1.4090, Accuracy: 117/231 (51%)
+
+Adding validation score 50.64935065
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 54, last improved epoch 44, total epochs 54, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 55 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.49s/it, loss=0.8367, acc=71.12%]
+
+Test set: Average loss: 2.3158, Accuracy: 78/231 (34%)
+
+Adding validation score 33.76623377
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 55, last improved epoch 44, total epochs 55, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 56 Training: 100%|█████████████████████████████████████| 29/29 [01:15<00:00,  2.59s/it, loss=0.8841, acc=70.14%]
+
+Test set: Average loss: 1.3472, Accuracy: 138/231 (60%)
+
+Adding validation score 59.74025974
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 56, last improved epoch 44, total epochs 56, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 57 Training: 100%|█████████████████████████████████████| 29/29 [01:10<00:00,  2.42s/it, loss=0.8513, acc=73.51%]
+
+Test set: Average loss: 1.1686, Accuracy: 133/231 (58%)
+
+Adding validation score 57.57575758
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 57, last improved epoch 44, total epochs 57, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 58 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.49s/it, loss=0.6134, acc=71.01%]
+
+Test set: Average loss: 1.3345, Accuracy: 121/231 (52%)
+
+Adding validation score 52.38095238
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 58, last improved epoch 44, total epochs 58, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 59 Training: 100%|█████████████████████████████████████| 29/29 [01:01<00:00,  2.10s/it, loss=0.9033, acc=74.27%]
+
+Test set: Average loss: 2.1454, Accuracy: 90/231 (39%)
+
+Adding validation score 38.96103896
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 59, last improved epoch 44, total epochs 59, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 60 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.52s/it, loss=0.4024, acc=76.00%]
+
+Test set: Average loss: 1.3721, Accuracy: 126/231 (55%)
+
+Adding validation score 54.54545455
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 60, last improved epoch 44, total epochs 60, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 61 Training: 100%|█████████████████████████████████████| 29/29 [01:12<00:00,  2.49s/it, loss=1.0343, acc=74.59%]
+
+Test set: Average loss: 2.7227, Accuracy: 89/231 (39%)
+
+Adding validation score 38.52813853
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 61, last improved epoch 44, total epochs 61, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 62 Training: 100%|█████████████████████████████████████| 29/29 [02:02<00:00,  4.21s/it, loss=0.6475, acc=72.96%]
+
+Test set: Average loss: 1.4836, Accuracy: 127/231 (55%)
+
+Adding validation score 54.97835498
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 62, last improved epoch 44, total epochs 62, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 63 Training: 100%|█████████████████████████████████████| 29/29 [01:59<00:00,  4.10s/it, loss=0.6892, acc=73.07%]
+
+Test set: Average loss: 2.0973, Accuracy: 108/231 (47%)
+
+Adding validation score 46.75324675
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 63, last improved epoch 44, total epochs 63, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 64 Training: 100%|█████████████████████████████████████| 29/29 [01:30<00:00,  3.13s/it, loss=0.8801, acc=73.07%]
+
+Test set: Average loss: 1.2164, Accuracy: 139/231 (60%)
+
+Adding validation score 60.17316017
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 64, last improved epoch 44, total epochs 64, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 65 Training: 100%|█████████████████████████████████████| 29/29 [00:57<00:00,  1.98s/it, loss=0.6403, acc=74.70%]
+
+Test set: Average loss: 2.7565, Accuracy: 78/231 (34%)
+
+Adding validation score 33.76623377
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 65, last improved epoch 44, total epochs 65, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 66 Training: 100%|█████████████████████████████████████| 29/29 [00:55<00:00,  1.93s/it, loss=0.6247, acc=74.05%]
+
+Test set: Average loss: 1.4703, Accuracy: 121/231 (52%)
+
+Adding validation score 52.38095238
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 66, last improved epoch 44, total epochs 66, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 67 Training: 100%|█████████████████████████████████████| 29/29 [00:53<00:00,  1.84s/it, loss=0.9689, acc=75.14%]
+
+Test set: Average loss: 2.4115, Accuracy: 81/231 (35%)
+
+Adding validation score 35.06493506
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 67, last improved epoch 44, total epochs 67, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 68 Training: 100%|█████████████████████████████████████| 29/29 [01:29<00:00,  3.08s/it, loss=0.7626, acc=76.22%]
+
+Test set: Average loss: 1.2666, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 68, last improved epoch 68, total epochs 68, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 69 Training: 100%|█████████████████████████████████████| 29/29 [01:54<00:00,  3.95s/it, loss=0.8020, acc=77.85%]
+
+Test set: Average loss: 1.1417, Accuracy: 141/231 (61%)
+
+Adding validation score 61.03896104
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 69, last improved epoch 68, total epochs 69, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 70 Training: 100%|█████████████████████████████████████| 29/29 [01:54<00:00,  3.96s/it, loss=0.7865, acc=76.87%]
+
+Test set: Average loss: 1.4155, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 70, last improved epoch 68, total epochs 70, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 71 Training: 100%|█████████████████████████████████████| 29/29 [01:57<00:00,  4.04s/it, loss=0.7730, acc=75.03%]
+
+Test set: Average loss: 1.0854, Accuracy: 148/231 (64%)
+
+Adding validation score 64.06926407
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 71, last improved epoch 68, total epochs 71, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 72 Training: 100%|█████████████████████████████████████| 29/29 [01:53<00:00,  3.92s/it, loss=0.6948, acc=78.50%]
+
+Test set: Average loss: 2.2302, Accuracy: 107/231 (46%)
+
+Adding validation score 46.32034632
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 72, last improved epoch 68, total epochs 72, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 73 Training: 100%|█████████████████████████████████████| 29/29 [01:58<00:00,  4.08s/it, loss=0.8543, acc=78.07%]
+
+Test set: Average loss: 1.2616, Accuracy: 134/231 (58%)
+
+Adding validation score 58.00865801
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 73, last improved epoch 68, total epochs 73, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 74 Training: 100%|█████████████████████████████████████| 29/29 [01:55<00:00,  3.97s/it, loss=0.6982, acc=76.44%]
+
+Test set: Average loss: 1.3781, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 74, last improved epoch 68, total epochs 74, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 75 Training: 100%|█████████████████████████████████████| 29/29 [01:13<00:00,  2.53s/it, loss=0.5824, acc=76.00%]
+
+Test set: Average loss: 1.1992, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 75, last improved epoch 68, total epochs 75, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 76 Training: 100%|█████████████████████████████████████| 29/29 [00:56<00:00,  1.95s/it, loss=0.6472, acc=79.04%]
+
+Test set: Average loss: 1.8506, Accuracy: 107/231 (46%)
+
+Adding validation score 46.32034632
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 76, last improved epoch 68, total epochs 76, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 77 Training: 100%|█████████████████████████████████████| 29/29 [00:49<00:00,  1.72s/it, loss=0.4812, acc=78.28%]
+
+Test set: Average loss: 1.4973, Accuracy: 136/231 (59%)
+
+Adding validation score 58.87445887
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 77, last improved epoch 68, total epochs 77, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 78 Training: 100%|█████████████████████████████████████| 29/29 [00:49<00:00,  1.69s/it, loss=0.6651, acc=76.44%]
+
+Test set: Average loss: 1.2726, Accuracy: 133/231 (58%)
+
+Adding validation score 57.57575758
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 78, last improved epoch 68, total epochs 78, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 79 Training: 100%|█████████████████████████████████████| 29/29 [00:49<00:00,  1.71s/it, loss=0.7822, acc=80.02%]
+
+Test set: Average loss: 1.5324, Accuracy: 118/231 (51%)
+
+Adding validation score 51.08225108
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 79, last improved epoch 68, total epochs 79, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 80 Training: 100%|█████████████████████████████████████| 29/29 [00:48<00:00,  1.67s/it, loss=0.3733, acc=77.85%]
+
+Test set: Average loss: 1.5783, Accuracy: 115/231 (50%)
+
+Adding validation score 49.78354978
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 80, last improved epoch 68, total epochs 80, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 81 Training: 100%|█████████████████████████████████████| 29/29 [00:42<00:00,  1.48s/it, loss=0.6224, acc=77.09%]
+
+Test set: Average loss: 1.0969, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 81, last improved epoch 81, total epochs 81, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 82 Training: 100%|█████████████████████████████████████| 29/29 [00:43<00:00,  1.49s/it, loss=0.7107, acc=79.48%]
+
+Test set: Average loss: 2.9634, Accuracy: 79/231 (34%)
+
+Adding validation score 34.19913420
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 82, last improved epoch 81, total epochs 82, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 83 Training: 100%|█████████████████████████████████████| 29/29 [00:41<00:00,  1.44s/it, loss=0.5987, acc=78.50%]
+
+Test set: Average loss: 1.5723, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 83, last improved epoch 81, total epochs 83, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 84 Training: 100%|█████████████████████████████████████| 29/29 [00:43<00:00,  1.48s/it, loss=0.6277, acc=78.50%]
+
+Test set: Average loss: 1.6931, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 84, last improved epoch 81, total epochs 84, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 85 Training: 100%|█████████████████████████████████████| 29/29 [00:44<00:00,  1.54s/it, loss=0.7503, acc=76.66%]
+
+Test set: Average loss: 1.2452, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 85, last improved epoch 81, total epochs 85, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 86 Training: 100%|█████████████████████████████████████| 29/29 [00:46<00:00,  1.59s/it, loss=0.4398, acc=79.37%]
+
+Test set: Average loss: 1.1819, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 86, last improved epoch 81, total epochs 86, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 87 Training: 100%|█████████████████████████████████████| 29/29 [00:45<00:00,  1.56s/it, loss=0.3136, acc=79.37%]
+
+Test set: Average loss: 1.2458, Accuracy: 137/231 (59%)
+
+Adding validation score 59.30735931
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 87, last improved epoch 81, total epochs 87, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 88 Training: 100%|█████████████████████████████████████| 29/29 [00:46<00:00,  1.60s/it, loss=0.6103, acc=82.08%]
+
+Test set: Average loss: 1.2221, Accuracy: 136/231 (59%)
+
+Adding validation score 58.87445887
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 88, last improved epoch 81, total epochs 88, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 89 Training: 100%|█████████████████████████████████████| 29/29 [00:49<00:00,  1.69s/it, loss=0.4420, acc=83.39%]
+
+Test set: Average loss: 1.3355, Accuracy: 139/231 (60%)
+
+Adding validation score 60.17316017
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 89, last improved epoch 81, total epochs 89, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 90 Training: 100%|█████████████████████████████████████| 29/29 [00:44<00:00,  1.52s/it, loss=0.3605, acc=80.78%]
+
+Test set: Average loss: 1.4106, Accuracy: 125/231 (54%)
+
+Adding validation score 54.11255411
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 90, last improved epoch 81, total epochs 90, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 91 Training: 100%|█████████████████████████████████████| 29/29 [00:45<00:00,  1.57s/it, loss=0.7529, acc=80.13%]
+
+Test set: Average loss: 1.6510, Accuracy: 127/231 (55%)
+
+Adding validation score 54.97835498
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 91, last improved epoch 81, total epochs 91, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 92 Training: 100%|█████████████████████████████████████| 29/29 [00:46<00:00,  1.61s/it, loss=0.5373, acc=81.11%]
+
+Test set: Average loss: 1.2288, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 92, last improved epoch 81, total epochs 92, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 93 Training: 100%|█████████████████████████████████████| 29/29 [00:46<00:00,  1.60s/it, loss=0.6050, acc=81.65%]
+
+Test set: Average loss: 1.6788, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 93, last improved epoch 81, total epochs 93, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 94 Training: 100%|█████████████████████████████████████| 29/29 [00:56<00:00,  1.94s/it, loss=0.3626, acc=82.74%]
+
+Test set: Average loss: 1.1153, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 94, last improved epoch 81, total epochs 94, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 95 Training: 100%|█████████████████████████████████████| 29/29 [00:54<00:00,  1.87s/it, loss=0.4510, acc=81.32%]
+
+Test set: Average loss: 1.5207, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 95, last improved epoch 81, total epochs 95, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 96 Training: 100%|█████████████████████████████████████| 29/29 [00:58<00:00,  2.02s/it, loss=0.7240, acc=82.74%]
+
+Test set: Average loss: 1.2051, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 96, last improved epoch 81, total epochs 96, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 97 Training: 100%|█████████████████████████████████████| 29/29 [01:15<00:00,  2.61s/it, loss=0.2614, acc=83.39%]
+
+Test set: Average loss: 1.1947, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 97, last improved epoch 81, total epochs 97, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 98 Training: 100%|██████████████████████████████████| 29/29 [1:38:06<00:00, 202.99s/it, loss=0.5515, acc=79.70%]
+
+Test set: Average loss: 1.1499, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 98, last improved epoch 81, total epochs 98, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 99 Training: 100%|█████████████████████████████████████| 29/29 [01:18<00:00,  2.72s/it, loss=0.6826, acc=83.39%]
+
+Test set: Average loss: 1.6102, Accuracy: 132/231 (57%)
+
+Adding validation score 57.14285714
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 99, last improved epoch 81, total epochs 99, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 100 Training: 100%|████████████████████████████████████| 29/29 [01:15<00:00,  2.61s/it, loss=0.4937, acc=82.30%]
+
+Test set: Average loss: 1.2117, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 100, last improved epoch 81, total epochs 100, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 101 Training: 100%|████████████████████████████████████| 29/29 [01:16<00:00,  2.63s/it, loss=0.6162, acc=81.87%]
+
+Test set: Average loss: 1.5198, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 101, last improved epoch 81, total epochs 101, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 102 Training: 100%|████████████████████████████████████| 29/29 [01:16<00:00,  2.64s/it, loss=0.7512, acc=82.84%]
+
+Test set: Average loss: 1.3717, Accuracy: 136/231 (59%)
+
+Adding validation score 58.87445887
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 102, last improved epoch 81, total epochs 102, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 103 Training: 100%|████████████████████████████████████| 29/29 [01:14<00:00,  2.56s/it, loss=0.3717, acc=82.52%]
+
+Test set: Average loss: 1.4892, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 103, last improved epoch 81, total epochs 103, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 104 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.07s/it, loss=0.8278, acc=83.17%]
+
+Test set: Average loss: 1.1868, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 104, last improved epoch 81, total epochs 104, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 105 Training: 100%|████████████████████████████████████| 29/29 [00:51<00:00,  1.79s/it, loss=0.3559, acc=82.30%]
+
+Test set: Average loss: 1.3701, Accuracy: 145/231 (63%)
+
+Adding validation score 62.77056277
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 105, last improved epoch 81, total epochs 105, n: 25, num_cycles: 0
+Returning False - no triggers to switch have been hit
+Epoch 106 Training: 100%|████████████████████████████████████| 29/29 [01:08<00:00,  2.36s/it, loss=0.4703, acc=84.69%]
+
+Test set: Average loss: 1.9189, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 106, last improved epoch 81, total epochs 106, n: 25, num_cycles: 0
+Returning True - History and last improved is hit
+Importing best Model for switch to PA...
+Switching back to N...
+Resetting committed to initial rate to False
+  -> 🌳 DENDRITE ADDED! Total: 1
+Epoch 107 Training: 100%|████████████████████████████████████| 29/29 [00:40<00:00,  1.40s/it, loss=0.7430, acc=67.64%]
+
+Test set: Average loss: 1.9385, Accuracy: 93/231 (40%)
+
+Adding validation score 40.25974026
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 82, last improved epoch 82, total epochs 107, n: 25, num_cycles: 2
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 80
+Epoch 108 Training: 100%|████████████████████████████████████| 29/29 [01:17<00:00,  2.66s/it, loss=0.9130, acc=71.44%]
+
+Test set: Average loss: 2.2960, Accuracy: 99/231 (43%)
+
+Adding validation score 42.85714286
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 83, last improved epoch 83, total epochs 108, n: 25, num_cycles: 2
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 80
+Epoch 109 Training: 100%|████████████████████████████████████| 29/29 [01:27<00:00,  3.01s/it, loss=0.7166, acc=67.86%]
+
+Test set: Average loss: 1.8295, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 82, last improved epoch 82, total epochs 107, n: 25, num_cycles: 2
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 1 to last max 80
+Epoch 110 Training: 100%|████████████████████████████████████| 29/29 [01:31<00:00,  3.14s/it, loss=0.9772, acc=69.49%]
+
+Test set: Average loss: 3.6017, Accuracy: 47/231 (20%)
+
+Adding validation score 20.34632035
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 83, last improved epoch 82, total epochs 108, n: 25, num_cycles: 2
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 1 to last max 80
+Epoch 111 Training: 100%|████████████████████████████████████| 29/29 [01:29<00:00,  3.08s/it, loss=1.2803, acc=67.64%]
+
+Test set: Average loss: 3.4469, Accuracy: 66/231 (29%)
+
+Adding validation score 28.57142857
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 82, last improved epoch 82, total epochs 107, n: 25, num_cycles: 2
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 2 to last max 80
+Epoch 112 Training: 100%|████████████████████████████████████| 29/29 [01:27<00:00,  3.01s/it, loss=0.7634, acc=66.12%]
+
+Test set: Average loss: 2.2034, Accuracy: 96/231 (42%)
+
+Adding validation score 41.55844156
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 84, last improved epoch 84, total epochs 109, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 113 Training: 100%|████████████████████████████████████| 29/29 [01:27<00:00,  3.03s/it, loss=0.8878, acc=69.71%]
+
+Test set: Average loss: 2.6893, Accuracy: 88/231 (38%)
+
+Adding validation score 38.09523810
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 85, last improved epoch 84, total epochs 110, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 114 Training: 100%|████████████████████████████████████| 29/29 [01:19<00:00,  2.74s/it, loss=0.5868, acc=73.62%]
+
+Test set: Average loss: 1.4353, Accuracy: 126/231 (55%)
+
+Adding validation score 54.54545455
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 86, last improved epoch 86, total epochs 111, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 115 Training: 100%|████████████████████████████████████| 29/29 [01:25<00:00,  2.95s/it, loss=0.6666, acc=75.35%]
+
+Test set: Average loss: 1.8136, Accuracy: 108/231 (47%)
+
+Adding validation score 46.75324675
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 87, last improved epoch 86, total epochs 112, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 116 Training: 100%|████████████████████████████████████| 29/29 [01:22<00:00,  2.85s/it, loss=0.6558, acc=72.20%]
+
+Test set: Average loss: 6.9661, Accuracy: 36/231 (16%)
+
+Adding validation score 15.58441558
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 88, last improved epoch 86, total epochs 113, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 117 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.67s/it, loss=0.5867, acc=70.14%]
+
+Test set: Average loss: 4.6872, Accuracy: 34/231 (15%)
+
+Adding validation score 14.71861472
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 89, last improved epoch 86, total epochs 114, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 118 Training: 100%|████████████████████████████████████| 29/29 [01:17<00:00,  2.67s/it, loss=0.9281, acc=72.10%]
+
+Test set: Average loss: 2.5992, Accuracy: 91/231 (39%)
+
+Adding validation score 39.39393939
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 90, last improved epoch 86, total epochs 115, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 119 Training: 100%|████████████████████████████████████| 29/29 [01:24<00:00,  2.90s/it, loss=0.8124, acc=74.81%]
+
+Test set: Average loss: 1.9504, Accuracy: 106/231 (46%)
+
+Adding validation score 45.88744589
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 91, last improved epoch 86, total epochs 116, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 120 Training: 100%|████████████████████████████████████| 29/29 [01:15<00:00,  2.59s/it, loss=0.6165, acc=75.57%]
+
+Test set: Average loss: 3.2041, Accuracy: 85/231 (37%)
+
+Adding validation score 36.79653680
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 92, last improved epoch 86, total epochs 117, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 121 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.13s/it, loss=0.7702, acc=74.48%]
+
+Test set: Average loss: 1.8021, Accuracy: 118/231 (51%)
+
+Adding validation score 51.08225108
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 93, last improved epoch 86, total epochs 118, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 122 Training: 100%|████████████████████████████████████| 29/29 [00:54<00:00,  1.88s/it, loss=0.6763, acc=73.29%]
+
+Test set: Average loss: 3.2107, Accuracy: 68/231 (29%)
+
+Adding validation score 29.43722944
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 94, last improved epoch 86, total epochs 119, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 123 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.29s/it, loss=0.5190, acc=76.22%]
+
+Test set: Average loss: 1.7741, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 95, last improved epoch 95, total epochs 120, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 124 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.28s/it, loss=0.7937, acc=73.72%]
+
+Test set: Average loss: 2.3349, Accuracy: 87/231 (38%)
+
+Adding validation score 37.66233766
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 96, last improved epoch 95, total epochs 121, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 125 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.28s/it, loss=0.8826, acc=76.55%]
+
+Test set: Average loss: 4.4907, Accuracy: 60/231 (26%)
+
+Adding validation score 25.97402597
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 97, last improved epoch 95, total epochs 122, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 126 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.29s/it, loss=0.7730, acc=75.68%]
+
+Test set: Average loss: 1.9205, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 98, last improved epoch 95, total epochs 123, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 127 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.32s/it, loss=0.4837, acc=76.44%]
+
+Test set: Average loss: 2.2260, Accuracy: 112/231 (48%)
+
+Adding validation score 48.48484848
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 99, last improved epoch 95, total epochs 124, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 128 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.09s/it, loss=0.7045, acc=79.80%]
+
+Test set: Average loss: 3.3564, Accuracy: 82/231 (35%)
+
+Adding validation score 35.49783550
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 100, last improved epoch 95, total epochs 125, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 129 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.99s/it, loss=0.7250, acc=79.37%]
+
+Test set: Average loss: 1.9476, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 101, last improved epoch 95, total epochs 126, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 130 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.08s/it, loss=0.5805, acc=78.07%]
+
+Test set: Average loss: 2.7296, Accuracy: 99/231 (43%)
+
+Adding validation score 42.85714286
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 102, last improved epoch 95, total epochs 127, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 131 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.18s/it, loss=0.5992, acc=77.74%]
+
+Test set: Average loss: 1.1000, Accuracy: 148/231 (64%)
+
+Adding validation score 64.06926407
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 103, last improved epoch 103, total epochs 128, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 132 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.24s/it, loss=0.6297, acc=80.35%]
+
+Test set: Average loss: 1.7753, Accuracy: 110/231 (48%)
+
+Adding validation score 47.61904762
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 104, last improved epoch 103, total epochs 129, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 133 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.16s/it, loss=0.4909, acc=77.42%]
+
+Test set: Average loss: 2.0682, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 105, last improved epoch 103, total epochs 130, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 134 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.08s/it, loss=0.6181, acc=80.24%]
+
+Test set: Average loss: 1.8655, Accuracy: 120/231 (52%)
+
+Adding validation score 51.94805195
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 106, last improved epoch 103, total epochs 131, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 135 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.20s/it, loss=0.7838, acc=78.50%]
+
+Test set: Average loss: 2.5651, Accuracy: 112/231 (48%)
+
+Adding validation score 48.48484848
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 107, last improved epoch 103, total epochs 132, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 136 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.23s/it, loss=0.4046, acc=79.70%]
+
+Test set: Average loss: 2.5044, Accuracy: 91/231 (39%)
+
+Adding validation score 39.39393939
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 108, last improved epoch 103, total epochs 133, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 137 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.08s/it, loss=0.4380, acc=81.22%]
+
+Test set: Average loss: 1.4118, Accuracy: 134/231 (58%)
+
+Adding validation score 58.00865801
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 109, last improved epoch 103, total epochs 134, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 138 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.05s/it, loss=0.6019, acc=79.26%]
+
+Test set: Average loss: 2.2012, Accuracy: 102/231 (44%)
+
+Adding validation score 44.15584416
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 110, last improved epoch 103, total epochs 135, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 139 Training: 100%|████████████████████████████████████| 29/29 [01:06<00:00,  2.28s/it, loss=0.8040, acc=81.22%]
+
+Test set: Average loss: 1.7794, Accuracy: 114/231 (49%)
+
+Adding validation score 49.35064935
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 111, last improved epoch 103, total epochs 136, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 140 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.11s/it, loss=0.4791, acc=84.26%]
+
+Test set: Average loss: 3.1395, Accuracy: 87/231 (38%)
+
+Adding validation score 37.66233766
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 112, last improved epoch 103, total epochs 137, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 141 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.09s/it, loss=0.6905, acc=79.37%]
+
+Test set: Average loss: 2.6257, Accuracy: 94/231 (41%)
+
+Adding validation score 40.69264069
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 113, last improved epoch 103, total epochs 138, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 142 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.18s/it, loss=0.7128, acc=78.61%]
+
+Test set: Average loss: 2.8136, Accuracy: 104/231 (45%)
+
+Adding validation score 45.02164502
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 114, last improved epoch 103, total epochs 139, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 143 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.13s/it, loss=0.3615, acc=80.46%]
+
+Test set: Average loss: 1.4614, Accuracy: 125/231 (54%)
+
+Adding validation score 54.11255411
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 115, last improved epoch 103, total epochs 140, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 144 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.08s/it, loss=0.7867, acc=80.89%]
+
+Test set: Average loss: 1.3880, Accuracy: 135/231 (58%)
+
+Adding validation score 58.44155844
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 116, last improved epoch 103, total epochs 141, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 145 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.04s/it, loss=0.4035, acc=81.32%]
+
+Test set: Average loss: 1.4083, Accuracy: 134/231 (58%)
+
+Adding validation score 58.00865801
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 117, last improved epoch 103, total epochs 142, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 146 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.17s/it, loss=0.4959, acc=80.89%]
+
+Test set: Average loss: 1.4636, Accuracy: 140/231 (61%)
+
+Adding validation score 60.60606061
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 118, last improved epoch 103, total epochs 143, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 147 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.98s/it, loss=0.4009, acc=84.15%]
+
+Test set: Average loss: 3.5647, Accuracy: 77/231 (33%)
+
+Adding validation score 33.33333333
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 119, last improved epoch 103, total epochs 144, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 148 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.11s/it, loss=0.4794, acc=81.76%]
+
+Test set: Average loss: 3.3657, Accuracy: 82/231 (35%)
+
+Adding validation score 35.49783550
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 120, last improved epoch 103, total epochs 145, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 149 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.05s/it, loss=0.5250, acc=84.58%]
+
+Test set: Average loss: 2.3488, Accuracy: 109/231 (47%)
+
+Adding validation score 47.18614719
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 121, last improved epoch 103, total epochs 146, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 150 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.05s/it, loss=0.2772, acc=82.63%]
+
+Test set: Average loss: 1.2882, Accuracy: 140/231 (61%)
+
+Adding validation score 60.60606061
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 122, last improved epoch 103, total epochs 147, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 151 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.15s/it, loss=0.5890, acc=84.26%]
+
+Test set: Average loss: 3.4469, Accuracy: 86/231 (37%)
+
+Adding validation score 37.22943723
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 123, last improved epoch 103, total epochs 148, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 152 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.14s/it, loss=0.1983, acc=85.45%]
+
+Test set: Average loss: 1.0779, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 124, last improved epoch 124, total epochs 149, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 153 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.15s/it, loss=0.1960, acc=87.40%]
+
+Test set: Average loss: 1.2256, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 125, last improved epoch 124, total epochs 150, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 154 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.16s/it, loss=0.6382, acc=82.63%]
+
+Test set: Average loss: 2.5205, Accuracy: 90/231 (39%)
+
+Adding validation score 38.96103896
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 126, last improved epoch 124, total epochs 151, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 155 Training: 100%|████████████████████████████████████| 29/29 [00:41<00:00,  1.44s/it, loss=0.6536, acc=85.45%]
+
+Test set: Average loss: 1.3116, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 127, last improved epoch 124, total epochs 152, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 156 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.18s/it, loss=0.3986, acc=85.56%]
+
+Test set: Average loss: 1.1608, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 128, last improved epoch 124, total epochs 153, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 157 Training: 100%|████████████████████████████████████| 29/29 [01:09<00:00,  2.41s/it, loss=0.5241, acc=86.97%]
+
+Test set: Average loss: 1.7325, Accuracy: 137/231 (59%)
+
+Adding validation score 59.30735931
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 129, last improved epoch 124, total epochs 154, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 158 Training: 100%|████████████████████████████████████| 29/29 [01:10<00:00,  2.45s/it, loss=0.2871, acc=87.08%]
+
+Test set: Average loss: 1.5858, Accuracy: 132/231 (57%)
+
+Adding validation score 57.14285714
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 130, last improved epoch 124, total epochs 155, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 159 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.26s/it, loss=0.5311, acc=85.88%]
+
+Test set: Average loss: 1.9665, Accuracy: 119/231 (52%)
+
+Adding validation score 51.51515152
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 131, last improved epoch 124, total epochs 156, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 160 Training: 100%|████████████████████████████████████| 29/29 [01:17<00:00,  2.68s/it, loss=0.2313, acc=83.28%]
+
+Test set: Average loss: 2.1991, Accuracy: 109/231 (47%)
+
+Adding validation score 47.18614719
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 132, last improved epoch 124, total epochs 157, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 161 Training: 100%|████████████████████████████████████| 29/29 [01:32<00:00,  3.18s/it, loss=0.2712, acc=85.67%]
+
+Test set: Average loss: 1.6787, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 133, last improved epoch 124, total epochs 158, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 162 Training: 100%|████████████████████████████████████| 29/29 [01:35<00:00,  3.30s/it, loss=0.6635, acc=82.74%]
+
+Test set: Average loss: 1.3959, Accuracy: 138/231 (60%)
+
+Adding validation score 59.74025974
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 134, last improved epoch 124, total epochs 159, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 163 Training: 100%|████████████████████████████████████| 29/29 [01:34<00:00,  3.25s/it, loss=0.5232, acc=85.45%]
+
+Test set: Average loss: 1.9247, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 135, last improved epoch 124, total epochs 160, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 164 Training: 100%|████████████████████████████████████| 29/29 [01:32<00:00,  3.20s/it, loss=0.1859, acc=86.43%]
+
+Test set: Average loss: 1.5588, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 136, last improved epoch 124, total epochs 161, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 165 Training: 100%|████████████████████████████████████| 29/29 [01:35<00:00,  3.28s/it, loss=0.7883, acc=86.43%]
+
+Test set: Average loss: 1.8037, Accuracy: 122/231 (53%)
+
+Adding validation score 52.81385281
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 137, last improved epoch 124, total epochs 162, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 166 Training: 100%|████████████████████████████████████| 29/29 [01:33<00:00,  3.21s/it, loss=0.2163, acc=87.62%]
+
+Test set: Average loss: 1.4094, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 138, last improved epoch 124, total epochs 163, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 167 Training: 100%|████████████████████████████████████| 29/29 [01:33<00:00,  3.21s/it, loss=0.4194, acc=86.86%]
+
+Test set: Average loss: 1.2038, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 139, last improved epoch 124, total epochs 164, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 168 Training: 100%|████████████████████████████████████| 29/29 [01:33<00:00,  3.24s/it, loss=0.4006, acc=86.21%]
+
+Test set: Average loss: 1.8588, Accuracy: 126/231 (55%)
+
+Adding validation score 54.54545455
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 140, last improved epoch 124, total epochs 165, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 169 Training: 100%|████████████████████████████████████| 29/29 [00:58<00:00,  2.03s/it, loss=0.5703, acc=87.19%]
+
+Test set: Average loss: 1.1288, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 141, last improved epoch 141, total epochs 166, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 170 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.99s/it, loss=0.3172, acc=87.51%]
+
+Test set: Average loss: 1.4867, Accuracy: 137/231 (59%)
+
+Adding validation score 59.30735931
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 142, last improved epoch 141, total epochs 167, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 171 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.98s/it, loss=0.3160, acc=88.17%]
+
+Test set: Average loss: 1.8867, Accuracy: 125/231 (54%)
+
+Adding validation score 54.11255411
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 143, last improved epoch 141, total epochs 168, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 172 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.23s/it, loss=0.4919, acc=86.10%]
+
+Test set: Average loss: 1.3849, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 144, last improved epoch 141, total epochs 169, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 173 Training: 100%|████████████████████████████████████| 29/29 [01:06<00:00,  2.29s/it, loss=0.2210, acc=86.32%]
+
+Test set: Average loss: 2.5986, Accuracy: 90/231 (39%)
+
+Adding validation score 38.96103896
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 145, last improved epoch 141, total epochs 170, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 174 Training: 100%|████████████████████████████████████| 29/29 [01:06<00:00,  2.28s/it, loss=0.1097, acc=88.27%]
+
+Test set: Average loss: 2.5711, Accuracy: 106/231 (46%)
+
+Adding validation score 45.88744589
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 146, last improved epoch 141, total epochs 171, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 175 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.12s/it, loss=0.5700, acc=88.17%]
+
+Test set: Average loss: 4.5729, Accuracy: 76/231 (33%)
+
+Adding validation score 32.90043290
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 147, last improved epoch 141, total epochs 172, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 176 Training: 100%|████████████████████████████████████| 29/29 [01:09<00:00,  2.41s/it, loss=0.0909, acc=87.84%]
+
+Test set: Average loss: 2.2470, Accuracy: 111/231 (48%)
+
+Adding validation score 48.05194805
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 148, last improved epoch 141, total epochs 173, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 177 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.26s/it, loss=0.1904, acc=88.49%]
+
+Test set: Average loss: 1.5033, Accuracy: 126/231 (55%)
+
+Adding validation score 54.54545455
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 149, last improved epoch 141, total epochs 174, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 178 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.25s/it, loss=0.2970, acc=88.82%]
+
+Test set: Average loss: 1.2023, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 150, last improved epoch 150, total epochs 175, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 179 Training: 100%|████████████████████████████████████| 29/29 [01:07<00:00,  2.34s/it, loss=0.0901, acc=87.19%]
+
+Test set: Average loss: 1.3922, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 151, last improved epoch 150, total epochs 176, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 180 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.21s/it, loss=0.1854, acc=89.14%]
+
+Test set: Average loss: 1.2384, Accuracy: 148/231 (64%)
+
+Adding validation score 64.06926407
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 152, last improved epoch 150, total epochs 177, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 181 Training: 100%|████████████████████████████████████| 29/29 [01:06<00:00,  2.30s/it, loss=0.5026, acc=89.47%]
+
+Test set: Average loss: 1.1153, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 153, last improved epoch 150, total epochs 178, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 182 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.16s/it, loss=0.2386, acc=88.38%]
+
+Test set: Average loss: 1.9276, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 154, last improved epoch 150, total epochs 179, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 183 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.22s/it, loss=0.3287, acc=88.17%]
+
+Test set: Average loss: 2.4793, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 155, last improved epoch 150, total epochs 180, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 184 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.21s/it, loss=0.1167, acc=88.60%]
+
+Test set: Average loss: 1.1731, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 156, last improved epoch 150, total epochs 181, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 185 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.19s/it, loss=0.5123, acc=88.93%]
+
+Test set: Average loss: 1.2291, Accuracy: 146/231 (63%)
+
+Adding validation score 63.20346320
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 157, last improved epoch 150, total epochs 182, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 186 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.26s/it, loss=0.2530, acc=89.36%]
+
+Test set: Average loss: 1.0468, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 158, last improved epoch 158, total epochs 183, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 187 Training: 100%|████████████████████████████████████| 29/29 [01:07<00:00,  2.34s/it, loss=0.2927, acc=89.03%]
+
+Test set: Average loss: 1.1225, Accuracy: 151/231 (65%)
+
+Adding validation score 65.36796537
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 159, last improved epoch 158, total epochs 184, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 188 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.22s/it, loss=0.3914, acc=88.93%]
+
+Test set: Average loss: 1.8858, Accuracy: 123/231 (53%)
+
+Adding validation score 53.24675325
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 160, last improved epoch 158, total epochs 185, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 189 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.18s/it, loss=0.1709, acc=89.03%]
+
+Test set: Average loss: 1.2593, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 161, last improved epoch 158, total epochs 186, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 190 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.07s/it, loss=0.2534, acc=91.21%]
+
+Test set: Average loss: 1.2579, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 162, last improved epoch 158, total epochs 187, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 191 Training: 100%|████████████████████████████████████| 29/29 [00:55<00:00,  1.90s/it, loss=0.2536, acc=91.42%]
+
+Test set: Average loss: 1.7546, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 163, last improved epoch 158, total epochs 188, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 192 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.19s/it, loss=0.2031, acc=89.58%]
+
+Test set: Average loss: 1.4773, Accuracy: 141/231 (61%)
+
+Adding validation score 61.03896104
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 164, last improved epoch 158, total epochs 189, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 193 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.05s/it, loss=0.4556, acc=89.69%]
+
+Test set: Average loss: 1.1889, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 165, last improved epoch 158, total epochs 190, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 194 Training: 100%|████████████████████████████████████| 29/29 [01:06<00:00,  2.28s/it, loss=0.4305, acc=89.90%]
+
+Test set: Average loss: 1.4188, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 166, last improved epoch 158, total epochs 191, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 195 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.25s/it, loss=0.3913, acc=89.90%]
+
+Test set: Average loss: 1.8493, Accuracy: 133/231 (58%)
+
+Adding validation score 57.57575758
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 167, last improved epoch 158, total epochs 192, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 196 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.99s/it, loss=0.3583, acc=89.79%]
+
+Test set: Average loss: 1.6842, Accuracy: 141/231 (61%)
+
+Adding validation score 61.03896104
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 168, last improved epoch 158, total epochs 193, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 197 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.06s/it, loss=0.2936, acc=91.10%]
+
+Test set: Average loss: 1.1554, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 169, last improved epoch 158, total epochs 194, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 198 Training: 100%|████████████████████████████████████| 29/29 [00:58<00:00,  2.02s/it, loss=0.3094, acc=90.01%]
+
+Test set: Average loss: 3.3061, Accuracy: 113/231 (49%)
+
+Adding validation score 48.91774892
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 170, last improved epoch 158, total epochs 195, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 199 Training: 100%|████████████████████████████████████| 29/29 [00:56<00:00,  1.96s/it, loss=0.2196, acc=87.84%]
+
+Test set: Average loss: 1.3894, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 171, last improved epoch 158, total epochs 196, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 200 Training: 100%|████████████████████████████████████| 29/29 [01:04<00:00,  2.22s/it, loss=0.2029, acc=90.55%]
+
+Test set: Average loss: 1.2815, Accuracy: 151/231 (65%)
+
+Adding validation score 65.36796537
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 172, last improved epoch 158, total epochs 197, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 201 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.11s/it, loss=0.3977, acc=89.58%]
+
+Test set: Average loss: 1.7864, Accuracy: 130/231 (56%)
+
+Adding validation score 56.27705628
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 173, last improved epoch 158, total epochs 198, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 202 Training: 100%|████████████████████████████████████| 29/29 [00:56<00:00,  1.96s/it, loss=0.2549, acc=89.47%]
+
+Test set: Average loss: 1.4196, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 174, last improved epoch 158, total epochs 199, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 203 Training: 100%|████████████████████████████████████| 29/29 [00:41<00:00,  1.43s/it, loss=0.3416, acc=91.75%]
+
+Test set: Average loss: 1.1674, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 175, last improved epoch 158, total epochs 200, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 204 Training: 100%|████████████████████████████████████| 29/29 [00:41<00:00,  1.42s/it, loss=0.2298, acc=91.31%]
+
+Test set: Average loss: 1.2518, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 176, last improved epoch 158, total epochs 201, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 205 Training: 100%|████████████████████████████████████| 29/29 [00:41<00:00,  1.43s/it, loss=0.2699, acc=90.66%]
+
+Test set: Average loss: 1.5063, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 177, last improved epoch 158, total epochs 202, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 206 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.1252, acc=91.42%]
+
+Test set: Average loss: 1.5290, Accuracy: 137/231 (59%)
+
+Adding validation score 59.30735931
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 178, last improved epoch 158, total epochs 203, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 207 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.35s/it, loss=0.1799, acc=92.07%]
+
+Test set: Average loss: 1.2256, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 179, last improved epoch 158, total epochs 204, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 208 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.32s/it, loss=0.1448, acc=90.45%]
+
+Test set: Average loss: 1.2379, Accuracy: 161/231 (70%)
+
+Adding validation score 69.69696970
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 180, last improved epoch 158, total epochs 205, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 209 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.33s/it, loss=0.2338, acc=92.29%]
+
+Test set: Average loss: 1.1804, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 181, last improved epoch 158, total epochs 206, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 210 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.1620, acc=90.66%]
+
+Test set: Average loss: 1.1562, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 182, last improved epoch 182, total epochs 207, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 211 Training: 100%|████████████████████████████████████| 29/29 [00:40<00:00,  1.40s/it, loss=0.2118, acc=92.29%]
+
+Test set: Average loss: 1.5205, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 183, last improved epoch 182, total epochs 208, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 212 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.2110, acc=91.42%]
+
+Test set: Average loss: 1.2866, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 184, last improved epoch 182, total epochs 209, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 213 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.2482, acc=91.10%]
+
+Test set: Average loss: 1.3159, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 185, last improved epoch 182, total epochs 210, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 214 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.34s/it, loss=0.3721, acc=89.90%]
+
+Test set: Average loss: 1.5737, Accuracy: 145/231 (63%)
+
+Adding validation score 62.77056277
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 186, last improved epoch 182, total epochs 211, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 215 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.33s/it, loss=0.4968, acc=91.75%]
+
+Test set: Average loss: 1.5624, Accuracy: 151/231 (65%)
+
+Adding validation score 65.36796537
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 187, last improved epoch 182, total epochs 212, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 216 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.3944, acc=90.34%]
+
+Test set: Average loss: 1.4018, Accuracy: 153/231 (66%)
+
+Adding validation score 66.23376623
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 188, last improved epoch 182, total epochs 213, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 217 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.1703, acc=92.29%]
+
+Test set: Average loss: 1.3368, Accuracy: 155/231 (67%)
+
+Adding validation score 67.09956710
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 189, last improved epoch 182, total epochs 214, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 218 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.2245, acc=91.31%]
+
+Test set: Average loss: 1.2091, Accuracy: 165/231 (71%)
+
+Adding validation score 71.42857143
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 190, last improved epoch 190, total epochs 215, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 219 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.3662, acc=92.29%]
+
+Test set: Average loss: 1.3623, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 191, last improved epoch 190, total epochs 216, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 220 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.2795, acc=91.31%]
+
+Test set: Average loss: 1.1781, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 192, last improved epoch 190, total epochs 217, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 221 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.35s/it, loss=0.1130, acc=89.79%]
+
+Test set: Average loss: 1.2680, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 193, last improved epoch 190, total epochs 218, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 222 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.34s/it, loss=0.1409, acc=91.64%]
+
+Test set: Average loss: 1.7708, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 194, last improved epoch 190, total epochs 219, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 223 Training: 100%|████████████████████████████████████| 29/29 [00:45<00:00,  1.55s/it, loss=0.2598, acc=93.05%]
+
+Test set: Average loss: 1.3704, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 195, last improved epoch 190, total epochs 220, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 224 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.25s/it, loss=0.2712, acc=91.42%]
+
+Test set: Average loss: 1.1857, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 196, last improved epoch 196, total epochs 221, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 225 Training: 100%|████████████████████████████████████| 29/29 [00:58<00:00,  2.00s/it, loss=0.5501, acc=90.88%]
+
+Test set: Average loss: 1.3943, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 197, last improved epoch 196, total epochs 222, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 226 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.19s/it, loss=0.1949, acc=90.77%]
+
+Test set: Average loss: 1.1793, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 198, last improved epoch 196, total epochs 223, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 227 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.16s/it, loss=0.3235, acc=91.42%]
+
+Test set: Average loss: 1.3353, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 199, last improved epoch 196, total epochs 224, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 228 Training: 100%|████████████████████████████████████| 29/29 [00:56<00:00,  1.96s/it, loss=0.1776, acc=92.83%]
+
+Test set: Average loss: 1.3571, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 200, last improved epoch 196, total epochs 225, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 229 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.99s/it, loss=0.1947, acc=91.10%]
+
+Test set: Average loss: 1.4492, Accuracy: 153/231 (66%)
+
+Adding validation score 66.23376623
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 201, last improved epoch 196, total epochs 226, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 230 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.04s/it, loss=0.2906, acc=91.86%]
+
+Test set: Average loss: 1.2180, Accuracy: 163/231 (71%)
+
+Adding validation score 70.56277056
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 202, last improved epoch 196, total epochs 227, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 231 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.98s/it, loss=0.6015, acc=92.83%]
+
+Test set: Average loss: 1.2195, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 203, last improved epoch 196, total epochs 228, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 232 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.04s/it, loss=0.2113, acc=92.73%]
+
+Test set: Average loss: 1.1491, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 204, last improved epoch 196, total epochs 229, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 233 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  2.00s/it, loss=0.1499, acc=92.07%]
+
+Test set: Average loss: 1.2930, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 205, last improved epoch 196, total epochs 230, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 234 Training: 100%|████████████████████████████████████| 29/29 [00:56<00:00,  1.95s/it, loss=0.3049, acc=90.88%]
+
+Test set: Average loss: 1.2247, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 206, last improved epoch 196, total epochs 231, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 235 Training: 100%|████████████████████████████████████| 29/29 [01:07<00:00,  2.34s/it, loss=0.4030, acc=90.55%]
+
+Test set: Average loss: 1.1076, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 207, last improved epoch 196, total epochs 232, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 236 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.97s/it, loss=0.0873, acc=89.79%]
+
+Test set: Average loss: 1.3873, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 208, last improved epoch 196, total epochs 233, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 237 Training: 100%|████████████████████████████████████| 29/29 [00:58<00:00,  2.03s/it, loss=0.2924, acc=91.97%]
+
+Test set: Average loss: 1.1662, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 209, last improved epoch 196, total epochs 234, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 238 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.32s/it, loss=0.1191, acc=93.16%]
+
+Test set: Average loss: 1.1432, Accuracy: 161/231 (70%)
+
+Adding validation score 69.69696970
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 210, last improved epoch 196, total epochs 235, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 239 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.1801, acc=92.62%]
+
+Test set: Average loss: 1.1610, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 211, last improved epoch 211, total epochs 236, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 240 Training: 100%|████████████████████████████████████| 29/29 [00:42<00:00,  1.46s/it, loss=0.2670, acc=90.12%]
+
+Test set: Average loss: 1.2525, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 212, last improved epoch 211, total epochs 237, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 241 Training: 100%|████████████████████████████████████| 29/29 [00:42<00:00,  1.47s/it, loss=0.1872, acc=91.64%]
+
+Test set: Average loss: 1.3706, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 213, last improved epoch 211, total epochs 238, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 242 Training: 100%|████████████████████████████████████| 29/29 [00:35<00:00,  1.23s/it, loss=0.2008, acc=91.86%]
+
+Test set: Average loss: 1.2587, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 214, last improved epoch 211, total epochs 239, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 243 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.28s/it, loss=0.1345, acc=92.18%]
+
+Test set: Average loss: 1.2924, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 215, last improved epoch 211, total epochs 240, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 244 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.29s/it, loss=0.1764, acc=93.81%]
+
+Test set: Average loss: 1.1545, Accuracy: 161/231 (70%)
+
+Adding validation score 69.69696970
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 216, last improved epoch 211, total epochs 241, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 245 Training: 100%|████████████████████████████████████| 29/29 [00:36<00:00,  1.26s/it, loss=0.2122, acc=92.18%]
+
+Test set: Average loss: 1.1423, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 217, last improved epoch 211, total epochs 242, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 246 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.31s/it, loss=0.3253, acc=93.05%]
+
+Test set: Average loss: 1.2199, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 218, last improved epoch 211, total epochs 243, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 247 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.33s/it, loss=0.1282, acc=93.38%]
+
+Test set: Average loss: 1.2612, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 219, last improved epoch 211, total epochs 244, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 248 Training: 100%|████████████████████████████████████| 29/29 [00:42<00:00,  1.47s/it, loss=0.1402, acc=93.38%]
+
+Test set: Average loss: 1.6801, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 220, last improved epoch 211, total epochs 245, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 249 Training: 100%|████████████████████████████████████| 29/29 [00:52<00:00,  1.81s/it, loss=0.2600, acc=91.86%]
+
+Test set: Average loss: 1.2303, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 221, last improved epoch 211, total epochs 246, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 250 Training: 100%|████████████████████████████████████| 29/29 [00:44<00:00,  1.52s/it, loss=0.0794, acc=92.94%]
+
+Test set: Average loss: 1.1708, Accuracy: 163/231 (71%)
+
+Adding validation score 70.56277056
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 222, last improved epoch 211, total epochs 247, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 251 Training: 100%|████████████████████████████████████| 29/29 [00:43<00:00,  1.51s/it, loss=0.1857, acc=93.16%]
+
+Test set: Average loss: 1.1770, Accuracy: 169/231 (73%)
+
+Adding validation score 73.16017316
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 223, last improved epoch 223, total epochs 248, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 252 Training: 100%|████████████████████████████████████| 29/29 [00:35<00:00,  1.22s/it, loss=0.2699, acc=91.97%]
+
+Test set: Average loss: 1.1700, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 224, last improved epoch 223, total epochs 249, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 253 Training: 100%|████████████████████████████████████| 29/29 [00:35<00:00,  1.23s/it, loss=0.1804, acc=92.94%]
+
+Test set: Average loss: 1.1600, Accuracy: 161/231 (70%)
+
+Adding validation score 69.69696970
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 225, last improved epoch 223, total epochs 250, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 254 Training: 100%|████████████████████████████████████| 29/29 [00:36<00:00,  1.25s/it, loss=0.2577, acc=92.18%]
+
+Test set: Average loss: 1.2053, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 226, last improved epoch 223, total epochs 251, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 255 Training: 100%|████████████████████████████████████| 29/29 [00:40<00:00,  1.39s/it, loss=0.2125, acc=91.10%]
+
+Test set: Average loss: 1.1233, Accuracy: 169/231 (73%)
+
+Adding validation score 73.16017316
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 227, last improved epoch 223, total epochs 252, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 256 Training: 100%|████████████████████████████████████| 29/29 [00:43<00:00,  1.49s/it, loss=0.1373, acc=91.97%]
+
+Test set: Average loss: 1.1125, Accuracy: 165/231 (71%)
+
+Adding validation score 71.42857143
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 228, last improved epoch 223, total epochs 253, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 257 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.66s/it, loss=0.2290, acc=92.29%]
+
+Test set: Average loss: 1.1453, Accuracy: 163/231 (71%)
+
+Adding validation score 70.56277056
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 229, last improved epoch 223, total epochs 254, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 258 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.68s/it, loss=0.1109, acc=92.83%]
+
+Test set: Average loss: 1.2109, Accuracy: 168/231 (73%)
+
+Adding validation score 72.72727273
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 230, last improved epoch 223, total epochs 255, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 259 Training: 100%|████████████████████████████████████| 29/29 [00:54<00:00,  1.88s/it, loss=0.3205, acc=92.51%]
+
+Test set: Average loss: 1.1846, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 231, last improved epoch 223, total epochs 256, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 260 Training: 100%|████████████████████████████████████| 29/29 [00:54<00:00,  1.88s/it, loss=0.1130, acc=92.29%]
+
+Test set: Average loss: 1.2126, Accuracy: 169/231 (73%)
+
+Adding validation score 73.16017316
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 232, last improved epoch 223, total epochs 257, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 261 Training: 100%|████████████████████████████████████| 29/29 [00:51<00:00,  1.76s/it, loss=0.0962, acc=92.62%]
+
+Test set: Average loss: 1.2058, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 233, last improved epoch 223, total epochs 258, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 262 Training: 100%|████████████████████████████████████| 29/29 [00:50<00:00,  1.74s/it, loss=0.3341, acc=93.49%]
+
+Test set: Average loss: 1.3423, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 234, last improved epoch 223, total epochs 259, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 263 Training: 100%|████████████████████████████████████| 29/29 [00:45<00:00,  1.58s/it, loss=0.1071, acc=92.83%]
+
+Test set: Average loss: 1.2371, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 235, last improved epoch 223, total epochs 260, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 264 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.2523, acc=92.83%]
+
+Test set: Average loss: 1.3810, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 236, last improved epoch 223, total epochs 261, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 265 Training: 100%|████████████████████████████████████| 29/29 [13:58<00:00, 28.93s/it, loss=0.2951, acc=93.49%]
+
+Test set: Average loss: 1.2214, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 237, last improved epoch 223, total epochs 262, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 266 Training: 100%|████████████████████████████████████| 29/29 [00:40<00:00,  1.38s/it, loss=0.1814, acc=92.83%]
+
+Test set: Average loss: 1.1550, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 238, last improved epoch 223, total epochs 263, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 267 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.29s/it, loss=0.2464, acc=92.29%]
+
+Test set: Average loss: 1.1446, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 239, last improved epoch 223, total epochs 264, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 268 Training: 100%|████████████████████████████████████| 29/29 [00:37<00:00,  1.29s/it, loss=0.1148, acc=92.62%]
+
+Test set: Average loss: 1.1944, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 240, last improved epoch 223, total epochs 265, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 269 Training: 100%|████████████████████████████████████| 29/29 [00:36<00:00,  1.27s/it, loss=0.1997, acc=92.62%]
+
+Test set: Average loss: 1.2118, Accuracy: 168/231 (73%)
+
+Adding validation score 72.72727273
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 241, last improved epoch 223, total epochs 266, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 270 Training: 100%|████████████████████████████████████| 29/29 [00:38<00:00,  1.33s/it, loss=0.1229, acc=92.51%]
+
+Test set: Average loss: 1.1320, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 242, last improved epoch 223, total epochs 267, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 271 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.35s/it, loss=0.2626, acc=93.27%]
+
+Test set: Average loss: 1.1666, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 243, last improved epoch 223, total epochs 268, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 272 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.1212, acc=92.29%]
+
+Test set: Average loss: 1.1387, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 244, last improved epoch 223, total epochs 269, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 273 Training: 100%|████████████████████████████████████| 29/29 [11:41<00:00, 24.20s/it, loss=0.2086, acc=92.83%]
+
+Test set: Average loss: 1.2728, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 245, last improved epoch 223, total epochs 270, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 274 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.37s/it, loss=0.3457, acc=91.53%]
+
+Test set: Average loss: 1.1941, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 246, last improved epoch 223, total epochs 271, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 275 Training: 100%|████████████████████████████████████| 29/29 [00:39<00:00,  1.36s/it, loss=0.2196, acc=93.05%]
+
+Test set: Average loss: 1.1725, Accuracy: 166/231 (72%)
+
+Adding validation score 71.86147186
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 247, last improved epoch 223, total epochs 272, n: 25, num_cycles: 2
+Returning False - no triggers to switch have been hit
+Epoch 276 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.09s/it, loss=0.4128, acc=93.05%]
+
+Test set: Average loss: 1.1735, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 248, last improved epoch 223, total epochs 273, n: 25, num_cycles: 2
+Returning True - History and last improved is hit
+Importing best Model for switch to PA...
+Switching back to N...
+Resetting committed to initial rate to False
+  -> 🌳 DENDRITE ADDED! Total: 2
+Epoch 277 Training: 100%|████████████████████████████████████| 29/29 [01:12<00:00,  2.51s/it, loss=0.6575, acc=78.61%]
+
+Test set: Average loss: 2.7759, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 224, last improved epoch 224, total epochs 274, n: 25, num_cycles: 4
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 142
+Epoch 278 Training: 100%|████████████████████████████████████| 29/29 [01:13<00:00,  2.53s/it, loss=0.5940, acc=81.76%]
+
+Test set: Average loss: 2.7414, Accuracy: 91/231 (39%)
+
+Adding validation score 39.39393939
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 225, last improved epoch 224, total epochs 275, n: 25, num_cycles: 4
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 142
+Epoch 279 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.07s/it, loss=1.0088, acc=77.42%]
+
+Test set: Average loss: 3.1572, Accuracy: 81/231 (35%)
+
+Adding validation score 35.06493506
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 224, last improved epoch 224, total epochs 274, n: 25, num_cycles: 4
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 1 to last max 142
+Epoch 280 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.15s/it, loss=0.5266, acc=79.48%]
+
+Test set: Average loss: 2.0962, Accuracy: 109/231 (47%)
+
+Adding validation score 47.18614719
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 226, last improved epoch 226, total epochs 276, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 281 Training: 100%|████████████████████████████████████| 29/29 [00:50<00:00,  1.76s/it, loss=0.5338, acc=82.95%]
+
+Test set: Average loss: 1.5906, Accuracy: 139/231 (60%)
+
+Adding validation score 60.17316017
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 227, last improved epoch 227, total epochs 277, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 282 Training: 100%|████████████████████████████████████| 29/29 [01:03<00:00,  2.20s/it, loss=0.3114, acc=82.19%]
+
+Test set: Average loss: 2.1618, Accuracy: 111/231 (48%)
+
+Adding validation score 48.05194805
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 228, last improved epoch 227, total epochs 278, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 283 Training: 100%|████████████████████████████████████| 29/29 [00:57<00:00,  1.99s/it, loss=0.5789, acc=83.93%]
+
+Test set: Average loss: 1.6160, Accuracy: 127/231 (55%)
+
+Adding validation score 54.97835498
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 229, last improved epoch 227, total epochs 279, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 284 Training: 100%|████████████████████████████████████| 29/29 [00:54<00:00,  1.87s/it, loss=1.0286, acc=80.56%]
+
+Test set: Average loss: 4.6015, Accuracy: 67/231 (29%)
+
+Adding validation score 29.00432900
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 230, last improved epoch 227, total epochs 280, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 285 Training: 100%|████████████████████████████████████| 29/29 [00:47<00:00,  1.64s/it, loss=0.6806, acc=80.24%]
+
+Test set: Average loss: 3.0531, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 231, last improved epoch 227, total epochs 281, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 286 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.67s/it, loss=0.3938, acc=83.82%]
+
+Test set: Average loss: 8.3301, Accuracy: 50/231 (22%)
+
+Adding validation score 21.64502165
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 232, last improved epoch 227, total epochs 282, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 287 Training: 100%|████████████████████████████████████| 29/29 [00:50<00:00,  1.76s/it, loss=0.3838, acc=84.80%]
+
+Test set: Average loss: 3.4259, Accuracy: 78/231 (34%)
+
+Adding validation score 33.76623377
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 233, last improved epoch 227, total epochs 283, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 288 Training: 100%|████████████████████████████████████| 29/29 [01:10<00:00,  2.43s/it, loss=0.2329, acc=84.26%]
+
+Test set: Average loss: 6.0854, Accuracy: 44/231 (19%)
+
+Adding validation score 19.04761905
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 234, last improved epoch 227, total epochs 284, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 289 Training: 100%|████████████████████████████████████| 29/29 [01:18<00:00,  2.69s/it, loss=0.8200, acc=86.43%]
+
+Test set: Average loss: 3.6916, Accuracy: 65/231 (28%)
+
+Adding validation score 28.13852814
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 235, last improved epoch 227, total epochs 285, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 290 Training: 100%|████████████████████████████████████| 29/29 [01:25<00:00,  2.96s/it, loss=0.5706, acc=84.58%]
+
+Test set: Average loss: 2.8145, Accuracy: 90/231 (39%)
+
+Adding validation score 38.96103896
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 236, last improved epoch 227, total epochs 286, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 291 Training: 100%|████████████████████████████████████| 29/29 [01:22<00:00,  2.84s/it, loss=0.1833, acc=85.88%]
+
+Test set: Average loss: 1.8113, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 237, last improved epoch 227, total epochs 287, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 292 Training: 100%|████████████████████████████████████| 29/29 [01:12<00:00,  2.52s/it, loss=0.4394, acc=86.43%]
+
+Test set: Average loss: 5.0450, Accuracy: 81/231 (35%)
+
+Adding validation score 35.06493506
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 238, last improved epoch 227, total epochs 288, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 293 Training: 100%|████████████████████████████████████| 29/29 [01:19<00:00,  2.73s/it, loss=0.4456, acc=85.34%]
+
+Test set: Average loss: 2.4807, Accuracy: 108/231 (47%)
+
+Adding validation score 46.75324675
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 239, last improved epoch 227, total epochs 289, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 294 Training: 100%|████████████████████████████████████| 29/29 [01:28<00:00,  3.05s/it, loss=0.2561, acc=85.99%]
+
+Test set: Average loss: 4.3472, Accuracy: 87/231 (38%)
+
+Adding validation score 37.66233766
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 240, last improved epoch 227, total epochs 290, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 295 Training: 100%|████████████████████████████████████| 29/29 [01:13<00:00,  2.54s/it, loss=0.3041, acc=86.10%]
+
+Test set: Average loss: 2.2472, Accuracy: 117/231 (51%)
+
+Adding validation score 50.64935065
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 241, last improved epoch 227, total epochs 291, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 296 Training: 100%|████████████████████████████████████| 29/29 [01:15<00:00,  2.60s/it, loss=0.5416, acc=85.88%]
+
+Test set: Average loss: 3.0934, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 242, last improved epoch 227, total epochs 292, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 297 Training: 100%|████████████████████████████████████| 29/29 [01:19<00:00,  2.74s/it, loss=0.4140, acc=84.36%]
+
+Test set: Average loss: 3.4805, Accuracy: 102/231 (44%)
+
+Adding validation score 44.15584416
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 243, last improved epoch 227, total epochs 293, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 298 Training: 100%|████████████████████████████████████| 29/29 [01:11<00:00,  2.46s/it, loss=0.4951, acc=88.93%]
+
+Test set: Average loss: 2.3237, Accuracy: 119/231 (52%)
+
+Adding validation score 51.51515152
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 244, last improved epoch 227, total epochs 294, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 299 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.15s/it, loss=0.4922, acc=84.36%]
+
+Test set: Average loss: 3.4199, Accuracy: 94/231 (41%)
+
+Adding validation score 40.69264069
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 245, last improved epoch 227, total epochs 295, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 300 Training: 100%|████████████████████████████████████| 29/29 [00:54<00:00,  1.87s/it, loss=0.4971, acc=86.75%]
+
+Test set: Average loss: 1.5302, Accuracy: 141/231 (61%)
+
+Adding validation score 61.03896104
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 246, last improved epoch 246, total epochs 296, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 301 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.67s/it, loss=0.3492, acc=86.75%]
+
+Test set: Average loss: 1.7544, Accuracy: 141/231 (61%)
+
+Adding validation score 61.03896104
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 247, last improved epoch 246, total epochs 297, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 302 Training: 100%|████████████████████████████████████| 29/29 [00:48<00:00,  1.68s/it, loss=0.3121, acc=86.86%]
+
+Test set: Average loss: 3.4783, Accuracy: 100/231 (43%)
+
+Adding validation score 43.29004329
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 248, last improved epoch 246, total epochs 298, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 303 Training: 100%|████████████████████████████████████| 29/29 [00:50<00:00,  1.73s/it, loss=0.4273, acc=86.75%]
+
+Test set: Average loss: 2.3307, Accuracy: 121/231 (52%)
+
+Adding validation score 52.38095238
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 249, last improved epoch 246, total epochs 299, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 304 Training: 100%|████████████████████████████████████| 29/29 [00:53<00:00,  1.83s/it, loss=0.2161, acc=88.71%]
+
+Test set: Average loss: 3.0147, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 250, last improved epoch 246, total epochs 300, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 305 Training: 100%|████████████████████████████████████| 29/29 [00:55<00:00,  1.91s/it, loss=0.4302, acc=87.62%]
+
+Test set: Average loss: 2.5000, Accuracy: 117/231 (51%)
+
+Adding validation score 50.64935065
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 251, last improved epoch 246, total epochs 301, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 306 Training: 100%|████████████████████████████████████| 29/29 [00:59<00:00,  2.04s/it, loss=0.2705, acc=89.14%]
+
+Test set: Average loss: 1.8807, Accuracy: 132/231 (57%)
+
+Adding validation score 57.14285714
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 252, last improved epoch 246, total epochs 302, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 307 Training: 100%|████████████████████████████████████| 29/29 [00:53<00:00,  1.84s/it, loss=0.1848, acc=88.71%]
+
+Test set: Average loss: 2.3051, Accuracy: 127/231 (55%)
+
+Adding validation score 54.97835498
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 253, last improved epoch 246, total epochs 303, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 308 Training: 100%|████████████████████████████████████| 29/29 [00:52<00:00,  1.81s/it, loss=0.6823, acc=85.12%]
+
+Test set: Average loss: 3.5636, Accuracy: 107/231 (46%)
+
+Adding validation score 46.32034632
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 254, last improved epoch 246, total epochs 304, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 309 Training: 100%|████████████████████████████████████| 29/29 [00:51<00:00,  1.77s/it, loss=0.4487, acc=91.42%]
+
+Test set: Average loss: 1.6363, Accuracy: 135/231 (58%)
+
+Adding validation score 58.44155844
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 255, last improved epoch 246, total epochs 305, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 310 Training: 100%|████████████████████████████████████| 29/29 [00:52<00:00,  1.82s/it, loss=0.1959, acc=88.93%]
+
+Test set: Average loss: 2.1255, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 256, last improved epoch 246, total epochs 306, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 311 Training: 100%|████████████████████████████████████| 29/29 [00:58<00:00,  2.00s/it, loss=0.2781, acc=88.93%]
+
+Test set: Average loss: 1.3670, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 257, last improved epoch 257, total epochs 307, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 312 Training: 100%|████████████████████████████████████| 29/29 [01:00<00:00,  2.09s/it, loss=0.3486, acc=89.69%]
+
+Test set: Average loss: 1.4100, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 258, last improved epoch 258, total epochs 308, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 313 Training: 100%|████████████████████████████████████| 29/29 [01:01<00:00,  2.13s/it, loss=0.4504, acc=87.51%]
+
+Test set: Average loss: 2.9255, Accuracy: 124/231 (54%)
+
+Adding validation score 53.67965368
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 259, last improved epoch 258, total epochs 309, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 314 Training: 100%|████████████████████████████████████| 29/29 [08:28<00:00, 17.53s/it, loss=0.3962, acc=90.66%]
+
+Test set: Average loss: 1.6993, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 260, last improved epoch 258, total epochs 310, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 315 Training: 100%|████████████████████████████████████| 29/29 [02:00<00:00,  4.17s/it, loss=0.6283, acc=90.77%]
+
+Test set: Average loss: 2.5538, Accuracy: 114/231 (49%)
+
+Adding validation score 49.35064935
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 261, last improved epoch 258, total epochs 311, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 316 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.76s/it, loss=0.4345, acc=91.10%]
+
+Test set: Average loss: 1.8236, Accuracy: 135/231 (58%)
+
+Adding validation score 58.44155844
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 262, last improved epoch 258, total epochs 312, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 317 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.77s/it, loss=0.3326, acc=91.86%]
+
+Test set: Average loss: 2.6770, Accuracy: 115/231 (50%)
+
+Adding validation score 49.78354978
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 263, last improved epoch 258, total epochs 313, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 318 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.70s/it, loss=0.4118, acc=91.86%]
+
+Test set: Average loss: 1.6843, Accuracy: 136/231 (59%)
+
+Adding validation score 58.87445887
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 264, last improved epoch 258, total epochs 314, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 319 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.81s/it, loss=0.1767, acc=88.82%]
+
+Test set: Average loss: 1.7449, Accuracy: 145/231 (63%)
+
+Adding validation score 62.77056277
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 265, last improved epoch 258, total epochs 315, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 320 Training: 100%|████████████████████████████████████| 29/29 [01:56<00:00,  4.00s/it, loss=0.1784, acc=90.23%]
+
+Test set: Average loss: 4.2236, Accuracy: 94/231 (41%)
+
+Adding validation score 40.69264069
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 266, last improved epoch 258, total epochs 316, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 321 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.77s/it, loss=0.2733, acc=90.77%]
+
+Test set: Average loss: 1.8621, Accuracy: 143/231 (62%)
+
+Adding validation score 61.90476190
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 267, last improved epoch 258, total epochs 317, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 322 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.81s/it, loss=0.3278, acc=90.34%]
+
+Test set: Average loss: 5.7506, Accuracy: 66/231 (29%)
+
+Adding validation score 28.57142857
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 268, last improved epoch 258, total epochs 318, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 323 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.73s/it, loss=0.3048, acc=90.12%]
+
+Test set: Average loss: 1.3603, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 269, last improved epoch 269, total epochs 319, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 324 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.80s/it, loss=0.0728, acc=90.99%]
+
+Test set: Average loss: 1.9563, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 270, last improved epoch 269, total epochs 320, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 325 Training: 100%|████████████████████████████████████| 29/29 [01:42<00:00,  3.54s/it, loss=0.0535, acc=92.62%]
+
+Test set: Average loss: 1.7042, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 271, last improved epoch 269, total epochs 321, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 326 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.88s/it, loss=0.4085, acc=92.62%]
+
+Test set: Average loss: 2.3257, Accuracy: 121/231 (52%)
+
+Adding validation score 52.38095238
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 272, last improved epoch 269, total epochs 322, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 327 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.84s/it, loss=0.3757, acc=92.62%]
+
+Test set: Average loss: 1.5714, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 273, last improved epoch 269, total epochs 323, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 328 Training: 100%|████████████████████████████████████| 29/29 [01:45<00:00,  3.64s/it, loss=0.2226, acc=91.53%]
+
+Test set: Average loss: 1.6675, Accuracy: 139/231 (60%)
+
+Adding validation score 60.17316017
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 274, last improved epoch 269, total epochs 324, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 329 Training: 100%|████████████████████████████████████| 29/29 [01:53<00:00,  3.91s/it, loss=0.1810, acc=93.16%]
+
+Test set: Average loss: 1.8623, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 275, last improved epoch 269, total epochs 325, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 330 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.2160, acc=90.99%]
+
+Test set: Average loss: 2.1702, Accuracy: 130/231 (56%)
+
+Adding validation score 56.27705628
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 276, last improved epoch 269, total epochs 326, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 331 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.73s/it, loss=0.4033, acc=92.29%]
+
+Test set: Average loss: 1.3471, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 277, last improved epoch 277, total epochs 327, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 332 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.80s/it, loss=0.3100, acc=92.40%]
+
+Test set: Average loss: 1.2095, Accuracy: 163/231 (71%)
+
+Adding validation score 70.56277056
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 278, last improved epoch 278, total epochs 328, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 333 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.72s/it, loss=0.3107, acc=91.10%]
+
+Test set: Average loss: 2.4579, Accuracy: 119/231 (52%)
+
+Adding validation score 51.51515152
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 279, last improved epoch 278, total epochs 329, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 334 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.3634, acc=91.21%]
+
+Test set: Average loss: 1.8120, Accuracy: 134/231 (58%)
+
+Adding validation score 58.00865801
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 280, last improved epoch 278, total epochs 330, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 335 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.75s/it, loss=0.1803, acc=93.05%]
+
+Test set: Average loss: 1.2385, Accuracy: 153/231 (66%)
+
+Adding validation score 66.23376623
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 281, last improved epoch 278, total epochs 331, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 336 Training: 100%|████████████████████████████████████| 29/29 [01:53<00:00,  3.91s/it, loss=0.2643, acc=89.90%]
+
+Test set: Average loss: 1.9259, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 282, last improved epoch 278, total epochs 332, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 337 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.78s/it, loss=0.2368, acc=92.18%]
+
+Test set: Average loss: 2.0947, Accuracy: 122/231 (53%)
+
+Adding validation score 52.81385281
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 283, last improved epoch 278, total epochs 333, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 338 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.81s/it, loss=0.1790, acc=94.25%]
+
+Test set: Average loss: 2.8407, Accuracy: 110/231 (48%)
+
+Adding validation score 47.61904762
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 284, last improved epoch 278, total epochs 334, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 339 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.76s/it, loss=0.1754, acc=89.47%]
+
+Test set: Average loss: 2.3768, Accuracy: 122/231 (53%)
+
+Adding validation score 52.81385281
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 285, last improved epoch 278, total epochs 335, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 340 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.80s/it, loss=0.3001, acc=92.29%]
+
+Test set: Average loss: 1.1384, Accuracy: 164/231 (71%)
+
+Adding validation score 70.99567100
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 286, last improved epoch 286, total epochs 336, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 341 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.86s/it, loss=0.4259, acc=92.40%]
+
+Test set: Average loss: 1.4545, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 287, last improved epoch 286, total epochs 337, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 342 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.73s/it, loss=0.1039, acc=93.16%]
+
+Test set: Average loss: 1.7766, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 288, last improved epoch 286, total epochs 338, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 343 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.80s/it, loss=0.1253, acc=91.75%]
+
+Test set: Average loss: 2.0453, Accuracy: 129/231 (56%)
+
+Adding validation score 55.84415584
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 289, last improved epoch 286, total epochs 339, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 344 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.83s/it, loss=0.2324, acc=92.83%]
+
+Test set: Average loss: 1.5195, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 290, last improved epoch 286, total epochs 340, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 345 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.81s/it, loss=0.5180, acc=90.34%]
+
+Test set: Average loss: 1.6619, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 291, last improved epoch 286, total epochs 341, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 346 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.6359, acc=93.81%]
+
+Test set: Average loss: 1.3852, Accuracy: 159/231 (69%)
+
+Adding validation score 68.83116883
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 292, last improved epoch 286, total epochs 342, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 347 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.87s/it, loss=0.0677, acc=92.29%]
+
+Test set: Average loss: 1.3929, Accuracy: 153/231 (66%)
+
+Adding validation score 66.23376623
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 293, last improved epoch 286, total epochs 343, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 348 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.5679, acc=91.64%]
+
+Test set: Average loss: 1.3351, Accuracy: 157/231 (68%)
+
+Adding validation score 67.96536797
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 294, last improved epoch 286, total epochs 344, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 349 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.85s/it, loss=0.3557, acc=92.07%]
+
+Test set: Average loss: 3.5791, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 295, last improved epoch 286, total epochs 345, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 350 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.82s/it, loss=0.1842, acc=93.05%]
+
+Test set: Average loss: 1.5593, Accuracy: 154/231 (67%)
+
+Adding validation score 66.66666667
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 296, last improved epoch 286, total epochs 346, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 351 Training: 100%|████████████████████████████████████| 29/29 [01:54<00:00,  3.96s/it, loss=0.1729, acc=94.25%]
+
+Test set: Average loss: 1.5587, Accuracy: 150/231 (65%)
+
+Adding validation score 64.93506494
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 297, last improved epoch 286, total epochs 347, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 352 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.85s/it, loss=0.1557, acc=92.29%]
+
+Test set: Average loss: 1.3963, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 298, last improved epoch 286, total epochs 348, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 353 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.75s/it, loss=0.2500, acc=93.81%]
+
+Test set: Average loss: 1.2607, Accuracy: 169/231 (73%)
+
+Adding validation score 73.16017316
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 299, last improved epoch 299, total epochs 349, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 354 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.88s/it, loss=0.1023, acc=93.49%]
+
+Test set: Average loss: 1.3320, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 300, last improved epoch 299, total epochs 350, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 355 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.90s/it, loss=0.3951, acc=92.73%]
+
+Test set: Average loss: 3.1545, Accuracy: 106/231 (46%)
+
+Adding validation score 45.88744589
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 301, last improved epoch 299, total epochs 351, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 356 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.82s/it, loss=0.1316, acc=93.38%]
+
+Test set: Average loss: 1.7583, Accuracy: 144/231 (62%)
+
+Adding validation score 62.33766234
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 302, last improved epoch 299, total epochs 352, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 357 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.81s/it, loss=0.3807, acc=93.05%]
+
+Test set: Average loss: 2.0624, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 303, last improved epoch 299, total epochs 353, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 358 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.90s/it, loss=0.0694, acc=94.03%]
+
+Test set: Average loss: 1.1724, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 304, last improved epoch 299, total epochs 354, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 359 Training: 100%|████████████████████████████████████| 29/29 [01:53<00:00,  3.92s/it, loss=0.3116, acc=94.14%]
+
+Test set: Average loss: 1.1808, Accuracy: 165/231 (71%)
+
+Adding validation score 71.42857143
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 305, last improved epoch 299, total epochs 355, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 360 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.78s/it, loss=0.1717, acc=92.51%]
+
+Test set: Average loss: 1.7744, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 306, last improved epoch 299, total epochs 356, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 361 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.88s/it, loss=0.1758, acc=93.81%]
+
+Test set: Average loss: 1.1977, Accuracy: 170/231 (74%)
+
+Adding validation score 73.59307359
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 307, last improved epoch 307, total epochs 357, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 362 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.82s/it, loss=0.0852, acc=94.25%]
+
+Test set: Average loss: 1.2032, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 308, last improved epoch 307, total epochs 358, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 363 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.2243, acc=93.70%]
+
+Test set: Average loss: 1.5898, Accuracy: 149/231 (65%)
+
+Adding validation score 64.50216450
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 309, last improved epoch 307, total epochs 359, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 364 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.76s/it, loss=0.4217, acc=94.68%]
+
+Test set: Average loss: 1.2482, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 310, last improved epoch 307, total epochs 360, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 365 Training: 100%|████████████████████████████████████| 29/29 [01:50<00:00,  3.82s/it, loss=0.1243, acc=94.25%]
+
+Test set: Average loss: 1.7127, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 311, last improved epoch 307, total epochs 361, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 366 Training: 100%|████████████████████████████████████| 29/29 [02:38<00:00,  5.48s/it, loss=0.1341, acc=94.57%]
+
+Test set: Average loss: 1.7069, Accuracy: 146/231 (63%)
+
+Adding validation score 63.20346320
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 312, last improved epoch 307, total epochs 362, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 367 Training: 100%|████████████████████████████████████| 29/29 [01:52<00:00,  3.89s/it, loss=0.0913, acc=94.46%]
+
+Test set: Average loss: 1.3528, Accuracy: 155/231 (67%)
+
+Adding validation score 67.09956710
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 313, last improved epoch 307, total epochs 363, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 368 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.76s/it, loss=0.1211, acc=94.57%]
+
+Test set: Average loss: 1.4014, Accuracy: 158/231 (68%)
+
+Adding validation score 68.39826840
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 314, last improved epoch 307, total epochs 364, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 369 Training: 100%|████████████████████████████████████| 29/29 [01:53<00:00,  3.92s/it, loss=0.2128, acc=93.27%]
+
+Test set: Average loss: 1.8822, Accuracy: 147/231 (64%)
+
+Adding validation score 63.63636364
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 315, last improved epoch 307, total epochs 365, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 370 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.77s/it, loss=0.4071, acc=93.16%]
+
+Test set: Average loss: 1.4657, Accuracy: 160/231 (69%)
+
+Adding validation score 69.26406926
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 316, last improved epoch 307, total epochs 366, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 371 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.71s/it, loss=0.0845, acc=93.38%]
+
+Test set: Average loss: 1.6696, Accuracy: 148/231 (64%)
+
+Adding validation score 64.06926407
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 317, last improved epoch 307, total epochs 367, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 372 Training: 100%|████████████████████████████████████| 29/29 [01:54<00:00,  3.95s/it, loss=0.3192, acc=94.25%]
+
+Test set: Average loss: 1.4955, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 318, last improved epoch 307, total epochs 368, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 373 Training: 100%|████████████████████████████████████| 29/29 [01:51<00:00,  3.86s/it, loss=0.1317, acc=92.40%]
+
+Test set: Average loss: 1.2790, Accuracy: 168/231 (73%)
+
+Adding validation score 72.72727273
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 319, last improved epoch 307, total epochs 369, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 374 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.76s/it, loss=0.3321, acc=93.70%]
+
+Test set: Average loss: 2.2924, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 320, last improved epoch 307, total epochs 370, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 375 Training: 100%|████████████████████████████████████| 29/29 [01:46<00:00,  3.68s/it, loss=0.0266, acc=94.46%]
+
+Test set: Average loss: 1.6228, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 321, last improved epoch 307, total epochs 371, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 376 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.72s/it, loss=0.1582, acc=94.35%]
+
+Test set: Average loss: 1.7655, Accuracy: 148/231 (64%)
+
+Adding validation score 64.06926407
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 322, last improved epoch 307, total epochs 372, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 377 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.76s/it, loss=0.3797, acc=93.81%]
+
+Test set: Average loss: 1.1574, Accuracy: 163/231 (71%)
+
+Adding validation score 70.56277056
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 323, last improved epoch 307, total epochs 373, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 378 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.71s/it, loss=0.1266, acc=95.22%]
+
+Test set: Average loss: 1.2474, Accuracy: 165/231 (71%)
+
+Adding validation score 71.42857143
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 324, last improved epoch 307, total epochs 374, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 379 Training: 100%|████████████████████████████████████| 29/29 [01:46<00:00,  3.67s/it, loss=0.3244, acc=94.68%]
+
+Test set: Average loss: 1.3864, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 325, last improved epoch 307, total epochs 375, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 380 Training: 100%|████████████████████████████████████| 29/29 [01:47<00:00,  3.71s/it, loss=0.0639, acc=94.14%]
+
+Test set: Average loss: 1.4679, Accuracy: 152/231 (66%)
+
+Adding validation score 65.80086580
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 326, last improved epoch 307, total epochs 376, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 381 Training: 100%|████████████████████████████████████| 29/29 [07:10<00:00, 14.85s/it, loss=0.3740, acc=94.14%]
+
+Test set: Average loss: 1.3397, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 327, last improved epoch 307, total epochs 377, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 382 Training: 100%|████████████████████████████████████| 29/29 [01:16<00:00,  2.63s/it, loss=0.1901, acc=94.25%]
+
+Test set: Average loss: 1.3227, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 328, last improved epoch 307, total epochs 378, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 383 Training: 100%|████████████████████████████████████| 29/29 [01:54<00:00,  3.95s/it, loss=0.1435, acc=94.46%]
+
+Test set: Average loss: 1.2598, Accuracy: 162/231 (70%)
+
+Adding validation score 70.12987013
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 329, last improved epoch 307, total epochs 379, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 384 Training: 100%|████████████████████████████████████| 29/29 [01:21<00:00,  2.82s/it, loss=0.4389, acc=93.92%]
+
+Test set: Average loss: 1.2625, Accuracy: 156/231 (68%)
+
+Adding validation score 67.53246753
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 330, last improved epoch 307, total epochs 380, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 385 Training: 100%|████████████████████████████████████| 29/29 [01:17<00:00,  2.66s/it, loss=0.0831, acc=94.46%]
+
+Test set: Average loss: 1.2728, Accuracy: 167/231 (72%)
+
+Adding validation score 72.29437229
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 331, last improved epoch 307, total epochs 381, n: 25, num_cycles: 4
+Returning False - no triggers to switch have been hit
+Epoch 386 Training: 100%|████████████████████████████████████| 29/29 [01:13<00:00,  2.52s/it, loss=0.2552, acc=95.11%]
+
+Test set: Average loss: 1.8332, Accuracy: 142/231 (61%)
+
+Adding validation score 61.47186147
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 332, last improved epoch 307, total epochs 382, n: 25, num_cycles: 4
+Returning True - History and last improved is hit
+Importing best Model for switch to PA...
+Switching back to N...
+Resetting committed to initial rate to False
+  -> 🌳 DENDRITE ADDED! Total: 3
+Epoch 387 Training: 100%|████████████████████████████████████| 29/29 [01:31<00:00,  3.15s/it, loss=0.5388, acc=86.97%]
+
+Test set: Average loss: 3.4282, Accuracy: 101/231 (44%)
+
+Adding validation score 43.72294372
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 308, last improved epoch 308, total epochs 383, n: 25, num_cycles: 6
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 83
+Epoch 388 Training: 100%|████████████████████████████████████| 29/29 [01:37<00:00,  3.38s/it, loss=0.3372, acc=84.69%]
+
+Test set: Average loss: 4.3033, Accuracy: 84/231 (36%)
+
+Adding validation score 36.36363636
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 309, last improved epoch 308, total epochs 384, n: 25, num_cycles: 6
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 0 to last max 83
+Epoch 389 Training: 100%|████████████████████████████████████| 29/29 [01:40<00:00,  3.48s/it, loss=0.3277, acc=84.47%]
+
+Test set: Average loss: 4.1995, Accuracy: 95/231 (41%)
+
+Adding validation score 41.12554113
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 308, last improved epoch 308, total epochs 383, n: 25, num_cycles: 6
+Returning False - learning rate optimization in progress. Not committed yet. Comparing initial 1 to last max 83
+Epoch 390 Training: 100%|████████████████████████████████████| 29/29 [01:34<00:00,  3.27s/it, loss=0.3108, acc=84.36%]
+
+Test set: Average loss: 1.7760, Accuracy: 131/231 (57%)
+
+Adding validation score 56.70995671
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 310, last improved epoch 310, total epochs 385, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 391 Training: 100%|████████████████████████████████████| 29/29 [01:27<00:00,  3.02s/it, loss=0.2917, acc=89.90%]
+
+Test set: Average loss: 4.1665, Accuracy: 73/231 (32%)
+
+Adding validation score 31.60173160
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 311, last improved epoch 310, total epochs 386, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 392 Training: 100%|████████████████████████████████████| 29/29 [01:02<00:00,  2.14s/it, loss=0.6257, acc=83.82%]
+
+Test set: Average loss: 6.2160, Accuracy: 74/231 (32%)
+
+Adding validation score 32.03463203
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 312, last improved epoch 310, total epochs 387, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 393 Training: 100%|████████████████████████████████████| 29/29 [01:05<00:00,  2.27s/it, loss=0.2690, acc=85.23%]
+
+Test set: Average loss: 2.7167, Accuracy: 100/231 (43%)
+
+Adding validation score 43.29004329
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 313, last improved epoch 310, total epochs 388, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 394 Training: 100%|████████████████████████████████████| 29/29 [01:08<00:00,  2.36s/it, loss=0.3314, acc=86.97%]
+
+Test set: Average loss: 2.6551, Accuracy: 128/231 (55%)
+
+Adding validation score 55.41125541
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 314, last improved epoch 310, total epochs 389, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 395 Training: 100%|████████████████████████████████████| 29/29 [01:49<00:00,  3.79s/it, loss=0.3401, acc=88.71%]
+
+Test set: Average loss: 4.0338, Accuracy: 92/231 (40%)
+
+Adding validation score 39.82683983
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 315, last improved epoch 310, total epochs 390, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 396 Training: 100%|████████████████████████████████████| 29/29 [01:19<00:00,  2.75s/it, loss=0.2781, acc=88.49%]
+
+Test set: Average loss: 7.8022, Accuracy: 56/231 (24%)
+
+Adding validation score 24.24242424
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 316, last improved epoch 310, total epochs 391, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 397 Training: 100%|████████████████████████████████████| 29/29 [01:26<00:00,  2.99s/it, loss=0.3634, acc=84.80%]
+
+Test set: Average loss: 4.0622, Accuracy: 62/231 (27%)
+
+Adding validation score 26.83982684
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 317, last improved epoch 310, total epochs 392, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 398 Training: 100%|████████████████████████████████████| 29/29 [01:29<00:00,  3.07s/it, loss=0.3821, acc=87.73%]
+
+Test set: Average loss: 2.7854, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 318, last improved epoch 310, total epochs 393, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 399 Training: 100%|████████████████████████████████████| 29/29 [01:29<00:00,  3.10s/it, loss=0.2255, acc=87.08%]
+
+Test set: Average loss: 2.5233, Accuracy: 109/231 (47%)
+
+Adding validation score 47.18614719
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 319, last improved epoch 310, total epochs 394, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 400 Training: 100%|████████████████████████████████████| 29/29 [01:48<00:00,  3.74s/it, loss=0.2642, acc=90.45%]
+
+Test set: Average loss: 3.5512, Accuracy: 103/231 (45%)
+
+Adding validation score 44.58874459
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 320, last improved epoch 310, total epochs 395, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 401 Training: 100%|████████████████████████████████████| 29/29 [01:57<00:00,  4.06s/it, loss=0.3890, acc=89.47%]
+
+Test set: Average loss: 2.8539, Accuracy: 116/231 (50%)
+
+Adding validation score 50.21645022
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 321, last improved epoch 310, total epochs 396, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 402 Training: 100%|████████████████████████████████████| 29/29 [01:42<00:00,  3.54s/it, loss=1.3660, acc=87.62%]
+
+Test set: Average loss: 4.4688, Accuracy: 72/231 (31%)
+
+Adding validation score 31.16883117
+Checking PAI switch with mode n, switch mode DOING_HISTORY, epoch 322, last improved epoch 310, total epochs 397, n: 25, num_cycles: 6
+Returning False - no triggers to switch have been hit
+Epoch 403 Training:  48%|█████████████████▍                  | 14/29 [00:38<00:41,  2.75s/it, loss=0.2929, acc=87.95%]
+Traceback (most recent call last):
+  File "C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\main.py", line 428, in <module>
+    main(wandb.run)
+    ~~~~^^^^^^^^^^^
+  File "C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\main.py", line 284, in main
+    train_acc = train(args, model, device, train_loader, optimizer, epoch)
+  File "C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\main.py", line 43, in train
+    for batch_idx, (data, target) in enumerate(pbar):
+                                     ~~~~~~~~~^^^^^^
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\tqdm\std.py", line 1181, in __iter__
+    for obj in iterable:
+               ^^^^^^^^
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\torch\utils\data\dataloader.py", line 732, in __next__
+    data = self._next_data()
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\torch\utils\data\dataloader.py", line 788, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\torch\utils\data\_utils\fetch.py", line 52, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ~~~~~~~~~~~~^^^^^
+  File "C:\Users\Kamalesh\OneDrive\Documents\hack\PerforatedAI\Examples\hackathonProjects\emotion-recognition\dataset.py", line 77, in __getitem__
+    mel_spec = librosa.feature.melspectrogram(
+        y=audio,
+    ...<2 lines>...
+        fmax=8000
+    )
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\librosa\feature\spectral.py", line 2135, in melspectrogram
+    S, n_fft = _spectrogram(
+               ~~~~~~~~~~~~^
+        y=y,
+        ^^^^
+    ...<7 lines>...
+        pad_mode=pad_mode,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\librosa\core\spectrum.py", line 2945, in _spectrogram
+    stft(
+    ~~~~^
+        y,
+        ^^
+    ...<5 lines>...
+        pad_mode=pad_mode,
+        ^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\librosa\core\spectrum.py", line 387, in stft
+    stft_matrix[..., bl_s + off_start : bl_t + off_start] = fft.rfft(
+                                                            ~~~~~~~~^
+        fft_window * y_frames[..., bl_s:bl_t], axis=-2
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\scipy\fft\_backend.py", line 28, in __ua_function__
+    return fn(*args, **kwargs)
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\scipy\fft\_basic_backend.py", line 91, in rfft
+    return _execute_1D('rfft', _pocketfft.rfft, x, n=n, axis=axis, norm=norm,
+                       overwrite_x=overwrite_x, workers=workers, plan=plan)
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\scipy\fft\_basic_backend.py", line 32, in _execute_1D
+    return pocketfft_func(x, n=n, axis=axis, norm=norm,
+                          overwrite_x=overwrite_x, workers=workers, plan=plan)
+  File "C:\Users\Kamalesh\AppData\Roaming\Python\Python313\site-packages\scipy\fft\_pocketfft\basic.py", line 61, in r2c
+    return pfft.r2c(tmp, (axis,), forward, norm, None, workers)
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

@@ -2,8 +2,7 @@
 
 # Graphs
 
-!["MNIST example 1](mnist1.png "MNIST1")
-!["MNIST example 2](mnist2.png "MNIST2")
+![MNIST example 1](../Examples/baseExamples/mnist/exampleOutput.png "MNIST1")
 Four graphs are automatically generated at every epoch.  The first is all of the scores you are saving.  The Validation scores and a running validation score are first to keep track of what is the deciding factor for early stopping and Dendrite learning switching.  Additionally each score that was added with addExtraScore and addTestScore will be included.  In each case a red vertical line represents a switch to dendrite training and a blue vertical line represents a switch back to neuron training.  For GD dendrites only a blue line will be shown because dendrite training happens along with neuron training.  Additionally, when switching to dendrite training values are retained only for display purposes for what happened before the switch since the switch triggers the weights from the best validation score to be loaded.
 
 The second is the training times to compare runtime as Dendrites are added.
@@ -42,8 +41,8 @@ Additionally the validation/training scores should be flatlined during Dendrite 
     The _pai versions of models are optimized for inference.  These models are smaller and also can be run with open source code from this API without requiring a license to use the training software.
 
 ## CSV Names
- - bestTestScores
-    A final scores output that shows the best test scores at the epoch where the best validation scores were achieved.  This includes parameter counts for each version of the network as well.  This could be considered the main output results of an experiment.  Requires using addTestScore to work properly.
+ - best_arch_scores
+    A final scores output that shows the best test scores at the epoch where the best validation scores were achieved.  This includes parameter counts for each version of the network as well.  This could be considered the main output results of an experiment.
 - Best_PB_Scores
     Best PB correlation scores at each epoch
  - Scores

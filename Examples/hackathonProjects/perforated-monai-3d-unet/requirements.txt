@@ -1,0 +1,7 @@
+monai>=1.3.0
+nibabel
+numpy
+scikit-image
+tqdm
+wandb
+python-dotenv

@@ -741,12 +741,11 @@ def main(config):
     GPA.pc.set_pai_forward_function(pai_forward_function)
 
     if args.dendrite_conversion == 'All Layers':
-        GPA.pc.set_modules_to_convert([nn.Conv2d, nn.Conv1d, nn.Linear])
+        GPA.pc.set_modules_to_perforate([nn.Conv2d, nn.Linear])
         GPA.pc.set_modules_to_track([])
     else:
-        GPA.pc.set_modules_to_convert([nn.Linear])
-        GPA.pc.set_modules_to_track([nn.Conv2d, nn.Conv1d])
-
+        GPA.pc.set_modules_to_perforate([nn.Linear])
+        GPA.pc.set_modules_to_track([nn.Conv2d])
 
     GPA.pc.set_max_dendrites(args.max_dendrites if str2bool(args.dendritic_optimization) else 0)
     GPA.pc.set_perforated_backpropagation(str2bool(args.improved_dendritic_optimization))
@@ -784,7 +783,7 @@ def main(config):
     GPA.pc.set_verbose(False)
     GPA.pc.set_silent(True)
 
-    # Print model architecture and parameter count BEFORE initialize_pai
+    model = UPA.perforate_model(model)
     print(model)
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 

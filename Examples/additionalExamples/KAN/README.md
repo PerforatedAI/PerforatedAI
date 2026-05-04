@@ -1,6 +1,6 @@
 # Using Perforated AI for KAN Conversion
 
-A major feature of this library is the ability to quickly convert any PyTorch network to a dendritic architecture through the use of initialize_pai and the PAIModule class.  Because the functions involved in this conversion are generalizable our library can also be used to do experimentation with any custom module types.  This can be an enormously beneficial tool for anyone looking to get into experimental new modules.  Often learning about new systems can capture the curiosity of a data scientist, but implementation can feel daunting.  Major overhauls of a codebase can take weeks of effort, and when working with other libraries where one didn't even write the original architecture themselves it can feel insurmountable just to begin.  The Perforated AI library completely eliminates these issues.
+A major feature of this library is the ability to quickly convert any PyTorch network to a dendritic architecture through the use of perforate_model and the PAIModule class.  Because the functions involved in this conversion are generalizable our library can also be used to do experimentation with any custom module types.  This can be an enormously beneficial tool for anyone looking to get into experimental new modules.  Often learning about new systems can capture the curiosity of a data scientist, but implementation can feel daunting.  Major overhauls of a codebase can take weeks of effort, and when working with other libraries where one didn't even write the original architecture themselves it can feel insurmountable just to begin.  The Perforated AI library completely eliminates these issues.
 
 To display how simple it can be to work with frontier ideas, we have created this script showing how to convert the PyTorch Official MNIST example into a KAN Network with one line of code.
 
@@ -76,9 +76,9 @@ Because this example is just doing KAN conversion and not doing dendrites some s
     
 ## The One Line
 
-With that preparation in place, the initialize_pai function will now do everything that is required to convert all your Linear layers to KANLinears.  Just add the following after your initial model is defined:
+With that preparation in place, the perforate_model function will now do everything that is required to convert all your Linear layers to KANLinears.  Just add the following after your initial model is defined:
 
-    model = UPA.initialize_pai(model).to(device)
+    model = UPA.perforate_model(model).to(device)
 
 ## Results
 

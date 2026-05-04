@@ -193,6 +193,10 @@ def main():
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     use_mps = not args.no_mps and torch.backends.mps.is_available()
 
+    import numpy as np, random
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
     torch.manual_seed(args.seed)
 
     if use_cuda:
@@ -259,13 +263,11 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     # Set up some global parameters for PAI code
-    GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_testing_dendrite_capacity(True)
     GPA.pc.set_verbose(False)
-    GPA.pc.set_dendrite_update_mode(True)
-
     model = Net(num_classes, args.width).to(device)
 
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
 
     # Setup the optimizer and scheduler
     GPA.pai_tracker.set_optimizer(optim.Adadelta)

@@ -40,6 +40,10 @@ class PAILayer(nn.Module):
             self.skip_weights.append(dendrites_to_top[len(dendrites_to_top) - 1])
         else:
             self.skip_weights = nn.ParameterList()
+        
+        # Delete skip_weights if it's empty (only 1 layer, no skip connections)
+        if len(self.skip_weights) == 0:
+            delattr(self, 'skip_weights')
 
         self.node_index = node_index
         self.internal_nonlinearity = GPA.pc.get_pai_forward_function()

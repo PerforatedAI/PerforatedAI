@@ -1,0 +1,10 @@
+Using device: cpu
+Initializing model with dendrite_count=8...
+By default skipping base_model. See "Safetensors Errors" section of customization.md to include it.
+Running a test of Dendrite Capacity.
+Running dummy forward/backward pass to initialize PAI shapes...
+Adding 8 dendrites to dendritic_output layer...
+Total Parameters: 4089600
+Epoch 1/2: 100%|███████████████████████████| 782/782 [22:16<00:00,  1.71s/it, Loss=0.00952, Acc=79.7]
+Epoch 1: Train Acc: 79.72%, Val Acc: 78.58%
+Epoch 2/2:   3%|▊                           | 22/782 [00:21<09:04,  1.40it/s, Loss=0.00725, Acc=84.2]

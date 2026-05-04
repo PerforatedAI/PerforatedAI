@@ -1,0 +1,7 @@
+Model,Metric,Value
+Baseline,mean_latency_ms,TBD
+Baseline,p95_latency_ms,TBD
+Baseline,model_size_mb,TBD
+Dendritic,mean_latency_ms,TBD
+Dendritic,p95_latency_ms,TBD
+Dendritic,model_size_mb,TBD

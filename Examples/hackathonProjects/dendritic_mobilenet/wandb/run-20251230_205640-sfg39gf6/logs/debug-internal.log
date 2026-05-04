@@ -1,0 +1,13 @@
+{"time":"2025-12-30T20:56:46.3008677+05:30","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2025-12-30T20:56:47.3779627+05:30","level":"INFO","msg":"stream: created new stream","id":"sfg39gf6"}
+{"time":"2025-12-30T20:56:47.3790639+05:30","level":"INFO","msg":"handler: started","stream_id":"sfg39gf6"}
+{"time":"2025-12-30T20:56:47.3827354+05:30","level":"INFO","msg":"stream: started","id":"sfg39gf6"}
+{"time":"2025-12-30T20:56:47.3827354+05:30","level":"INFO","msg":"writer: started","stream_id":"sfg39gf6"}
+{"time":"2025-12-30T20:56:47.3827354+05:30","level":"INFO","msg":"sender: started","stream_id":"sfg39gf6"}
+{"time":"2025-12-30T21:46:19.1918159+05:30","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/raghunathsundar1-chennai-institute-of-technology/hackathon-dendritic-vision/sfg39gf6/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-12-30T22:03:26.2723613+05:30","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-12-30T22:03:26.6903699+05:30","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2025-12-30T22:03:26.7326394+05:30","level":"INFO","msg":"stream: closing","id":"sfg39gf6"}
+{"time":"2025-12-30T22:03:26.7331507+05:30","level":"INFO","msg":"handler: closed","stream_id":"sfg39gf6"}
+{"time":"2025-12-30T22:03:26.7345712+05:30","level":"INFO","msg":"sender: closed","stream_id":"sfg39gf6"}
+{"time":"2025-12-30T22:03:26.7345712+05:30","level":"INFO","msg":"stream: closed","id":"sfg39gf6"}

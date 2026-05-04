@@ -184,7 +184,7 @@ def main():
     model = Net().to(device)
     print('Model:')
     print(model)
-    model = UPA.initialize_pai(model).to(device)
+    model = UPA.perforate_model(model).to(device)
     print('KAN Model:')
     print(model)
     

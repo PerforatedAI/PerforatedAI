@@ -1,0 +1,16 @@
+# Data
+*.h5ad
+
+# Generated caches and artifacts
+*.pkl
+*.png
+*.pt
+
+# PAI checkpoint directory
+PAI/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env

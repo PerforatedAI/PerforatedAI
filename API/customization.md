@@ -36,7 +36,7 @@ If you would like to test more than three dendrites the following can be used:
 
 Additional options during initializaiton include:
     
-    UPA.initialize_pai(model, doing_pai=True, save_name='PAI', making_graphs=True, maximizing_score=True)
+    UPA.perforate_model(model, doing_pai=True, save_name='PAI', making_graphs=True, maximizing_score=True)
 
 
 doing_pai can be set to False if you want to run with your current parameters without adding dendrites.
@@ -75,18 +75,22 @@ Network initialization is the most complicated part of this process that often r
 
 This is often the part that has some complexity.  If your network is all simple layers with linear or conv layers and nonlinearities, they will be converted automatically.  However, most networks have more complicated learning modules.  Performance is often better when these modules are grouped as a single PAI module as opposed to PAI-ifying each module within them.  To tell the system that it must convert modules add them with the following option.  It can be good to do some experimentation with what level of depth you want to block things off, i.e. many smaller modules or fewer large modules. They can be added with the function below before convertNetwork is called.
 
-    GPA.pc.append_module_names_to_convert(['moduleName'])
+    GPA.pc.append_module_names_to_perforate(['moduleName'])
 
-Using moduleNamesToConvert does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
+Using module_names_to_perforate does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
 
-    GPA.pc.append_modules_to_convert([moduleType])
+    GPA.pc.append_modules_to_perforate([moduleType])
+
+Or the final option is to add specific modules by their path in the model.  This is for an example where you want to convert model.layer1[0].conv1
+
+    GPA.pc.append_module_ids_to_perforate()['.layer1.0.conv1'])
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
     GPA.pc.PAISequential([normalLayer, normalizationLayer])
     
 #### 2.1.1 - How to Tell Modules Which are not Tagged
-When you first call initialize_pai the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
+When you first call perforate_model the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
 
     The following params are not wrapped.
     ------------------------------------------------------------------
@@ -103,13 +107,13 @@ When you first call initialize_pai the function will print a list of all paramet
 
 You should make sure to track every module even if its not wrapped, this ensures all modules are correctly accounted for. To track a module without wrapping it just append the following arrays similar to the wrapping arrays of similar names
 
-    GPA.pc.get_modules_to_track()
+    GPA.pc.append_modules_to_track()
     and
-    GPA.pc.get_module_names_to_track()
+    GPA.pc.append_module_names_to_track()
     
 Additionally if you only want to track, and not wrap, a single module where that module type typically would be wrapped, you can add it by name to the following list as follows. This is for an example where you want to track model.layer1[0].conv1:
 
-    moduleIDsToTrack += ['.layer1.0.conv1']
+    GPA.pc.append_module_ids_to_track()['.layer1.0.conv1'])
 
 Once you have seen this list and are sure it is correct, you can set it to be ignored in the future with:
 
@@ -188,14 +192,14 @@ Once it is created simply create one of those objects and run as follows
     model1 = create_model1()
     model2 = create_model2()
     model = Pair(model1, model2)
-    model = UPA.initialize_pai(model)
+    model = UPA.perforate_model(model)
     #Then set the networks directly 
     model1 = model.net1
     model2 = model.net2
 
 Important note, if you do the above things, make sure to also add the same steps and adjustments to the addValidationScore section.
 
-An alternative is to call convertNetwork after initialize_pai but that still needs to be tested more thoroughly.
+An alternative is to call convertNetwork after perforate_model but that still needs to be tested more thoroughly.
     
 ### 4 - Set Input Dimensions
 
@@ -261,18 +265,20 @@ If you want to load the best model for any reason you can call:
 
     model = UPA.load_system(model, your save name, 'best_model', True)
     
-This function should be called after initialize_pai and set_this_output_dimensions, but before setup_optimizer
+This function should be called after perforate_model and set_this_output_dimensions, but before setup_optimizer
     
-<!--
-If you want to load a simplified pb model just for inference you can do so with the following:
 
-    model = fullModel() 
-    from perforatedbp import network_pbp as PBN
-    model = PBN.load_pai_model(model, 'PAIFirstFullRun//best_model_pai.pt')     
+If you want to load a simplified pb model just for inference, or for finetuning a tained dendritic model without adding more dendrites, you can do so with the following after load_system
 
-Note: this does not use initialize_pai, but all other GPA settings must be replicated first.
+    model = UPA.load_system(model, your save name, 'best_model', True)
+    ...
+    from perforatedai import blockwise_perforatedai as BPA
+    from perforatedai import clean_perforatedai as CPA
+    model = BPA.blockwise_network(model)
+    model  = CPA.refresh_net(model)
 
--->
+Note: all other GPA settings should still be set first
+
     
 ## 8 Optimization
 
@@ -330,8 +336,8 @@ The following can be added if you want dendrite training cycles to be capped at 
     
 When this is its default of False you may still want to shorten Dendrite training time, while not completely stopping it while Dendrites are still improving.  To that end you can adjust the following settings:
 
-    GPA.pc.set_dendrite_improvement_threshold(0.1)
-    GPA.pc.set_dendrite_improvement_thresholdRaw(1e-5)
+    GPA.pc.set_pai_improvement_threshold(0.1)
+    GPA.pc.set_pai_improvement_thresholdRaw(1e-5)
 
 These values specify how much the Dendrites must be improving in order to continue training them.  The default settings are that if at least one Dendrite in the entire network has improved its score by at least 10% and at least 1e-5 over the last GPA.pc.get_p_epochs_to_switch() epochs then Dendrite training will continue.  If it seems like the Dendrite training just keeps going up indefinitely these are the values that should be changed.  Some larger models will even continue going up just due to random noise when a learning rate of 0 if these numbers are set too low.
 
@@ -348,4 +354,17 @@ Similarly, if you are using a token you can do the following:
     CUDA_VISIBLE_DEVICES=0 PAIEMAIL=YOUREMAIL PAITOKEN=YOURTOKEN python your_script.py
 
 
+## 10 Huggingface
+If you would like to upload a model to huggingface the following command has been created which can be called with args similar to the following:
 
+        UPA.upload_to_huggingface(
+            model, 
+            hf_repo_id,
+            license="apache-2.0",
+            pipeline_tag="image-classification",
+            tags=["perforated-ai", dataset_name, model_name]
+        )
+
+Similarly loading can be called with the following function:
+
+    model = UPA.from_hf_pretrained(model, hf_repo_id)
