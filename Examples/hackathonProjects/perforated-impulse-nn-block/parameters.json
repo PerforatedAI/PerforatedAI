@@ -2,8 +2,8 @@
     "version": 1,
     "type": "machine-learning",
     "info": {
-        "name": "Perforated NN Block (PyTorch)",
-        "description": "An ML block that implements a PyTorch neural network with Dendritic Optimization.  Dendritic Optimization is a technique that enhances the learning capacity of neural networks by mimicking the dendritic structures found in biological neurons. This block allows users to create custom neural network architectures with configurable layers and apply perforation to add dendrites and improve performance on various tasks.",
+        "name": "Perforated Classification",
+        "description": "A drop-in replacement for the Classification block with Dendritic Optimization — a biologically-inspired technique that improves learning capacity with fewer parameters. Use it to hit higher accuracy at the same model size, or maintain accuracy with a smaller model.",
         "operatesOn": "other",
         "indRequiresGpu": false,
         "repositoryUrl": "https://github.com/PerforatedAI/PerforatedAI/tree/main/Examples/hackathonProjects/example-custom-ml-block-pytorch"

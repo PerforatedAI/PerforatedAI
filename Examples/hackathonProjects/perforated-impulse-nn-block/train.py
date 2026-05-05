@@ -786,9 +786,7 @@ def main(config):
     model = UPA.perforate_model(model)
     print(model)
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
-
-    model = UPA.initialize_pai(model)
-        
+   
     # Set output dimensions for Conv1d layers if they are being optimized with dendrites
     for layer in model.layers:
         if isinstance(layer, nn.Conv1d):
