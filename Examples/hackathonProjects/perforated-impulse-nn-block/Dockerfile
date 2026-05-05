@@ -1,5 +1,5 @@
 # Use PyTorch base image with CUDA pre-installed for faster builds
-FROM --platform=linux/amd64 pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime AS base
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -24,4 +24,3 @@ COPY train.py ./
 COPY parameters.json ./
 
 ENTRYPOINT ["python3", "-u", "train.py"]
-
