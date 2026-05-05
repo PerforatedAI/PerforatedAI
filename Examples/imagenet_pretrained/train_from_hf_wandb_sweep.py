@@ -612,6 +612,11 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     # Setup training
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     
+    # Get scheduler mode from wandb.config if running in sweep, default to 0 (CosineAnnealing)
+    scheduler_mode = 0  # Default: CosineAnnealingLR
+    if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb, "config"):
+        scheduler_mode = wandb.config.get("scheduler_mode", 0)
+    
     # Setup optimizer
     if perforate:
         from perforatedai import globals_perforatedai as GPA
@@ -625,7 +630,17 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             "weight_decay": args.weight_decay,
         }
         
-        if args.lr_warmup_epochs > 0:
+        if scheduler_mode == 1:
+            # ReduceLROnPlateau mode
+            GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+            schedArgs = {
+                "mode": "max",  # Maximize validation accuracy
+                "factor": 0.1,
+                "patience": 10,
+                "verbose": True,
+            }
+            optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+        elif args.lr_warmup_epochs > 0:
             # SequentialLR case - describe component schedulers in schedArgs
             GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.SequentialLR)
             schedArgs = {
@@ -637,7 +652,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             }
             optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
         else:
-            # Simple scheduler case
+            # Simple CosineAnnealingLR case
             GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)
             schedArgs = {
                 "T_max": max(1, args.epochs - args.lr_warmup_epochs),
@@ -649,10 +664,16 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             model.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weight_decay
         )
         # Setup scheduler for non-perforated
-        main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
-        )
-        if args.lr_warmup_epochs > 0:
+        if scheduler_mode == 1:
+            # ReduceLROnPlateau mode
+            lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode="max", factor=0.1, patience=10, verbose=True
+            )
+        elif args.lr_warmup_epochs > 0:
+            # CosineAnnealing with warmup
+            main_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
+            )
             warmup_lr_scheduler = torch.optim.lr_scheduler.ConstantLR(
                 optimizer, factor=0.01, total_iters=args.lr_warmup_epochs
             )
@@ -662,7 +683,10 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 milestones=[args.lr_warmup_epochs],
             )
         else:
-            lr_scheduler = main_lr_scheduler
+            # Simple CosineAnnealingLR
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=max(1, args.epochs - args.lr_warmup_epochs), eta_min=0.0
+            )
 
     # Determine dendrite count for non-perforated models
     dendrite_count_override = None
@@ -777,7 +801,16 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 }
                 
                 # Recreate scheduler (same as initial setup)
-                if args.lr_warmup_epochs > 0:
+                if scheduler_mode == 1:
+                    # ReduceLROnPlateau mode
+                    schedArgs = {
+                        "mode": "max",
+                        "factor": 0.1,
+                        "patience": 10,
+                        "verbose": True,
+                    }
+                    optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+                elif args.lr_warmup_epochs > 0:
                     # SequentialLR case - describe component schedulers in schedArgs
                     schedArgs = {
                         "schedulers": [
@@ -788,7 +821,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     }
                     optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
                 else:
-                    # Simple scheduler case
+                    # Simple CosineAnnealingLR case
                     schedArgs = {
                         "T_max": max(1, args.epochs - args.lr_warmup_epochs),
                         "eta_min": 0.0
@@ -887,8 +920,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 epoch,
                 args.print_freq,
             )
-            lr_scheduler.step()
             test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+            
+            # Step scheduler (ReduceLROnPlateau needs metric, others don't)
+            if scheduler_mode == 1:
+                lr_scheduler.step(test_acc1)  # Pass validation accuracy for ReduceLROnPlateau
+            else:
+                lr_scheduler.step()  # CosineAnnealingLR doesn't need metric
 
             # Track best accuracy and corresponding training accuracy
             if test_acc1 > best_acc1:
@@ -995,6 +1033,7 @@ def get_sweep_config(dataset_name):
             "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
             "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
             "label_smoothing": {"values": [0.05, 0.1, 0.15]},
+            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1010,6 +1049,7 @@ def get_sweep_config(dataset_name):
             "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
+            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1024,6 +1064,7 @@ def get_sweep_config(dataset_name):
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
+            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             "label_smoothing": {"values": [0.0, 0.05]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
@@ -1152,6 +1193,9 @@ def train_with_wandb():
     print(f"\n{'='*80}")
     print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
     print(f"{'='*80}\n")
+
+    # Finish wandb run to prevent state leakage between sweep iterations
+    wandb.finish()
 
 
 def main():
