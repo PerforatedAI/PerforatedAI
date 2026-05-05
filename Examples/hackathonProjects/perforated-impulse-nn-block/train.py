@@ -968,7 +968,7 @@ def main(config):
     cpu_criterion = nn.CrossEntropyLoss()  # Create CPU-compatible criterion without weights
     pytorch_val_loss, pytorch_val_acc = test(model, val_loader, cpu_criterion, torch.device('cpu'))
     if str2bool(args.split_test):
-        pytorch_test_loss, pytorch_test_acc = test(model, test_loader, criterion, torch.device('cpu'))
+        pytorch_test_loss, pytorch_test_acc = test(model, test_loader, cpu_criterion, torch.device('cpu'))
         print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}, Test: {pytorch_test_acc:.4f}")
     else:
         print(f"PyTorch (eval mode) - Val: {pytorch_val_acc:.4f}")
