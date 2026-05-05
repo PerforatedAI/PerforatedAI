@@ -752,7 +752,7 @@ def main(config):
     GPA.pc.set_dendrite_update_mode(True)
     GPA.pc.set_initial_correlation_batches(40)
     GPA.pc.set_max_dendrite_tries(2)
-    
+    GPA.pc.set_unwrapped_modules_confirmed(True)
     print(f"\nUsing {len(layer_configs)} layer configurations:", flush=True)
     for i, cfg in enumerate(layer_configs):
         print(f"  Layer {i}: {cfg}", flush=True)
