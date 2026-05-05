@@ -637,7 +637,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 "mode": "max",  # Maximize validation accuracy
                 "factor": 0.1,
                 "patience": 10,
-                "verbose": True,
             }
             optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
         elif args.lr_warmup_epochs > 0:
@@ -667,7 +666,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
         if scheduler_mode == 1:
             # ReduceLROnPlateau mode
             lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode="max", factor=0.1, patience=10, verbose=True
+                optimizer, mode="max", factor=0.1, patience=10
             )
         elif args.lr_warmup_epochs > 0:
             # CosineAnnealing with warmup
@@ -807,7 +806,6 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         "mode": "max",
                         "factor": 0.1,
                         "patience": 10,
-                        "verbose": True,
                     }
                     optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
                 elif args.lr_warmup_epochs > 0:
