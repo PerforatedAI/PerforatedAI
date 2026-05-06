@@ -354,6 +354,21 @@ class _Reshape1D(nn.Module):
         return x.view(x.size(0), self.rows, self.columns).permute(0, 2, 1).contiguous()
 
 
+class _Reshape2D(nn.Module):
+    """Reshapes flat (batch, length) input to (batch, 1, rows, columns) for Conv2d.
+    Produces a single-channel 2D spatial tensor (H=rows, W=columns) suitable for Conv2d.
+    """
+    def __init__(self, columns: int, rows: int):
+        super().__init__()
+        self.columns = columns
+        self.rows = rows
+
+    def forward(self, x):
+        if x.dim() > 2:
+            x = x.view(x.size(0), -1)
+        return x.view(x.size(0), 1, self.rows, self.columns)
+
+
 class AdaptiveClassifier(nn.Module):
     """
     Adaptive classifier with flexible layer-by-layer configuration.
@@ -511,12 +526,21 @@ class AdaptiveClassifier(nn.Module):
                     elif len(current_shape) == 2:
                         current_size = current_shape[0] * current_shape[1]
                     current_shape = None
-                # Store reshape as a simple lambda-style module using a custom class
                 rows = current_size // columns
-                self.layers.append(_Reshape1D(columns, rows))
-                self.freq_bins = columns
-                self.time_steps = rows
-                current_shape = (columns, rows)  # (channels, length) for Conv1d
+                # Check if the next layer is 2D Conv to decide reshape format
+                next_type = self.layer_configs[i + 1].get('type', '') if i + 1 < len(self.layer_configs) else ''
+                if next_type == '2D Convolution/Pool':
+                    # Produce (batch, 1, rows, columns) for Conv2d
+                    self.layers.append(_Reshape2D(columns, rows))
+                    self.freq_bins = columns
+                    self.time_steps = rows
+                    current_shape = (1, rows, columns)  # (C=1, H=rows, W=columns) for Conv2d
+                else:
+                    # Produce (batch, columns, rows) for Conv1d
+                    self.layers.append(_Reshape1D(columns, rows))
+                    self.freq_bins = columns
+                    self.time_steps = rows
+                    current_shape = (columns, rows)  # (channels, length) for Conv1d
                 current_size = None
 
         # Final output layer
@@ -667,6 +691,8 @@ class AdaptiveClassifier(nn.Module):
             actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
             
             if isinstance(actual_layer, _Reshape1D):
+                x = layer(x)
+            elif isinstance(actual_layer, _Reshape2D):
                 x = layer(x)
             elif isinstance(actual_layer, nn.Conv1d):
                 # If no explicit Reshape layer was used, unsqueeze to (batch, 1, length)
