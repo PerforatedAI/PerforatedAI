@@ -1,0 +1,9 @@
+{
+  "model_path": "microsoft/trocr-base-handwritten",
+  "epochs": 3,
+  "batch_size": 2,
+  "learning_rate": 5e-05,
+  "max_label_length": 32,
+  "device": "cuda",
+  "pai_integration": true
+}
