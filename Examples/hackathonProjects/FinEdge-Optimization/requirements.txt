@@ -1,0 +1,8 @@
+torch>=2.0.0
+git+https://github.com/PerforatedAI/transformers.git
+perforatedai
+datasets
+seaborn
+scikit-learn
+pandas
+numpy
