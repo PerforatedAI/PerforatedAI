@@ -1115,13 +1115,21 @@ def main(config):
         
         # Convert ONNX to TFLite with int8 quantization
         def representative_dataset():
+            activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
             for batch_idx, (data, _) in enumerate(train_loader):
                 if batch_idx >= 100:  # Use 100 batches for calibration
                     break
                 data_np = data.cpu().numpy()
                 for i in range(data_np.shape[0]):
                     sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                    activation_stats['min'] = min(activation_stats['min'], sample.min())
+                    activation_stats['max'] = max(activation_stats['max'], sample.max())
+                    activation_stats['samples'] += 1
                     yield [sample]
+            print(f"\nCalibration dataset statistics:")
+            print(f"  Samples: {activation_stats['samples']}")
+            print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
+            print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
         
         # Convert ONNX to TF SavedModel using onnx2tf
         saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
@@ -1171,6 +1179,7 @@ def main(config):
             
             correct = 0
             total = 0
+            all_preds = []
             
             for inputs, labels in loader:
                 inputs_np = inputs.cpu().numpy()
@@ -1206,11 +1215,17 @@ def main(config):
                         output = (output.astype(np.float32) - output_zero_point) * output_scale
                     
                     predicted = np.argmax(output[0])
+                    all_preds.append(int(predicted))
                     correct += (predicted == labels[i])
                     total += 1
             
             accuracy = correct / total
             print(f"{dataset_name}: {accuracy:.4f} ({correct}/{total})")
+            if accuracy < 0.5:
+                # Show prediction distribution to distinguish quantization collapse vs random noise
+                import collections
+                pred_counts = collections.Counter(all_preds)
+                print(f"  Prediction distribution (top 5): {pred_counts.most_common(5)}")
             return accuracy
         
         # Test on full X_split_test dataset
@@ -1244,6 +1259,32 @@ def main(config):
             with open(tflite_int8_path, 'wb') as f:
                 f.write(tflite_int8_model)
             print(f"✓ Created int8 quantized model: {tflite_int8_path}")
+
+            # Inspect tensor quantization params for degenerate scales
+            try:
+                import flatbuffers
+                from tensorflow.lite.python import schema_py_generated as schema_fb
+                with open(tflite_int8_path, 'rb') as _f:
+                    _buf = bytearray(_f.read())
+                _tflite_model = schema_fb.Model.GetRootAsModel(_buf, 0)
+                _sg = _tflite_model.Subgraphs(0)
+                print(f"\nTFLite INT8 tensor quantization (checking for bad scales):")
+                _warned = False
+                for _ti in range(_sg.TensorsLength()):
+                    _t = _sg.Tensors(_ti)
+                    _q = _t.Quantization()
+                    if _q and _q.ScaleLength() > 0:
+                        _scales = [_q.Scale(_j) for _j in range(_q.ScaleLength())]
+                        _name = _t.Name().decode('utf-8') if _t.Name() else f"tensor_{_ti}"
+                        for _s in _scales:
+                            if _s <= 0 or _s > 1e4:
+                                print(f"  ⚠ Tensor {_ti} ({_name}): BAD scale={_s:.6g}")
+                                _warned = True
+                if not _warned:
+                    print("  All tensor scales look normal.")
+            except Exception as _inspect_err:
+                print(f"  (tensor inspection skipped: {_inspect_err})")
+
             full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
             
         except Exception as quant_error:
