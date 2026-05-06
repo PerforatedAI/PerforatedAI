@@ -1232,10 +1232,7 @@ def main(config):
                 converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
                 converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
             converter_int8.representative_dataset = representative_dataset
-            converter_int8.target_spec.supported_ops = [
-                tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
-                tf.lite.OpsSet.TFLITE_BUILTINS,  # float32 fallback for ops XNNPACK can't handle INT8 (e.g. Reshape/Transpose from Conv2D)
-            ]
+            converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
             # Edge Impulse uses float32 inputs/outputs with int8 weights internally
             # Don't force int8 for inputs/outputs - let TFLite decide
             # converter_int8.inference_input_type = tf.int8
