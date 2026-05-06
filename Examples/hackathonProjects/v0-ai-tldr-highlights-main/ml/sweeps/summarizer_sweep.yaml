@@ -1,0 +1,55 @@
+# W&B Sweep Configuration for Summarizer Training
+# Run with: wandb sweep ml/sweeps/summarizer_sweep.yaml
+
+program: ml/experiments/run_experiment.py
+method: bayes  # Bayesian optimization
+metric:
+  name: rougeL
+  goal: maximize
+
+parameters:
+  # Experiment type (always B for dendritic optimization sweep)
+  experiment_type:
+    value: "B"
+  
+  # Model selection
+  model_name:
+    values:
+      - "t5-small"
+      - "t5-base"
+      - "google/flan-t5-small"
+  
+  # Learning rate
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 1e-3
+  
+  # PAI switching hyperparameters
+  n_epochs_to_switch:
+    values: [3, 5, 7, 10]
+  
+  p_epochs_to_switch:
+    values: [2, 3, 5]
+  
+  # Dendrite capacity
+  dendrite_capacity:
+    values: [4, 8, 16, 32]
+  
+  # Standard training params
+  batch_size:
+    values: [8, 16, 32]
+  
+  warmup_steps:
+    values: [100, 500, 1000]
+  
+  weight_decay:
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 1e-2
+
+# Early termination for poor runs
+early_terminate:
+  type: hyperband
+  min_iter: 500
+  eta: 3

@@ -1,0 +1,48 @@
+# Sweep comparing streaming draft vs consolidation approaches
+#
+# Tests different configurations for the two-pass summarization pipeline.
+
+program: ml/train.py
+method: grid
+metric:
+  name: eval/score
+  goal: maximize
+
+parameters:
+  # Architecture variant
+  architecture:
+    values: [streaming_only, consolidation_only, two_pass]
+  
+  # Streaming model size
+  streaming_model:
+    values: [t5-small, t5-base]
+  
+  # Consolidation model size  
+  consolidation_model:
+    values: [t5-small, t5-base]
+  
+  # Temperature for streaming
+  streaming_temperature:
+    values: [0.3, 0.5, 0.7]
+  
+  # Max tokens for streaming pass
+  streaming_max_tokens:
+    values: [256, 512]
+  
+  # Whether to use PAI for streaming model
+  streaming_use_pai:
+    values: [true, false]
+  
+  # Fixed settings
+  dataset:
+    value: samsum
+  seed:
+    value: 42
+  max_steps:
+    value: 3000
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
