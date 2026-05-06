@@ -1113,36 +1113,58 @@ def main(config):
         warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
         import subprocess
         
-        # Convert ONNX to TFLite with int8 quantization
-        # _cal_input_shape is populated after the float32 model is created (late-binding closure)
+        # EI-compatible conversion helpers (mirrors ei_tensorflow.conversion, adapted for SavedModel)
+        def convert_float32(saved_model_dir, dir_path, filename):
+            try:
+                print('Converting TFLite float32 model...', flush=True)
+                converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    tflite_model = converter.convert()
+                with open(os.path.join(dir_path, filename), 'wb') as f:
+                    f.write(tflite_model)
+                print(f"✓ Created float32 TFLite model: {os.path.join(dir_path, filename)}")
+                return tflite_model
+            except Exception as err:
+                print('Unable to convert and save TFLite float32 model:')
+                print(err)
+
+        def convert_int8_io_int8(saved_model_dir, dataset_generator, dir_path, filename):
+            try:
+                print('Converting TFLite int8 quantized model...', flush=True)
+                converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+                converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
+                converter_quantize.representative_dataset = dataset_generator
+                converter_quantize.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+                converter_quantize.target_spec.supported_types = [tf.dtypes.int8]
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    tflite_quant_model = converter_quantize.convert()
+                with open(os.path.join(dir_path, filename), 'wb') as f:
+                    f.write(tflite_quant_model)
+                print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
+                return tflite_quant_model
+            except Exception as err:
+                print('Unable to convert and save TFLite int8 quantized model:')
+                print(err)
+
+        # Calibration data generator: handles NCHW→NHWC (Conv2D) and NCL→NLC (Conv1D)
+        # transpositions because onnx2tf produces channel-last SavedModels
         _cal_input_shape = [None]
         def representative_dataset():
-            cal_shape = _cal_input_shape[0]  # e.g. (1, H, W, C) for Conv2D or (1, features) for dense
-            activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
+            cal_shape = _cal_input_shape[0]
             for batch_idx, (data, _) in enumerate(train_loader):
-                if batch_idx >= 100:  # Use 100 batches for calibration
+                if batch_idx >= 100:
                     break
-                data_np = data.cpu().numpy()  # PyTorch: (B, C, H, W) or (B, features)
+                data_np = data.cpu().numpy()
                 for i in range(data_np.shape[0]):
                     sample = data_np[i:i+1]
                     if cal_shape is not None and len(cal_shape) == 4:
-                        # Conv2D: onnx2tf expects NHWC; PyTorch data is NCHW
-                        sample = np.transpose(sample, (0, 2, 3, 1))
+                        sample = np.transpose(sample, (0, 2, 3, 1))  # NCHW → NHWC
                     elif cal_shape is not None and len(cal_shape) == 3:
-                        # Conv1D: onnx2tf expects NLC; PyTorch data is NCL
-                        sample = np.transpose(sample, (0, 2, 1))
+                        sample = np.transpose(sample, (0, 2, 1))     # NCL → NLC
                     else:
                         sample = sample.reshape(1, -1)
-                    sample = sample.astype(np.float32)
-                    activation_stats['min'] = min(activation_stats['min'], sample.min())
-                    activation_stats['max'] = max(activation_stats['max'], sample.max())
-                    activation_stats['samples'] += 1
-                    yield [sample]
-            print(f"\nCalibration dataset statistics:")
-            print(f"  Samples: {activation_stats['samples']}")
-            print(f"  Input range: [{activation_stats['min']:.4f}, {activation_stats['max']:.4f}]")
-            print(f"  Input span: {activation_stats['max'] - activation_stats['min']:.4f}")
-        
+                    yield [sample.astype(np.float32)]
+
         # Convert ONNX to TF SavedModel using onnx2tf
         saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
         print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
@@ -1154,19 +1176,11 @@ def main(config):
             print(f"onnx2tf stderr: {result.stderr}")
             raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
         print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
-        
-        # First, create unquantized float32 TFLite model (model.tflite)
-        print("\nConverting to unquantized TFLite (float32)...")
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            converter_float = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-            tflite_float_model = converter_float.convert()
-        tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
-        with open(tflite_float_path, 'wb') as f:
-            f.write(tflite_float_model)
-        print(f"✓ Created float32 TFLite model: {tflite_float_path}")
 
-        # Determine calibration input shape from the float32 model so representative_dataset
-        # can feed NHWC data for Conv2D models instead of flattening (NCHW→flat breaks calibration)
+        tflite_float_model = convert_float32(saved_model_dir, args.out_directory, 'model.tflite')
+        tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
+
+        # Populate calibration shape from float32 model (channel-last layout for conv models)
         _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
         _cal_interp.allocate_tensors()
         _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
@@ -1226,21 +1240,11 @@ def main(config):
                     else:
                         sample = sample.reshape(1, -1)
                     sample = sample.astype(np.float32)
-                    
-                    # Quantize input if needed
-                    if input_details[0]['dtype'] == np.int8:
-                        input_scale, input_zero_point = input_details[0]['quantization']
-                        sample = (sample / input_scale + input_zero_point).astype(np.int8)
-                    
+
                     interpreter.set_tensor(input_details[0]['index'], sample)
                     interpreter.invoke()
                     output = interpreter.get_tensor(output_details[0]['index'])
-                    
-                    # Dequantize output if needed
-                    if output_details[0]['dtype'] == np.int8:
-                        output_scale, output_zero_point = output_details[0]['quantization']
-                        output = (output.astype(np.float32) - output_zero_point) * output_scale
-                    
+
                     predicted = np.argmax(output[0])
                     all_preds.append(int(predicted))
                     correct += (predicted == labels[i])
@@ -1264,59 +1268,13 @@ def main(config):
         full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
         
         full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
-        
-        # Now attempt int8 conversion and testing in a separate try-except
+
         full_test_acc_int8 = None
-        try:
-            # Create quantized int8 TFLite model (model_quantized_int8_io.tflite)
-            print("\nConverting to quantized TFLite (int8)...")
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-                converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
-            converter_int8.representative_dataset = representative_dataset
-            converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-            # Edge Impulse uses float32 inputs/outputs with int8 weights internally
-            # Don't force int8 for inputs/outputs - let TFLite decide
-            # converter_int8.inference_input_type = tf.int8
-            # converter_int8.inference_output_type = tf.int8
-            
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                tflite_int8_model = converter_int8.convert()
+        tflite_int8_model = convert_int8_io_int8(saved_model_dir, representative_dataset,
+                                                  args.out_directory, 'model_quantized_int8_io.tflite')
+        if tflite_int8_model is not None:
             tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
-            with open(tflite_int8_path, 'wb') as f:
-                f.write(tflite_int8_model)
-            print(f"✓ Created int8 quantized model: {tflite_int8_path}")
-
-            # Inspect tensor quantization params for degenerate scales
-            try:
-                import flatbuffers
-                from tensorflow.lite.python import schema_py_generated as schema_fb
-                with open(tflite_int8_path, 'rb') as _f:
-                    _buf = bytearray(_f.read())
-                _tflite_model = schema_fb.Model.GetRootAsModel(_buf, 0)
-                _sg = _tflite_model.Subgraphs(0)
-                print(f"\nTFLite INT8 tensor quantization (checking for bad scales):")
-                _warned = False
-                for _ti in range(_sg.TensorsLength()):
-                    _t = _sg.Tensors(_ti)
-                    _q = _t.Quantization()
-                    if _q and _q.ScaleLength() > 0:
-                        _scales = [_q.Scale(_j) for _j in range(_q.ScaleLength())]
-                        _name = _t.Name().decode('utf-8') if _t.Name() else f"tensor_{_ti}"
-                        for _s in _scales:
-                            if _s <= 0 or _s > 1e4:
-                                print(f"  ⚠ Tensor {_ti} ({_name}): BAD scale={_s:.6g}")
-                                _warned = True
-                if not _warned:
-                    print("  All tensor scales look normal.")
-            except Exception as _inspect_err:
-                print(f"  (tensor inspection skipped: {_inspect_err})")
-
             full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
-            
-        except Exception as quant_error:
-            print(f"INT8 quantization failed: {quant_error}")
-            traceback.print_exc()
         
         # Print improvement percentages then final comparison
         if str2bool(args.dendritic_optimization):
