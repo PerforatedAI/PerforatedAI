@@ -1155,14 +1155,12 @@ def main(config):
             except (RuntimeError, Exception) as alloc_error:
                 if 'XNNPACK' in str(alloc_error):
                     # XNNPACK can't handle this INT8 subgraph (common with Conv2D).
-                    # Retry using the built-in CPU kernel path (no delegate).
-                    os.environ['TFLITE_DISABLE_XNNPACK'] = '1'
-                    try:
-                        with contextlib.redirect_stderr(io.StringIO()):
-                            interpreter = tf.lite.Interpreter(model_path=model_path)
-                        interpreter.allocate_tensors()
-                    finally:
-                        os.environ.pop('TFLITE_DISABLE_XNNPACK', None)
+                    # Retry using built-in CPU kernels only (no default delegates).
+                    with contextlib.redirect_stderr(io.StringIO()):
+                        interpreter = tf.lite.Interpreter(
+                            model_path=model_path,
+                            experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+                    interpreter.allocate_tensors()
                 else:
                     print(f"\n✗ TENSOR ALLOCATION FAILED for {model_path}")
                     print(f"Error: {alloc_error}")
