@@ -31,7 +31,7 @@
         },
         {
             "name": "Softmax Export",
-            "value": "false",
+            "value": "true",
             "type": "boolean",
             "help": "Include softmax in exported ONNX/TFLite models. When false, exported models output raw logits (argmax still works, no quantization issues).",
             "param": "softmax-export"
