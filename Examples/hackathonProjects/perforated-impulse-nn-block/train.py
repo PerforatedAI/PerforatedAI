@@ -1134,7 +1134,10 @@ def main(config):
                 converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
                 converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
                 converter_quantize.representative_dataset = dataset_generator
-                converter_quantize.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+                converter_quantize.target_spec.supported_ops = [
+                    tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
+                    tf.lite.OpsSet.TFLITE_BUILTINS,
+                ]
                 converter_quantize.target_spec.supported_types = [tf.dtypes.int8]
                 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                     tflite_quant_model = converter_quantize.convert()
@@ -1184,6 +1187,7 @@ def main(config):
         _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
         _cal_interp.allocate_tensors()
         _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
+        print(f"Calibration input shape: {_cal_input_shape[0]}")
         del _cal_interp
 
         # Define test function for TFLite models
@@ -1257,6 +1261,20 @@ def main(config):
                 import collections
                 pred_counts = collections.Counter(all_preds)
                 print(f"  Prediction distribution (top 5): {pred_counts.most_common(5)}")
+                # Check for tensors with sentinel scales (never calibrated)
+                all_tensor_details = interpreter.get_tensor_details()
+                bad_tensors = [
+                    (d['index'], d['name'][:50], d['quantization_parameters']['scales'])
+                    for d in all_tensor_details
+                    if len(d['quantization_parameters']['scales']) > 0
+                    and float(np.max(np.abs(d['quantization_parameters']['scales']))) > 1e10
+                ]
+                if bad_tensors:
+                    print(f"  WARNING: {len(bad_tensors)} tensors with sentinel scales (uncalibrated):")
+                    for idx, name, scales in bad_tensors[:5]:
+                        print(f"    [{idx}] {name}: scale={scales}")
+                else:
+                    print(f"  All {len(all_tensor_details)} tensors have valid scales (calibration OK)")
             return accuracy
         
         # Test on full X_split_test dataset
