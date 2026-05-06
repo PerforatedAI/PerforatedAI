@@ -501,10 +501,10 @@ class AdaptiveClassifier(nn.Module):
                     self.layers.append(nn.ReLU())
                     in_channels = channels
                 
-                # Single pooling at the end
-                self.layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-                current_rows = current_rows // 2
-                current_cols = current_cols // 2
+                # Single pooling at the end - ceil_mode=True matches Keras padding='same'
+                self.layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
+                current_rows = (current_rows + 1) // 2
+                current_cols = (current_cols + 1) // 2
                 
                 current_shape = (channels, current_rows, current_cols)
                 current_size = None
