@@ -1114,14 +1114,26 @@ def main(config):
         import subprocess
         
         # Convert ONNX to TFLite with int8 quantization
+        # _cal_input_shape is populated after the float32 model is created (late-binding closure)
+        _cal_input_shape = [None]
         def representative_dataset():
+            cal_shape = _cal_input_shape[0]  # e.g. (1, H, W, C) for Conv2D or (1, features) for dense
             activation_stats = {'min': float('inf'), 'max': float('-inf'), 'samples': 0}
             for batch_idx, (data, _) in enumerate(train_loader):
                 if batch_idx >= 100:  # Use 100 batches for calibration
                     break
-                data_np = data.cpu().numpy()
+                data_np = data.cpu().numpy()  # PyTorch: (B, C, H, W) or (B, features)
                 for i in range(data_np.shape[0]):
-                    sample = data_np[i:i+1].reshape(1, -1).astype(np.float32)
+                    sample = data_np[i:i+1]
+                    if cal_shape is not None and len(cal_shape) == 4:
+                        # Conv2D: onnx2tf expects NHWC; PyTorch data is NCHW
+                        sample = np.transpose(sample, (0, 2, 3, 1))
+                    elif cal_shape is not None and len(cal_shape) == 3:
+                        # Conv1D: onnx2tf expects NLC; PyTorch data is NCL
+                        sample = np.transpose(sample, (0, 2, 1))
+                    else:
+                        sample = sample.reshape(1, -1)
+                    sample = sample.astype(np.float32)
                     activation_stats['min'] = min(activation_stats['min'], sample.min())
                     activation_stats['max'] = max(activation_stats['max'], sample.max())
                     activation_stats['samples'] += 1
@@ -1152,7 +1164,14 @@ def main(config):
         with open(tflite_float_path, 'wb') as f:
             f.write(tflite_float_model)
         print(f"✓ Created float32 TFLite model: {tflite_float_path}")
-        
+
+        # Determine calibration input shape from the float32 model so representative_dataset
+        # can feed NHWC data for Conv2D models instead of flattening (NCHW→flat breaks calibration)
+        _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
+        _cal_interp.allocate_tensors()
+        _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
+        del _cal_interp
+
         # Define test function for TFLite models
         def test_tflite(model_path, loader, dataset_name):
             with contextlib.redirect_stderr(io.StringIO()):
@@ -1182,9 +1201,8 @@ def main(config):
             all_preds = []
             
             for inputs, labels in loader:
-                inputs_np = inputs.cpu().numpy()
+                inputs_np = inputs.cpu().numpy()  # PyTorch: (B, C, H, W) or (B, features)
                 batch_size = inputs_np.shape[0]
-                inputs_flat = inputs_np.reshape(batch_size, -1)
                 
                 # Handle Edge Impulse label format
                 labels = labels.cpu().numpy()
@@ -1198,7 +1216,16 @@ def main(config):
                 
                 # Process one sample at a time
                 for i in range(batch_size):
-                    sample = inputs_flat[i:i+1].astype(np.float32)
+                    sample = inputs_np[i:i+1]
+                    if len(input_details[0]['shape']) == 4:
+                        # Conv2D: onnx2tf model expects NHWC; PyTorch data is NCHW
+                        sample = np.transpose(sample, (0, 2, 3, 1))
+                    elif len(input_details[0]['shape']) == 3:
+                        # Conv1D: onnx2tf model expects NLC; PyTorch data is NCL
+                        sample = np.transpose(sample, (0, 2, 1))
+                    else:
+                        sample = sample.reshape(1, -1)
+                    sample = sample.astype(np.float32)
                     
                     # Quantize input if needed
                     if input_details[0]['dtype'] == np.int8:
