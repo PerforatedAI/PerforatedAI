@@ -986,8 +986,10 @@ def main(config):
     
     from perforatedai import blockwise_perforatedai as BPA
     from perforatedai import clean_perforatedai as CPA
-    model = BPA.blockwise_network(model)
-    model  = CPA.refresh_net(model)
+    import io, contextlib
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        model = BPA.blockwise_network(model)
+        model  = CPA.refresh_net(model)
     
 
     # Test forward pass and capture activation statistics
@@ -1117,7 +1119,12 @@ def main(config):
         traceback.print_exc()
     
     try:
+        import warnings
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+        os.environ['GLOG_minloglevel'] = '3'
         import tensorflow as tf
+        warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
         import subprocess
         
         # Convert ONNX to TFLite with int8 quantization
@@ -1144,8 +1151,9 @@ def main(config):
         
         # First, create unquantized float32 TFLite model (model.tflite)
         print("\nConverting to unquantized TFLite (float32)...")
-        converter_float = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-        tflite_float_model = converter_float.convert()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            converter_float = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+            tflite_float_model = converter_float.convert()
         tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
         with open(tflite_float_path, 'wb') as f:
             f.write(tflite_float_model)
@@ -1153,7 +1161,8 @@ def main(config):
         
         # Define test function for TFLite models
         def test_tflite(model_path, loader, dataset_name):
-            interpreter = tf.lite.Interpreter(model_path=model_path)
+            with contextlib.redirect_stderr(io.StringIO()):
+                interpreter = tf.lite.Interpreter(model_path=model_path)
             
             try:
                 interpreter.allocate_tensors()
@@ -1224,8 +1233,9 @@ def main(config):
         try:
             # Create quantized int8 TFLite model (model_quantized_int8_io.tflite)
             print("\nConverting to quantized TFLite (int8)...")
-            converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-            converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                converter_int8 = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+                converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
             converter_int8.representative_dataset = representative_dataset
             converter_int8.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
             # Edge Impulse uses float32 inputs/outputs with int8 weights internally
@@ -1233,7 +1243,8 @@ def main(config):
             # converter_int8.inference_input_type = tf.int8
             # converter_int8.inference_output_type = tf.int8
             
-            tflite_int8_model = converter_int8.convert()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                tflite_int8_model = converter_int8.convert()
             tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
             with open(tflite_int8_path, 'wb') as f:
                 f.write(tflite_int8_model)
