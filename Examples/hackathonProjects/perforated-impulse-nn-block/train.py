@@ -964,20 +964,6 @@ def main(config):
     if str2bool(args.dendritic_optimization):
         print(f'First architecture: Val Acc: {first_val_acc:.4f}, Test Acc: {first_test_acc:.4f}, params: {first_param_count}')
         print(f'Best architecture: Val Acc: {max_val_acc:.4f}, Test Acc: {max_test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
-        print('Reduction in misclassifications because of dendrites')
-        
-        # Calculate reduction, handling perfect accuracy case
-        if first_val_acc >= 1.0:
-            print(f'Validation: N/A (already perfect accuracy)')
-        else:
-            val_reduction = 100.0 * ((max_val_acc - first_val_acc) / (1 - first_val_acc))
-            print(f'Validation: {val_reduction:.2f}%')
-        
-        if first_test_acc >= 1.0:
-            print(f'Test: N/A (already perfect accuracy)')
-        else:
-            test_reduction = 100.0 * ((max_test_acc - first_test_acc) / (1 - first_test_acc))
-            print(f'Test: {test_reduction:.2f}%')
     else:
         print(f'Final architecture: Val Acc: {val_acc:.4f}, Test Acc: {test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
 
@@ -1269,21 +1255,39 @@ def main(config):
             print(f"INT8 quantization failed: {quant_error}")
             traceback.print_exc()
         
-        # Print final comparison (will show float32 results even if int8 failed)
+        # Print improvement percentages then final comparison
+        if str2bool(args.dendritic_optimization):
+            print('Reduction in misclassifications because of dendrites')
+            if first_val_acc >= 1.0:
+                print(f'Validation: N/A (already perfect accuracy)')
+            else:
+                val_reduction = 100.0 * ((max_val_acc - first_val_acc) / (1 - first_val_acc))
+                print(f'Validation: {val_reduction:.2f}%')
+            if first_test_acc >= 1.0:
+                print(f'Test: N/A (already perfect accuracy)')
+            else:
+                test_reduction = 100.0 * ((max_test_acc - first_test_acc) / (1 - first_test_acc))
+                print(f'Test: {test_reduction:.2f}%')
+
         print("\n" + "="*60)
         print("FINAL COMPARISON")
         print("="*60)
+        if str2bool(args.dendritic_optimization):
+            if str2bool(args.split_test):
+                print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}, Test: {first_test_acc:.4f}")
+            else:
+                print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}")
         if str2bool(args.split_test):
-            print(f"PyTorch        - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
-            print(f"ONNX           - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+            print(f"ONNX                   - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
         else:
-            print(f"PyTorch        - Val: {max_val_acc:.4f}")
-            print(f"ONNX           - Val: {val_acc_onnx:.4f}")
-        print(f"TFLite Float32 - Full: {full_test_acc_float:.4f}")
+            print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}")
+            print(f"ONNX                   - Val: {val_acc_onnx:.4f}")
+        print(f"TFLite Float32          - Full: {full_test_acc_float:.4f}")
         if full_test_acc_int8 is not None:
-            print(f"TFLite INT8    - Full: {full_test_acc_int8:.4f}")
+            print(f"TFLite INT8             - Full: {full_test_acc_int8:.4f}")
         else:
-            print(f"TFLite INT8    - Full: FAILED (see error above)")
+            print(f"TFLite INT8             - Full: FAILED (see error above)")
 
         print("="*60 + "\n")
         
