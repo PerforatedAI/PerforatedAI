@@ -1168,11 +1168,26 @@ def main(config):
                         sample = sample.reshape(1, -1)
                     yield [sample.astype(np.float32)]
 
+        # Simplify ONNX model first to fold standalone Constant ops into consuming ops.
+        # This prevents onnx2tf from generating arith.constant tensors that TFLite's
+        # INT8 quantizer can't scale, which otherwise causes fully_quantize:0 and
+        # sentinel scales on internal tensors.
+        try:
+            import onnx, onnxsim
+            _onnx_model = onnx.load(onnx_path)
+            _simplified, _check = onnxsim.simplify(_onnx_model)
+            onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
+            onnx.save(_simplified, onnx_path_for_tf)
+            print(f"ONNX simplified (constant folding OK: {_check})")
+        except Exception as _e:
+            print(f"onnxsim simplification failed ({_e}), using original ONNX")
+            onnx_path_for_tf = onnx_path
+
         # Convert ONNX to TF SavedModel using onnx2tf
         saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
         print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
         result = subprocess.run(
-            [sys.executable, "-m", "onnx2tf", "-i", onnx_path, "-o", saved_model_dir, "-osd"],
+            [sys.executable, "-m", "onnx2tf", "-i", onnx_path_for_tf, "-o", saved_model_dir, "-osd"],
             capture_output=True, text=True, timeout=120
         )
         if result.returncode != 0:
