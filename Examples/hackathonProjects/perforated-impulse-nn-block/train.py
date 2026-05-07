@@ -1089,7 +1089,7 @@ def main(config):
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
     os.environ['GLOG_minloglevel'] = '3'
-    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # TFLite conversion is CPU-only; avoids driver mismatch crash
     import tensorflow as tf
     warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
     import subprocess
@@ -1105,18 +1105,31 @@ def main(config):
         print(f"✓ Created float32 TFLite model: {os.path.join(dir_path, filename)}")
         return tflite_model
 
+    _cal_call_count = [0]
+    _cal_first_shape = [None]
+    _cal_first_min   = [None]
+    _cal_first_max   = [None]
+
     def convert_int8_io_int8(saved_model_dir, dataset_generator, dir_path, filename):
         print('Converting TFLite int8 quantized model...', flush=True)
-        converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+        # from_concrete_functions (not from_saved_model) is required to get fully_quantize=1
+        # so the MLIR quantizer records calibration stats for every internal tensor.
+        # This matches what both onnx2tf -oiqt and the EI library do internally.
+        _loaded = tf.saved_model.load(saved_model_dir)
+        _concrete_func = _loaded.signatures['serving_default']
+        converter_quantize = tf.lite.TFLiteConverter.from_concrete_functions([_concrete_func])
         converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
         converter_quantize.representative_dataset = dataset_generator
         converter_quantize.target_spec.supported_ops = [
             tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
-            tf.lite.OpsSet.TFLITE_BUILTINS,
+            tf.lite.OpsSet.SELECT_TF_OPS,
         ]
-        converter_quantize.target_spec.supported_types = [tf.dtypes.int8]
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             tflite_quant_model = converter_quantize.convert()
+        print(f"  Calibration samples fed: {_cal_call_count[0]}" if _cal_call_count[0] > 0
+              else "  WARNING: representative_dataset was never called (calibration skipped)")
+        if _cal_call_count[0] > 0:
+            print(f"  First cal sample: shape={_cal_first_shape[0]}, range=[{_cal_first_min[0]:.4f}, {_cal_first_max[0]:.4f}]")
         with open(os.path.join(dir_path, filename), 'wb') as f:
             f.write(tflite_quant_model)
         print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
@@ -1139,6 +1152,11 @@ def main(config):
                     sample = np.transpose(sample, (0, 2, 1))     # NCL → NLC
                 else:
                     sample = sample.reshape(1, -1)
+                if _cal_call_count[0] == 0:
+                    _cal_first_shape[0] = sample.shape
+                    _cal_first_min[0]   = float(sample.min())
+                    _cal_first_max[0]   = float(sample.max())
+                _cal_call_count[0] += 1
                 yield [sample.astype(np.float32)]
 
     # Simplify ONNX model first to fold standalone Constant ops into consuming ops.
@@ -1147,10 +1165,21 @@ def main(config):
     # sentinel scales on internal tensors.
     import onnx, onnxsim
     _onnx_model = onnx.load(onnx_path)
+    _const_before = sum(1 for n in _onnx_model.graph.node if n.op_type == 'Constant')
+    print(f"ONNX Constant nodes before simplification: {_const_before}")
+    from collections import Counter as _Counter
+    _ops_before = _Counter(n.op_type for n in _onnx_model.graph.node)
+    print(f"ONNX op types before: {dict(_ops_before)}")
     _simplified, _check = onnxsim.simplify(_onnx_model)
+    _const_after = sum(1 for n in _simplified.graph.node if n.op_type == 'Constant')
+    _ops_after = _Counter(n.op_type for n in _simplified.graph.node)
+    print(f"ONNX simplified (constant folding OK: {_check}), Constant nodes after: {_const_after}")
+    print(f"ONNX op types after: {dict(_ops_after)}")
+    if _const_after > 0:
+        _const_names = [n.output[0] for n in _simplified.graph.node if n.op_type == 'Constant']
+        print(f"  Remaining Constant outputs: {_const_names[:20]}")
     onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
     onnx.save(_simplified, onnx_path_for_tf)
-    print(f"ONNX simplified (constant folding OK: {_check})")
 
     # Convert ONNX to TF SavedModel using onnx2tf
     saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
@@ -1173,6 +1202,34 @@ def main(config):
     _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
     print(f"Calibration input shape: {_cal_input_shape[0]}")
     del _cal_interp
+
+    # Sanity-check: run 3 training samples through float32 TFLite to verify the
+    # SavedModel conversion is numerically sound before committing to INT8 cal.
+    _sane_interp = tf.lite.Interpreter(model_content=tflite_float_model)
+    _sane_interp.allocate_tensors()
+    _sane_in  = _sane_interp.get_input_details()[0]
+    _sane_out = _sane_interp.get_output_details()[0]
+    _sane_n = 0
+    print("Float32 TFLite sanity check (first 3 training samples):")
+    for _sane_b, (_sane_x, _sane_y) in enumerate(train_loader):
+        if _sane_b >= 1:
+            break
+        for _sane_i in range(min(3, _sane_x.shape[0])):
+            _ss = _sane_x[_sane_i:_sane_i+1].cpu().numpy()
+            _cal_sh = _cal_input_shape[0]
+            if len(_cal_sh) == 4:
+                _ss = np.transpose(_ss, (0, 2, 3, 1))
+            elif len(_cal_sh) == 3:
+                _ss = np.transpose(_ss, (0, 2, 1))
+            else:
+                _ss = _ss.reshape(1, -1)
+            _sane_interp.set_tensor(_sane_in['index'], _ss.astype(np.float32))
+            _sane_interp.invoke()
+            _so = _sane_interp.get_tensor(_sane_out['index'])
+            _true_label = int(_sane_y[_sane_i].cpu().numpy().argmax()) if _sane_y[_sane_i].ndim > 0 and _sane_y[_sane_i].shape[-1] > 1 else int(_sane_y[_sane_i].cpu().numpy().flat[0])
+            print(f"  [{_sane_i}] input range [{_ss.min():.4f}, {_ss.max():.4f}] "
+                  f"→ logits {_so[0]} pred={int(np.argmax(_so[0]))} true={_true_label}")
+    del _sane_interp
 
     # Define test function for TFLite models
     def test_tflite(model_path, loader, dataset_name):
@@ -1248,15 +1305,33 @@ def main(config):
             # Check for tensors with sentinel scales (never calibrated)
             all_tensor_details = interpreter.get_tensor_details()
             bad_tensors = [
-                (d['index'], d['name'][:50], d['quantization_parameters']['scales'])
+                (d['index'], d['name'][:50], d['dtype'], d['quantization_parameters']['scales'])
                 for d in all_tensor_details
                 if len(d['quantization_parameters']['scales']) > 0
                 and float(np.max(np.abs(d['quantization_parameters']['scales']))) > 1e10
             ]
             if bad_tensors:
-                print(f"  WARNING: {len(bad_tensors)} tensors with sentinel scales (uncalibrated):")
-                for idx, name, scales in bad_tensors[:5]:
-                    print(f"    [{idx}] {name}: scale={scales}")
+                print(f"  WARNING: {len(bad_tensors)}/{len(all_tensor_details)} tensors with sentinel/giant scales:")
+                for idx, name, dtype, scales in bad_tensors:
+                    print(f"    [{idx}] {name} ({dtype}): scale={scales}")
+                # Dump op graph with tensor indices so we can see if bad tensors are active
+                print("  Op graph (!= bad tensor with sentinel/giant scale):")
+                _bad_idx_set = {idx for idx, _, _, _ in bad_tensors}
+                _dtype_map = {d['index']: d['dtype'] for d in all_tensor_details}
+                _scale_map = {d['index']: d['quantization_parameters']['scales'] for d in all_tensor_details}
+                def _fmt_t(t):
+                    dt = _dtype_map.get(t, None)
+                    dname = ('f32' if dt == np.float32 else
+                             'i8'  if dt == np.int8   else
+                             'i32' if dt == np.int32  else '?')
+                    sc = _scale_map.get(t, [])
+                    sc_str = f"{float(sc[0]):.3e}" if len(sc) == 1 else f"[{len(sc)}ch]" if len(sc) > 1 else 'noscale'
+                    mark = '!' if t in _bad_idx_set else ''
+                    return f"{mark}t{t}:{dname}(s={sc_str})"
+                for op_idx, op in enumerate(interpreter._get_ops_details()):
+                    ins  = [_fmt_t(i) for i in op['inputs']  if i >= 0]
+                    outs = [_fmt_t(o) for o in op['outputs'] if o >= 0]
+                    print(f"    op{op_idx} {op['op_name']}: [{', '.join(ins)}] -> [{', '.join(outs)}]")
             else:
                 print(f"  All {len(all_tensor_details)} tensors have valid scales (calibration OK)")
         return accuracy
