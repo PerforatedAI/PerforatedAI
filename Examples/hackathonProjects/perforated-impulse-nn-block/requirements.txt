@@ -7,8 +7,9 @@ perforatedai
 perforatedbp
 pandas
 # onnx2tf dependencies (from https://github.com/PINTO0309/onnx2tf)
-tensorflow>=2.19.0
-tf-keras>=2.19.0
+tensorflow==2.19.0
+tf-keras==2.19.0
+protobuf>=6.31.1
 ai-edge-litert>=1.2.0
 psutil>=5.9.5
 ml_dtypes>=0.5.1

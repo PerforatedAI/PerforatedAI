@@ -927,6 +927,9 @@ def main(config):
     epoch = -1
     while True:
         epoch += 1
+        if(epoch > 25):
+            print("early break for debugging")
+            break
         train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = test(model, val_loader, criterion, device)
         if str2bool(args.split_test):
@@ -1013,346 +1016,304 @@ def main(config):
     # Dynamic axes allow variable batch size for validation
     dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
     
-    # Try with dynamo=False first (PyTorch 2.1+), fallback to legacy exporter
-    try:
-        torch.onnx.export(model,
-                          dummy_input,
-                          onnx_path,
-                          export_params=True,
-                          opset_version=10,
-                          do_constant_folding=True,
-                          input_names=['input'],
-                          output_names=['output'],
-                          dynamic_axes=dynamic_axes,
-                          dynamo=False)  # Use legacy exporter
-    except TypeError:
-        # Older PyTorch version, dynamo parameter doesn't exist
-        # Set environment variable to force legacy exporter
-        os.environ['TORCH_ONNX_EXPERIMENTAL_RUNTIME_TYPE_CHECK'] = '0'
-        torch.onnx.export(model,
-                          dummy_input,
-                          onnx_path,
-                          export_params=True,
-                          opset_version=10,
-                          do_constant_folding=True,
-                          input_names=['input'],
-                          output_names=['output'],
-                          dynamic_axes=dynamic_axes)
+    torch.onnx.export(model,
+                      dummy_input,
+                      onnx_path,
+                      export_params=True,
+                      opset_version=10,
+                      do_constant_folding=True,
+                      input_names=['input'],
+                      output_names=['output'],
+                      dynamic_axes=dynamic_axes,
+                      dynamo=False)
     print("Exported ONNX to", onnx_path)
     
-    try:
-        import onnxruntime as ort
-        
-        # Create ONNX Runtime session
-        ort_session = ort.InferenceSession(onnx_path)
-        
-        def test_onnx(loader, dataset_name):
-            correct = 0
-            total = 0
-            
-            # Check if model supports dynamic batch size
-            input_shape = ort_session.get_inputs()[0].shape
-            supports_batch = input_shape[0] == 'batch_size' or input_shape[0] is None or isinstance(input_shape[0], str)
-            
-            for inputs, labels in loader:
-                # Convert to numpy and flatten
-                inputs_np = inputs.cpu().numpy()
-                batch_size = inputs_np.shape[0]
-                inputs_flat = inputs_np.reshape(batch_size, -1)
-                
-                # Handle Edge Impulse label format
-                labels = labels.cpu().numpy()
-                if labels.ndim > 1:
-                    if labels.shape[1] == 4:
-                        labels = labels[:, 0].astype(int)
-                    elif labels.shape[1] > 1:
-                        labels = np.argmax(labels, axis=1)
-                else:
-                    labels = labels.astype(int)
-                
-                if supports_batch:
-                    # Process entire batch at once
-                    ort_inputs = {ort_session.get_inputs()[0].name: inputs_flat}
-                    ort_outputs = ort_session.run(None, ort_inputs)
-                    predictions = ort_outputs[0]
-                    predicted = np.argmax(predictions, axis=1)
-                    correct += (predicted == labels).sum()
-                else:
-                    # Process one sample at a time (batch size = 1)
-                    for i in range(batch_size):
-                        sample = inputs_flat[i:i+1]
-                        ort_inputs = {ort_session.get_inputs()[0].name: sample}
-                        ort_outputs = ort_session.run(None, ort_inputs)
-                        prediction = ort_outputs[0]
-                        predicted = np.argmax(prediction, axis=1)[0]
-                        correct += (predicted == labels[i])
-                
-                total += batch_size
-            
-            accuracy = correct / total
-            print(f"{dataset_name} Accuracy (ONNX): {accuracy:.4f} ({correct}/{total})")
-            return accuracy
-        
-        # Test on validation and test sets
-        val_acc_onnx = test_onnx(val_loader, "Validation")
-        if str2bool(args.split_test):
-            test_acc_onnx = test_onnx(test_loader, "Test")
-        
-    except ImportError:
-        print("⚠ onnxruntime not installed, skipping ONNX validation")
-    except Exception as e:
-        print(f"⚠ Error validating ONNX model: {e}")
-        traceback.print_exc()
+    import onnxruntime as ort
+
+    # Create ONNX Runtime session
+    ort_session = ort.InferenceSession(onnx_path)
     
-    try:
-        import warnings
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-        os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-        os.environ['GLOG_minloglevel'] = '3'
-        import tensorflow as tf
-        warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
-        import subprocess
+    def test_onnx(loader, dataset_name):
+        correct = 0
+        total = 0
         
-        # EI-compatible conversion helpers (mirrors ei_tensorflow.conversion, adapted for SavedModel)
-        def convert_float32(saved_model_dir, dir_path, filename):
-            try:
-                print('Converting TFLite float32 model...', flush=True)
-                converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    tflite_model = converter.convert()
-                with open(os.path.join(dir_path, filename), 'wb') as f:
-                    f.write(tflite_model)
-                print(f"✓ Created float32 TFLite model: {os.path.join(dir_path, filename)}")
-                return tflite_model
-            except Exception as err:
-                print('Unable to convert and save TFLite float32 model:')
-                print(err)
-
-        def convert_int8_io_int8(saved_model_dir, dataset_generator, dir_path, filename):
-            try:
-                print('Converting TFLite int8 quantized model...', flush=True)
-                converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
-                converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
-                converter_quantize.representative_dataset = dataset_generator
-                converter_quantize.target_spec.supported_ops = [
-                    tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
-                    tf.lite.OpsSet.TFLITE_BUILTINS,
-                ]
-                converter_quantize.target_spec.supported_types = [tf.dtypes.int8]
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    tflite_quant_model = converter_quantize.convert()
-                with open(os.path.join(dir_path, filename), 'wb') as f:
-                    f.write(tflite_quant_model)
-                print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
-                return tflite_quant_model
-            except Exception as err:
-                print('Unable to convert and save TFLite int8 quantized model:')
-                print(err)
-
-        # Calibration data generator: handles NCHW→NHWC (Conv2D) and NCL→NLC (Conv1D)
-        # transpositions because onnx2tf produces channel-last SavedModels
-        _cal_input_shape = [None]
-        def representative_dataset():
-            cal_shape = _cal_input_shape[0]
-            for batch_idx, (data, _) in enumerate(train_loader):
-                if batch_idx >= 100:
-                    break
-                data_np = data.cpu().numpy()
-                for i in range(data_np.shape[0]):
-                    sample = data_np[i:i+1]
-                    if cal_shape is not None and len(cal_shape) == 4:
-                        sample = np.transpose(sample, (0, 2, 3, 1))  # NCHW → NHWC
-                    elif cal_shape is not None and len(cal_shape) == 3:
-                        sample = np.transpose(sample, (0, 2, 1))     # NCL → NLC
-                    else:
-                        sample = sample.reshape(1, -1)
-                    yield [sample.astype(np.float32)]
-
-        # Simplify ONNX model first to fold standalone Constant ops into consuming ops.
-        # This prevents onnx2tf from generating arith.constant tensors that TFLite's
-        # INT8 quantizer can't scale, which otherwise causes fully_quantize:0 and
-        # sentinel scales on internal tensors.
-        try:
-            import onnx, onnxsim
-            _onnx_model = onnx.load(onnx_path)
-            _simplified, _check = onnxsim.simplify(_onnx_model)
-            onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
-            onnx.save(_simplified, onnx_path_for_tf)
-            print(f"ONNX simplified (constant folding OK: {_check})")
-        except Exception as _e:
-            print(f"onnxsim simplification failed ({_e}), using original ONNX")
-            onnx_path_for_tf = onnx_path
-
-        # Convert ONNX to TF SavedModel using onnx2tf
-        saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
-        print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
-        result = subprocess.run(
-            [sys.executable, "-m", "onnx2tf", "-i", onnx_path_for_tf, "-o", saved_model_dir, "-osd"],
-            capture_output=True, text=True, timeout=120
-        )
-        if result.returncode != 0:
-            print(f"onnx2tf stderr: {result.stderr}")
-            raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
-        print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
-
-        tflite_float_model = convert_float32(saved_model_dir, args.out_directory, 'model.tflite')
-        tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
-
-        # Populate calibration shape from float32 model (channel-last layout for conv models)
-        _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
-        _cal_interp.allocate_tensors()
-        _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
-        print(f"Calibration input shape: {_cal_input_shape[0]}")
-        del _cal_interp
-
-        # Define test function for TFLite models
-        def test_tflite(model_path, loader, dataset_name):
-            with contextlib.redirect_stderr(io.StringIO()):
-                interpreter = tf.lite.Interpreter(model_path=model_path)
+        # Check if model supports dynamic batch size
+        input_shape = ort_session.get_inputs()[0].shape
+        supports_batch = input_shape[0] == 'batch_size' or input_shape[0] is None or isinstance(input_shape[0], str)
+        
+        for inputs, labels in loader:
+            # Convert to numpy and flatten
+            inputs_np = inputs.cpu().numpy()
+            batch_size = inputs_np.shape[0]
+            inputs_flat = inputs_np.reshape(batch_size, -1)
             
-            try:
-                interpreter.allocate_tensors()
-            except (RuntimeError, Exception) as alloc_error:
-                if 'XNNPACK' in str(alloc_error):
-                    # XNNPACK can't handle this INT8 subgraph (common with Conv2D).
-                    # Retry using built-in CPU kernels only (no default delegates).
-                    with contextlib.redirect_stderr(io.StringIO()):
-                        interpreter = tf.lite.Interpreter(
-                            model_path=model_path,
-                            experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
-                    interpreter.allocate_tensors()
-                else:
-                    print(f"\n✗ TENSOR ALLOCATION FAILED for {model_path}")
-                    print(f"Error: {alloc_error}")
-                    raise
+            # Handle Edge Impulse label format
+            labels = labels.cpu().numpy()
+            if labels.ndim > 1:
+                if labels.shape[1] == 4:
+                    labels = labels[:, 0].astype(int)
+                elif labels.shape[1] > 1:
+                    labels = np.argmax(labels, axis=1)
+            else:
+                labels = labels.astype(int)
             
-            input_details = interpreter.get_input_details()
-            output_details = interpreter.get_output_details()
-            
-            correct = 0
-            total = 0
-            all_preds = []
-            
-            for inputs, labels in loader:
-                inputs_np = inputs.cpu().numpy()  # PyTorch: (B, C, H, W) or (B, features)
-                batch_size = inputs_np.shape[0]
-                
-                # Handle Edge Impulse label format
-                labels = labels.cpu().numpy()
-                if labels.ndim > 1:
-                    if labels.shape[1] == 4:
-                        labels = labels[:, 0].astype(int)
-                    elif labels.shape[1] > 1:
-                        labels = np.argmax(labels, axis=1)
-                else:
-                    labels = labels.astype(int)
-                
-                # Process one sample at a time
+            if supports_batch:
+                # Process entire batch at once
+                ort_inputs = {ort_session.get_inputs()[0].name: inputs_flat}
+                ort_outputs = ort_session.run(None, ort_inputs)
+                predictions = ort_outputs[0]
+                predicted = np.argmax(predictions, axis=1)
+                correct += (predicted == labels).sum()
+            else:
+                # Process one sample at a time (batch size = 1)
                 for i in range(batch_size):
-                    sample = inputs_np[i:i+1]
-                    if len(input_details[0]['shape']) == 4:
-                        # Conv2D: onnx2tf model expects NHWC; PyTorch data is NCHW
-                        sample = np.transpose(sample, (0, 2, 3, 1))
-                    elif len(input_details[0]['shape']) == 3:
-                        # Conv1D: onnx2tf model expects NLC; PyTorch data is NCL
-                        sample = np.transpose(sample, (0, 2, 1))
-                    else:
-                        sample = sample.reshape(1, -1)
-                    sample = sample.astype(np.float32)
-
-                    interpreter.set_tensor(input_details[0]['index'], sample)
-                    interpreter.invoke()
-                    output = interpreter.get_tensor(output_details[0]['index'])
-
-                    predicted = np.argmax(output[0])
-                    all_preds.append(int(predicted))
+                    sample = inputs_flat[i:i+1]
+                    ort_inputs = {ort_session.get_inputs()[0].name: sample}
+                    ort_outputs = ort_session.run(None, ort_inputs)
+                    prediction = ort_outputs[0]
+                    predicted = np.argmax(prediction, axis=1)[0]
                     correct += (predicted == labels[i])
-                    total += 1
             
-            accuracy = correct / total
-            print(f"{dataset_name}: {accuracy:.4f} ({correct}/{total})")
-            if accuracy < 0.5:
-                # Show prediction distribution to distinguish quantization collapse vs random noise
-                import collections
-                pred_counts = collections.Counter(all_preds)
-                print(f"  Prediction distribution (top 5): {pred_counts.most_common(5)}")
-                # Check for tensors with sentinel scales (never calibrated)
-                all_tensor_details = interpreter.get_tensor_details()
-                bad_tensors = [
-                    (d['index'], d['name'][:50], d['quantization_parameters']['scales'])
-                    for d in all_tensor_details
-                    if len(d['quantization_parameters']['scales']) > 0
-                    and float(np.max(np.abs(d['quantization_parameters']['scales']))) > 1e10
-                ]
-                if bad_tensors:
-                    print(f"  WARNING: {len(bad_tensors)} tensors with sentinel scales (uncalibrated):")
-                    for idx, name, scales in bad_tensors[:5]:
-                        print(f"    [{idx}] {name}: scale={scales}")
+            total += batch_size
+        
+        accuracy = correct / total
+        print(f"{dataset_name} Accuracy (ONNX): {accuracy:.4f} ({correct}/{total})")
+        return accuracy
+    
+    # Test on validation and test sets
+    val_acc_onnx = test_onnx(val_loader, "Validation")
+    if str2bool(args.split_test):
+        test_acc_onnx = test_onnx(test_loader, "Test")
+
+    import warnings
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+    os.environ['GLOG_minloglevel'] = '3'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    import tensorflow as tf
+    warnings.filterwarnings('ignore', category=UserWarning, module='tensorflow')
+    import subprocess
+    
+    # EI-compatible conversion helpers (mirrors ei_tensorflow.conversion, adapted for SavedModel)
+    def convert_float32(saved_model_dir, dir_path, filename):
+        print('Converting TFLite float32 model...', flush=True)
+        converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            tflite_model = converter.convert()
+        with open(os.path.join(dir_path, filename), 'wb') as f:
+            f.write(tflite_model)
+        print(f"✓ Created float32 TFLite model: {os.path.join(dir_path, filename)}")
+        return tflite_model
+
+    def convert_int8_io_int8(saved_model_dir, dataset_generator, dir_path, filename):
+        print('Converting TFLite int8 quantized model...', flush=True)
+        converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+        converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
+        converter_quantize.representative_dataset = dataset_generator
+        converter_quantize.target_spec.supported_ops = [
+            tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
+            tf.lite.OpsSet.TFLITE_BUILTINS,
+        ]
+        converter_quantize.target_spec.supported_types = [tf.dtypes.int8]
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            tflite_quant_model = converter_quantize.convert()
+        with open(os.path.join(dir_path, filename), 'wb') as f:
+            f.write(tflite_quant_model)
+        print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
+        return tflite_quant_model
+
+    # Calibration data generator: handles NCHW→NHWC (Conv2D) and NCL→NLC (Conv1D)
+    # transpositions because onnx2tf produces channel-last SavedModels
+    _cal_input_shape = [None]
+    def representative_dataset():
+        cal_shape = _cal_input_shape[0]
+        for batch_idx, (data, _) in enumerate(train_loader):
+            if batch_idx >= 100:
+                break
+            data_np = data.cpu().numpy()
+            for i in range(data_np.shape[0]):
+                sample = data_np[i:i+1]
+                if cal_shape is not None and len(cal_shape) == 4:
+                    sample = np.transpose(sample, (0, 2, 3, 1))  # NCHW → NHWC
+                elif cal_shape is not None and len(cal_shape) == 3:
+                    sample = np.transpose(sample, (0, 2, 1))     # NCL → NLC
                 else:
-                    print(f"  All {len(all_tensor_details)} tensors have valid scales (calibration OK)")
-            return accuracy
-        
-        # Test on full X_split_test dataset
-        X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
-        Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
-        X_test_full = torch.FloatTensor(X_test_full)
-        Y_test_full = torch.FloatTensor(Y_test_full)
-        full_test_dataset = TensorDataset(X_test_full, Y_test_full)
-        full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
-        
-        full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
+                    sample = sample.reshape(1, -1)
+                yield [sample.astype(np.float32)]
 
-        full_test_acc_int8 = None
-        tflite_int8_model = convert_int8_io_int8(saved_model_dir, representative_dataset,
-                                                  args.out_directory, 'model_quantized_int8_io.tflite')
-        if tflite_int8_model is not None:
-            tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
-            full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
-        
-        # Print improvement percentages then final comparison
-        if str2bool(args.dendritic_optimization):
-            print('Reduction in misclassifications because of dendrites')
-            if first_val_acc >= 1.0:
-                print(f'Validation: N/A (already perfect accuracy)')
-            else:
-                val_reduction = 100.0 * ((max_val_acc - first_val_acc) / (1 - first_val_acc))
-                print(f'Validation: {val_reduction:.2f}%')
-            if first_test_acc >= 1.0:
-                print(f'Test: N/A (already perfect accuracy)')
-            else:
-                test_reduction = 100.0 * ((max_test_acc - first_test_acc) / (1 - first_test_acc))
-                print(f'Test: {test_reduction:.2f}%')
+    # Simplify ONNX model first to fold standalone Constant ops into consuming ops.
+    # This prevents onnx2tf from generating arith.constant tensors that TFLite's
+    # INT8 quantizer can't scale, which otherwise causes fully_quantize:0 and
+    # sentinel scales on internal tensors.
+    import onnx, onnxsim
+    _onnx_model = onnx.load(onnx_path)
+    _simplified, _check = onnxsim.simplify(_onnx_model)
+    onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
+    onnx.save(_simplified, onnx_path_for_tf)
+    print(f"ONNX simplified (constant folding OK: {_check})")
 
-        print("\n" + "="*60)
-        print("FINAL COMPARISON")
-        print("="*60)
-        if str2bool(args.dendritic_optimization):
-            if str2bool(args.split_test):
-                print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}, Test: {first_test_acc:.4f}")
+    # Convert ONNX to TF SavedModel using onnx2tf
+    saved_model_dir = os.path.join(args.out_directory, 'saved_model_temp')
+    print(f"Converting ONNX to TensorFlow SavedModel using onnx2tf...")
+    result = subprocess.run(
+        [sys.executable, "-m", "onnx2tf", "-i", onnx_path_for_tf, "-o", saved_model_dir, "-osd"],
+        capture_output=True, text=True, timeout=120
+    )
+    if result.returncode != 0:
+        print(f"onnx2tf stderr: {result.stderr}")
+        raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
+    print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
+
+    tflite_float_model = convert_float32(saved_model_dir, args.out_directory, 'model.tflite')
+    tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
+
+    # Populate calibration shape from float32 model (channel-last layout for conv models)
+    _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
+    _cal_interp.allocate_tensors()
+    _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
+    print(f"Calibration input shape: {_cal_input_shape[0]}")
+    del _cal_interp
+
+    # Define test function for TFLite models
+    def test_tflite(model_path, loader, dataset_name):
+        with contextlib.redirect_stderr(io.StringIO()):
+            interpreter = tf.lite.Interpreter(model_path=model_path)
+        
+        try:
+            interpreter.allocate_tensors()
+        except (RuntimeError, Exception) as alloc_error:
+            if 'XNNPACK' in str(alloc_error):
+                # XNNPACK can't handle this INT8 subgraph (common with Conv2D).
+                # Retry using built-in CPU kernels only (no default delegates).
+                with contextlib.redirect_stderr(io.StringIO()):
+                    interpreter = tf.lite.Interpreter(
+                        model_path=model_path,
+                        experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+                interpreter.allocate_tensors()
             else:
-                print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}")
+                print(f"\n✗ TENSOR ALLOCATION FAILED for {model_path}")
+                print(f"Error: {alloc_error}")
+                raise
+        
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+        
+        correct = 0
+        total = 0
+        all_preds = []
+        
+        for inputs, labels in loader:
+            inputs_np = inputs.cpu().numpy()  # PyTorch: (B, C, H, W) or (B, features)
+            batch_size = inputs_np.shape[0]
+            
+            # Handle Edge Impulse label format
+            labels = labels.cpu().numpy()
+            if labels.ndim > 1:
+                if labels.shape[1] == 4:
+                    labels = labels[:, 0].astype(int)
+                elif labels.shape[1] > 1:
+                    labels = np.argmax(labels, axis=1)
+            else:
+                labels = labels.astype(int)
+            
+            # Process one sample at a time
+            for i in range(batch_size):
+                sample = inputs_np[i:i+1]
+                if len(input_details[0]['shape']) == 4:
+                    # Conv2D: onnx2tf model expects NHWC; PyTorch data is NCHW
+                    sample = np.transpose(sample, (0, 2, 3, 1))
+                elif len(input_details[0]['shape']) == 3:
+                    # Conv1D: onnx2tf model expects NLC; PyTorch data is NCL
+                    sample = np.transpose(sample, (0, 2, 1))
+                else:
+                    sample = sample.reshape(1, -1)
+                sample = sample.astype(np.float32)
+
+                interpreter.set_tensor(input_details[0]['index'], sample)
+                interpreter.invoke()
+                output = interpreter.get_tensor(output_details[0]['index'])
+
+                predicted = np.argmax(output[0])
+                all_preds.append(int(predicted))
+                correct += (predicted == labels[i])
+                total += 1
+        
+        accuracy = correct / total
+        print(f"{dataset_name}: {accuracy:.4f} ({correct}/{total})")
+        if accuracy < 0.5:
+            # Show prediction distribution to distinguish quantization collapse vs random noise
+            import collections
+            pred_counts = collections.Counter(all_preds)
+            print(f"  Prediction distribution (top 5): {pred_counts.most_common(5)}")
+            # Check for tensors with sentinel scales (never calibrated)
+            all_tensor_details = interpreter.get_tensor_details()
+            bad_tensors = [
+                (d['index'], d['name'][:50], d['quantization_parameters']['scales'])
+                for d in all_tensor_details
+                if len(d['quantization_parameters']['scales']) > 0
+                and float(np.max(np.abs(d['quantization_parameters']['scales']))) > 1e10
+            ]
+            if bad_tensors:
+                print(f"  WARNING: {len(bad_tensors)} tensors with sentinel scales (uncalibrated):")
+                for idx, name, scales in bad_tensors[:5]:
+                    print(f"    [{idx}] {name}: scale={scales}")
+            else:
+                print(f"  All {len(all_tensor_details)} tensors have valid scales (calibration OK)")
+        return accuracy
+    
+    # Test on full X_split_test dataset
+    X_test_full = np.load(os.path.join(args.data_directory, 'X_split_test.npy'), mmap_mode='r')
+    Y_test_full = np.load(os.path.join(args.data_directory, 'Y_split_test.npy'))
+    X_test_full = torch.FloatTensor(X_test_full)
+    Y_test_full = torch.FloatTensor(Y_test_full)
+    full_test_dataset = TensorDataset(X_test_full, Y_test_full)
+    full_test_loader = DataLoader(full_test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
+    
+    full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
+
+    full_test_acc_int8 = None
+    tflite_int8_model = convert_int8_io_int8(saved_model_dir, representative_dataset,
+                                              args.out_directory, 'model_quantized_int8_io.tflite')
+    if tflite_int8_model is not None:
+        tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
+        full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
+    
+    # Print improvement percentages then final comparison
+    if str2bool(args.dendritic_optimization):
+        print('Reduction in misclassifications because of dendrites')
+        if first_val_acc >= 1.0:
+            print(f'Validation: N/A (already perfect accuracy)')
+        else:
+            val_reduction = 100.0 * ((max_val_acc - first_val_acc) / (1 - first_val_acc))
+            print(f'Validation: {val_reduction:.2f}%')
+        if first_test_acc >= 1.0:
+            print(f'Test: N/A (already perfect accuracy)')
+        else:
+            test_reduction = 100.0 * ((max_test_acc - first_test_acc) / (1 - first_test_acc))
+            print(f'Test: {test_reduction:.2f}%')
+
+    print("\n" + "="*60)
+    print("FINAL COMPARISON")
+    print("="*60)
+    if str2bool(args.dendritic_optimization):
         if str2bool(args.split_test):
-            print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
-            print(f"ONNX                   - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+            print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}, Test: {first_test_acc:.4f}")
         else:
-            print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}")
-            print(f"ONNX                   - Val: {val_acc_onnx:.4f}")
-        print(f"TFLite Float32          - Full: {full_test_acc_float:.4f}")
-        if full_test_acc_int8 is not None:
-            print(f"TFLite INT8             - Full: {full_test_acc_int8:.4f}")
-        else:
-            print(f"TFLite INT8             - Full: FAILED (see error above)")
+            print(f"PyTorch (pre-dendrite)  - Val: {first_val_acc:.4f}")
+    if str2bool(args.split_test):
+        print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}, Test: {max_test_acc:.4f}")
+        print(f"ONNX                   - Val: {val_acc_onnx:.4f}, Test: {test_acc_onnx:.4f}")
+    else:
+        print(f"PyTorch (post-dendrite) - Val: {max_val_acc:.4f}")
+        print(f"ONNX                   - Val: {val_acc_onnx:.4f}")
+    print(f"TFLite Float32          - Full: {full_test_acc_float:.4f}")
+    if full_test_acc_int8 is not None:
+        print(f"TFLite INT8             - Full: {full_test_acc_int8:.4f}")
+    else:
+        print(f"TFLite INT8             - Full: FAILED (see error above)")
 
-        print("="*60 + "\n")
-        
-    except ImportError as ie:
-        print(f"⚠ Missing dependencies for TFLite conversion: {ie}")
-    except Exception as e:
-        print(f"⚠ Error during TFLite conversion: {e}")
-        traceback.print_exc()
+    print("="*60 + "\n")
 
 
 if __name__ == "__main__":
-    import multiprocessing
-    multiprocessing.set_start_method('spawn', force=True)
     main(args)
