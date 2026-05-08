@@ -476,8 +476,15 @@ class AdaptiveClassifier(nn.Module):
                     self.layers.append(nn.ReLU())
                     in_channels = channels
                 
-                # Single pooling at the end - ceil_mode=True matches Keras padding='same'
-                self.layers.append(nn.MaxPool1d(2, ceil_mode=True))
+                # Single pooling at the end.
+                # Pad to even length first (matches Keras padding='same') so the
+                # exported ONNX contains a plain Pad+MaxPool instead of
+                # MaxPool(ceil_mode=1), which onnx2tf wraps in a PartitionedCall
+                # that the TFLite PTQ calibrator cannot trace.
+                _pad_len = current_length % 2
+                if _pad_len:
+                    self.layers.append(nn.ConstantPad1d((0, _pad_len), 0))
+                self.layers.append(nn.MaxPool1d(2))
                 current_length = (current_length + 1) // 2
                 
                 current_shape = (channels, current_length)
@@ -502,8 +509,16 @@ class AdaptiveClassifier(nn.Module):
                     self.layers.append(nn.ReLU())
                     in_channels = channels
                 
-                # Single pooling at the end - ceil_mode=True matches Keras padding='same'
-                self.layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
+                # Single pooling at the end.
+                # Pad to even dimensions first (matches Keras padding='same') so
+                # the exported ONNX contains a plain Pad+MaxPool instead of
+                # MaxPool(ceil_mode=1), which onnx2tf wraps in a PartitionedCall
+                # that the TFLite PTQ calibrator cannot trace.
+                _pad_h = current_rows % 2
+                _pad_w = current_cols % 2
+                if _pad_h or _pad_w:
+                    self.layers.append(nn.ZeroPad2d((0, _pad_w, 0, _pad_h)))  # (left, right, top, bottom)
+                self.layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
                 current_rows = (current_rows + 1) // 2
                 current_cols = (current_cols + 1) // 2
                 
@@ -823,7 +838,8 @@ def main(config):
     GPA.pc.set_verbose(False)
     GPA.pc.set_silent(True)
 
-    #model = UPA.perforate_model(model)
+    model = UPA.perforate_model(model)
+    model = UPA.load_system(model, "PAI", "latest")
     print(model)
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
    
@@ -835,11 +851,11 @@ def main(config):
                 layer.set_this_output_dimensions([-1, 0, -1])
     print(f"Total parameters (after PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     
-    #GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-    #GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+    GPA.pai_tracker.set_optimizer(torch.optim.Adam)
+    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}  # eps=1e-7 matches Keras legacy Adam default (PyTorch default is 1e-8)
     schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
-    #optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
 
     optimizer = torch.optim.Adam(**optimArgs)
 
@@ -943,7 +959,7 @@ def main(config):
     epoch = -1
     while True:
         epoch += 1
-        if(epoch > 25):
+        if(epoch > 1):
             print("early break for debugging")
             break
         train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
@@ -957,7 +973,6 @@ def main(config):
             max_test_acc = test_acc
         first_val_acc = val_acc
         first_test_acc = test_acc
-        """
         GPA.pai_tracker.add_extra_score(train_acc, 'Train')
         if str2bool(args.split_test):
             GPA.pai_tracker.add_extra_score(test_acc, 'Test')
@@ -975,7 +990,6 @@ def main(config):
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
         current_lr = optimizer.param_groups[0]['lr']
         print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | LR: {current_lr:.2e} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
-        """
         
     if str2bool(args.split_test):
         test_loss, test_acc = test(model, test_loader, criterion, device)
@@ -1250,75 +1264,6 @@ def main(config):
     if _const_after > 0:
         _const_names = [n.output[0] for n in _simplified.graph.node if n.op_type == 'Constant']
         print(f"  Remaining Constant outputs: {_const_names[:20]}")
-
-    # Replace MaxPool(ceil_mode=1) with Pad + MaxPool(ceil_mode=0).
-    # onnx2tf converts MaxPool(ceil_mode=1) using tf.compat.v1.pad which creates
-    # a PartitionedCall in the TF graph. The TFLite PTQ calibrator cannot trace
-    # inside PartitionedCall, so all downstream activation tensors get sentinel
-    # scales and the INT8 model outputs garbage. Using an explicit ONNX Pad node
-    # instead lets onnx2tf emit tf.pad (flat graph, fully calibratable).
-    _simplified = onnx.shape_inference.infer_shapes(_simplified)
-    _shape_map = {vi.name: [d.dim_value for d in vi.type.tensor_type.shape.dim]
-                  for vi in list(_simplified.graph.value_info) + list(_simplified.graph.input)}
-    _new_nodes = []
-    _new_inits = list(_simplified.graph.initializer)
-    _pad_counter = [0]
-    for _node in _simplified.graph.node:
-        if _node.op_type != 'MaxPool':
-            _new_nodes.append(_node)
-            continue
-        _ceil = next((a.i for a in _node.attribute if a.name == 'ceil_mode'), 0)
-        if not _ceil:
-            _new_nodes.append(_node)
-            continue
-        # Determine spatial dims of the input tensor
-        _inp_shape = _shape_map.get(_node.input[0], [])
-        _strides = next((list(a.ints) for a in _node.attribute if a.name == 'strides'), [1, 1])
-        _n_spatial = len(_strides)
-        if len(_inp_shape) < 2 + _n_spatial:
-            print(f"  WARNING: could not determine shape for MaxPool ceil_mode fix, leaving as-is")
-            _new_nodes.append(_node)
-            continue
-        _spatial = _inp_shape[2:2 + _n_spatial]   # H, W (skip batch and channel)
-        # Compute right/bottom padding needed so floor_division matches ceil_division
-        _pad_right = [(s - (dim % s)) % s for dim, s in zip(_spatial, _strides)]
-        if all(p == 0 for p in _pad_right):
-            # No actual padding needed (all dims divisible), just clear the ceil_mode flag
-            _new_attrs = [a for a in _node.attribute if a.name != 'ceil_mode']
-            _new_attrs.append(onnx.helper.make_attribute('ceil_mode', 0))
-            _fixed = onnx.helper.make_node('MaxPool', inputs=_node.input, outputs=_node.output)
-            _fixed.attribute.extend(_new_attrs)
-            _new_nodes.append(_fixed)
-            continue
-        # Build NCHW pads: [n_beg, c_beg, h_beg, w_beg, n_end, c_end, h_end, w_end]
-        _pads = [0] * (2 + _n_spatial) + [0] + [0] + _pad_right
-        _pad_out_name = f'_ceil_pad_{_pad_counter[0]}_out'
-        _pad_counter[0] += 1
-        # Pad node API changed in opset 11: pads is a tensor input in opset>=11,
-        # but an attribute in opset<=10.
-        _onnx_opset = next((op.version for op in _simplified.opset_import if op.domain == ''), 1)
-        if _onnx_opset >= 11:
-            _pads_name = f'_ceil_pad_{_pad_counter[0] - 1}_pads'
-            _pads_init = onnx.numpy_helper.from_array(np.array(_pads, dtype=np.int64), name=_pads_name)
-            _new_inits.append(_pads_init)
-            _pad_node = onnx.helper.make_node('Pad', inputs=[_node.input[0], _pads_name], outputs=[_pad_out_name], mode='constant')
-        else:
-            _pad_node = onnx.helper.make_node('Pad', inputs=[_node.input[0]], outputs=[_pad_out_name], mode='constant', pads=_pads)
-        _new_nodes.append(_pad_node)
-        # Rebuild MaxPool without ceil_mode, using the padded input
-        _new_attrs = [a for a in _node.attribute if a.name not in ('ceil_mode', 'pads')]
-        _new_attrs.append(onnx.helper.make_attribute('ceil_mode', 0))
-        _new_attrs.append(onnx.helper.make_attribute('pads', [0] * (_n_spatial * 2)))
-        _fixed = onnx.helper.make_node('MaxPool', inputs=[_pad_out_name], outputs=_node.output)
-        _fixed.attribute.extend(_new_attrs)
-        _new_nodes.append(_fixed)
-        print(f"  Replaced MaxPool(ceil_mode=1) input={_node.input[0]} pads={_pads}")
-    _new_graph = onnx.helper.make_graph(_new_nodes, _simplified.graph.name,
-        _simplified.graph.input, _simplified.graph.output, _new_inits)
-    _simplified = onnx.helper.make_model(_new_graph, opset_imports=_simplified.opset_import)
-    _simplified.ir_version = _simplified.ir_version
-    onnx.checker.check_model(_simplified)
-    print(f"  MaxPool ceil_mode patching done ({_pad_counter[0]} node(s) replaced)")
 
     onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
     onnx.save(_simplified, onnx_path_for_tf)
