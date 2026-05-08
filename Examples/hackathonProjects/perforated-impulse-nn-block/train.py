@@ -386,6 +386,7 @@ class AdaptiveClassifier(nn.Module):
         self.mask_freq_bands = mask_freq_bands
         self.warp_time = warp_time
         self.softmax_on = False  # When True, output probabilities; when False, output logits
+        self._debug_forward = False  # Set to True to print per-layer stats for one sample
         self.layer_configs = layer_configs or []
         
         # Build layers dynamically from configuration
@@ -686,6 +687,10 @@ class AdaptiveClassifier(nn.Module):
                             x[b] = warped_x
         
         # Pass through all configured layers
+        if self._debug_forward:
+            with torch.no_grad():
+                _dbg = x[0:1].detach().float()
+                print(f"[FWD] input  shape={tuple(_dbg.shape)} min={_dbg.min().item():.4f} max={_dbg.max().item():.4f} mean={_dbg.mean().item():.4f}")
         for i, layer in enumerate(self.layers):
             # Check actual layer type (may be wrapped by PAIModule)
             actual_layer = layer.main_module if hasattr(layer, 'main_module') else layer
@@ -736,9 +741,18 @@ class AdaptiveClassifier(nn.Module):
                 x = layer(x)
             else:
                 x = layer(x)
+            if self._debug_forward:
+                with torch.no_grad():
+                    _dbg = x[0:1].detach().float()
+                    _lname = type(actual_layer).__name__
+                    print(f"[FWD] layer[{i}] {_lname:20s} shape={tuple(_dbg.shape)} min={_dbg.min().item():.4f} max={_dbg.max().item():.4f} mean={_dbg.mean().item():.4f} unique={_dbg.unique().numel()}")
         
         # Apply softmax only in export mode to output probabilities for Edge Impulse
         # During training, output raw logits for CrossEntropyLoss compatibility
+        if self._debug_forward:
+            with torch.no_grad():
+                _dbg = x[0:1].detach().float()
+                print(f"[FWD] output shape={tuple(_dbg.shape)} min={_dbg.min().item():.4f} max={_dbg.max().item():.4f} mean={_dbg.mean().item():.4f}")
         if self.softmax_on:
             x = torch.nn.functional.softmax(x, dim=1)
         
@@ -809,7 +823,7 @@ def main(config):
     GPA.pc.set_verbose(False)
     GPA.pc.set_silent(True)
 
-    model = UPA.perforate_model(model)
+    #model = UPA.perforate_model(model)
     print(model)
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
    
@@ -821,11 +835,13 @@ def main(config):
                 layer.set_this_output_dimensions([-1, 0, -1])
     print(f"Total parameters (after PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
     
-    GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+    #GPA.pai_tracker.set_optimizer(torch.optim.Adam)
+    #GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}  # eps=1e-7 matches Keras legacy Adam default (PyTorch default is 1e-8)
     schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
-    optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    #optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+
+    optimizer = torch.optim.Adam(**optimArgs)
 
     # Compute class weights if auto_weight_classes is enabled
     class_weights = None
@@ -939,7 +955,9 @@ def main(config):
         if(val_acc > max_val_acc):
             max_val_acc = val_acc
             max_test_acc = test_acc
-
+        first_val_acc = val_acc
+        first_test_acc = test_acc
+        """
         GPA.pai_tracker.add_extra_score(train_acc, 'Train')
         if str2bool(args.split_test):
             GPA.pai_tracker.add_extra_score(test_acc, 'Test')
@@ -955,21 +973,22 @@ def main(config):
             optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}
             schedArgs = {'mode':'max', 'patience': int(GPA.pc.get_n_epochs_to_switch()*0.75)}
             optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
-
         current_lr = optimizer.param_groups[0]['lr']
         print(f'Epoch {epoch+1} Train Loss: {train_loss:.4f}, Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f}, Acc: {val_acc:.4f} | LR: {current_lr:.2e} | Dendrite Count: {GPA.pai_tracker.member_vars.get("num_dendrites_added", "N/A")}')
-
+        """
+        
     if str2bool(args.split_test):
         test_loss, test_acc = test(model, test_loader, criterion, device)
     else:
         test_acc = val_acc  # Use validation as test when not split
 
+    """
     if str2bool(args.dendritic_optimization):
         print(f'First architecture: Val Acc: {first_val_acc:.4f}, Test Acc: {first_test_acc:.4f}, params: {first_param_count}')
         print(f'Best architecture: Val Acc: {max_val_acc:.4f}, Test Acc: {max_test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
     else:
         print(f'Final architecture: Val Acc: {val_acc:.4f}, Test Acc: {test_acc:.4f}, params: {UPA.count_params(model)} Dendrite Count: {GPA.pai_tracker.member_vars["num_dendrites_added"]}')
-
+    """
     model = model.cpu()
     model.eval()
     
@@ -1015,7 +1034,22 @@ def main(config):
     # Use legacy ONNX exporter to avoid torch.export issues with dynamic shapes
     # Dynamic axes allow variable batch size for validation
     dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
-    
+
+    # Unwrap PAI module wrappers before ONNX export.
+    # PAIModulePyThread passes weights as Placeholder inputs to a PartitionedCall
+    # function in the TF graph, which causes TFLite's PTQ calibrator to skip those
+    # activation tensors (it can only calibrate activations whose op inputs are
+    # baked-in Const nodes, not variable Placeholders). Replacing each wrapper with
+    # its inner module makes the weights appear as ONNX initializers → TF Const nodes
+    # → fully calibrated INT8. We restore the wrappers immediately after export.
+    _pai_unwrap_map = {}  # index → original wrapper
+    for _i, _layer in enumerate(model.layers):
+        if hasattr(_layer, 'layer_array') and len(_layer.layer_array) > 0:
+            _pai_unwrap_map[_i] = _layer
+            model.layers[_i] = _layer.layer_array[0]
+    if _pai_unwrap_map:
+        print(f"  Unwrapped {len(_pai_unwrap_map)} PAI module(s) for ONNX export")
+
     torch.onnx.export(model,
                       dummy_input,
                       onnx_path,
@@ -1026,6 +1060,11 @@ def main(config):
                       output_names=['output'],
                       dynamic_axes=dynamic_axes,
                       dynamo=False)
+
+    # Restore PAI wrappers
+    for _i, _orig in _pai_unwrap_map.items():
+        model.layers[_i] = _orig
+
     print("Exported ONNX to", onnx_path)
     
     import onnxruntime as ort
@@ -1112,31 +1151,64 @@ def main(config):
 
     def convert_int8_io_int8(saved_model_dir, dataset_generator, dir_path, filename):
         print('Converting TFLite int8 quantized model...', flush=True)
-        # from_concrete_functions (not from_saved_model) is required to get fully_quantize=1
-        # so the MLIR quantizer records calibration stats for every internal tensor.
-        # This matches what both onnx2tf -oiqt and the EI library do internally.
-        _loaded = tf.saved_model.load(saved_model_dir)
-        _concrete_func = _loaded.signatures['serving_default']
-        converter_quantize = tf.lite.TFLiteConverter.from_concrete_functions([_concrete_func])
+
+        # Per https://ai.google.dev/edge/litert/performance/post_training_quantization
+        # "Integer with float fallback (using default float input/output)":
+        #   converter = TFLiteConverter.from_saved_model(saved_model_dir)
+        #   converter.optimizations = [Optimize.DEFAULT]
+        #   converter.representative_dataset = representative_dataset
+        #   tflite_quant_model = converter.convert()
+        # No target_spec, no SELECT_TF_OPS, no inference_input/output_type, no from_concrete_functions.
+        converter_quantize = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
         converter_quantize.optimizations = [tf.lite.Optimize.DEFAULT]
         converter_quantize.representative_dataset = dataset_generator
-        converter_quantize.target_spec.supported_ops = [
-            tf.lite.OpsSet.TFLITE_BUILTINS_INT8,
-            tf.lite.OpsSet.SELECT_TF_OPS,
-        ]
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            tflite_quant_model = converter_quantize.convert()
+        # NOTE: stdout/stderr NOT suppressed — we need to see fully_quantize: and any warnings
+        tflite_quant_model = converter_quantize.convert()
         print(f"  Calibration samples fed: {_cal_call_count[0]}" if _cal_call_count[0] > 0
               else "  WARNING: representative_dataset was never called (calibration skipped)")
         if _cal_call_count[0] > 0:
             print(f"  First cal sample: shape={_cal_first_shape[0]}, range=[{_cal_first_min[0]:.4f}, {_cal_first_max[0]:.4f}]")
+
+        # Dump ALL tensor quantization params from the resulting model
+        _diag_interp = tf.lite.Interpreter(model_content=tflite_quant_model)
+        try:
+            _diag_interp.allocate_tensors()
+        except (RuntimeError, Exception) as _xnn_e:
+            if 'XNNPACK' in str(_xnn_e):
+                _diag_interp = tf.lite.Interpreter(
+                    model_content=tflite_quant_model,
+                    experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+                _diag_interp.allocate_tensors()
+            else:
+                raise
+        _all_td = _diag_interp.get_tensor_details()
+        _all_ops = _diag_interp._get_ops_details()
+        print(f"  INT8 model: {len(_all_td)} tensors, {len(_all_ops)} ops")
+        print("  All tensor quant params:")
+        for _td in _all_td:
+            _sc = _td['quantization_parameters']['scales']
+            _zp = _td['quantization_parameters']['zero_points']
+            if len(_sc) == 0:
+                _sc_str = 'none'
+            elif len(_sc) == 1:
+                _sc_str = f"{float(_sc[0]):.4e}"
+            else:
+                _sc_str = f"[{len(_sc)}ch min={float(_sc.min()):.3e} max={float(_sc.max()):.3e}]"
+            _zp_str = (f"{int(_zp[0])}" if len(_zp) == 1
+                       else f"[{len(_zp)}ch]" if len(_zp) > 1 else 'none')
+            _flag = ' *** SENTINEL ***' if len(_sc) > 0 and float(np.max(np.abs(_sc))) > 1e10 else ''
+            print(f"    [{_td['index']:2d}] {_td['name'][:45]:<45} "
+                  f"{str(_td['dtype']):<25} scale={_sc_str:<35} zp={_zp_str}{_flag}")
+        del _diag_interp
+
         with open(os.path.join(dir_path, filename), 'wb') as f:
             f.write(tflite_quant_model)
         print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
         return tflite_quant_model
 
     # Calibration data generator: handles NCHW→NHWC (Conv2D) and NCL→NLC (Conv1D)
-    # transpositions because onnx2tf produces channel-last SavedModels
+    # transpositions because onnx2tf produces channel-last SavedModels.
+    # Yields a plain list per the official litert post_training_quantization docs.
     _cal_input_shape = [None]
     def representative_dataset():
         cal_shape = _cal_input_shape[0]
@@ -1178,6 +1250,76 @@ def main(config):
     if _const_after > 0:
         _const_names = [n.output[0] for n in _simplified.graph.node if n.op_type == 'Constant']
         print(f"  Remaining Constant outputs: {_const_names[:20]}")
+
+    # Replace MaxPool(ceil_mode=1) with Pad + MaxPool(ceil_mode=0).
+    # onnx2tf converts MaxPool(ceil_mode=1) using tf.compat.v1.pad which creates
+    # a PartitionedCall in the TF graph. The TFLite PTQ calibrator cannot trace
+    # inside PartitionedCall, so all downstream activation tensors get sentinel
+    # scales and the INT8 model outputs garbage. Using an explicit ONNX Pad node
+    # instead lets onnx2tf emit tf.pad (flat graph, fully calibratable).
+    _simplified = onnx.shape_inference.infer_shapes(_simplified)
+    _shape_map = {vi.name: [d.dim_value for d in vi.type.tensor_type.shape.dim]
+                  for vi in list(_simplified.graph.value_info) + list(_simplified.graph.input)}
+    _new_nodes = []
+    _new_inits = list(_simplified.graph.initializer)
+    _pad_counter = [0]
+    for _node in _simplified.graph.node:
+        if _node.op_type != 'MaxPool':
+            _new_nodes.append(_node)
+            continue
+        _ceil = next((a.i for a in _node.attribute if a.name == 'ceil_mode'), 0)
+        if not _ceil:
+            _new_nodes.append(_node)
+            continue
+        # Determine spatial dims of the input tensor
+        _inp_shape = _shape_map.get(_node.input[0], [])
+        _strides = next((list(a.ints) for a in _node.attribute if a.name == 'strides'), [1, 1])
+        _n_spatial = len(_strides)
+        if len(_inp_shape) < 2 + _n_spatial:
+            print(f"  WARNING: could not determine shape for MaxPool ceil_mode fix, leaving as-is")
+            _new_nodes.append(_node)
+            continue
+        _spatial = _inp_shape[2:2 + _n_spatial]   # H, W (skip batch and channel)
+        # Compute right/bottom padding needed so floor_division matches ceil_division
+        _pad_right = [(s - (dim % s)) % s for dim, s in zip(_spatial, _strides)]
+        if all(p == 0 for p in _pad_right):
+            # No actual padding needed (all dims divisible), just clear the ceil_mode flag
+            _new_attrs = [a for a in _node.attribute if a.name != 'ceil_mode']
+            _new_attrs.append(onnx.helper.make_attribute('ceil_mode', 0))
+            _fixed = onnx.helper.make_node('MaxPool', inputs=_node.input, outputs=_node.output)
+            _fixed.attribute.extend(_new_attrs)
+            _new_nodes.append(_fixed)
+            continue
+        # Build NCHW pads: [n_beg, c_beg, h_beg, w_beg, n_end, c_end, h_end, w_end]
+        _pads = [0] * (2 + _n_spatial) + [0] + [0] + _pad_right
+        _pad_out_name = f'_ceil_pad_{_pad_counter[0]}_out'
+        _pad_counter[0] += 1
+        # Pad node API changed in opset 11: pads is a tensor input in opset>=11,
+        # but an attribute in opset<=10.
+        _onnx_opset = next((op.version for op in _simplified.opset_import if op.domain == ''), 1)
+        if _onnx_opset >= 11:
+            _pads_name = f'_ceil_pad_{_pad_counter[0] - 1}_pads'
+            _pads_init = onnx.numpy_helper.from_array(np.array(_pads, dtype=np.int64), name=_pads_name)
+            _new_inits.append(_pads_init)
+            _pad_node = onnx.helper.make_node('Pad', inputs=[_node.input[0], _pads_name], outputs=[_pad_out_name], mode='constant')
+        else:
+            _pad_node = onnx.helper.make_node('Pad', inputs=[_node.input[0]], outputs=[_pad_out_name], mode='constant', pads=_pads)
+        _new_nodes.append(_pad_node)
+        # Rebuild MaxPool without ceil_mode, using the padded input
+        _new_attrs = [a for a in _node.attribute if a.name not in ('ceil_mode', 'pads')]
+        _new_attrs.append(onnx.helper.make_attribute('ceil_mode', 0))
+        _new_attrs.append(onnx.helper.make_attribute('pads', [0] * (_n_spatial * 2)))
+        _fixed = onnx.helper.make_node('MaxPool', inputs=[_pad_out_name], outputs=_node.output)
+        _fixed.attribute.extend(_new_attrs)
+        _new_nodes.append(_fixed)
+        print(f"  Replaced MaxPool(ceil_mode=1) input={_node.input[0]} pads={_pads}")
+    _new_graph = onnx.helper.make_graph(_new_nodes, _simplified.graph.name,
+        _simplified.graph.input, _simplified.graph.output, _new_inits)
+    _simplified = onnx.helper.make_model(_new_graph, opset_imports=_simplified.opset_import)
+    _simplified.ir_version = _simplified.ir_version
+    onnx.checker.check_model(_simplified)
+    print(f"  MaxPool ceil_mode patching done ({_pad_counter[0]} node(s) replaced)")
+
     onnx_path_for_tf = os.path.join(args.out_directory, 'model_simplified.onnx')
     onnx.save(_simplified, onnx_path_for_tf)
 
@@ -1196,7 +1338,7 @@ def main(config):
     tflite_float_model = convert_float32(saved_model_dir, args.out_directory, 'model.tflite')
     tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
 
-    # Populate calibration shape from float32 model (channel-last layout for conv models)
+    # Populate calibration shape AND input key from float32 model
     _cal_interp = tf.lite.Interpreter(model_content=tflite_float_model)
     _cal_interp.allocate_tensors()
     _cal_input_shape[0] = _cal_interp.get_input_details()[0]['shape']
@@ -1332,7 +1474,54 @@ def main(config):
                     ins  = [_fmt_t(i) for i in op['inputs']  if i >= 0]
                     outs = [_fmt_t(o) for o in op['outputs'] if o >= 0]
                     print(f"    op{op_idx} {op['op_name']}: [{', '.join(ins)}] -> [{', '.join(outs)}]")
-            else:
+
+            # Run one sample through the model and dump every intermediate tensor value.
+            # Uses experimental_preserve_all_tensors so internal buffers aren't freed.
+            print("  --- Intermediate tensor value dump (sample 0) ---")
+            try:
+                _dbg_interp = tf.lite.Interpreter(
+                    model_path=model_path,
+                    experimental_preserve_all_tensors=True)
+                try:
+                    _dbg_interp.allocate_tensors()
+                except (RuntimeError, Exception) as _dae:
+                    if 'XNNPACK' in str(_dae):
+                        _dbg_interp = tf.lite.Interpreter(
+                            model_path=model_path,
+                            experimental_preserve_all_tensors=True,
+                            experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+                        _dbg_interp.allocate_tensors()
+                    else:
+                        raise
+                _dbg_in = _dbg_interp.get_input_details()[0]
+                for _dbg_inputs, _dbg_labels in loader:
+                    _dbg_sample = _dbg_inputs[0:1].cpu().numpy()
+                    if len(_dbg_in['shape']) == 4:
+                        _dbg_sample = np.transpose(_dbg_sample, (0, 2, 3, 1))
+                    elif len(_dbg_in['shape']) == 3:
+                        _dbg_sample = np.transpose(_dbg_sample, (0, 2, 1))
+                    else:
+                        _dbg_sample = _dbg_sample.reshape(1, -1)
+                    _dbg_interp.set_tensor(_dbg_in['index'], _dbg_sample.astype(np.float32))
+                    _dbg_interp.invoke()
+                    _dbg_td = _dbg_interp.get_tensor_details()
+                    print(f"  All {len(_dbg_td)} tensors after invoke:")
+                    for _t in _dbg_td:
+                        _val = _dbg_interp.get_tensor(_t['index'])
+                        _unique = len(np.unique(_val))
+                        _vmin = float(_val.min())
+                        _vmax = float(_val.max())
+                        _vmean = float(_val.mean())
+                        _flag2 = ' <-- ALL SAME' if _unique == 1 else (' <-- ALL ZERO' if _vmax == 0 and _vmin == 0 else '')
+                        print(f"    [{_t['index']:2d}] {_t['name'][:42]:<42} shape={str(_val.shape):<18} "
+                              f"dtype={str(_t['dtype']):<10} "
+                              f"min={_vmin:+.4e} max={_vmax:+.4e} mean={_vmean:+.4e} "
+                              f"unique={_unique}{_flag2}")
+                    break
+                del _dbg_interp
+            except Exception as _dbg_e:
+                print(f"  Intermediate tensor dump failed: {_dbg_e}")
+            if not bad_tensors:
                 print(f"  All {len(all_tensor_details)} tensors have valid scales (calibration OK)")
         return accuracy
     
@@ -1347,10 +1536,22 @@ def main(config):
     full_test_acc_float = test_tflite(tflite_float_path, full_test_loader, "Float32 TFLite")
 
     full_test_acc_int8 = None
+    _cal_call_count[0] = 0  # reset counter before INT8 conversion
     tflite_int8_model = convert_int8_io_int8(saved_model_dir, representative_dataset,
                                               args.out_directory, 'model_quantized_int8_io.tflite')
     if tflite_int8_model is not None:
         tflite_int8_path = os.path.join(args.out_directory, 'model_quantized_int8_io.tflite')
+        # Print PyTorch ground-truth intermediate values for the first test sample
+        print("\n" + "="*60)
+        print("PYTORCH FORWARD PASS (ground truth, first test sample)")
+        print("="*60)
+        _debug_sample = X_test_full[0:1].to(next(model.parameters()).device)
+        model.eval()
+        model._debug_forward = True
+        with torch.no_grad():
+            model(_debug_sample)
+        model._debug_forward = False
+        print("="*60 + "\n")
         full_test_acc_int8 = test_tflite(tflite_int8_path, full_test_loader, "INT8 TFLite")
     
     # Print improvement percentages then final comparison
