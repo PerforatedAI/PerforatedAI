@@ -1117,6 +1117,7 @@ def main(config):
             tflite_model = converter.convert()
         with open(os.path.join(dir_path, filename), 'wb') as f:
             f.write(tflite_model)
+        print(f"✓ Created float32 TFLite model: {os.path.join(dir_path, filename)}")
         return tflite_model
 
     _cal_call_count = [0]
@@ -1139,6 +1140,7 @@ def main(config):
 
         with open(os.path.join(dir_path, filename), 'wb') as f:
             f.write(tflite_quant_model)
+        print(f"✓ Created int8 quantized model: {os.path.join(dir_path, filename)}")
         return tflite_quant_model
 
     # Calibration data generator: handles NCHW→NHWC (Conv2D) and NCL→NLC (Conv1D)
@@ -1182,6 +1184,7 @@ def main(config):
     if result.returncode != 0:
         print(f"onnx2tf stderr: {result.stderr}")
         raise Exception(f"onnx2tf conversion failed with return code {result.returncode}")
+    print(f"Converted ONNX to TF SavedModel at {saved_model_dir}")
 
     tflite_float_model = convert_float32(saved_model_dir, args.out_directory, 'model.tflite')
     tflite_float_path = os.path.join(args.out_directory, 'model.tflite')
@@ -1278,7 +1281,7 @@ def main(config):
     
     # Print improvement percentages then final comparison
     if str2bool(args.dendritic_optimization):
-        print('Reduction in misclassifications because of dendrites')
+        print('\n\nReduction in misclassifications because of dendrites')
         if first_val_acc >= 1.0:
             print(f'Validation: N/A (already perfect accuracy)')
         else:
