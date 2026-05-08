@@ -839,7 +839,6 @@ def main(config):
     GPA.pc.set_silent(True)
 
     model = UPA.perforate_model(model)
-    model = UPA.load_system(model, "PAI", "latest")
     print(model)
     print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
    
@@ -959,9 +958,6 @@ def main(config):
     epoch = -1
     while True:
         epoch += 1
-        if(epoch > 1):
-            print("early break for debugging")
-            break
         train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = test(model, val_loader, criterion, device)
         if str2bool(args.split_test):
@@ -971,8 +967,6 @@ def main(config):
         if(val_acc > max_val_acc):
             max_val_acc = val_acc
             max_test_acc = test_acc
-        first_val_acc = val_acc
-        first_test_acc = test_acc
         GPA.pai_tracker.add_extra_score(train_acc, 'Train')
         if str2bool(args.split_test):
             GPA.pai_tracker.add_extra_score(test_acc, 'Test')
@@ -1049,21 +1043,10 @@ def main(config):
     # Dynamic axes allow variable batch size for validation
     dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
 
-    # Unwrap PAI module wrappers before ONNX export.
-    # PAIModulePyThread passes weights as Placeholder inputs to a PartitionedCall
-    # function in the TF graph, which causes TFLite's PTQ calibrator to skip those
-    # activation tensors (it can only calibrate activations whose op inputs are
-    # baked-in Const nodes, not variable Placeholders). Replacing each wrapper with
-    # its inner module makes the weights appear as ONNX initializers → TF Const nodes
-    # → fully calibrated INT8. We restore the wrappers immediately after export.
-    _pai_unwrap_map = {}  # index → original wrapper
-    for _i, _layer in enumerate(model.layers):
-        if hasattr(_layer, 'layer_array') and len(_layer.layer_array) > 0:
-            _pai_unwrap_map[_i] = _layer
-            model.layers[_i] = _layer.layer_array[0]
-    if _pai_unwrap_map:
-        print(f"  Unwrapped {len(_pai_unwrap_map)} PAI module(s) for ONNX export")
-
+    # Export the full model including PAI dendritic modules.
+    # PAI's forward pass is purely standard ops (Conv, Mul, Add), so
+    # torch.onnx.export traces it cleanly into ONNX initializers without
+    # producing any PartitionedCall in the TF graph.
     torch.onnx.export(model,
                       dummy_input,
                       onnx_path,
@@ -1074,10 +1057,6 @@ def main(config):
                       output_names=['output'],
                       dynamic_axes=dynamic_axes,
                       dynamo=False)
-
-    # Restore PAI wrappers
-    for _i, _orig in _pai_unwrap_map.items():
-        model.layers[_i] = _orig
 
     print("Exported ONNX to", onnx_path)
     
