@@ -3,7 +3,7 @@
     "type": "machine-learning",
     "info": {
         "name": "Perforated Classification",
-        "description": "A drop-in replacement for the Classification block with Dendritic Optimization — a biologically-inspired technique that improves learning capacity with fewer parameters. Use it to hit higher accuracy at the same model size, or maintain accuracy with a smaller model.",
+        "description": "A drop-in replacement for the Classification block with Dendritic Optimization, a biologically-inspired technique that improves learning capacity with fewer parameters. Use it to hit higher accuracy at the same model size, or maintain accuracy with a smaller model.",
         "operatesOn": "other",
         "indRequiresGpu": false,
         "repositoryUrl": "https://github.com/PerforatedAI/PerforatedAI/tree/main/Examples/hackathonProjects/example-custom-ml-block-pytorch"
