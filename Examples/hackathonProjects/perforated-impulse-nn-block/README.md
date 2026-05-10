@@ -8,11 +8,13 @@ This repository implements a neural network block for Edge Impulse which leverag
  - At the bottom center of the window that loads is the terminal to run commands
  - In the teriminal run the following to install the edge-ipulse-cli, login to your account, and upload the block.
 
+```
     git checkout nn_customize 
     npm install -g edge-impulse-cli --silent
     cd Examples/hackathonProjects/perforated-impulse-nn-block/
     edge-impulse-blocks init
     edge-impulse-blocks push
+```
 
 Now that your block is uploaded you can do the following:
  - Open your project with a classifier block
@@ -22,20 +24,20 @@ Now that your block is uploaded you can do the following:
  - Click "Save Impulse"
  - Open your classificaiton block and the new perforated block in two tabs
  - Recreate your exact settings in the new perforated block
- - - This usually means to check learning rate and back size as well as network definition
- - - For network definition select each layer type and type with text the settings for the layer
- - - - These are comma-separated values and the text will show up in order to replace with numbers
- - - If a layer that is in your classifier block does not exist in the perforated block it is done automatically
- - - The final fully connected layer also is done automatically, no need to edit the text in the "settings" window for that block.
+ -- This usually means to check learning rate and back size as well as network definition
+ -- For network definition select each layer type and type with text the settings for the layer
+ --- These are comma-separated values and the text will show up in order to replace with numbers
+ -- If a layer that is in your classifier block does not exist in the perforated block it is done automatically
+ -- The final fully connected layer also is done automatically, no need to edit the text in the "settings" window for that block.
  - Click "Save & train" to run the new block!
  - Check your results
- - - In the window it will show the scores before and after dendrites were added
- - - Check if performance improved
- - - Check if this performance actually beat your original nn performance
+ -- In the window it will show the scores before and after dendrites were added
+ -- Check if performance improved
+ -- Check if this performance actually beat your original nn performance
  - Try other hyperparameter settings
- - - Often a smaller model with dendrites will outperform a larger nn classifier
+ -- Often a smaller model with dendrites will outperform a larger nn classifier
  - Please let us know how it goes for you!
- 
+
 ## What is Dendritic Optimization?
 
 The original artificial neuron was proposed in 1943, drawing on neuroscience research dating back to the 1860s. Since then, backpropagation was introduced, and there have been significant advances in hardware, optimizers, data curation, and architectures, while the core building block has remained fundamentally the same. Interestingly, for 70 of the last 80 years, neuroscience continued to support this original design. However, modern neuroscience now understands that the perceptron misses a critical piece of biological intelligence: the decision-making performed by a neuron's dendrites. Dendritic optimization leverages these ideas to augment artificial neurons with dendrite nodes, enabling ML practitioners to achieve smarter, smaller, and cheaper models on the same datasets. Experiments frequently show 10-20% reduced error rates after dendritic optimization as well as the ability to compress models by up to 90% without loss in accuracy.  By enabling users to develop smaller models with equal accuracy this also enables AI to be built with 90% reduced carbon footprint without impact on end users.  For further details about this research, a selection of papers can be found [here](https://github.com/PerforatedAI/PerforatedAI/tree/main/Papers).
