@@ -24,18 +24,18 @@ Now that your block is uploaded you can do the following:
  - Click "Save Impulse"
  - Open your classificaiton block and the new perforated block in two tabs
  - Recreate your exact settings in the new perforated block
- -- This usually means to check learning rate and back size as well as network definition
- -- For network definition select each layer type and type with text the settings for the layer
- --- These are comma-separated values and the text will show up in order to replace with numbers
- -- If a layer that is in your classifier block does not exist in the perforated block it is done automatically
- -- The final fully connected layer also is done automatically, no need to edit the text in the "settings" window for that block.
+  - This usually means to check learning rate and back size as well as network definition
+  - For network definition select each layer type and type with text the settings for the layer
+   - These are comma-separated values and the text will show up in order to replace with numbers
+  - If a layer that is in your classifier block does not exist in the perforated block it is done automatically
+  - The final fully connected layer also is done automatically, no need to edit the text in the "settings" window for that block.
  - Click "Save & train" to run the new block!
  - Check your results
- -- In the window it will show the scores before and after dendrites were added
- -- Check if performance improved
- -- Check if this performance actually beat your original nn performance
+  - In the window it will show the scores before and after dendrites were added
+  - Check if performance improved
+  - Check if this performance actually beat your original nn performance
  - Try other hyperparameter settings
- -- Often a smaller model with dendrites will outperform a larger nn classifier
+  - Often a smaller model with dendrites will outperform a larger nn classifier
  - Please let us know how it goes for you!
 
 ## What is Dendritic Optimization?
