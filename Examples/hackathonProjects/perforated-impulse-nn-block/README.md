@@ -2,6 +2,10 @@
 
 This repository implements a neural network block for Edge Impulse which leverages dendritic optimization. To see details on how to compile and push this block to Edge Impulse, follow the instructions from the [original repository](https://github.com/edgeimpulse/example-custom-ml-block-pytorch/tree/master). This block was created for the 2025 Edge Impulse Hackathon. A submission video describing the project is available [here](https://drive.google.com/file/d/1vUdMBLijVm4c0Sq_RrBlrPgo-rGQZHWZ/view?usp=sharing).
 
+# FOR EASY INSTALL CLICK HERE
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json)
+
 ## What is Dendritic Optimization?
 
 The original artificial neuron was proposed in 1943, drawing on neuroscience research dating back to the 1860s. Since then, backpropagation was introduced, and there have been significant advances in hardware, optimizers, data curation, and architectures, while the core building block has remained fundamentally the same. Interestingly, for 70 of the last 80 years, neuroscience continued to support this original design. However, modern neuroscience now understands that the perceptron misses a critical piece of biological intelligence: the decision-making performed by a neuron's dendrites. Dendritic optimization leverages these ideas to augment artificial neurons with dendrite nodes, enabling ML practitioners to achieve smarter, smaller, and cheaper models on the same datasets. Experiments frequently show 10-20% reduced error rates after dendritic optimization as well as the ability to compress models by up to 90% without loss in accuracy.  By enabling users to develop smaller models with equal accuracy this also enables AI to be built with 90% reduced carbon footprint without impact on end users.  For further details about this research, a selection of papers can be found [here](https://github.com/PerforatedAI/PerforatedAI/tree/main/Papers).
