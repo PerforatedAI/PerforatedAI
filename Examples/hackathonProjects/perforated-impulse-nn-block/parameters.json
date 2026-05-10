@@ -112,6 +112,17 @@
             "param": "switch-speed"
         },
         {
+            "name": "Maximum number of Dendrites",
+            "value": "1",
+            "type": "int",
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "max-dendrites"
+        },
+        {
             "name": "Improvement Threshold",
             "value": "medium",
             "type": "select",
@@ -204,17 +215,6 @@
                 "value": "true"
             },
             "param": "perforated-ai-token"
-        },
-        {
-            "name": "Maximum number of Dendrites",
-            "value": "1",
-            "type": "int",
-            "showIf": {
-                "parameter": "improved-dendritic-optimization",
-                "operator": "eq",
-                "value": "true"
-            },
-            "param": "max-dendrites"
         },
         {
             "name": "Split test set",

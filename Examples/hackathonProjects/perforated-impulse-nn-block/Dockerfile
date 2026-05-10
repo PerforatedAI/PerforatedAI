@@ -22,5 +22,6 @@ RUN pip3 install -r requirements.txt
 # Copy application files last (changes frequently)
 COPY train.py ./
 COPY parameters.json ./
+COPY parameters.json /parameters.json
 
 ENTRYPOINT ["python3", "-u", "train.py"]
