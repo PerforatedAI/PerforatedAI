@@ -826,7 +826,8 @@ def main(config):
 
     model = UPA.perforate_model(model)
     print(model)
-    print(f"Total parameters (before PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
+    initial_params = UPA.count_params(model)
+    print(f"Total parameters (before PAI): {initial_params}")
    
     # Set output dimensions for Conv1d layers if they are being optimized with dendrites
     for layer in model.layers:
@@ -834,8 +835,13 @@ def main(config):
             # Check if it's a PAIModule (PerforatedAI wrapped layer) by type name
             if type(layer).__name__ == 'PAINeuronModule' and isinstance(layer.main_module, nn.Conv1d):
                 layer.set_this_output_dimensions([-1, 0, -1])
-    print(f"Total parameters (after PAI): {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
-    
+    initial_pai_params = UPA.count_pai_params(model)
+    print(f"Total PAI parameters (after PAI): {initial_pai_params}")
+
+    classes = np.unique(y_train[:, 0])
+    print("Block class order:", classes)
+
+
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
     optimArgs = {'params':model.parameters(), 'lr':args.learning_rate, 'betas':(0.9, 0.999), 'eps':1e-7}  # eps=1e-7 matches Keras legacy Adam default (PyTorch default is 1e-8)

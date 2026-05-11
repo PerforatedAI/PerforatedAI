@@ -1,6 +1,6 @@
 # Dendritic NN Block for Edge Impulse
 
-This repository implements a neural network block for Edge Impulse which leverages dendritic optimization. For easy install click the button below to open in codespaces then follow the listed instructions
+This repository implements a neural network block for Edge Impulse which leverages dendritic optimization. For easy install click the button below to open in codespaces then follow the listed instructions.  If this is your first time using Edge Impulse and you do not already have a classificaiton project you want to optimize, use the more detailed walkthrough [here](FULL_TUTORIAL).
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json)
 
