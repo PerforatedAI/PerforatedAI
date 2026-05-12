@@ -27,6 +27,7 @@ p.write_text(json.dumps(c, indent=2))
 
 Alternatively open ~/.cursor/mcp.json and add the following content. If the file is not empty, add the perforated section inside the existing "mcpServers" object.  With this method you must also restart Cursor after saving.
 
+```json
 {
   "mcpServers": {
     "perforated": {
@@ -37,19 +38,23 @@ Alternatively open ~/.cursor/mcp.json and add the following content. If the file
     }
   }
 }
+```
 
 ## Claude Code
 
 Open a terminal and run this command.
 
+```sh
 claude mcp add perforated https://mcp.perforatedai.app/sse \
   --transport http --scope user \
   --header "Authorization: Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
+```
 
 ## Claude Desktop
 
 Copy and paste this into your terminal then restart Claude Desktop.
 
+```sh
 python3 -c "
 import json, pathlib
 p = pathlib.Path.home() / 'Library/Application Support/Claude/claude_desktop_config.json'
@@ -58,11 +63,13 @@ c.setdefault('mcpServers', {})['perforated'] = {'url': 'https://mcp.perforatedai
 p.write_text(json.dumps(c, indent=2))
 print('Done! Restart Claude Desktop to activate.')
 "
+```
 
 ## VS Code
 
 Type Ctrl+Shift+P (Windows/Linux) or Cmd+Shift+P (Mac), then search for "MCP: Open User Configuration". This opens your global MCP config. Paste this in, save, and restart your coding agent.  If the "servers" field already exists, add perforated rather than making a new one.
 
+```json
 {
   "servers": {
     "perforated": {
@@ -74,11 +81,13 @@ Type Ctrl+Shift+P (Windows/Linux) or Cmd+Shift+P (Mac), then search for "MCP: Op
     }
   }
 }
+```
 
 ## Windsurf
 
 Copy and paste this into your terminal then restart Windsurf. To edit later, use Ctrl+Shift+P (Windows/Linux) or Cmd+Shift+P (Mac) then "Windsurf: Configure MCP Servers".
 
+```sh
 python3 -c "
 import json, pathlib, os
 p = pathlib.Path.home() / '.codeium' / 'windsurf' / 'mcp_config.json'
@@ -88,22 +97,27 @@ c.setdefault('mcpServers', {})['perforated'] = {'serverUrl': 'https://mcp.perfor
 p.write_text(json.dumps(c, indent=2))
 print('Done! Restart Windsurf to activate.')
 "
+```
 
 ## Codex
 
 Run these commands in your terminal. The first sets your API key as an environment variable, and the second registers the Perforated server with Codex. Add the export line to your shell profile (~/.zshrc or ~/.bashrc) so it persists.
 
+```sh
 export PERFORATED_TOKEN="test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
 
 codex mcp add perforated \
   --url https://mcp.perforatedai.app/sse \
   --bearer-token-env-var PERFORATED_TOKEN
+```
 
 ## Not Listed?
 
 If your agent is not listed then ask it how to add an MCP server and tell it you need the following settings
 
+```text
 MCP Server https://mcp.perforatedai.app/sse: https://mcp.perforatedai.app/sse
 API Key:        test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w==
 
 Authorization:  Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w==
+```
