@@ -4,7 +4,7 @@ This page include more options to install the MCP.  If you use a system not on t
 
 ## Testing
 
-Regardless of which method you use, once you have completed the install type into terminal: `I'd like to perforate my model.  Call the Perforated tool to confirm installation`.
+Regardless of which method you use, once you have completed the install type into terminal: `I'd like to perforate my model.  Call the Perforated tool to confirm installation and then perform perforation.`.
 
 ## Choosing Your Login
 
