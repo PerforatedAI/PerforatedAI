@@ -23,7 +23,7 @@
 
 Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.
 
-## �� Key Results
+## 📊 Key Results
 
 - **Up to 70% accuracy improvements** on challenging tasks
 - **Up to 90% compression** without sacrificing accuracy
@@ -31,7 +31,7 @@ Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to y
 
 > These results come from the full **Perforated Backpropagation™** system, available in the [full Perforated AI Suite](#need-more-consider-the-full-perforated-ai-suite). [Case studies][case-studies] and our [published paper][arxiv] include full benchmark methodology.
 
-## �� Quick Start
+## 🚀 Quick Start
 
 **Requirements:** Python 3.7+ · PyTorch 1.9+
 
@@ -76,7 +76,7 @@ while True:
 
 Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server][https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md] for AI coding assistants to get instant guidance.
 
-## �� Examples
+## 💡 Examples
 
 PAI works with many popular architectures and frameworks:
 
@@ -92,7 +92,7 @@ PAI works with many popular architectures and frameworks:
 - **[PyTorch Lightning][lightning-example]** - Using PAI with popular training frameworks
 - **[Hugging Face][hf-example]** - Transformer models with dendritic layers
 
-## �� How It Works
+## 🧠 How It Works
 
 Traditional artificial neurons are **point neurons** - they simply sum weighted inputs and apply an activation function. Real biological neurons have **dendrites** - branching structures that perform sophisticated computations before signals reach the cell body.
 
@@ -112,7 +112,7 @@ This approach delivers:
 
 See our [Papers](./Papers) directory for detailed comparisons with other dendritic learning methods.
 
-## �� Documentation
+## 📚 Documentation
 
 | Resource | Description |
 |---|---|
@@ -121,7 +121,7 @@ See our [Papers](./Papers) directory for detailed comparisons with other dendrit
 | [Output Guide][output-guide] | Understanding training visualizations |
 | [Papers][papers] | Research comparisons and published work |
 
-## �� Need more? Consider the full Perforated AI Suite
+## 💎 Need more? Consider the full Perforated AI Suite
 
 This repository is the open-source version of Perforated AI under Apache 2.0 - the dendritic architecture, trained with standard backpropagation. Free to use, fully self-serve.
 
@@ -131,7 +131,7 @@ For larger performance gains and a smoother setup experience, we also offer a co
 
 [Get in touch][get-started] to learn more about the commercial version.
 
-## �� Contributing
+## 🤝 Contributing
 
 We welcome all contributions from the community!
 
@@ -150,12 +150,12 @@ We welcome all contributions from the community!
 - Use Black Python formatting
 - Include comments within code to describe processes
 
-## �� Community
+## 💬 Community
 
-- �� [Discord][discord] - Get help and share results
-- �� [Newsletter][newsletter] - Stay updated on dendritic AI research
-- �� [LinkedIn][linkedin] - Follow our latest developments
-- �� [Hugging Face][huggingface] - Try our pretrained models on your datasets
+- 💬 [Discord][discord] - Get help and share results
+- 📧 [Newsletter][newsletter] - Stay updated on dendritic AI research
+- 🤝 [LinkedIn][linkedin] - Follow our latest developments
+- 🤗 [Hugging Face][huggingface] - Try our pretrained models on your datasets
 
 ## Citation
 
