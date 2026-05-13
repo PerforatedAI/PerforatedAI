@@ -74,7 +74,7 @@ while True:
         GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
-Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server][https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md] for AI coding assistants to get instant guidance.
+Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server](https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md) for AI coding assistants to get instant guidance.
 
 ## 💡 Examples
 
