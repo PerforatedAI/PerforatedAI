@@ -8,7 +8,7 @@ Regardless of which method you use, once you have completed the install type int
 
 ## Choosing Your Login
 
-To use our MCP server you will need to have a Perforated Token.  For each of the instructions below replace PAI_TOKEN with your actual token and PAI_EMAIL with your email account you used to sign up for that token.
+To use our MCP server you will need to have a Perforated Token.  For each of the instructions below replace PAI_TOKEN with your actual token and PAI_EMAIL with your email account you used to sign up for that token.  While we are testing the server, just copy paste directly with the teset_user account.
 
 ## Cursor
 
