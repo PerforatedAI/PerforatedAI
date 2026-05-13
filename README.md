@@ -1,123 +1,98 @@
-# The Artificial Dendrite Library for PyTorch
+<div align="center">
 
-<p align="center">
-  <img src="logo.png" width="400" alt="Perforated AI" />
-</p>
+<img src="logo.png" width="400" alt="Perforated AI" />
 
-**Quick Start:** The [API folder](API) contains detailed instructions for integrating PerforatedAI into your projects, including how to use our Claude skill with AI coding assistants for instant expert guidance.
+### Better accuracy, smaller models, less data - enabled by perforated learning
 
-Additional details can be found in the [API](API) and [examples](Examples) folders.  If you like this project please star the repo to support the tech getting into the official PyTorch [ecosystem](https://landscape.pytorch.org/) and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in ADNs and Dendritic AI.
-<p align="center">
+
+<p>
 <a href="https://pypi.python.org/pypi/perforatedai"><img src="https://img.shields.io/pypi/v/perforatedai" /></a>
-<img src="https://img.shields.io/badge/python-3.7%2B-blue?logo=python" />
 <a href="https://pypi.python.org/pypi/perforatedai"><img src="https://img.shields.io/pypi/dm/perforatedai" /></a>
 <a href="https://github.com/PerforatedAI/PerforatedAI"><img src="https://img.shields.io/github/stars/PerforatedAI/PerforatedAI" /></a>
+<img src="https://img.shields.io/badge/python-3.7%2B-blue?logo=python" />
 <img src="https://img.shields.io/badge/code%20style-black-000000.svg" />
 <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" />
 <a href="https://github.com/PerforatedAI/PerforatedAI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/PerforatedAI/PerforatedAI" /></a>
-
 </p>
 
+</div>
 
-**Quick Start:** The [API folder](API) contains detailed instructions for integrating PerforatedAI into your projects, including how to use our Claude skill with AI coding assistants for instant expert guidance.
+---
 
-Additional details can be found in the [API](API) and [examples](Examples) folders.  If you like this project please star the repo to support the tech getting into the official PyTorch [ecosystem](https://landscape.pytorch.org/) and join our [discord](https://discord.gg/Fgw3FG3Hzt) to stay in the loop on the newest updates in ADNs and Dendritic AI.
+## Introduction
 
-Add biologically-inspired dendritic optimization to your PyTorch neural networks with just a few lines of code. Perforated AI (PAI) automatically enhances model accuracy in a highly parameter-efficient manner by perforating the architecture with dendrites.
+Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.
 
-<br>
+## �� Key Results
 
-**Key Innovation:** Unlike traditional neural networks that use simple point neurons, PAI adds dendritic branches that enable neurons to learn complex input patterns. Depending on your use case, PAI can deliver:
-- **Up to 40% accuracy improvements** on challenging tasks
+- **Up to 70% accuracy improvements** on challenging tasks
 - **Up to 90% compression** without sacrificing accuracy
 - **50% reduction in data requirements** for similar accuracy scores
 
-All with **automatic network conversion** and minimal code changes.
+> These results come from the full **Perforated Backpropagation™** system, available in the [full Perforated AI Suite](#need-more-consider-the-full-perforated-ai-suite). [Case studies][case-studies] and our [published paper][arxiv] include full benchmark methodology.
 
-&nbsp;
+## �� Quick Start
 
-# Documentation
-
-See the [API Documentation](./API/README.md) for detailed integration instructions, the [Customization Guide](./API/customization.md) for advanced configuration options, and [Output Guide](./API/output.md) for understanding training visualizations.
-
-For research on dendritic methods in deep learning, see our [Papers](./Papers) collection which includes comparisons of different approaches and our published work.
-
-&nbsp;
-
-# Quickstart
-
-Add dendritic learning to your PyTorch models in minutes.
-
-## Install the perforatedai library
+**Requirements:** Python 3.7+ · PyTorch 1.9+
 
 ```bash
-pip install -e .
+pip install perforatedai
 ```
 
-## Add dendrites to your neural network
-
-In your training script, import PAI utilities and wrap your model initialization:
+Integrate PAI into your training script with these five steps:
 
 ```python
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 import torch
 
-# Initialize your model
 model = YourModel()
 
-# Automatically add dendritic capabilities
+# 1. Wrap your model after initialization
 model = UPA.perforate_model(model)
 
-# Setup optimizer
+# 2. Register your optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 GPA.pai_tracker.set_optimizer_instance(optimizer)
 
-# Train your model until dendrite optimization completes
+# 3. Run until dendritic optimization completes (replace your training loop with while True)
 while True:
     train(model, optimizer)
     val_score = validate(model)
-    
-    # Report validation score and handle model restructuring
+
+    # 4. Report validation score and handle model restructuring
     model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_score, model)
-    model = model.to(device)  # Re-send to device after potential restructuring
-    
+    model = model.to(device)  # re-send to device if PAI restructured the model
+
+    # 5. React to PAI's outcome - exit when done, or reset optimizer after restructuring
     if training_complete:
-        # Training is complete - best model has been loaded
+        # Best model has been saved - training is done!
         break
     elif restructured:
-        # Model was restructured with new dendrites - reinitialize optimizer
+        # Model was restructured with new dendrites - reinitialize optimizer (and scheduler) using your initial setup
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
-PAI automatically:
-- Perforates model with dendrites for selected modules
-- Identifies when to add dendrites based on validation scores
-- Adjusts learning rates for optimal dendritic optimization
-- Generates visualization graphs showing accuracy improvements
+Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server][https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md] for AI coding assistants to get instant guidance.
 
-&nbsp;
+## �� Examples
 
-# Examples
+PAI works with many popular architectures and frameworks:
 
-PAI works with many popular architectures and frameworks. Check out our [Examples](./Examples) folder for complete implementations:
+### Base Examples
+- **[MNIST][mnist-example]** - Classic computer vision with dendritic enhancement
+- **[TD3 Reinforcement Learning][td3-example]** - Continuous control with dendrites
 
-## Base Examples
-- **[MNIST](./Examples/baseExamples/mnist)** - Classic computer vision with dendritic enhancement
-- **[TD3 Reinforcement Learning](https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah)** - TD3 with dendrites for continuous control
+### Advanced Examples
+- **[ImageNet ResNet-18][imagenet-example]** - ResNet-18 with dendritic optimization ([pretrained model on Hugging Face][huggingface-model])
+- **[Edge Impulse Block][edge-impulse-example]** - Keyword spotting in audio; across 800 hyperparameter sweeps, dendritic models were consistently more accurate at every parameter count
 
-## Advanced Examples
-- **[ImageNet ResNet-18](./Examples/imagenet)** - ResNet-18 with dendritic optimization ([Pretrained Model on Hugging Face](https://huggingface.co/perforated-ai/resnet-18-perforated))
-- **[Edge Impulse Block]([./Examples/hackathonProjects/example-custom-ml-block-pytorch)** - across 800 hyperparameter sweeps dendritic models consistently smarter with any given parameter count on keyword spotting in audio for edge deployment 
+### Framework Integration
+- **[PyTorch Lightning][lightning-example]** - Using PAI with popular training frameworks
+- **[Hugging Face][hf-example]** - Transformer models with dendritic layers
 
-## Framework Integration
-- **[PyTorch Lightning](./Examples/libraryExamples/pytorch_lightning)** - Using PAI with popular training frameworks
-- **[Hugging Face](./Examples/libraryExamples/huggingface)** - Transformer models with dendritic layers
-
-&nbsp;
-
-# How It Works
+## �� How It Works
 
 Traditional artificial neurons are **point neurons** - they simply sum weighted inputs and apply an activation function. Real biological neurons have **dendrites** - branching structures that perform sophisticated computations before signals reach the cell body.
 
@@ -137,55 +112,52 @@ This approach delivers:
 
 See our [Papers](./Papers) directory for detailed comparisons with other dendritic learning methods.
 
-&nbsp;
+## �� Documentation
 
-# Results
+| Resource | Description |
+|---|---|
+| [API Documentation][api-docs] | Detailed integration instructions |
+| [Customization Guide][customization-guide] | Advanced configuration options |
+| [Output Guide][output-guide] | Understanding training visualizations |
+| [Papers][papers] | Research comparisons and published work |
 
-Explore detailed performance benchmarks and real-world applications:
+## �� Need more? Consider the full Perforated AI Suite
 
-- **[Case Studies](https://www.perforatedai.com/case-studies)** - In-depth analysis of PAI across various domains and architectures
-- **[January 2026 Hackathon Results](https://www.perforatedai.com/hackathon-results)** - Community-driven experiments and innovations with dendritic optimization
+This repository is the open-source version of Perforated AI under Apache 2.0 - the dendritic architecture, trained with standard backpropagation. Free to use, fully self-serve.
 
-&nbsp;
+For larger performance gains and a smoother setup experience, we also offer a commercial version that adds:
+- **Perforated Backpropagation™** - our patented training algorithm (replaces standard backprop) that produces our headline accuracy, compression, and data-efficiency results
+- **Perforated Studio** - a GUI for configuring runs and inspecting results, so you can get up and running without hand-rolling the integration in code
 
-# Python Version Support
+[Get in touch][get-started] to learn more about the commercial version.
 
-We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python versions for at least six months after their official end-of-life (EOL) date.
+## �� Contributing
 
-&nbsp;
-
-# Contribution Guidelines
-
-This library is open source! We welcome contributions from the community. 
+We welcome all contributions from the community!
 
 **Adding Examples:**
-- Follow the [MNIST example](./Examples/baseExamples/mnist) template
+- Follow the [MNIST example][mnist-example] template
 - Include before/after results with visualizations
 - Provide complete running instructions
-- Provide baseline code without out library as NAME.py and perforated code with NAME_perforatedai.py as the script name
+- Provide baseline code as `NAME.py` and perforated code as `NAME_perforated.py`
 
 **Reporting Issues:**
-- Visit [GitHub Issues](https://github.com/PerforatedAI/PerforatedAI/issues)
-- Contact support@perforatedai.com
+- [GitHub Issues][github-issues]
+- support@perforatedai.com
 
 **Modifying Code:**
-- Provide detailed description of what the change does and the benefits it will provide
-- Use Black python formatting
+- Describe what the change does and the benefit it provides
+- Use Black Python formatting
 - Include comments within code to describe processes
 
-&nbsp;
+## �� Community
 
-# Community
+- �� [Discord][discord] - Get help and share results
+- �� [Newsletter][newsletter] - Stay updated on dendritic AI research
+- �� [LinkedIn][linkedin] - Follow our latest developments
+- �� [Hugging Face][huggingface] - Try our pretrained models on your datasets
 
-Join the Perforated AI community:
-- 💬 [Discord](https://discord.gg/Fgw3FG3Hzt) - Get help and share results
-- 📧 [Newsletter](https://www.perforatedai.com/contact) - Stay updated on dendritic AI research
-- 🤝 [LinkedIn](https://www.linkedin.com/company/perforated-ai) - Follow our latest developments
-- 🤗 [Hugging Face](https://huggingface.co/perforated-ai) - Try our pretrained models on your datasets
-
-&nbsp;
-
-# Citation
+## Citation
 
 If you use Perforated AI in your research, please cite:
 
@@ -198,14 +170,37 @@ If you use Perforated AI in your research, please cite:
 }
 ```
 
-&nbsp;
+## Python Version Support
 
-# License
+We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python versions for at least six months after their official end-of-life (EOL) date.
 
-[Apache License 2.0](./LICENSE)
 
-&nbsp;
+## License
 
-# Alternative Training Mechanisms
+[Apache License 2.0][license-url]
 
-Not a Contribution. If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please get in touch at [perforatedai.com](https://www.perforatedai.com/get-started). Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018). This open source code does not include the perforatedbp library and the perforated_backpropagation variable is set to False so the functions of that library will not be called without a license. The Perforated Backpropagation libraries and functionality are not part of this release, are not a contribution to this release, and are not released under any open source license.
+---
+
+[pypi-url]: https://pypi.python.org/pypi/perforatedai
+[github-url]: https://github.com/PerforatedAI/PerforatedAI
+[license-url]: ./LICENSE
+[api-docs]: ./API/README.md
+[claude-skill]: .github/skills/perforatedai/SKILL.md
+[customization-guide]: ./API/customization.md
+[output-guide]: ./API/output.md
+[papers]: ./Papers
+[case-studies]: https://www.perforatedai.com/case-studies
+[arxiv]: https://arxiv.org/pdf/2501.18018
+[mnist-example]: ./Examples/baseExamples/mnist
+[td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah
+[imagenet-example]: ./Examples/imagenet
+[huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-gd
+[edge-impulse-example]: ./Examples/hackathonProjects/example-custom-ml-block-pytorch
+[lightning-example]: ./Examples/libraryExamples/pytorch_lightning
+[hf-example]: ./Examples/libraryExamples/huggingface
+[get-started]: https://www.perforatedai.com/get-started
+[github-issues]: https://github.com/PerforatedAI/PerforatedAI/issues
+[discord]: https://discord.gg/Fgw3FG3Hzt
+[newsletter]: https://www.perforatedai.com/contact
+[linkedin]: https://www.linkedin.com/company/perforated-ai
+[huggingface]: https://huggingface.co/perforated-ai
