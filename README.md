@@ -74,7 +74,7 @@ while True:
         GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
-Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server](https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md) for AI coding assistants to get instant guidance.
+Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server][mcp-server] for AI coding assistants to get instant guidance.
 
 ## 💡 Examples
 
@@ -194,7 +194,7 @@ We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python v
 [mnist-example]: ./Examples/baseExamples/mnist
 [td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah
 [imagenet-example]: ./Examples/imagenet
-[huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-gd
+[huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-cascor
 [edge-impulse-example]: ./Examples/hackathonProjects/example-custom-ml-block-pytorch
 [lightning-example]: ./Examples/libraryExamples/pytorch_lightning
 [hf-example]: ./Examples/libraryExamples/huggingface
@@ -204,3 +204,4 @@ We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python v
 [newsletter]: https://www.perforatedai.com/contact
 [linkedin]: https://www.linkedin.com/company/perforated-ai
 [huggingface]: https://huggingface.co/perforated-ai
+[mcp-server]: https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md
