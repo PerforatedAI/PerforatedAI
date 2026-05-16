@@ -2,7 +2,7 @@
 
 This repository implements a neural network block for Edge Impulse which leverages dendritic optimization. For easy install click the button below to open in codespaces then follow the listed instructions.  If this is your first time using Edge Impulse and you do not already have a classificaiton project you want to optimize, use the more detailed walkthrough [here](FULL_TUTORIAL.md).
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json){:target="_blank"}
 
  - Use default settings and click "Create codespace"
  - At the bottom center of the window that loads is the terminal to run commands
@@ -44,11 +44,11 @@ The original artificial neuron was proposed in 1943, drawing on neuroscience res
 
 ## This Project
 
-This project first explored the improvements dendritic optimization could achieve on the model in the [keyword spotting tutorial](https://docs.edgeimpulse.com/tutorials/end-to-end/keyword-spotting), and then created a public Edge Impulse block to enable anyone to leverage this capability on their own Edge Impulse projects. 
+This project first explored the improvements dendritic optimization could achieve on the model in the [keyword spotting tutorial](https://docs.edgeimpulse.com/tutorials/end-to-end/keyword-spotting){:target="_blank"}, and then created a public Edge Impulse block to enable anyone to leverage this capability on their own Edge Impulse projects. 
 
 ## Our Experiments
 
-For details on our experiments, please view the [W&B report](https://wandb.ai/perforated-ai/Dendritic%20Edge%20Impulse%20Audio%20-%20Combo/reports/Edge-Impulse-Keyword-Spotting--VmlldzoxNTIxNjE5Ng?accessToken=3lm4jm5f9npsu45vs180ybo6150ed4gnhos9rrkk6seqb4bmf458me28seynu0xb) of the 800 trials we ran while sweeping hyperparameters for this application.
+For details on our experiments, please view the [W&B report](https://wandb.ai/perforated-ai/Dendritic%20Edge%20Impulse%20Audio%20-%20Combo/reports/Edge-Impulse-Keyword-Spotting--VmlldzoxNTIxNjE5Ng?accessToken=3lm4jm5f9npsu45vs180ybo6150ed4gnhos9rrkk6seqb4bmf458me28seynu0xb){:target="_blank"} of the 800 trials we ran while sweeping hyperparameters for this application.
 
 ## This Repository
 

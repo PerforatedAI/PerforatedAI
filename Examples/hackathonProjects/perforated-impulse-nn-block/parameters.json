@@ -30,23 +30,14 @@
             "param": "seed"
         },
         {
-            "name": "Softmax Export",
-            "value": "true",
-            "type": "boolean",
-            "help": "Include softmax in exported ONNX/TFLite models. When false, exported models output raw logits (argmax still works, no quantization issues).",
-            "param": "softmax-export"
-        },
-        {
             "name": "Noise Standard Deviation",
             "value": "None",
             "type": "select",
             "param": "noise-std",
             "valid": [
-                "None",
-                "Low",
-                "High"
+                "None"
             ],
-            "help": "Gaussian noise augmentation during training. Low=0.2, High=0.45."
+            "help": "Planned for future release"
         },
         {
             "name": "Mask Time Bands",
@@ -58,7 +49,7 @@
                 "Low",
                 "High"
             ],
-            "help": "Time band masking (SpecAugment). Low=1 band/1 consecutive, High=3 bands/2 consecutive."
+            "help": "Planned for future release"
         },
         {
             "name": "Mask Frequency Bands",
@@ -70,14 +61,14 @@
                 "Low",
                 "High"
             ],
-            "help": "Frequency band masking (SpecAugment). Low=1 band/4 consecutive, High=3 bands/4 consecutive."
+            "help": "Planned for future release"
         },
         {
             "name": "Warp Time",
             "value": "false",
             "type": "boolean",
             "param": "warp-time",
-            "help": "Enable time warping augmentation for spectrograms."
+            "help": "Planned for future release"
         },
         {
             "name": "Auto Weight Classes",
@@ -95,9 +86,9 @@
         },
         {
             "name": "Speed Switch",
-            "value": "slow",
+            "value": "medium",
             "type": "select",
-            "help": "Controls the speed to switch.",
+            "help": "Controls the speed to switch. Fast = 10 epochs, extra-slow = 250 epochs",
             "valid": [
                 "extra-slow",
                 "slow",
@@ -136,7 +127,8 @@
                 "operator": "eq",
                 "value": "true"
             },
-            "param": "improvement-threshold"
+            "param": "improvement-threshold",
+            "help": "Improvement cutoff to add dendrites, low switches after full plateau, high switches earlier"
         },
         {
             "name": "Dendrite Weight Initialization Multiplier",

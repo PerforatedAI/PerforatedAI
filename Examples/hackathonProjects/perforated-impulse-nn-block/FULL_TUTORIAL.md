@@ -4,9 +4,9 @@ This set of instructions is for folks who have never used Edge Impulse before.  
 
 ## Edge Impulse Setup and Project Creation
 
-- Start by creating an account.  Go to [Edge Impulse](https://www.edgeimpulse.com) and click on Login at the top right.  At the bottom is the option to "Sign Up".  Click that button and go through the steps to get your account set up.
+- Start by creating an account.  Go to [Edge Impulse](https://www.edgeimpulse.com){:target="_blank"} and click on Login at the top right.  At the bottom is the option to "Sign Up".  Click that button and go through the steps to get your account set up.
   - This will load you into a tutorial.  Feel free to go through or just click "get started manually" to follow this classificaiton-only tutorial.
-- Once your account is created load the [Bird Sound Classifier](https://studio.edgeimpulse.com/public/16060/latest).  This is the public project with the most views on the platform. It processes audio files and aims to classify them into three classes: House Sparrow, Rose Ringed Parakeet, or random noise that is neither.
+- Once your account is created load the [Bird Sound Classifier](https://studio.edgeimpulse.com/public/16060/latest){:target="_blank"}.  This is the public project with the most views on the platform. It processes audio files and aims to classify them into three classes: House Sparrow, Rose Ringed Parakeet, or random noise that is neither.
 - On the top right click "clone this project. 
   - Select a name such as "Tutorial: Responding to your voice-perforated"
   - Optional - Choose to make it a public project so it is easier to share
@@ -36,7 +36,7 @@ Now that you have trained your baseline, proceed to the next step to try the sam
 
 ## Adding the New Block
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/PerforatedAI/PerforatedAI?devcontainer_path=Examples%2FhackathonProjects%2Fexample-custom-ml-block-pytorch%2F.devcontainer%2Fdevcontainer.json){:target="_blank"}
 
  - This requires signing in, or creating a Github account if you do not have one
  - Use default settings and click "Create codespace"
@@ -47,7 +47,7 @@ Now that you have trained your baseline, proceed to the next step to try the sam
    - Then click "Account Settings" then "Password".
    - Click "Set a Password" and create a password for yourself.
  - `edge-impulse-blocks push` is also a command that can take up to 10 minutes to run.
- - After the commands fully run navigate to your profile's [custom blocks](https://studio.edgeimpulse.com/studio/profile/custom-blocks) and make sure the new block is present.
+ - After the commands fully run navigate to your profile's [custom blocks](https://studio.edgeimpulse.com/studio/profile/custom-blocks){:target="_blank"} and make sure the new block is present.
 ```
     git checkout nn_customize 
     npm install -g edge-impulse-cli --silent
