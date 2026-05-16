@@ -835,7 +835,7 @@ def main(config):
             # Check if it's a PAIModule (PerforatedAI wrapped layer) by type name
             if type(layer).__name__ == 'PAINeuronModule' and isinstance(layer.main_module, nn.Conv1d):
                 layer.set_this_output_dimensions([-1, 0, -1])
-    initial_pai_params = UPA.count_pai_params(model)
+    initial_pai_params = UPA.count_params(model)
     print(f"Total PAI parameters (after PAI): {initial_pai_params}")
 
     classes = np.unique(y_train[:, 0])
