@@ -838,7 +838,7 @@ def main(config):
     initial_pai_params = UPA.count_params(model)
     print(f"Total PAI parameters (after PAI): {initial_pai_params}")
 
-    classes = np.unique(y_train[:, 0])
+    classes = np.unique(Y_train[:, 0])
     print("Block class order:", classes)
 
 
