@@ -15,7 +15,8 @@
 
 </p>
 
-# 5/20/2026 Edge Impulse Conference Attendees - [Click Here](https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/Examples/hackathonProjects/perforated-impulse-nn-block/FULL_TUTORIAL.md)
+# 5/20/2026 Edge Impulse Conference Attendees:
+# [Click Here](https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/Examples/hackathonProjects/perforated-impulse-nn-block/FULL_TUTORIAL.md)
 
 **Get Started:** The [API folder](API) contains detailed instructions for integrating PerforatedAI into your projects, including how to use our Claude skill with AI coding assistants for instant expert guidance.
 
