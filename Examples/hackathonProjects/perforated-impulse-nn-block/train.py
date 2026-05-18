@@ -97,7 +97,7 @@ parser.add_argument('--out-directory', type=str, default='out', dest='out_direct
 parser.add_argument('--batch-size', type=int, default=128, dest='batch_size')
 parser.add_argument('--learning-rate', type=float, default=0.005, dest='learning_rate')
 parser.add_argument('--seed', type=int, default=-1, help="Random seed for reproducibility. Use -1 for random (non-deterministic) behavior")
-parser.add_argument('--softmax-export', type=str, default='false', help="Include softmax in exported ONNX/TFLite models (default: false for raw logits)", dest='softmax_export')
+parser.add_argument('--softmax-export', type=str, default='true', help="Include softmax in exported ONNX/TFLite models (default: false for raw logits)", dest='softmax_export')
 parser.add_argument('--noise-std', type=str, default='None', help="Gaussian noise augmentation (None/Low/High)", dest='noise_std')
 
 # Data augmentation parameters (SpecAugment for spectrograms)
