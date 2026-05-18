@@ -254,11 +254,12 @@ if Y_train.ndim > 1 and Y_train.shape[1] > 1:
         print(f"Detected one-hot encoded labels with {num_classes} classes")
     else:
         # Assume Edge Impulse metadata format: first column is label_index
-        num_classes = len(np.unique(Y_train[:, 0]))
+        num_classes = len(np.unique(Y_train[:, 0].cpu().numpy()))
+        
         print(f"Detected Edge Impulse metadata format, extracted {num_classes} classes from first column")
 else:
     # Simple label array
-    num_classes = len(np.unique(Y_train))
+    num_classes = len(np.unique(Y_train.cpu().numpy()))
     print(f"Detected simple label array with {num_classes} classes")
 
 print(f"Number of classes: {num_classes}")
@@ -838,7 +839,7 @@ def main(config):
     initial_pai_params = UPA.count_params(model)
     print(f"Total PAI parameters (after PAI): {initial_pai_params}")
 
-    classes = np.unique(Y_train[:, 0])
+    classes = np.unique(Y_train[:, 0].cpu().numpy())
     print("Block class order:", classes)
 
 
