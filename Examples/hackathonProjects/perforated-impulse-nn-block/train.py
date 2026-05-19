@@ -62,6 +62,7 @@ import json
 import time
 import argparse
 import traceback
+import random
 import subprocess as _subprocess
 import shutil
 import glob
@@ -80,6 +81,11 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Disable TF32 to ensure full FP32 precision on Ampere+ GPUs (RTX 30xx, A100, etc.)
+# TF32 uses reduced mantissa bits and can degrade model accuracy vs CPU
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 
 # -------------------------
 # Arguments
@@ -325,7 +331,11 @@ if str2bool(args.split_test):
     test_dataset = TensorDataset(X_test, Y_test)
 
 if args.seed >= 0:
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 

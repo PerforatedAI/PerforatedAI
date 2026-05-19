@@ -24,7 +24,7 @@
         },
         {
             "name": "Seed",
-            "value": "0",
+            "value": "1",
             "type": "int",
             "help": "Controls the random seed.",
             "param": "seed"
