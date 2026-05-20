@@ -48,6 +48,7 @@ Set up your environment
  - At the bottom center of the window there is a terminal to run commands, begin by checking out the proper branch and installing the edge impulse cli.  
   *\*Note: if copy and paste is not working, you have to type "ctrl+shift+p" and then click the "paste" option in the menu that comes up.*
 ```bash
+git fetch
 git checkout nn_customize
 npm install -g edge-impulse-cli --silent
 ```
