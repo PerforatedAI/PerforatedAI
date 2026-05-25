@@ -180,7 +180,7 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
 - **If dendrites didn't improve performance:**
   - Check if you're converting the right layers
   - Is improvement_threshold too strict? Try `[0]`
-  - Try different input_dimensions or module configurations
+  - Try different output_dimensions or module configurations
   - Consider using the perforatedai skill to debug: say "Debug my perforated model"
   
 - **If training was unstable:**

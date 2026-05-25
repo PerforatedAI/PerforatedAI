@@ -179,6 +179,10 @@ We support Python 3.7+ and PyTorch 1.9+. We are committed to supporting Python v
 
 [Apache License 2.0][license-url]
 
+# Alternative Training Mechanisms
+
+Not a Contribution. If you would like to get additional performance boosts from dendritic architectures through Perforated Backpropagation<sup>TM</sup> please get in touch at [perforatedai.com](https://www.perforatedai.com/get-started). Details on this approach can be found in our [original paper](https://arxiv.org/pdf/2501.18018). This open source code does not include the perforatedbp library and the perforated_backpropagation variable is set to False so the functions of that library will not be called without a license. The Perforated Backpropagation libraries and functionality are not part of this release, are not a contribution to this release, and are not released under any open source license.
+
 ---
 
 [pypi-url]: https://pypi.python.org/pypi/perforatedai

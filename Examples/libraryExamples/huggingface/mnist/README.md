@@ -20,51 +20,40 @@ The rest of this readme covers the mnist example in this folder.  But additional
 
 ### Imports and Constants
 
-    from perforatedai import pb_globals as PBG
-    from perforatedai import pb_models as PBM
-    from perforatedai import pb_utils as PBU
+    from perforatedai import globals_perforatedai as GPA
+    from perforatedai import utils_perforatedai as UPA
 
-    # When to switch between Dendrite learning and neuron learning. 
-    PBG.switch_mode = PBG.doingHistory 
+    # When to switch between Dendrite learning and neuron learning.
+    GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
     # How many normal epochs to wait for before switching modes, make sure this is higher than your scheduler's patience.
-    PBG.n_epochs_to_switch = 10  
-    # Same as above for Dendrite epochs
-    PBG.p_epochs_to_switch = 10
+    GPA.pc.set_n_epochs_to_switch(10)
     # The default shape of input tensors
-    PBG.output_dimensions = [-1, 0, -1, -1]
-    
+    GPA.pc.set_output_dimensions([-1, 0, -1, -1])
+
     and just for testing
-    PBG.testingDendriteCapacity = True
+    GPA.pc.set_testing_dendrite_capacity(True)
 
 ### Save Name
 
-Because the evaluation function is inside the HF trainer code you will need to set a global for the save name you want to use.  This can be done as follows:
-
-    PBG.saveName = 'mnistHF'
+The save name is passed directly to `perforate_model`.  See the Converting Network section below.
 
 ### Trainer
 
-You need to make sure that the trainer actually does evaluation regularly.  This can be done with eval_steps and eval_strategy in the training_args.  Also make sure that you set train_epochs to just be a large number so it will exit when we say to and not when the epochs runs out.  Example settings are as follows:
+You need to make sure that the trainer does evaluation after every epoch so PAI has a validation score to work with.  The patched fork handles training termination and epoch limits internally:
 
-    training_args.num_train_epochs = 1000000.0
-    training_args.eval_strategy = "steps"
-    training_args.eval_steps = 500
+    training_args.eval_strategy = "epoch"
 
 ### Converting Network
 
-    model = PBU.convertNetwork(model)
-    PBG.pai_tracker.initialize(
-        doingPB = True, #This can be set to false if you want to do just normal training 
-        saveName=PBG.saveName,  # Change the save name for different parameter runs
-        maximizingScore=False, # True for maximizing validation score, false for minimizing validation loss
-        makingGraphs=True)  # True if you want graphs to be saved
+    model = UPA.perforate_model(
+        model,
+        save_name='mnistHF',     # Change for different parameter runs
+        maximizing_score=False,  # True for maximizing validation score, False for minimizing loss
+        making_graphs=True)      # True to save output graphs
     
 ### TestingDendriteCapacity
 
-While you are testing the dendrite capacity you want to have eval_strategy set to "steps" and eval_steps set to a very low number.
-
-    training_args.eval_strategy = "steps"
-    training_args.eval_steps = 10
+While testing dendrite capacity you still want epoch-level evaluation.  Just ensure your dataset or epoch length is short enough that cycles complete quickly.
     
 ### Ignoring Shared Tensors
 

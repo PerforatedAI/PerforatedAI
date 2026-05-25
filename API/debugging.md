@@ -153,7 +153,6 @@ This means the pai_tracker was not initialized.  This generally only happens if 
     
 This means you entered None for the saveName, likely args.saveName did not have a default value.
 
-
 ## setupOptimizer Error
     
     TypeError: 'list' object is not callable
@@ -326,6 +325,8 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
 
 ### Autograd Errors
 
+#### Second backwards
+
     Trying to backward through the graph a second time
 
 This is caused by something in your graph containing the same tensor twice.  If you run into this you can try to track it down with the following code block.  Set this up and then call `from perforatedai import globals_perforatedai as GPA; GPA.get_param_name(t_outputs)` within the error block. If this does not work try filling in `GPA.param_name_by_id` with additional tensors
@@ -336,9 +337,19 @@ This is caused by something in your graph containing the same tensor twice.  If 
     GPA.param_name_by_id = {id(param): name for name, param in model.named_parameters()}
     GPA.get_param_name = get_param_name
 
+
 It can also sometimes help to use the torchviz package to try to show the entire graph of the tensor.  Go up in debugger to where the problem first occurs in your code then call:
 
     from torchviz import make_dot; dot = make_dot(TENSOR); dot.render('graph', format='pdf') 
+
+
+#### inplace operations
+
+    RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.cuda.FloatTensor [128, 1280]], which is output 0 of ReluBackward0, is at version 1; expected version 0 instead. Hint: enable anomaly detection to find the operation that failed to compute its gradient, with torch.autograd.set_detect_anomaly(True).
+
+This can happen anytime the forward is using += type functions.  be sure to use `var = var + var2` instead.  In some modules like dropout this is a setting: `nn.Dropout(p=dropout, inplace=False)`
+
+
 
 ### Safetensors Errors
 

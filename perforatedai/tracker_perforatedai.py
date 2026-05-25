@@ -452,13 +452,9 @@ def process_final_network(net):
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             print("For improved results, try perforated backpropagation next time!")
     GPA.pai_tracker.save_graphs("before_final")
-    print("before load")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
-    print("after load")
     GPA.pai_tracker.save_graphs()
-    print("after graphs")
     UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
-    print("after save")
     return net
 
 
@@ -3430,9 +3426,12 @@ class PAINeuronModuleTracker:
             if GPA.pc.get_verbose():
                 print("Not saving restructure right now")
 
+            """
+            This block of code helped with a save issue with safetensors and huggingface, but it breaks DDP.  
+            Temporarily removing it to avoid DDP issues, but if you encounter save issues try adding it back in.
             for param in net.parameters():
                 param.data = param.data.contiguous()
-
+            """
         if GPA.pc.get_verbose():
             print(
                 f"Completed adding score. Restructured is {restructuring_status_value}, "

@@ -143,6 +143,15 @@ The pai_tracker will tell you when the program should be stopped by returning tr
     while(True):
         epoch += 1
 
+## Using a Third-Party Training Library?
+
+If you are using a library that manages your training loop (such as HuggingFace Transformers or PyTorch Lightning), some of the steps above are handled differently or automatically. Check the library-specific READMEs in the examples folder before following this guide:
+
+- **HuggingFace Transformers** — [`Examples/libraryExamples/huggingface/README.md`](../Examples/libraryExamples/huggingface/README.md)
+- **PyTorch Lightning** — [`Examples/libraryExamples/pytorch_lightning/mnist/README.md`](../Examples/libraryExamples/pytorch_lightning/mnist/README.md)
+
+Note that these integrations only apply when you use the library's built-in trainer (e.g., HuggingFace `Trainer`). If you use a HuggingFace model but write your own training loop, follow this README as normal.
+
 ## That's all that's Required!
 With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `GPA.pc.set_testing_dendrite_capacity(True)`.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.
 

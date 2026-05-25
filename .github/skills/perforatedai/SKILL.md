@@ -72,7 +72,43 @@ Proceed with Step 1 below.
   
   Then stop - do not proceed with integration.
 
-#### 1.2 Ask About Optimization Goal
+#### 1.2 Check for Library-Managed Training
+
+**Before proceeding with the standard integration steps, check whether the user's script uses a training library that requires a different integration path.**
+
+Look for these patterns in their script:
+
+- **HuggingFace Transformers Trainer**: imports of `Trainer` or `TrainingArguments` from `transformers`, or a call to `trainer.train()`
+- **PyTorch Lightning**: imports of `pl.LightningModule`, `pl.Trainer`, or `lightning.pytorch`
+
+**If you find HuggingFace Trainer usage:**
+
+Tell them: "I see your script uses the HuggingFace `Trainer`. The PAI integration is slightly different when using Trainer — the fork handles several things automatically that you'd otherwise do manually."
+
+**IMMEDIATELY load and follow the library skill:**
+
+```
+Use read_file to load: .github/skills/perforatedai-libraries/transformers/SKILL.md
+Read the entire file from line 1 to the end.
+```
+
+**Follow every step in that skill. Do NOT continue with steps 1.2 onward in this skill.**
+
+---
+
+**If you find PyTorch Lightning usage:**
+
+Tell them: "I see your script uses PyTorch Lightning. PAI has specific integration requirements for Lightning modules. Please check `Examples/libraryExamples/pytorch_lightning/` for reference examples, and refer to the standard PAI API steps below with special attention to placing `add_validation_score` inside your `validation_epoch_end` hook."
+
+Then continue with step 1.2 below — the standard integration steps apply, but flag to the user that optimizer setup goes through Lightning's `configure_optimizers` and the restructuring block goes in `validation_epoch_end`.
+
+---
+
+**If neither is found:** proceed normally with step 1.2.
+
+---
+
+#### 1.3 Ask About Optimization Goal
 
 **Ask:** "What are you optimizing for?"
 
