@@ -35,7 +35,7 @@ class PAILayer(nn.Module):
             This will only be the case if there is less than 2 dendrites, in these cases an empty array
             should still be added so that dendrites_to_top is included at the correct index
             """
-            self.skip_weights = nn.ParameterList([torch.zeros(1, 1, 1)])
+            self.skip_weights = nn.ParameterList()
         if dendrites_to_top:
             self.skip_weights.append(dendrites_to_top[len(dendrites_to_top) - 1])
         else:
