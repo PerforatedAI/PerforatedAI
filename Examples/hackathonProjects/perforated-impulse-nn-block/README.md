@@ -37,6 +37,7 @@ Now that your block is uploaded you can do the following:
  - Try other hyperparameter settings
    - Often a smaller model with dendrites will outperform a larger nn classifier
  - Please let us know how it goes for you!
+ - Also don't forget to close down your codespace once you are done with it.  They stay awake indefinitely if not shut down manually.
 
 ## What is Dendritic Optimization?
 
