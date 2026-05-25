@@ -72,7 +72,43 @@ Proceed with Step 1 below.
   
   Then stop - do not proceed with integration.
 
-#### 1.2 Ask About Optimization Goal
+#### 1.2 Check for Library-Managed Training
+
+**Before proceeding with the standard integration steps, check whether the user's script uses a training library that requires a different integration path.**
+
+Look for these patterns in their script:
+
+- **HuggingFace Transformers Trainer**: imports of `Trainer` or `TrainingArguments` from `transformers`, or a call to `trainer.train()`
+- **PyTorch Lightning**: imports of `pl.LightningModule`, `pl.Trainer`, or `lightning.pytorch`
+
+**If you find HuggingFace Trainer usage:**
+
+Tell them: "I see your script uses the HuggingFace `Trainer`. The PAI integration is slightly different when using Trainer — the fork handles several things automatically that you'd otherwise do manually."
+
+**IMMEDIATELY load and follow the library skill:**
+
+```
+Use read_file to load: .github/skills/perforatedai-libraries/transformers/SKILL.md
+Read the entire file from line 1 to the end.
+```
+
+**Follow every step in that skill. Do NOT continue with steps 1.2 onward in this skill.**
+
+---
+
+**If you find PyTorch Lightning usage:**
+
+Tell them: "I see your script uses PyTorch Lightning. PAI has specific integration requirements for Lightning modules. Please check `Examples/libraryExamples/pytorch_lightning/` for reference examples, and refer to the standard PAI API steps below with special attention to placing `add_validation_score` inside your `validation_epoch_end` hook."
+
+Then continue with step 1.2 below — the standard integration steps apply, but flag to the user that optimizer setup goes through Lightning's `configure_optimizers` and the restructuring block goes in `validation_epoch_end`.
+
+---
+
+**If neither is found:** proceed normally with step 1.2.
+
+---
+
+#### 1.3 Ask About Optimization Goal
 
 **Ask:** "What are you optimizing for?"
 
@@ -304,6 +340,24 @@ GPA.pc.set_output_dimensions([...])  # Based on your tensor shape
 
 Explain your reasoning for each choice based on what you saw in their model when you make the change.
 
+#### Important: Module ID Naming Convention
+
+🚨 **CRITICAL:** When using `set_module_ids_to_track()` or `append_module_ids_to_track()`, all module IDs **MUST start with a "." (dot)**.
+
+**Correct:**
+```python
+GPA.pc.set_module_ids_to_track([".layer1", ".conv1", ".bn1", ".output_projection"])
+GPA.pc.append_module_ids_to_track([".layer2", ".fc"])
+```
+
+**Incorrect (will not work):**
+```python
+GPA.pc.set_module_ids_to_track(["layer1", "conv1", "bn1"])  # ❌ Missing dots
+GPA.pc.append_module_ids_to_track(["layer2", "fc"])  # ❌ Missing dots
+```
+
+The dot prefix is required because PAI uses these as substring matches against the full module path. For example, ".layer1" will match modules like "model.layer1.conv1", "model.layer1.0.bn1", etc.
+
 **→ Next: Proceed to Step 4.**
 
 ---
@@ -471,7 +525,7 @@ optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedAr
 2. **DO NOT** change the scheduler type (keep StepLR/CosineAnnealingLR/ExponentialLR/etc. exactly as user had)
 3. **DO NOT** change optimizer arguments (preserve lr, weight_decay, momentum, betas, etc.)
 4. **DO NOT** change scheduler arguments (preserve step_size, gamma, T_max, patience, etc.)
-5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically
+5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing schedArgs AND returning a scheduler from the function. If NOT using setup_optimizer with schedArgs, user must manage scheduler.step() themselves.
 6. If user has NO scheduler, use `set_scheduler(None)` or omit the set_scheduler call
 
 **If their setup is complex (scattered across functions, custom classes, framework-managed, etc.):**
@@ -488,6 +542,8 @@ GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
 Tell them: "Your optimizer setup is complex, so I'm using the simpler integration method. PAI will work with your existing optimizer configuration."
+
+**IMPORTANT NOTE:** When using `set_optimizer_instance`, PAI will NOT handle the scheduler. You must keep all existing `scheduler.step()` calls in your training loop.
 
 ---
 
@@ -516,7 +572,7 @@ if training_complete:
     print("PAI training complete!")
     break
 
-elif restructured:
+elif restructured and not training_complete:
     # Model was restructured (dendrites added/incorporated)
     # Reinitialize optimizer with EXACT SAME settings from Step 5
     # Example: if Step 5 used Adadelta with StepLR:
@@ -536,6 +592,8 @@ elif restructured:
 
 Find where validation completes. Add the PAI score tracking and restructuring logic.
 
+**NOTE:** When using `set_optimizer_instance`, PAI does NOT handle the scheduler. Keep all existing `scheduler.step()` calls in your training loop.
+
 After validation, add:
 ```python
 # Add PAI score tracking
@@ -546,7 +604,7 @@ if training_complete:
     print("PAI training complete!")
     break
 
-elif restructured:
+elif restructured and not training_complete:
     # Model was restructured - reinitialize optimizer exactly as they had it
     # Copy their ENTIRE original optimizer setup (including any complex initialization)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Their exact setup

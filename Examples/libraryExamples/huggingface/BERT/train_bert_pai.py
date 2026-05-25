@@ -287,9 +287,9 @@ def set_GPA_params(args):
     GPA.pc.set_output_dimensions([-1, -1, 0])
     GPA.pc.set_history_lookback(args.history_lookback)
     GPA.pc.set_max_dendrites(args.max_dendrites)
-    GPA.pc.set_testing_dendrite_capacity(True)
+    GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_improvement_threshold(args.improvement_threshold)
-    GPA.pc.set_improvement_threshold(args.pb_improvement_threshold)
+    GPA.pc.set_pb_improvement_threshold(args.pb_improvement_threshold)
     GPA.pc.set_improvement_threshold_raw(args.pb_improvement_threshold_raw)
     GPA.pc.set_unwrapped_modules_confirmed(args.unwrapped_modules_confirmed)
     GPA.pc.set_cap_at_n(args.cap_at_n)
@@ -354,7 +354,7 @@ def main():
     parser.add_argument(
         "--switch_mode",
         type=str,
-        choices=["DOING_HISTORY", "doingFixedSwitch"],
+        choices=["DOING_HISTORY", "DOING_FIXED_SWITCH"],
         default="DOING_HISTORY",
         help="PAI switch mode",
     )
@@ -725,6 +725,7 @@ def main():
             )
         },
         callbacks=callbacks,
+        using_perforatedai=True,
     )
 
     # Start training.

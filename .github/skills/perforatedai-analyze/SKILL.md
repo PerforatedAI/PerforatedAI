@@ -180,7 +180,7 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
 - **If dendrites didn't improve performance:**
   - Check if you're converting the right layers
   - Is improvement_threshold too strict? Try `[0]`
-  - Try different input_dimensions or module configurations
+  - Try different output_dimensions or module configurations
   - Consider using the perforatedai skill to debug: say "Debug my perforated model"
   
 - **If training was unstable:**
@@ -402,7 +402,7 @@ Based on `Best_PBScores.csv` analysis and model size considerations:
   - Focus all dendrite capacity on the modules that actually benefit
 
 **Parameter count visibility:**
-- Count parameters before and after: `sum(p.numel() for p in model.parameters())`
+- Count parameters before and after: `UPA.count_params(model)`
 - Check `Best_PBScores.csv` to see dendrite distribution across layers
 - Calculate efficiency ratio: `(accuracy_gain / parameter_increase) × 100`
 

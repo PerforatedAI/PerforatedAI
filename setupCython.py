@@ -50,6 +50,8 @@ class build_py(_build_py):
             )
         return filtered_modules
 
+with open("README.md", "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name="perforatedai",
@@ -57,7 +59,9 @@ setup(
     packages=find_packages(),
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
-    description="perforatedai perforatedai package",
+    description="Official package for the artificial dendrite library for PyTorch, Perforated AI",
+    long_description=long_description,          
+    long_description_content_type="text/markdown",
     license="Apache 2.0",
     python_requires=">=3.6",
     ext_modules=cythonize(
