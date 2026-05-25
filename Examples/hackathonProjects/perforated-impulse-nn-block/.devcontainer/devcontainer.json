@@ -1,0 +1,14 @@
+{
+  "name": "Perforated NN Impulse Block",
+  "image": "node:20",
+  "workspaceFolder": "/workspaces/PerforatedAI/Examples/hackathonProjects/perforated-impulse-nn-block",
+  "postCreateCommand": "npm install -g edge-impulse-cli && echo '✅ Environment ready! Run: edge-impulse-blocks init then edge-impulse-blocks push'",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "remoteUser": "root"
+}

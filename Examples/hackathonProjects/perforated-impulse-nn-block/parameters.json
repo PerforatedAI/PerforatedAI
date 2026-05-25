@@ -1,0 +1,1821 @@
+{
+    "version": 1,
+    "type": "machine-learning",
+    "info": {
+        "name": "Perforated Classification",
+        "description": "A drop-in replacement for the Classification block with Dendritic Optimization, a biologically-inspired technique that improves learning capacity with fewer parameters. Use it to hit higher accuracy at the same model size, or maintain accuracy with a smaller model.",
+        "operatesOn": "other",
+        "indRequiresGpu": false,
+        "repositoryUrl": "https://github.com/PerforatedAI/PerforatedAI/tree/main/Examples/hackathonProjects/example-custom-ml-block-pytorch"
+    },
+    "parameters": [
+        {
+            "name": "Batch Size",
+            "value": "128",
+            "type": "int",
+            "param": "batch-size"
+        },
+        {
+            "name": "Learning rate",
+            "value": "0.005",
+            "type": "float",
+            "help": "How fast the neural network learns, if the network overfits quickly, then lower the learning rate.",
+            "param": "learning-rate"
+        },
+        {
+            "name": "Seed",
+            "value": "1",
+            "type": "int",
+            "help": "Controls the random seed.",
+            "param": "seed"
+        },
+        {
+            "name": "Noise Standard Deviation",
+            "value": "None",
+            "type": "select",
+            "param": "noise-std",
+            "valid": [
+                "None"
+            ],
+            "help": "Planned for future release"
+        },
+        {
+            "name": "Mask Time Bands",
+            "value": "None",
+            "type": "select",
+            "param": "mask-time-bands",
+            "valid": [
+                "None",
+                "Low",
+                "High"
+            ],
+            "help": "Planned for future release"
+        },
+        {
+            "name": "Mask Frequency Bands",
+            "value": "None",
+            "type": "select",
+            "param": "mask-freq-bands",
+            "valid": [
+                "None",
+                "Low",
+                "High"
+            ],
+            "help": "Planned for future release"
+        },
+        {
+            "name": "Warp Time",
+            "value": "false",
+            "type": "boolean",
+            "param": "warp-time",
+            "help": "Planned for future release"
+        },
+        {
+            "name": "Auto Weight Classes",
+            "value": "false",
+            "type": "boolean",
+            "param": "auto-weight-classes",
+            "help": "Automatically weight classes based on sample counts to handle class imbalance."
+        },
+        {
+            "name": "Dendritic Optimization",
+            "value": "true",
+            "type": "boolean",
+            "help": "Controls whether dendritic optimization should be applied.",
+            "param": "dendritic-optimization"
+        },
+        {
+            "name": "Speed Switch",
+            "value": "medium",
+            "type": "select",
+            "help": "Controls the speed to switch. Fast = 10 epochs, extra-slow = 250 epochs",
+            "valid": [
+                "extra-slow",
+                "slow",
+                "medium",
+                "fast"
+            ],
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "switch-speed"
+        },
+        {
+            "name": "Maximum number of Dendrites",
+            "value": "1",
+            "type": "int",
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "max-dendrites"
+        },
+        {
+            "name": "Improvement Threshold",
+            "value": "medium",
+            "type": "select",
+            "valid": [
+                "low",
+                "medium",
+                "high"
+            ],
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "improvement-threshold",
+            "help": "Improvement cutoff to add dendrites, low switches after full plateau, high switches earlier"
+        },
+        {
+            "name": "Dendrite Weight Initialization Multiplier",
+            "value": "0.01",
+            "type": "float",
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "dendrite-weight-initialization-multiplier"
+        },
+        {
+            "name": "Dendrite Forward Function",
+            "value": "relu",
+            "type": "select",
+            "valid": [
+                "relu",
+                "sigmoid",
+                "tanh"
+            ],
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "dendrite-forward-function"
+        },
+        {
+            "name": "Dendrite Conversion",
+            "value": "Linear Only",
+            "type": "select",
+            "valid": [
+                "Linear Only",
+                "All Layers"
+            ],
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "dendrite-conversion"
+        },
+        {
+            "name": "Improved Dendritic Optimization",
+            "value": "false",
+            "type": "boolean",
+            "help": "Train dendrites with correlation-based optimization for better performance with the same final architecture.",
+            "showIf": {
+                "parameter": "dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "improved-dendritic-optimization"
+        },
+        {
+            "name": "Perforated AI Login Email",
+            "value": "",
+            "type": "string",
+            "help": "Your email address for PerforatedAI login.",
+            "showIf": {
+                "parameter": "improved-dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "perforated-ai-login-email"
+        },
+        {
+            "name": "Perforated AI Token",
+            "value": "",
+            "type": "string",
+            "help": "Your PerforatedAI API token.",
+            "showIf": {
+                "parameter": "improved-dendritic-optimization",
+                "operator": "eq",
+                "value": "true"
+            },
+            "param": "perforated-ai-token"
+        },
+        {
+            "name": "Split test set",
+            "value": "false",
+            "type": "boolean",
+            "help": "Split test set into validation and test. If false, uses full test set for validation.",
+            "param": "split-test"
+        },
+        {
+            "name": "Layer 0 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 0.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-0-type"
+        },
+        {
+            "name": "0 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-0-dense-channels",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "0 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-0-conv1d-config",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "0 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-0-conv2d-config",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "0 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-0-dropout-rate",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "0 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-0-reshape-columns",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 1 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 1.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-1-type",
+            "showIf": {
+                "parameter": "layer-0-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "1 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-1-dense-channels",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "1 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-1-conv1d-config",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "1 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-1-conv2d-config",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "1 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-1-dropout-rate",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "1 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-1-reshape-columns",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 2 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 2.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-2-type",
+            "showIf": {
+                "parameter": "layer-1-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "2 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-2-dense-channels",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "2 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-2-conv1d-config",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "2 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-2-conv2d-config",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "2 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-2-dropout-rate",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "2 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-2-reshape-columns",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 3 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 3.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-3-type",
+            "showIf": {
+                "parameter": "layer-2-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "3 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-3-dense-channels",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "3 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-3-conv1d-config",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "3 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-3-conv2d-config",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "3 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-3-dropout-rate",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "3 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-3-reshape-columns",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 4 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 4.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-4-type",
+            "showIf": {
+                "parameter": "layer-3-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "4 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-4-dense-channels",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "4 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-4-conv1d-config",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "4 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-4-conv2d-config",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "4 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-4-dropout-rate",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "4 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-4-reshape-columns",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 5 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 5.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-5-type",
+            "showIf": {
+                "parameter": "layer-4-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "5 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-5-dense-channels",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "5 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-5-conv1d-config",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "5 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-5-conv2d-config",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "5 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-5-dropout-rate",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "5 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-5-reshape-columns",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 6 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 6.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-6-type",
+            "showIf": {
+                "parameter": "layer-5-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "6 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-6-dense-channels",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "6 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-6-conv1d-config",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "6 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-6-conv2d-config",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "6 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-6-dropout-rate",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "6 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-6-reshape-columns",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 7 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 7.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-7-type",
+            "showIf": {
+                "parameter": "layer-6-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "7 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-7-dense-channels",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "7 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-7-conv1d-config",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "7 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-7-conv2d-config",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "7 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-7-dropout-rate",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "7 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-7-reshape-columns",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 8 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 8.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-8-type",
+            "showIf": {
+                "parameter": "layer-7-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "8 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-8-dense-channels",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "8 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-8-conv1d-config",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "8 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-8-conv2d-config",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "8 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-8-dropout-rate",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "8 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-8-reshape-columns",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 9 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 9.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-9-type",
+            "showIf": {
+                "parameter": "layer-8-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "9 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-9-dense-channels",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "9 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-9-conv1d-config",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "9 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-9-conv2d-config",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "9 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-9-dropout-rate",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "9 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-9-reshape-columns",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 10 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 10.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-10-type",
+            "showIf": {
+                "parameter": "layer-9-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "10 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-10-dense-channels",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "10 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-10-conv1d-config",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "10 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-10-conv2d-config",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "10 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-10-dropout-rate",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "10 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-10-reshape-columns",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 11 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 11.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-11-type",
+            "showIf": {
+                "parameter": "layer-10-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "11 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-11-dense-channels",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "11 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-11-conv1d-config",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "11 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-11-conv2d-config",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "11 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-11-dropout-rate",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "11 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-11-reshape-columns",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 12 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 12.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-12-type",
+            "showIf": {
+                "parameter": "layer-11-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "12 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-12-dense-channels",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "12 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-12-conv1d-config",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "12 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-12-conv2d-config",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "12 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-12-dropout-rate",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "12 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-12-reshape-columns",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 13 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 13.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-13-type",
+            "showIf": {
+                "parameter": "layer-12-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "13 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-13-dense-channels",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "13 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-13-conv1d-config",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "13 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-13-conv2d-config",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "13 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-13-dropout-rate",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "13 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-13-reshape-columns",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 14 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 14.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-14-type",
+            "showIf": {
+                "parameter": "layer-13-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "14 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-14-dense-channels",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "14 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-14-conv1d-config",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "14 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-14-conv2d-config",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "14 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-14-dropout-rate",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "14 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-14-reshape-columns",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 15 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 15.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-15-type",
+            "showIf": {
+                "parameter": "layer-14-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "15 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-15-dense-channels",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "15 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-15-conv1d-config",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "15 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-15-conv2d-config",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "15 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-15-dropout-rate",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "15 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-15-reshape-columns",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 16 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 16.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-16-type",
+            "showIf": {
+                "parameter": "layer-15-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "16 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-16-dense-channels",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "16 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-16-conv1d-config",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "16 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-16-conv2d-config",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "16 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-16-dropout-rate",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "16 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-16-reshape-columns",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 17 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 17.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-17-type",
+            "showIf": {
+                "parameter": "layer-16-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "17 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-17-dense-channels",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "17 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-17-conv1d-config",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "17 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-17-conv2d-config",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "17 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-17-dropout-rate",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "17 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-17-reshape-columns",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 18 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 18.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-18-type",
+            "showIf": {
+                "parameter": "layer-17-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "18 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-18-dense-channels",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "18 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-18-conv1d-config",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "18 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-18-conv2d-config",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "18 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-18-dropout-rate",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "18 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-18-reshape-columns",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Layer 19 Type",
+            "value": "None",
+            "type": "select",
+            "help": "Type of layer 19.",
+            "valid": [
+                "None",
+                "Dense",
+                "1D Convolution/Pool",
+                "2D Convolution/Pool",
+                "Dropout",
+                "Reshape"
+            ],
+            "param": "layer-19-type",
+            "showIf": {
+                "parameter": "layer-18-type",
+                "operator": "neq",
+                "value": "None"
+            }
+        },
+        {
+            "name": "19 - Dense",
+            "value": "Channels",
+            "type": "string",
+            "help": "Settings for Dense Layer",
+            "param": "layer-19-dense-channels",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Dense"
+            }
+        },
+        {
+            "name": "19 - 1DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 1D Convolution/Pool Layer",
+            "param": "layer-19-conv1d-config",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "1D Convolution/Pool"
+            }
+        },
+        {
+            "name": "19 - 2DConv/Pool",
+            "value": "Channels,Kernel-Size,Layer-Count",
+            "type": "string",
+            "help": "Settings for 2D Convolution/Pool Layer",
+            "param": "layer-19-conv2d-config",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "2D Convolution/Pool"
+            }
+        },
+        {
+            "name": "19 - Dropout",
+            "value": "Dropout-Rate",
+            "type": "string",
+            "help": "Settings for Dropout Layer",
+            "param": "layer-19-dropout-rate",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Dropout"
+            }
+        },
+        {
+            "name": "19 - Reshape Columns",
+            "value": "Columns",
+            "type": "string",
+            "help": "Number of columns (freq bins) to reshape the flat input into. E.g. 13 for MFCC, 40 for motion spectral features.",
+            "param": "layer-19-reshape-columns",
+            "showIf": {
+                "parameter": "layer-19-type",
+                "operator": "eq",
+                "value": "Reshape"
+            }
+        },
+        {
+            "name": "Output Layer",
+            "value": "A Fully Connected output layer will always be included",
+            "type": "string",
+            "help": "Information about automatic layer additions in the model architecture.",
+            "param": "output-layer-info"
+        }
+    ]
+}
