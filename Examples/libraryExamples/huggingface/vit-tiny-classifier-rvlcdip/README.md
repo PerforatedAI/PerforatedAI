@@ -81,6 +81,8 @@ python vit_tiny_classifier.py --train --max-samples 160000 --cache-dir ./cache -
 | `--use-dendrites` | False | Enable PerforatedAI dendrites |
 | `--save-name` | `vit_rvlcdip` | Save name for PAI outputs |
 
+> **Note:** This script uses a custom training loop rather than the HuggingFace `Trainer`. Even though the model comes from the transformers library, the automatic PAI integration provided by the `transformers-perforated` fork only applies when using `Trainer`. Since this script manages its own loop, it must call the standard PAI functions manually: `GPA.pai_tracker.start_epoch()` at the start of each epoch, `GPA.pai_tracker.add_validation_score()` after validation, and handle restructuring and `model.to(device)` itself. See the [PAI API README](../../../../API/README.md) for details.
+
 ## Device Support
 
 The script automatically detects and uses the best available device:

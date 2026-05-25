@@ -13,6 +13,23 @@ import torch
 import torch.nn as nn
 
 
+def _validate_module_id(module_id):
+    """Validate that a module ID string uses dot notation.
+
+    Module IDs must start with '.' and must not contain '[' or ']'.
+    For example, 'model.layers[1].module' should be written as '.layers.1.module'.
+    """
+    if not isinstance(module_id, str) or not module_id.startswith("."):
+        raise ValueError(
+            f"Module ID '{module_id}' must start with '.' - model.module should be '.module'"
+        )
+    if "[" in module_id or "]" in module_id:
+        raise ValueError(
+            f"Module ID '{module_id}' must not contain '[' or ']'. "
+            "Use dot notation instead, e.g. '.layers.1.module'"
+        )
+
+
 def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     """Dynamically add a property with getter and setter to an object.
 
@@ -87,6 +104,9 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 "Setting custom module config values should only be done "
                 "from JSON config files or the GUI"
             )
+        if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+            for module_id in value:
+                _validate_module_id(module_id)
         setattr(self, private_name, value)
         # Auto-save: if a config file has been configured (set when save_name is set),
         # persist the new value immediately so the JSON stays in sync.
@@ -104,6 +124,9 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     def appender(self, value):
         """Append a value to the property if it is a list."""
         if isinstance(getattr(self, private_name), list):
+            if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+                for module_id in value:
+                    _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
             print(
                 'New list value of "{}": {}'.format(
@@ -806,7 +829,9 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "perforated_backpropagation", self.perforated_backpropagation
             )
-
+            
+            # This is specifically a workaround for weight tying
+            # Not to be used for a duplicate pointer that isn't actually run twice
             self.weight_tying_experimental = False
             add_pai_config_var_functions(
                 self, "weight_tying_experimental", self.weight_tying_experimental

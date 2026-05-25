@@ -359,6 +359,10 @@ for batch in train_loader:  # Their loop
 
 ⚠️ **CRITICAL: DistributedDataParallel requires special handling for PAI tracker functions.**
 
+**🔴 IMPORTANT FIX: Both ranks must call `add_validation_score()` to keep global PAI state synchronized.**
+
+**Why:** The PAI tracker maintains global state (epoch counters, statistics, etc.) in `GPA.pai_tracker.member_vars`. If only rank 0 calls `add_validation_score()`, rank 1's global state goes out of sync, causing CUDA errors in subsequent epochs. Both ranks must call the function - the PAI library already handles file I/O internally (only rank 0 writes files via RANK env var checks).
+
 In the section where they call `add_validation_score` (and any `add_extra_score` calls), replace it with this DDP-aware pattern:
 
 ```python
@@ -366,30 +370,13 @@ In the section where they call `add_validation_score` (and any `add_extra_score`
 
 # Support both DDP and single GPU modes
 if args.distributed:
-    # DDP mode - only rank 0 calls PAI tracker functions
-    if torch.distributed.get_rank() == 0:
-        # Unwrap model from DDP wrapper
-        model_unwrapped = model.module
-        model_unwrapped, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model_unwrapped)
-        
-        # If adding extra scores, do those here too:
-        # model_unwrapped = GPA.pai_tracker.add_extra_score(extra_score, model_unwrapped, score_name="extra_metric")
-        
-        # Re-wrap the updated model
-        model.module = model_unwrapped
-        model.module = model.module.to(device)
-    else:
-        # Other ranks skip PAI calls
-        restructured = False
-        training_complete = False
+    # DDP mode - ALL ranks call PAI tracker to keep global state synchronized
+    # Unwrap model from DDP wrapper
+    model_unwrapped = model.module
+    model_unwrapped, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model_unwrapped)
     
-    # Broadcast restructured and training_complete from rank 0 to all ranks
-    restructured_tensor = torch.tensor([1 if restructured else 0], dtype=torch.int, device=device)
-    training_complete_tensor = torch.tensor([1 if training_complete else 0], dtype=torch.int, device=device)
-    torch.distributed.broadcast(restructured_tensor, src=0)
-    torch.distributed.broadcast(training_complete_tensor, src=0)
-    restructured = bool(restructured_tensor.item())
-    training_complete = bool(training_complete_tensor.item())
+    # If adding extra scores, ALL ranks do those here too:
+    # model_unwrapped = GPA.pai_tracker.add_extra_score(extra_score, model_unwrapped, score_name="extra_metric")
 else:
     # Single GPU mode
     model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_acc, model)
@@ -399,7 +386,7 @@ else:
 if training_complete:
     print("PAI training complete!")
     if args.distributed:
-        # Create completion marker for shell script (rank 0 only, but all ranks will exit)
+        # Create completion marker for shell script (rank 0 only)
         if torch.distributed.get_rank() == 0:
             os.makedirs(save_name, exist_ok=True)
             with open(f"{save_name}/.training_complete", "w") as f:
@@ -426,9 +413,8 @@ elif restructured:
 - Replace `val_acc` with their actual validation metric variable name
 - Replace `save_name` with their actual save folder variable
 - This same pattern applies to **both** `add_validation_score()` and `add_extra_score()` calls
-- Only rank 0 calls PAI tracker functions in DDP mode
-- Unwrap model from DDP wrapper (`.module`) before PAI calls
-- Broadcast results to all ranks in DDP mode
+- **ALL ranks call PAI tracker functions** to keep global state synchronized (file I/O is handled internally by PAI)
+- Unwrap model from DDP wrapper (`.module`) before PAI calls in DDP mode
 - **CRITICAL:** `torch.distributed.barrier()` calls are mandatory before `destroy_process_group()` to prevent file corruption - barriers ensure all ranks complete their I/O operations before any process exits
 - Call `destroy_process_group()` on all ranks when exiting
 

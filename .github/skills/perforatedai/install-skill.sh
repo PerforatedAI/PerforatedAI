@@ -52,7 +52,9 @@ rsync -rL \
     --exclude='out' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
+    --exclude='*checkpoint*' \
     --info=progress2 \
+    
     "$SCRIPT_DIR/../" "$TARGET_PROJECT/.github/skills/"
 
 echo -e "${GREEN}✓ PerforatedAI skills installed successfully!${NC}"

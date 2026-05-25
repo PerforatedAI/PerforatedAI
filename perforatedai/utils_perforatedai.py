@@ -504,7 +504,7 @@ def convert_module(
                 print(
                     "One of these must be selected to not be saved by calling, for example:"
                 )
-                print("GPA.pc.append_module_names_to_not_save(%s)" % sub_name)
+                print("GPA.pc.append_module_names_to_not_save([\"%s\"])" % sub_name)
                 pdb.set_trace()
                 sys.exit(0)
 
@@ -1184,7 +1184,11 @@ def save_net(net, folder, name):
         if GPA.pc.get_weight_tying_experimental():
             save_model_with_weight_tying(net, save_point + name + ".pt")
         else:
-            save_file(net.state_dict(), save_point + name + ".pt")
+            # Strip the . so that the naming is the same for everywhere but it works with state_dict naming
+            not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
+            state_dict = {k: v for k, v in net.state_dict().items()
+                          if not any(k.startswith(ns) for ns in not_save)}
+            save_file(state_dict, save_point + name + ".pt")
     else:
         torch.save(net, save_point + name + ".pt")
 
