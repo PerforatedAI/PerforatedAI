@@ -97,3 +97,4 @@ Now that your block is uploaded you can do the following:
    - If you want a higher accuracy turn up the number of dendrites
    - Check the post training analysis in terminal, if your pre-dendrite score is lower than your original score try setting `improvement-threshold` to low.
  - Please let us know how it goes for you!
+ - Also don't forget to close down your codespace once you are done with it.  They stay awake indefinitely if not shut down manually.
