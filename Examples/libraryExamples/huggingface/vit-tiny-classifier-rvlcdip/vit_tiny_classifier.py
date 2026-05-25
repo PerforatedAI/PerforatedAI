@@ -562,6 +562,7 @@ def train(
         if use_dendrites and GPA is not None:
             GPA.pai_tracker.set_optimizer_instance(optimizer)
             model, restructured, training_complete = GPA.pai_tracker.add_validation_score(accuracy, model)
+            model.to(device)
 
             if training_complete:
                 print("PAI signaled training complete, stopping training.")

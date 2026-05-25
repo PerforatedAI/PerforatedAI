@@ -55,7 +55,8 @@ To train a PerforatedAI model, first install the transformers-perforated version
 
 Then, make sure your license.yaml file is in this folder, and set your PerforatedAI password:
 
-    export PAIPASSWORD=<your_pai_password>
+    export PAIEMAIL=<your_pai_email>
+    export PAITOKEN=<your_pai_token>
     export CUDA_VISIBLE_DEVICES=<your_gpu_id>  # important to set this if you have multiple GPUs
     
 

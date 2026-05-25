@@ -43,7 +43,7 @@ doing_pai can be set to False if you want to run with your current parameters wi
 
 making_graphs can be set to False if you would prefer to make your own graphs for output performance.
 
-maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvement_threshold().  The default is 1e-4, but setting it to 0.001 will only count a loss reduction if the current cycle is at least .1% better than the previous cycle.
+maximizing_score should be set to False when your value passed to add_validation_score is a loss value that should be minimized.  Its generally better to look at the actual validation score rather than the raw loss values because loss can sometimes continue to be reduced as correct outputs are "more" correct without actually reducing the number of incorrect outputs that are wrong. However, using this can get you running quicker. If choosing to minimize loss, a setting that can help mitigate this is lowering GPA.pc.get_improvement_threshold().  The default is 1e-4, but setting it to 0.001 will only count a validation score improvement if the current score beats the last recorded threshold-passing score by at least .1%.
 
 save_name is defaults to 'PAI' but if you run multiple experiments at once this must be changed to save outputs to different folders
    
@@ -52,10 +52,14 @@ save_name is defaults to 'PAI' but if you run multiple experiments at once this 
 If there is no scheduler just leave it out of the call to setup_optimizer entirely. But as a warning, we have run some experiments where PAI does not work without a scheduler so if you choose to exclude one and PAI does not improve your system we would encourage you to include the ReduceLROnPlateau scheduler and try again.
     
     optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+
+NOTE: If you do not pass schedArgs to setup_optimizer or do not return a scheduler from it, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
     
 If your system is using a more complicated trainer where you can't just declare the optimizer outside of your system like this you are free to call the following instead of all of the above but it won't work quite as well.
 
     GPA.pai_tracker.set_optimizer_instance(trainer.optimizer)
+
+NOTE: If you use set_optimizer_instance, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
 
 If your system has multiple optimizers just pick one of them to use.  However, when you call addValidationScore you should also reinitialize the other optimizer if restructuring happens.
     
@@ -279,6 +283,75 @@ If you want to load a simplified pb model just for inference, or for finetuning 
 
 Note: all other GPA settings should still be set first
 
+### Transfer Learning with Pretrained Models
+
+If you want to load a pretrained perforated model for transfer learning on a new task (e.g., fine-tuning a model trained on ImageNet to a new dataset), use `load_pretrained_model`. This loads the pretrained weights and dendrite structure while resetting all training state (epochs, switch history, validation scores) to start fresh:
+
+    # Basic usage - loads pretrained weights, resets tracker for continued dendrite training
+    model = UPA.load_pretrained_model(model, pretrained_folder, 'beforeSwitch_0')
+
+    # For finetuning without adding more dendrites (removes dendrite scaffolding)
+    model = UPA.load_pretrained_model(model, pretrained_folder, 'best_model', 
+                                      remove_dendrite_scaffolding=True)
+
+This function should be called after perforate_model and configuring all GPA.pc settings (which will override any settings from the checkpoint).
+
+**Key differences from load_system:**
+- `load_system`: Resumes training from checkpoint with all history intact (epochs, switches, scores)
+- `load_pretrained_model`: Transfer learning - loads weights but resets training state to start fresh
+
+**What gets reset:**
+- All epoch counters (num_epochs_run, total_epochs_run, etc.)
+- Switch history and validation score tracking
+- Accuracy/loss history arrays
+- Learning rate search state
+
+**What is preserved:**
+- Model weights and dendrite structure (num_dendrites_integrated)
+- Training mode (neuron vs dendrite)
+- Your new GPA.pc configuration settings (improvement_threshold, max_dendrites, etc.)
+
+### Loading _pai Models (Inference and Fine-tuning)
+
+During training, if `GPA.pc.set_pai_saves(True)` is enabled, optimized `_pai` versions of checkpoints are automatically saved. These models have all training scaffolding removed and are designed for inference or fine-tuning without the PAI tracker.
+
+To load a `_pai` model:
+
+```python
+from perforatedai import network_perforatedai as NPA
+
+# Create the base model architecture
+model = YourModelClass()
+
+# Load the _pai checkpoint (automatically converts network and sets up dendrites)
+model = NPA.load_pai_model(model, 'PAI/best_model_pai.pt')
+
+# Model is ready for inference (no perforate_model or tracker setup needed)
+output = model(input_data)
+
+# Or fine-tune with standard PyTorch training (dendrites are frozen)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+# ... standard training loop ...
+```
+
+**Key differences:**
+- `load_system`: Loads full training state, requires PAI tracker, enables continued dendrite training
+- `load_pretrained_model`: Loads weights for transfer learning with reset tracker state and continued dendrite training
+- `load_pai_model`: Loads model with dendrites frozen, no PAI tracker needed, for inference or standard fine-tuning
+
+**What load_pai_model does:**
+- Automatically calls `convert_network` to wrap modules in PerforatedModule
+- Reconstructs dendrite structure from checkpoint (via `simulate_cycles`)
+- Loads all weights including dendrite weights
+- No PAI tracker initialization needed
+
+**When to use _pai models:**
+- Pure inference/deployment
+- Fine-tuning with standard PyTorch (no dendrite additions)
+- Sharing models without training dependencies
+- Minimal memory footprint (training scaffolding removed)
+- No plans to add more dendrites
+
     
 ## 8 Optimization
 
@@ -339,7 +412,11 @@ When this is its default of False you may still want to shorten Dendrite trainin
     GPA.pc.set_pai_improvement_threshold(0.1)
     GPA.pc.set_pai_improvement_thresholdRaw(1e-5)
 
-These values specify how much the Dendrites must be improving in order to continue training them.  The default settings are that if at least one Dendrite in the entire network has improved its score by at least 10% and at least 1e-5 over the last GPA.pc.get_p_epochs_to_switch() epochs then Dendrite training will continue.  If it seems like the Dendrite training just keeps going up indefinitely these are the values that should be changed.  Some larger models will even continue going up just due to random noise when a learning rate of 0 if these numbers are set too low.
+These values specify how much the Dendrites must improve **within a single epoch** to reset the patience counter and continue training. The default settings check every epoch: if at least one Dendrite in the entire network has improved its correlation score by at least 10% AND at least 1e-5 during that epoch, then the patience counter resets and Dendrite training continues. After GPA.pc.get_p_epochs_to_switch() epochs without meeting these thresholds, Dendrite training ends and switches back to neuron training.
+
+Note: These PAI correlation thresholds are different from validation score thresholds (set with GPA.pc.set_improvement_threshold()). Validation thresholds compare the current score against the last score that beat the threshold (which could be from many epochs ago if scores haven't improved enough). PAI thresholds check for improvement within each individual epoch during dendrite training.
+
+If it seems like Dendrite training continues indefinitely, these threshold values should be increased. Some larger models will continue showing score increases from random noise (even with learning rate 0) if these numbers are set too low.
 
 ### Correlation Scores are Low
 If a score is above 0.001 we typically determine that to mean correlation being learned correctly.  Anything less than that is likely just random noise and something is actually going wrong.  In these cases play around with the options of 2.1 and 2.2 above.  See if other wrapping methods or other processing functions are able to achieve better correlation scores.

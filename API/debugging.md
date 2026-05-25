@@ -153,12 +153,26 @@ This means the pai_tracker was not initialized.  This generally only happens if 
     
 This means you entered None for the saveName, likely args.saveName did not have a default value.
 
-
 ## setupOptimizer Error
     
     TypeError: 'list' object is not callable
     
 If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
+
+    WARNING: Parameter does not have parameter_type attribute in n mode
+    You can find this param by going up in the stack and calling:
+    UPA.find_param_name_by_id(model,124630993409104)
+    Ensure that model is either converted or tracked
+
+This means there is a module that was not properly handled during the call to perforate_model.  Is is generally one of two things.  First, confirm that all of your module are either tracked or perforated.  Second, confirm that you are not changing anything about the model definition after perforate_model.  For example, if you are doing transfer learning and replacing your fc layer, make sure to replace it before the call to perforate_model.
+
+        optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optimArgs, None)
+            ^^^^^^^^^^^^
+        TypeError: cannot unpack non-iterable _____ object
+
+Coding assistants will sometimes call setup_optimizer like this when there is not a scheduler.  When there is not a scheduler, only optimizer is returned. You don't ignore the second return variable, there isn't one.  So delete that _ or python will try to unpack your optimizer into two values.
+
+
 
 ## Optimizer Loop Error
 
@@ -186,8 +200,6 @@ If you get this error it means your neurons are not correctly matched in setoutp
     
 This means you did something wrong with the processing classes.  We have seen this before when moduleNamesWithProcessing and moduleByNameProcessingClasses don't line up.  Remember they need to be added in order in both arrays, and if the module is "by name" the processor also has to be added to the "by name" array.
 
-
-
 ## Index Out of Range in saveGraphs
 
     perforatedai.pb_neuron_layer_tracker.pb_neuron_layer_tracker.saveGraphs
@@ -195,6 +207,9 @@ This means you did something wrong with the processing classes.  We have seen th
 
 This error likely means that you added the validation score before the test score.  Test scores must be added before the validation score since graphs are generated when the validation score is added and the tracker must have access to the test scores at that time.
 
+    [rank0]: IndexError: list index out of range
+
+Similarly if you are getting the same error, especially within a DDP system, it can be cause when a switch has just happened but 'latest' is loaded instead of switch_x.  'latest' currently has a bug where it does not have correct records for that single epoch.
 
 ## Things not Getting Converted
 The conversion script runs by going through all member variables and determining all member variables that inherit from nn.Module.  If you have any lists or non nn.Module variables that then have nn.Modules in them it will miss them.  If you have a list just put that list into a nn.ModuleList and it will then find everything.  If you do this, make sure you replace the original variable name because that is what will be used. If you use the "add_module" function this is a sign you might cause this sort of problem.  Do not currently have a workaround for non-module objects that contain module objects, just let us know if that is a situation you are in and there is a reason the top object can't also be a module.
@@ -310,6 +325,8 @@ This likely means the optimizer or scheduler are using lambda functions.  just r
 
 ### Autograd Errors
 
+#### Second backwards
+
     Trying to backward through the graph a second time
 
 This is caused by something in your graph containing the same tensor twice.  If you run into this you can try to track it down with the following code block.  Set this up and then call `from perforatedai import globals_perforatedai as GPA; GPA.get_param_name(t_outputs)` within the error block. If this does not work try filling in `GPA.param_name_by_id` with additional tensors
@@ -320,9 +337,19 @@ This is caused by something in your graph containing the same tensor twice.  If 
     GPA.param_name_by_id = {id(param): name for name, param in model.named_parameters()}
     GPA.get_param_name = get_param_name
 
+
 It can also sometimes help to use the torchviz package to try to show the entire graph of the tensor.  Go up in debugger to where the problem first occurs in your code then call:
 
     from torchviz import make_dot; dot = make_dot(TENSOR); dot.render('graph', format='pdf') 
+
+
+#### inplace operations
+
+    RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation: [torch.cuda.FloatTensor [128, 1280]], which is output 0 of ReluBackward0, is at version 1; expected version 0 instead. Hint: enable anomaly detection to find the operation that failed to compute its gradient, with torch.autograd.set_detect_anomaly(True).
+
+This can happen anytime the forward is using += type functions.  be sure to use `var = var + var2` instead.  In some modules like dropout this is a setting: `nn.Dropout(p=dropout, inplace=False)`
+
+
 
 ### Safetensors Errors
 
@@ -365,6 +392,14 @@ In some cases this is done intentionally with weight tying. Which is not just a 
 This error can be caused by a few different reasons:
 1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
 2 - Your model definition or modules_to_perforate and moduleNamesToConvert lists are different between your training script and your inference script.
+
+
+    Getting a warning with moudles not tracked or wrapped with main_module in the list
+
+This means you are trying to perforate a model that has already been perforated.  This should never be done.
+
+    
+
 
 ## Errors that are currently not fixable
 

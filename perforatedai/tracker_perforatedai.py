@@ -452,13 +452,9 @@ def process_final_network(net):
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             print("For improved results, try perforated backpropagation next time!")
     GPA.pai_tracker.save_graphs("before_final")
-    print("before load")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
-    print("after load")
     GPA.pai_tracker.save_graphs()
-    print("after graphs")
     UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
-    print("after save")
     return net
 
 
@@ -974,6 +970,10 @@ class PAINeuronModuleTracker:
         # How many Dendrites have been added
         self.member_vars["num_dendrites_added"] = 0
         self.member_var_types["num_dendrites_added"] = "int"
+
+        # How many Dendrites have been successfully integrated (kept)
+        self.member_vars["num_dendrites_integrated"] = 0
+        self.member_var_types["num_dendrites_integrated"] = "int"
 
         # How many cycles have been run, *2 or *2+1 of the above
         self.member_vars["num_cycles"] = 0
@@ -1903,6 +1903,11 @@ class PAINeuronModuleTracker:
                     f'total epochs {self.member_vars["total_epochs_run"]}, '
                     f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
                 )
+            print(
+                f'  Score tracking: current_n_set_global_best={self.member_vars["current_n_set_global_best"]}, '
+                f'global_best={self.member_vars["global_best_validation_score"]:.4f}, '
+                f'current_best={self.member_vars["current_best_validation_score"]:.4f}'
+            )
         if GPA.pc.get_perforated_backpropagation():
             # this will fill in epoch last improved
             TPB.best_pai_score_improved_this_epoch(self)  ## CLOSED ONLY
@@ -2157,6 +2162,7 @@ class PAINeuronModuleTracker:
         GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
         GPA.pai_tracker.member_vars["num_cycles"] += 1
 
+
     def set_neuron_training(self):
         """Signal all layers to start neuron training."""
         for module in self.neuron_module_vector:
@@ -2242,6 +2248,14 @@ class PAINeuronModuleTracker:
                             layer.dendrite_module.dendrite_values[
                                 m
                             ].nodes_best_improved_this_epoch
+                            * 0
+                        )
+                        layer.dendrite_module.dendrite_values[
+                            m
+                        ].nodes_improved_any = (
+                            layer.dendrite_module.dendrite_values[
+                                m
+                            ].nodes_improved_any
                             * 0
                         )
             if GPA.pc.get_perforated_backpropagation():
@@ -3298,6 +3312,7 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["num_dendrites_added"]},'
                         f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]},'
                     )
+                import pdb; pdb.set_trace
                 # If the max number of dendrites has been hit or not doing pai and adding dendtites
                 # then return rather than adding more
                 if (
@@ -3312,9 +3327,16 @@ class PAINeuronModuleTracker:
                             "Max dendrites reached or not doing PAI, finishing training"
                         )
                     net = process_final_network(net)
+                    # Increment integrated if we have dendrites (means they're integrated)
+                    if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+                        GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+                        if not GPA.pc.get_silent():
+                            print(f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
                     return net, True, True
 
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
+                # Check if we should increment integrated count BEFORE change_learning_modes loads old state
+                should_increment_integrated = False
                 if GPA.pai_tracker.member_vars["mode"] == "n":
                     GPA.pai_tracker.member_vars["num_dendrite_tries"] = 0
                     if GPA.pc.get_verbose():
@@ -3322,6 +3344,9 @@ class PAINeuronModuleTracker:
                             "Adding new dendrites without resetting which means "
                             "the last ones improved. Resetting num_dendrite_tries"
                         )
+                    # Remember to increment after change_learning_modes (which loads old tracker state)
+                    if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+                        should_increment_integrated = True
 
                 GPA.pai_tracker.save_graphs(
                     f'_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}'
@@ -3348,6 +3373,13 @@ class PAINeuronModuleTracker:
                     GPA.pai_tracker.member_vars["doing_pai"],
                 )
                 restructuring_status_value = NETWORK_RESTRUCTURED
+                
+                # Now increment after change_learning_modes has loaded the best model
+                # This ensures the increment persists and doesn't get overwritten
+                if should_increment_integrated:
+                    GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
+                    if not GPA.pc.get_silent():
+                        print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
 
             # If restructured is true, clear scheduler/optimizer before saving
             if restructuring_status_value != NETWORK_RESTRUCTURED:
@@ -3394,9 +3426,12 @@ class PAINeuronModuleTracker:
             if GPA.pc.get_verbose():
                 print("Not saving restructure right now")
 
+            """
+            This block of code helped with a save issue with safetensors and huggingface, but it breaks DDP.  
+            Temporarily removing it to avoid DDP issues, but if you encounter save issues try adding it back in.
             for param in net.parameters():
                 param.data = param.data.contiguous()
-
+            """
         if GPA.pc.get_verbose():
             print(
                 f"Completed adding score. Restructured is {restructuring_status_value}, "

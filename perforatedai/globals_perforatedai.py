@@ -13,6 +13,23 @@ import torch
 import torch.nn as nn
 
 
+def _validate_module_id(module_id):
+    """Validate that a module ID string uses dot notation.
+
+    Module IDs must start with '.' and must not contain '[' or ']'.
+    For example, 'model.layers[1].module' should be written as '.layers.1.module'.
+    """
+    if not isinstance(module_id, str) or not module_id.startswith("."):
+        raise ValueError(
+            f"Module ID '{module_id}' must start with '.' - model.module should be '.module'"
+        )
+    if "[" in module_id or "]" in module_id:
+        raise ValueError(
+            f"Module ID '{module_id}' must not contain '[' or ']'. "
+            "Use dot notation instead, e.g. '.layers.1.module'"
+        )
+
+
 def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     """Dynamically add a property with getter and setter to an object.
 
@@ -87,16 +104,29 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 "Setting custom module config values should only be done "
                 "from JSON config files or the GUI"
             )
+        if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+            for module_id in value:
+                _validate_module_id(module_id)
         setattr(self, private_name, value)
-        # Auto-save: if a config file has been configured (set at end of __init__),
+        # Auto-save: if a config file has been configured (set when save_name is set),
         # persist the new value immediately so the JSON stays in sync.
         config_file = self.__dict__.get("_config_file")
-        if config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
+        # Special case: if save_name changed to non-empty, update config file path
+        if var_name == "save_name" and value:
+            import os as _os
+
+            _save_folder = _os.path.join(_os.getcwd(), value)
+            config_file = _os.path.join(_save_folder, f"{value}_config.json")
+            self.__dict__["_config_file"] = config_file
+        elif config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
             self.save_config(config_file)
 
     def appender(self, value):
         """Append a value to the property if it is a list."""
         if isinstance(getattr(self, private_name), list):
+            if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+                for module_id in value:
+                    _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
             print(
                 'New list value of "{}": {}'.format(
@@ -489,7 +519,7 @@ class PAIConfig:
             add_pai_config_var_functions(self, "device", self.device)
 
             # User should never set this manually
-            self.save_name = "PAI"
+            self.save_name = ""
             add_pai_config_var_functions(self, "save_name", self.save_name)
 
             # Debug settings
@@ -533,6 +563,14 @@ class PAIConfig:
             self.using_safe_tensors = True
             add_pai_config_var_functions(
                 self, "using_safe_tensors", self.using_safe_tensors
+            )
+
+            # Checkpoint loading settings
+            # Whether to use strict=True when loading state_dict
+            # Set to False if loading old checkpoints that are missing new fields
+            self.strict_loading = True
+            add_pai_config_var_functions(
+                self, "strict_loading", self.strict_loading
             )
 
             # Graph and visualization settings
@@ -791,7 +829,9 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "perforated_backpropagation", self.perforated_backpropagation
             )
-
+            
+            # This is specifically a workaround for weight tying
+            # Not to be used for a duplicate pointer that isn't actually run twice
             self.weight_tying_experimental = False
             add_pai_config_var_functions(
                 self, "weight_tying_experimental", self.weight_tying_experimental
@@ -878,26 +918,9 @@ class PAIConfig:
         )
 
         # ------------------------------------------------------------------
-        # Auto-load or auto-save {save_name}_config.json in the {save_name} folder
+        # Config file will be set when save_name is assigned (in perforate_model)
         # ------------------------------------------------------------------
-        import os as _os
-
-        _save_name = self.__dict__.get("_save_name", "PAI")
-        _save_folder = _os.path.join(_os.getcwd(), _save_name)
-        _default_path = _os.path.join(_save_folder, f"{_save_name}_config.json")
-        if _os.path.exists(_default_path):
-            self.load_config(
-                _default_path,
-                module_name=module_name,
-                module_type=self.__dict__.get("_module_type"),
-            )
-        elif (not module_name) and not self.__dict__.get(
-            "_testing_dendrite_capacity", False
-        ):
-            _os.makedirs(_save_folder, exist_ok=True)  # Create folder if needed
-            self.save_config(_default_path)
-        # Enable auto-save-on-set from this point forward
-        self.__dict__["_config_file"] = _default_path
+        # _config_file stays None until save_name is set to a non-empty value
 
     # ------------------------------------------------------------------
 

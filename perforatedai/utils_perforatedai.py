@@ -99,6 +99,12 @@ def perforate_model(
         values_per_val_epoch=values_per_val_epoch,
         zooming_graph=zooming_graph,
     )
+    
+    # Save config after perforation
+    if not GPA.pc.get_testing_dendrite_capacity():
+        import os
+        GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
+    
     return model
 
 
@@ -498,7 +504,7 @@ def convert_module(
                 print(
                     "One of these must be selected to not be saved by calling, for example:"
                 )
-                print("GPA.pc.append_module_names_to_not_save(%s)" % sub_name)
+                print("GPA.pc.append_module_names_to_not_save([\"%s\"])" % sub_name)
                 pdb.set_trace()
                 sys.exit(0)
 
@@ -868,6 +874,156 @@ def load_system(
     return net
 
 
+def load_pretrained_model(
+    net,
+    folder,
+    name,
+    remove_dendrite_scaffolding=False,
+):
+    """Load a pretrained perforated model and reset tracker for fresh training.
+
+    This function loads a pretrained model's weights and dendrite structure while
+    resetting all tracker state (epochs, switch history, etc.) to start training
+    from scratch on a new task. This is useful for transfer learning where you want
+    pretrained weights but need fresh training dynamics.
+
+    Parameters
+    ----------
+    net : nn.Module
+        The network to load into.
+    folder : str
+        The folder containing the pretrained model.
+    name : str
+        The name of the checkpoint to load (e.g., 'best_model', 'beforeSwitch_0').
+    remove_dendrite_scaffolding : bool, optional
+        If True, removes dendrite scaffolding for inference or finetuning without
+        adding more dendrites using blockwise_network and refresh_net. Default False.
+
+    Returns
+    -------
+    nn.Module
+        The loaded network with reset tracker state.
+
+    Examples
+    --------
+    Load pretrained weights for continued dendrite training:
+    >>> model = load_pretrained_model(model, "pretrained-prefc", "beforeSwitch_0")
+
+    Load pretrained weights for finetuning without adding more dendrites:
+    >>> model = load_pretrained_model(model, "pretrained-prefc", "best_model", 
+    ...                               remove_dendrite_scaffolding=True)
+
+    Notes
+    -----
+    This function:
+    - Loads model weights and dendrite structure from checkpoint
+    - Resets all epoch counters to -1 (will become 0 after first start_epoch)
+    - Resets switch history and validation score tracking
+    - Clears accuracy/loss history arrays
+    - Optionally removes dendrite scaffolding (no more dendrite additions)
+    
+    The tracker is reset to behave as if starting fresh training, while keeping
+    the learned weights and dendrite structure from the pretrained model.
+    """
+    from perforatedai import globals_perforatedai as GPA
+    
+    if GPA.pc.get_verbose():
+        print(f"Loading pretrained model from {folder}/{name}")
+    
+    # Load the model weights and dendrite structure
+    net = load_system(net, folder, name, load_from_manual_save=True)
+    
+    if GPA.pc.get_verbose():
+        print("Resetting tracker state for fresh training...")
+    
+    # Reset epoch counters
+    GPA.pai_tracker.member_vars["num_epochs_run"] = -1
+    GPA.pai_tracker.member_vars["total_epochs_run"] = -1
+    GPA.pai_tracker.member_vars["epoch_last_improved"] = 0
+    GPA.pai_tracker.member_vars["last_switch"] = 0
+    
+    # Reset switch history
+    GPA.pai_tracker.member_vars["switch_epochs"] = []
+    GPA.pai_tracker.member_vars["n_switch_epochs"] = []
+    GPA.pai_tracker.member_vars["p_switch_epochs"] = []
+    GPA.pai_tracker.member_vars["param_counts"] = []
+    
+    # Reset validation scores and tracking
+    GPA.pai_tracker.member_vars["current_best_validation_score"] = 0
+    GPA.pai_tracker.member_vars["global_best_validation_score"] = 0
+    GPA.pai_tracker.member_vars["running_accuracy"] = 0
+    
+    # Clear accuracy/loss history arrays
+    GPA.pai_tracker.member_vars["accuracies"] = []
+    GPA.pai_tracker.member_vars["last_improved_accuracies"] = []
+    GPA.pai_tracker.member_vars["test_accuracies"] = []
+    GPA.pai_tracker.member_vars["n_accuracies"] = []
+    GPA.pai_tracker.member_vars["p_accuracies"] = []
+    GPA.pai_tracker.member_vars["running_accuracies"] = []
+    GPA.pai_tracker.member_vars["training_loss"] = []
+    GPA.pai_tracker.member_vars["training_learning_rates"] = []
+    GPA.pai_tracker.member_vars["test_scores"] = []
+    
+    # Clear extra scores
+    GPA.pai_tracker.member_vars["extra_scores"] = {}
+    GPA.pai_tracker.member_vars["extra_scores_without_graphing"] = {}
+    GPA.pai_tracker.member_vars["n_extra_scores"] = {}
+    
+    # Clear dendrite scores
+    GPA.pai_tracker.member_vars["best_scores"] = []
+    GPA.pai_tracker.member_vars["current_scores"] = []
+    
+    # Clear timing arrays
+    GPA.pai_tracker.member_vars["n_epoch_times"] = []
+    GPA.pai_tracker.member_vars["p_epoch_times"] = []
+    GPA.pai_tracker.member_vars["n_train_times"] = []
+    GPA.pai_tracker.member_vars["p_train_times"] = []
+    GPA.pai_tracker.member_vars["n_val_times"] = []
+    GPA.pai_tracker.member_vars["p_val_times"] = []
+    
+    # Clear overwritten tracking
+    GPA.pai_tracker.member_vars["overwritten_extras"] = []
+    GPA.pai_tracker.member_vars["overwritten_vals"] = []
+    GPA.pai_tracker.member_vars["overwritten_epochs"] = 0
+    
+    # Reset learning rate search state
+    GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = -1
+    GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
+    GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = 0
+    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = -1
+    GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
+    GPA.pai_tracker.member_vars["current_step_count"] = 0
+    
+    # Reset saved time
+    GPA.pai_tracker.saved_time = 0
+    
+    # Keep: num_dendrites_added, num_dendrites_integrated, mode, doing_pai
+    # Keep: maximizing_score, switch_mode, param_vals_setting
+    # These define the model structure and behavior, not training history
+    
+    if GPA.pc.get_verbose():
+        print(
+            f"Tracker reset complete. Dendrites: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}, "
+            f"Mode: {GPA.pai_tracker.member_vars['mode']}"
+        )
+    
+    # Optionally remove dendrite scaffolding
+    if remove_dendrite_scaffolding:
+        if GPA.pc.get_verbose():
+            print("Removing dendrite scaffolding (no dendrite additions)...")
+        
+        from perforatedai import blockwise_perforatedai as BPA
+        from perforatedai import clean_perforatedai as CPA
+        
+        net = BPA.blockwise_network(net)
+        net = CPA.refresh_net(net)
+        
+        if GPA.pc.get_verbose():
+            print("Dendrite scaffolding removed. Model ready for inference or finetuning.")
+    
+    return net
+
+
 import json
 from collections import defaultdict
 from safetensors.torch import save_file, safe_open
@@ -1028,7 +1184,11 @@ def save_net(net, folder, name):
         if GPA.pc.get_weight_tying_experimental():
             save_model_with_weight_tying(net, save_point + name + ".pt")
         else:
-            save_file(net.state_dict(), save_point + name + ".pt")
+            # Strip the . so that the naming is the same for everywhere but it works with state_dict naming
+            not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
+            state_dict = {k: v for k, v in net.state_dict().items()
+                          if not any(k.startswith(ns) for ns in not_save)}
+            save_file(state_dict, save_point + name + ".pt")
     else:
         torch.save(net, save_point + name + ".pt")
 
@@ -1318,6 +1478,7 @@ def load_net_from_dict(net, state_dict):
                     "\n7 - You are running multiple experiments at once with the same save_name."
                     " When running concurrent trials be sure to add save_name=<unique_name> to perforate_model."
                 )
+                import pdb # This needs to be here for cython for some reason.
                 pdb.set_trace()
 
         # Perform as many cycles as the state dict has
@@ -1335,9 +1496,11 @@ def load_net_from_dict(net, state_dict):
             tracker_key = tracker_keys[0]
         elif len(tracker_keys) > 1:
             print(f"Error: Multiple tracker_string keys found: {tracker_keys}")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
         else:
             print("Error: No tracker_string found in state_dict")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
 
     if hasattr(net, "tracker_string"):
@@ -1345,7 +1508,7 @@ def load_net_from_dict(net, state_dict):
     else:
         net.register_buffer("tracker_string", state_dict[tracker_key])
     try:
-        net.load_state_dict(state_dict)
+        net.load_state_dict(state_dict, strict=GPA.pc.get_strict_loading())
     except Exception as e:
         """
         When modules have high depth to them (i.e. modules within modules not number of layers)
@@ -1357,7 +1520,11 @@ def load_net_from_dict(net, state_dict):
             manual_load_state_dict(net, state_dict)
         else:
             print(f"Error loading state_dict: {e}")
+            print("If the error is due to missing keys (e.g., from code changes), you can try:")
+            print("  GPA.pc.set_strict_loading(False)")
+            print("  Do not change this unless you are certain the missing keys are not important to load and are expected due to code changes or arch changes.")
             print("\ntype 'c' to print full state dicts\n")
+            import pdb # This needs to be here for cython for some reason.
             pdb.set_trace()
             print("net state dict is:")
             print(net.state_dict())
@@ -1418,13 +1585,14 @@ def deep_copy_pai(net):
     This is required because processors must be cleared before calling copy
 
     """
-
-    # Clear gradients before saving the model
-    if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and (
-        GPA.pai_tracker.member_vars["optimizer_instance"] != []
-    ):
-        GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
-    GPA.pai_tracker.clear_all_processors()
+    # Dont check this stuff if its before the perforate_model has been called and you're just copying a regular model
+    if(GPA.pai_tracker != []):
+        # Clear gradients before saving the model
+        if ((GPA.pai_tracker.member_vars["optimizer_instance"]) is not None) and (
+            GPA.pai_tracker.member_vars["optimizer_instance"] != []
+        ):
+            GPA.pai_tracker.member_vars["optimizer_instance"].zero_grad()
+        GPA.pai_tracker.clear_all_processors()
     return copy.deepcopy(net)
 
 
@@ -2254,12 +2422,13 @@ try:
 
         return f"https://huggingface.co/{repo_id}"
 
-    def from_hf_pretrained(net, repo_id):
+    def from_hf_pretrained(net, repo_id, force_download=False):
         """Load a PerforatedAI model from HuggingFace Hub using PyTorchModelHubMixin.
 
         Args:
             net: The base model architecture (will be converted to PAI format)
             repo_id: HuggingFace Hub repository ID (e.g., "username/model-name")
+            force_download: If True, always download the latest version, bypassing cache (default: False)
 
         Returns:
             net: The loaded model with PAI modules initialized
@@ -2277,7 +2446,7 @@ try:
 
         # Download config.json to restore PAI configuration
         try:
-            config_path = hf_hub_download(repo_id=repo_id, filename="config.json")
+            config_path = hf_hub_download(repo_id=repo_id, filename="config.json", force_download=force_download)
             with open(config_path, "r") as f:
                 config = json.load(f)
                 if "pai_config" in config:
@@ -2289,7 +2458,7 @@ try:
             print(f"Warning: Could not load PAI config from HuggingFace: {e}")
 
         # Download model files from HuggingFace
-        model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors")
+        model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", force_download=force_download)
         state_dict = load_file(model_path)
         wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
@@ -2300,5 +2469,11 @@ except:
     def upload_to_huggingface(*args, **kwargs):
         raise ImportError(
             "huggingface_hub is required for upload_to_huggingface. "
+            "Install it with: pip install huggingface_hub"
+        )
+
+    def from_hf_pretrained(*args, **kwargs):
+        raise ImportError(
+            "huggingface_hub is required for from_hf_pretrained. "
             "Install it with: pip install huggingface_hub"
         )

@@ -60,7 +60,9 @@ When calling intitializePB a pb_neuron_layer_tracker called pai_tracker will be 
 
     GPA.pai_tracker.set_optimizer_instance(optimizer)
 
-However, we reccomend your optimizer and scheduler should be set this way instead. This method will automatically sweep over multiple learning rate options when adding dendrites, where often a lower learning rate is better for when after dendrites have been added. If you do use this method, the scheduler will get stepped inside our code so get rid of your scheduler.step() if you have one.  We recommend using ReduceLROnPlateau but any scheduler and optimizer should work.
+NOTE: If you use set_optimizer_instance, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
+
+However, we recommend your optimizer and scheduler should be set this way instead. This method will automatically sweep over multiple learning rate options when adding dendrites, where often a lower learning rate is better for when after dendrites have been added. If you use setup_optimizer with schedArgs passed in AND return a scheduler from the function, the scheduler will get stepped inside our code so get rid of your scheduler.step() calls. If you do NOT pass schedArgs or do NOT return a scheduler, PAI will not handle the scheduler and you must manage it yourself.  We recommend using ReduceLROnPlateau but any scheduler and optimizer should work.
 
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
     GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
@@ -68,9 +70,11 @@ However, we reccomend your optimizer and scheduler should be set this way instea
     schedArgs = {'mode':'max', 'patience': 5} #Make sure this is lower than epochs to switch
     optimizer, PAIscheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
     
-    Get rid of scheduler.step if there is one. If your scheduler is operating in a way
-    that it is doing things in other functions other than just a scheduler.step this
-    can cause problems and you should just not add the scheduler to our system.
+    ONLY if you initialized the scheduler within setup_optimizer by passing schedArgs
+    AND returning a scheduler, then get rid of your scheduler.step() calls - PAI will 
+    handle them. If your scheduler is operating in a way that it is doing things in 
+    other functions other than just a scheduler.step this can cause problems and you 
+    should just not add the scheduler to our system (omit schedArgs and manage it yourself).
     We leave this uncommented inside the code block so it is not forgotten.
     
     Another note - It seems that weight decay can sometimes cause problems with dendrite learning.  If you currently have weight decay and are not happy with the results, try without it.
@@ -138,6 +142,15 @@ The pai_tracker will tell you when the program should be stopped by returning tr
     epoch = -1
     while(True):
         epoch += 1
+
+## Using a Third-Party Training Library?
+
+If you are using a library that manages your training loop (such as HuggingFace Transformers or PyTorch Lightning), some of the steps above are handled differently or automatically. Check the library-specific READMEs in the examples folder before following this guide:
+
+- **HuggingFace Transformers** — [`Examples/libraryExamples/huggingface/README.md`](../Examples/libraryExamples/huggingface/README.md)
+- **PyTorch Lightning** — [`Examples/libraryExamples/pytorch_lightning/mnist/README.md`](../Examples/libraryExamples/pytorch_lightning/mnist/README.md)
+
+Note that these integrations only apply when you use the library's built-in trainer (e.g., HuggingFace `Trainer`). If you use a HuggingFace model but write your own training loop, follow this README as normal.
 
 ## That's all that's Required!
 With this short README you are now set up to try your first experiment.  When your first experiment runs it will have a default setting called `GPA.pc.set_testing_dendrite_capacity(True)`.  This will test your system with adding three sets of dendrites to ensure all setup parameters are correct and the GPU can handle the size of the larger network.  Once it has been confirmed your script will output a message telling you the test has compelted.  After this message has been received, set this variable to be False to run a real experiment.

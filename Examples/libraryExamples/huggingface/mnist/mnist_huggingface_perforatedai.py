@@ -71,7 +71,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=64,
     per_device_eval_batch_size=64,
     num_train_epochs=100000,
-    evaluation_strategy="epoch",
+    eval_strategy="epoch",
     remove_unused_columns=False,
     dataloader_drop_last=False,  # CRITICAL: Don't drop incomplete batches
 )
@@ -132,6 +132,7 @@ trainer = MyTrainer(
     eval_dataset=test_dset,
     data_collator=collate_fn,
     compute_metrics=compute_metrics,
+    using_perforatedai=True,
 )
 
 trainer.train()
