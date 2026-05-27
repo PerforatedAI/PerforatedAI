@@ -1283,7 +1283,11 @@ def save_pai_net(net, folder, name):
 
 def manual_load_state_dict(model, state_dict):
     own_state = model.state_dict()
+    not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
     for name, param in state_dict.items():
+        if any(name.startswith(ns) for ns in not_save):
+            print("skipping loading %s based on module_names_to_not_save" % name)
+            continue
         if name not in own_state:
             print(f"Warning: {name} not found in model state_dict")
             continue
@@ -1397,7 +1401,11 @@ def load_net_from_dict(net, state_dict):
             "setting up arrays and simulating cycles for %d pai modules"
             % len(pai_modules)
         )
+    not_save = GPA.pc.get_module_names_to_not_save()
     for module in pai_modules:
+        if any(module.name.startswith(ns) for ns in not_save):
+            print("skipping loading %s based on module_names_to_not_save" % module.name)
+            continue
         # Set up name to be what will be saved in the state dict
         module_name = get_module_base_name(module)
         module.clear_dendrites()
