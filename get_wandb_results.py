@@ -7,7 +7,7 @@ QUICK START:
     python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/SWEEP_ID"
 
 MODES:
-    --mode download (default) - Download raw CSV with all metrics
+    --mode download (default) - Download raw CSV with all metrics, other modes use that csv
     --mode gen-by-run         - Generate pivot table for line graphs (runs as lines)
     --mode by-dendrite        - Generate scatter plot data (grouped by dendrite count)
 
@@ -331,7 +331,7 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
     # Function to get the starting dendrite count for a run
     def get_dendrite_offset(run_name):
         for prefix, offset in dendrite_offsets.items():
-            if run_name.startswith(prefix):
+            if prefix in run_name:
                 return offset
         return 0
     
@@ -425,7 +425,7 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
     def get_expected_start(run_name):
         """Get the expected starting dendrite count for a run based on configured offsets"""
         for prefix, start_count in dendrite_offsets.items():
-            if run_name.startswith(prefix):
+            if prefix in run_name:
                 return start_count
         return 0  # Default: expect to start from 0
     
@@ -461,7 +461,7 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
                         # Extract model index from prefix for clearer messaging
                         model_idx_str = None
                         for prefix in dendrite_offsets:
-                            if run_name.startswith(prefix):
+                            if prefix in run_name:
                                 # Extract number from "model_index_0" format
                                 import re
                                 match = re.match(r'model_index_(\d+)', prefix)

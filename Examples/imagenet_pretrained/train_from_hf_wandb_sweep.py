@@ -541,6 +541,74 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
                 f"Pretrained folder {pretrained_folder} not found, using base ImageNet weights"
             )
 
+    elif model_name == "resnet-18-perforated-cascor-hf-fc":
+        # Load perforated model from HuggingFace (pre-fc already perforated)
+        # and additionally perforate the output classification fc layer
+        from perforatedai import utils_perforatedai as UPA
+        from perforatedai import library_perforatedai as LPA
+
+        hf_repo_id = "perforated-ai/resnet-18-perforated-cascor"
+        base_model = torchvision.models.get_model(
+            "resnet18", weights=None, num_classes=1000
+        )
+        model = LPA.ResNetPAIPreFC(base_model)
+        model = UPA.from_hf_pretrained(model, hf_repo_id, force_download=True)
+        print(f"Successfully loaded perforated model from HuggingFace: {hf_repo_id}")
+
+        if perforate:
+            print("Configuring PAI to additionally perforate the fc classification layer...")
+            GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
+            GPA.pc.set_max_dendrites(3)
+            GPA.pc.set_max_dendrite_tries(1)
+            GPA.pc.set_initial_correlation_batches(10)
+            GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
+            GPA.pc.set_module_ids_to_perforate([".fc"])  # Only perforate fc; pre_fc already perforated
+            GPA.pc.set_module_ids_to_track(
+                [".layer1", ".layer2", ".layer3", ".layer4", ".conv1", ".bn1", ".pre_fc"]
+            )
+            GPA.pc.set_output_dimensions([-1, 0])  # fc layer output: [batch, features]
+
+            # Dataset-specific configurations
+            if dataset_name and dataset_name.lower() == "food101":
+                GPA.pc.set_n_epochs_to_switch(25)
+
+            # Apply dendritic hyperparameters from wandb config if in sweep
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb, "config")
+            ):
+                if "improvement_threshold" in wandb.config:
+                    GPA.pc.set_improvement_threshold(wandb.config.improvement_threshold)
+                if "pai_forward_function" in wandb.config:
+                    pai_fwd = wandb.config.pai_forward_function
+                    if pai_fwd == "sigmoid":
+                        GPA.pc.set_pai_forward_function(torch.sigmoid)
+                    elif pai_fwd == "relu":
+                        GPA.pc.set_pai_forward_function(torch.relu)
+                    elif pai_fwd == "tanh":
+                        GPA.pc.set_pai_forward_function(torch.tanh)
+
+            # Build save_name from wandb config if available (for sweeps)
+            if (
+                hasattr(wandb, "run")
+                and wandb.run is not None
+                and hasattr(wandb.run, "name")
+                and wandb.run.name
+            ):
+                save_name = wandb.run.name
+            else:
+                save_name = f"resnet18_hf_fc_{num_classes}cls"
+
+            model = UPA.perforate_model(
+                model,
+                save_name=save_name,
+                maximizing_score=True,
+            )
+            print(
+                f"Model perforated successfully (fc layer) - save_name: {save_name}"
+            )
+
     elif model_name == "resnet-34":
         # Load torchvision ResNet-34 with pretrained ImageNet weights
         model = torchvision.models.resnet34(weights="IMAGENET1K_V1")
@@ -564,8 +632,8 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
         if perforate:
             from perforatedai.modules_perforatedai import PAINeuronModule, TrackedNeuronModule
             
-            if model_name == "resnet-18-perforated-cascor-fc":
-                # For fc model: perforate the fc layer
+            if model_name in ("resnet-18-perforated-cascor-fc", "resnet-18-perforated-cascor-hf-fc"):
+                # For fc / hf-fc model: perforate the fc layer
                 model.fc = PAINeuronModule(new_fc, "fc")
                 print(f"Replaced fc layer for {num_classes} classes and converted to PAINeuronModule")
             elif model_name == "resnet-18-perforated-cascor-pre-fc":
@@ -598,6 +666,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     perforate = args.model in [
         "resnet-18-perforated-cascor-fc",
         "resnet-18-perforated-cascor-pre-fc",
+        "resnet-18-perforated-cascor-hf-fc",
     ]
 
     # Load model
@@ -1010,6 +1079,7 @@ def get_model_name_from_index(model_index):
         1: "resnet-18-perforated-cascor-fc",
         2: "resnet-18-perforated-cascor-pre-fc",
         3: "resnet-34",
+        4: "resnet-18-perforated-cascor-hf-fc",
     }
     return model_mapping[model_index]
 
@@ -1026,7 +1096,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "flowers102"},
             "model_index": {
-                "values": [0, 1, 2, 3]
+                "values": [0, 1, 2, 3, 4]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
             "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
@@ -1042,7 +1112,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "pets"},
             "model_index": {
-                "values": [0, 1, 2, 3]
+                "values": [0, 1, 2, 3, 4]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
@@ -1058,7 +1128,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "food101"},
             "model_index": {
-                "values": [0, 1, 2, 3]
+                "values": [0, 1, 2, 3, 4]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
@@ -1163,6 +1233,7 @@ def train_with_wandb():
     perforate = args.model in [
         "resnet-18-perforated-cascor-fc",
         "resnet-18-perforated-cascor-pre-fc",
+        "resnet-18-perforated-cascor-hf-fc",
     ]
     if not perforate:
         # Non-perforated models: log Final scores here
@@ -1227,6 +1298,7 @@ def main():
             "resnet-18-perforated-cascor-fc",
             "resnet-18-perforated-cascor-pre-fc",
             "resnet-34",
+            "resnet-18-perforated-cascor-hf-fc",
         ],
         help="Model to train (required for single runs)",
     )
@@ -1446,6 +1518,7 @@ def main():
         perforate = args.model in [
             "resnet-18-perforated-cascor-fc",
             "resnet-18-perforated-cascor-pre-fc",
+            "resnet-18-perforated-cascor-hf-fc",
         ]
         
         if not perforate:
