@@ -29,7 +29,7 @@ Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to y
 - **Up to 90% compression** without sacrificing accuracy
 - **50% reduction in data requirements** for similar accuracy scores
 
-> These results come from the full **Perforated Backpropagation™** system, available in the [full Perforated AI Suite][contact-us]. [Case studies][case-studies] and our [published paper][arxiv] include full benchmark methodology.
+> These results come from the full **Perforated Backpropagation™** system, available in the [full Perforated AI Suite][contact-us]. [Resources][resources] and our [published paper][arxiv] include full benchmark methodology.
 
 ## 🚀 Quick Start
 
@@ -194,7 +194,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [customization-guide]: ./API/customization.md
 [output-guide]: ./API/output.md
 [papers]: ./Papers
-[case-studies]: https://www.perforatedai.com/case-studies
+[resources]: https://www.perforatedai.com/resources
 [arxiv]: https://arxiv.org/pdf/2501.18018
 [mnist-example]: ./Examples/baseExamples/mnist
 [td3-example]: ./Examples/reinforcementLearning/td3_cheetah
@@ -203,7 +203,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [edge-impulse-example]: ./Examples/hackathonProjects/perforated-impulse-nn-block
 [lightning-example]: ./Examples/libraryExamples/pytorch_lightning
 [hf-example]: ./Examples/libraryExamples/huggingface
-[get-started]: https://www.perforatedai.com/get-started
+[get-started]: https://www.perforatedai.com/contact
 [github-issues]: https://github.com/PerforatedAI/PerforatedAI/issues
 [discord]: https://discord.gg/Fgw3FG3Hzt
 [newsletter]: https://www.perforatedai.com/contact
