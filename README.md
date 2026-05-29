@@ -190,7 +190,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [license-url]: ./LICENSE
 [api-docs]: ./API/README.md
 [claude-skill]: .github/skills/perforatedai/SKILL.md
-[contact-us]: https://www.perforatedai.com/contact)
+[contact-us]: https://www.perforatedai.com/contact
 [customization-guide]: ./API/customization.md
 [output-guide]: ./API/output.md
 [papers]: ./Papers
@@ -200,7 +200,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [td3-example]: ./Examples/reinforcementLearning/td3_cheetah
 [imagenet-example]: ./Examples/imagenet
 [huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-cascor
-[edge-impulse-example]: ./Examples/hackathonProjects/perforated-impulse-nn-block))
+[edge-impulse-example]: ./Examples/hackathonProjects/perforated-impulse-nn-block
 [lightning-example]: ./Examples/libraryExamples/pytorch_lightning
 [hf-example]: ./Examples/libraryExamples/huggingface
 [get-started]: https://www.perforatedai.com/get-started
