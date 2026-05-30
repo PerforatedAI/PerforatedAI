@@ -21,7 +21,7 @@
 
 ## Introduction
 
-Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.  Perforated AI is part of the [PyTorch landscape][pytorch-landscape].
+Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.  Perforated AI is part of the [PyTorch Landscape][pytorch-landscape].
 
 ## 📊 Key Results
 
