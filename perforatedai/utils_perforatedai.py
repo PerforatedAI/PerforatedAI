@@ -84,6 +84,28 @@ def perforate_model(
         The modified model with dendrite scaffolding added if doing_pai is True
 
     """
+
+    if "/" in save_name:
+        print(
+            f"Warning: save_name '{save_name}' contains '/'. Relative paths are not implemented yet."
+        )
+        sys.exit(1)
+
+    sanitized_save_name = "".join(
+        ch for ch in save_name if ch.isalnum() or ch in ("_", "-", ".")
+    )
+    if sanitized_save_name != save_name:
+        print(
+            f"Warning: save_name '{save_name}' contained spaces or special characters. "
+            f"Using '{sanitized_save_name}' instead."
+        )
+        save_name = sanitized_save_name
+
+    if save_name == "":
+        print("Warning: save_name became empty after sanitization. Using 'PAI'.")
+        save_name = "PAI"
+
+    
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
@@ -108,7 +130,7 @@ def perforate_model(
     return model
 
 
-def get_pai_modules(net, depth):
+def get_pai_modules(net, depth, seen_ids=None):
     """Get a list of all neuron modules
 
     Parameters
@@ -124,6 +146,8 @@ def get_pai_modules(net, depth):
         A list of all PAI neuron modules found in the network.
 
     """
+    if seen_ids is None:
+        seen_ids = set()
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -132,13 +156,19 @@ def get_pai_modules(net, depth):
             if net.get_submodule(submodule_id) is net:
                 continue
             if type(net.get_submodule(submodule_id)) is PA.PAINeuronModule:
-                this_list = this_list + [net.get_submodule(submodule_id)]
+                module = net.get_submodule(submodule_id)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             else:
                 this_list = this_list + get_pai_modules(
-                    net.get_submodule(submodule_id), depth + 1
+                    net.get_submodule(submodule_id), depth + 1, seen_ids
                 )
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             # if the getter fails or it is a self pointer ignore it
             try:
                 if getattr(net, member, None) is net:
@@ -146,18 +176,24 @@ def get_pai_modules(net, depth):
             except:
                 continue
             if type(getattr(net, member, None)) is PA.PAINeuronModule:
-                this_list = this_list + [getattr(net, member)]
+                module = getattr(net, member)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             elif (
                 issubclass(type(getattr(net, member, None)), nn.Module)
                 or issubclass(type(getattr(net, member, None)), nn.Sequential)
                 or issubclass(type(getattr(net, member, None)), nn.ModuleList)
             ):
-                this_list = this_list + get_pai_modules(getattr(net, member), depth + 1)
+                this_list = this_list + get_pai_modules(
+                    getattr(net, member), depth + 1, seen_ids
+                )
 
     return this_list
 
 
-def get_tracked_modules(net, depth):
+def get_tracked_modules(net, depth, seen_ids=None):
     """Get a list of all tracked modules
 
     Parameters
@@ -173,6 +209,8 @@ def get_tracked_modules(net, depth):
         A list of all tracked modules found in the network.
 
     """
+    if seen_ids is None:
+        seen_ids = set()
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -180,13 +218,19 @@ def get_tracked_modules(net, depth):
             if net.get_submodule(submodule_id) is net:
                 continue
             if type(net.get_submodule(submodule_id)) is PA.TrackedNeuronModule:
-                this_list = this_list + [net.get_submodule(submodule_id)]
+                module = net.get_submodule(submodule_id)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             else:
                 this_list = this_list + get_tracked_modules(
-                    net.get_submodule(submodule_id), depth + 1
+                    net.get_submodule(submodule_id), depth + 1, seen_ids
                 )
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             # if the getter fails or it is a self pointer ignore it
             try:
                 if getattr(net, member, None) is net:
@@ -194,15 +238,19 @@ def get_tracked_modules(net, depth):
             except:
                 continue
             if type(getattr(net, member, None)) is PA.TrackedNeuronModule:
-                this_list = this_list + [getattr(net, member)]
+                module = getattr(net, member)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             elif issubclass(type(getattr(net, member, None)), nn.Module):
                 this_list = this_list + get_tracked_modules(
-                    getattr(net, member), depth + 1
+                    getattr(net, member), depth + 1, seen_ids
                 )
     return this_list
 
 
-def get_pai_module_params(net, depth):
+def get_pai_module_params(net, depth, seen_ids=None):
     """Get a list of all neuron module parameters
 
     Parameters
@@ -219,29 +267,41 @@ def get_pai_module_params(net, depth):
 
     """
 
+    if seen_ids is None:
+        seen_ids = set()
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
         for submodule_id, layer in net.named_children():
             if isinstance(net.get_submodule(submodule_id), PA.PAINeuronModule):  #
-                for param in net.get_submodule(submodule_id).parameters():
+                module = net.get_submodule(submodule_id)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                for param in module.parameters():
                     if param.requires_grad:
                         this_list = this_list + [param]
             else:
                 this_list = this_list + get_pai_module_params(
-                    net.get_submodule(submodule_id), depth + 1
+                    net.get_submodule(submodule_id), depth + 1, seen_ids
                 )
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             if getattr(net, member, None) == net:
                 continue
             if isinstance(getattr(net, member, None), PA.PAINeuronModule):
-                for param in getattr(net, member).parameters():
+                module = getattr(net, member)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                for param in module.parameters():
                     if param.requires_grad:
                         this_list = this_list + [param]
             elif issubclass(type(getattr(net, member, None)), nn.Module):
                 this_list = this_list + get_pai_module_params(
-                    getattr(net, member), depth + 1
+                    getattr(net, member), depth + 1, seen_ids
                 )
     return this_list
 
@@ -280,6 +340,22 @@ def replace_predefined_modules(start_module):
     """
     index = GPA.pc.get_modules_to_replace().index(type(start_module))
     return GPA.pc.get_replacement_modules()[index](start_module)
+
+
+def scan_module_aliases(net):
+    """Find alias module paths that point to already-seen module instances."""
+    canonical = {}
+    aliases = {}
+    for name, module in net.named_modules(remove_duplicate=False):
+        if name == "":
+            continue
+        sub_name = "." + name
+        module_id = id(module)
+        if module_id in canonical:
+            aliases[sub_name] = canonical[module_id]
+        else:
+            canonical[module_id] = sub_name
+    return aliases
 
 
 def convert_module(
@@ -332,6 +408,20 @@ def convert_module(
                 "thing on the list is one of the duplicates"
             )
         return net
+    if depth == 0 and name_so_far == "":
+        aliases = scan_module_aliases(net)
+        existing_not_save = set(GPA.pc.get_module_names_to_not_save())
+        aliases_to_skip = [
+            alias for alias in aliases.keys() if alias not in existing_not_save
+        ]
+        if aliases_to_skip:
+            GPA.pc.append_module_names_to_not_save(aliases_to_skip)
+            print(
+                "Auto-detected duplicate module aliases via named_modules; "
+                "keeping first-seen paths and skipping:"
+            )
+            for alias in aliases_to_skip:
+                print(" - %s (keeps %s)" % (alias, aliases[alias]))
     all_members = net.__dir__()
     if GPA.pc.get_extra_verbose():
         print("all members:")
@@ -453,12 +543,36 @@ def convert_module(
         return net
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             # Immediately check if able to get the member, if not skip it
             try:
                 getattr(net, member, None)
             except:
                 continue
             sub_name = name_so_far + "." + member
+            member_obj = getattr(net, member, None)
+            # Track module object ids once at this level so duplicate aliases are
+            # caught consistently (including direct children of the root module).
+            if isinstance(member_obj, nn.Module):
+                if id(member_obj) in converted_list:
+                    original_sub_name = converted_names_list[
+                        converted_list.index(id(member_obj))
+                    ]
+                    print(
+                        "The following module has a duplicate pointer within "
+                        "your model: %s" % sub_name
+                    )
+                    print("Keeping first pointer: %s" % original_sub_name)
+                    print("Skipping duplicate pointer: %s" % sub_name)
+                    print(
+                        "If you prefer to keep %s and skip %s, add %s to module_names_to_not_save before convert."
+                        % (sub_name, original_sub_name, original_sub_name)
+                    )
+                    GPA.pc.append_module_names_to_not_save([sub_name])
+                    continue
+                converted_list += [id(member_obj)]
+                converted_names_list += [sub_name]
             if sub_name in GPA.pc.get_module_ids_to_track():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
@@ -490,24 +604,6 @@ def convert_module(
                             "customization.md to include it."
                         )
                 continue
-            if id(getattr(net, member, None)) in converted_list:
-                print(
-                    "The following module has a duplicate pointer within "
-                    "your model: %s" % sub_name
-                )
-                print(
-                    "It is shared with: %s"
-                    % converted_names_list[
-                        converted_list.index(id(getattr(net, member, None)))
-                    ]
-                )
-                print(
-                    "One of these must be selected to not be saved by calling, for example:"
-                )
-                print("GPA.pc.append_module_names_to_not_save([\"%s\"])" % sub_name)
-                pdb.set_trace()
-                sys.exit(0)
-
             if type(getattr(net, member, None)) in GPA.pc.get_modules_to_replace():
                 if GPA.pc.get_verbose():
                     print("sub is in replacement module so replacing: %s" % sub_name)
@@ -551,8 +647,6 @@ def convert_module(
                 or issubclass(type(getattr(net, member, None)), nn.ModuleList)
             ):
                 if net != getattr(net, member):
-                    converted_list += [id(getattr(net, member))]
-                    converted_names_list += [sub_name]
                     if GPA.pc.get_verbose():
                         print(
                             "sub is module but in no lists so going deeper: %s"
@@ -941,6 +1035,7 @@ def load_pretrained_model(
     GPA.pai_tracker.member_vars["total_epochs_run"] = -1
     GPA.pai_tracker.member_vars["epoch_last_improved"] = 0
     GPA.pai_tracker.member_vars["last_switch"] = 0
+    GPA.pai_tracker.member_vars["manual_train_switch"] = False
     
     # Reset switch history
     GPA.pai_tracker.member_vars["switch_epochs"] = []
@@ -996,6 +1091,9 @@ def load_pretrained_model(
     
     # Reset saved time
     GPA.pai_tracker.saved_time = 0
+
+    # Match tracker initialization behavior so first validation uses epoch 0.
+    GPA.pai_tracker.start_epoch(internal_call=True)
     
     # Keep: num_dendrites_added, num_dendrites_integrated, mode, doing_pai
     # Keep: maximizing_score, switch_mode, param_vals_setting
@@ -1110,9 +1208,19 @@ def load_model_with_weight_tying(model, filepath):
     # Load the state dict
     model.load_state_dict(state_dict, strict=False)
 
+    # Prefer model-native weight tying restoration when available (e.g. HuggingFace models)
+    used_model_tie_weights = False
+    if hasattr(model, "tie_weights") and callable(model.tie_weights):
+        try:
+            model.tie_weights()
+            used_model_tie_weights = True
+            print("Restored weight tying via model.tie_weights()")
+        except Exception as e:
+            print(f"Warning: model.tie_weights() failed, falling back to manual tying: {e}")
+
     # Re-establish weight tying at the model level
     # This ensures the actual tensor objects are shared, not just copied
-    if tied_weights:
+    if tied_weights and not used_model_tie_weights:
         for secondary_key, primary_key in tied_weights.items():
             try:
                 # Navigate to primary parameter
@@ -1324,10 +1432,18 @@ def load_net(net, folder, name):
     """
     save_point = folder + "/"
     if GPA.pc.get_using_safe_tensors():
+        model_path = save_point + name + ".pt"
         if GPA.pc.get_weight_tying_experimental():
-            return load_model_with_weight_tying(net, save_point + name + ".pt")
+            return load_model_with_weight_tying(net, model_path)
         else:
-            state_dict = load_file(save_point + name + ".pt")
+            try:
+                with safe_open(model_path, framework="pt") as f:
+                    metadata = f.metadata()
+                if metadata and "weight_tying" in metadata:
+                    return load_model_with_weight_tying(net, model_path)
+            except Exception:
+                pass
+            state_dict = load_file(model_path)
     else:
         # Different versions of torch require this change
         try:
@@ -1516,14 +1632,32 @@ def load_net_from_dict(net, state_dict):
     else:
         net.register_buffer("tracker_string", state_dict[tracker_key])
     try:
-        net.load_state_dict(state_dict, strict=GPA.pc.get_strict_loading())
+        load_result = net.load_state_dict(state_dict, strict=False)
+        not_save_state_names = [ns.lstrip('.') for ns in not_save]
+
+        def is_ignored_key(key):
+            return any(key.startswith(ns) for ns in not_save_state_names)
+
+        missing_keys = [key for key in load_result.missing_keys if not is_ignored_key(key)]
+        unexpected_keys = [key for key in load_result.unexpected_keys if not is_ignored_key(key)]
+
+        if GPA.pc.get_strict_loading() and (missing_keys or unexpected_keys):
+            raise RuntimeError(
+                "Error(s) in loading state_dict for %s:\n\tMissing key(s) in state_dict: %s. \n\tUnexpected key(s) in state_dict: %s."
+                % (type(net).__name__, missing_keys, unexpected_keys)
+            )
     except Exception as e:
         """
         When modules have high depth to them (i.e. modules within modules not number of layers)
         PyTorch can have trouble loading state dicts even when they are correct.
         This is a workaround to manually load the state dict if this happens.
         """
-        if set(net.state_dict().keys()) == set(state_dict.keys()):
+        filtered_net_keys = {
+            key
+            for key in net.state_dict().keys()
+            if not any(key.startswith(ns.lstrip('.')) for ns in not_save)
+        }
+        if filtered_net_keys == set(state_dict.keys()):
             print("Attempting manual loading of state_dict")
             manual_load_state_dict(net, state_dict)
         else:

@@ -34,7 +34,9 @@ def convert_network(net, layer_name=""):
     return net
 
 
-def get_pai_modules(net, depth):
+def get_pai_modules(net, depth, seen_ids=None):
+    if seen_ids is None:
+        seen_ids = set()
     all_members = net.__dir__()
     this_list = []
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
@@ -42,19 +44,31 @@ def get_pai_modules(net, depth):
             if net.get_submodule(submodule_id) is net:
                 continue
             if type(net.get_submodule(submodule_id)) is PerforatedModule:
-                this_list = this_list + [net.get_submodule(submodule_id)]
+                module = net.get_submodule(submodule_id)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             else:
                 this_list = this_list + get_pai_modules(
-                    net.get_submodule(submodule_id), depth + 1
+                    net.get_submodule(submodule_id), depth + 1, seen_ids
                 )
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             if getattr(net, member, None) is net:
                 continue
             if type(getattr(net, member, None)) is PerforatedModule:
-                this_list = this_list + [getattr(net, member)]
+                module = getattr(net, member)
+                if id(module) in seen_ids:
+                    continue
+                seen_ids.add(id(module))
+                this_list = this_list + [module]
             elif issubclass(type(getattr(net, member, None)), nn.Module):
-                this_list = this_list + get_pai_modules(getattr(net, member), depth + 1)
+                this_list = this_list + get_pai_modules(
+                    getattr(net, member), depth + 1, seen_ids
+                )
     return this_list
 
 

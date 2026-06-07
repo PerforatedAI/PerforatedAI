@@ -151,7 +151,7 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
     # Only update running_accuracy when neurons are being updated
     if GPA.pai_tracker.member_vars["mode"] == "n" or GPA.pc.get_learn_dendrites_live():
         if epochs_since_cycle_switch < GPA.pc.get_initial_history_after_switches():
-            if epochs_since_cycle_switch == 0:
+            if epochs_since_cycle_switch <= 0:
                 GPA.pai_tracker.member_vars["running_accuracy"] = accuracy
             else:
                 GPA.pai_tracker.member_vars[
