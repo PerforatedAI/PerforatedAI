@@ -156,6 +156,8 @@ def optimize_module(net, depth, name_so_far, converted_list):
                         )
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             try:
                 getattr(net, member, None)
             except:
