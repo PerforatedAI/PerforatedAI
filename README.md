@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" width="400" alt="Perforated AI" />
+<img src="logo.png" width="800" alt="Perforated AI" />
 
 ### Better accuracy, smaller models, less data - enabled by perforated learning
 
@@ -21,7 +21,7 @@
 
 ## Introduction
 
-Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.
+Perforated AI (PAI) is a PyTorch library that adds artificial **dendrites** to your neural network - the same branching structures that give real biological neurons their computational power. PAI restructures your network *during* training and only requires minimal code changes.  Perforated AI is part of the [PyTorch Landscape][pytorch-landscape].
 
 ## 📊 Key Results
 
@@ -185,28 +185,28 @@ Not a Contribution. If you would like to get additional performance boosts from 
 
 ---
 
-[pypi-url]: https://pypi.python.org/pypi/perforatedai
-[github-url]: https://github.com/PerforatedAI/PerforatedAI
-[license-url]: ./LICENSE
-[api-docs]: ./API/README.md
-[claude-skill]: .github/skills/perforatedai/SKILL.md
-[contact-us]: https://www.perforatedai.com/contact
-[customization-guide]: ./API/customization.md
-[output-guide]: ./API/output.md
-[papers]: ./Papers
-[resources]: https://www.perforatedai.com/resources
 [arxiv]: https://arxiv.org/pdf/2501.18018
-[mnist-example]: ./Examples/baseExamples/mnist
-[td3-example]: ./Examples/reinforcementLearning/td3_cheetah
-[imagenet-example]: ./Examples/imagenet
-[huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-cascor
-[edge-impulse-example]: ./Examples/hackathonProjects/perforated-impulse-nn-block
-[lightning-example]: ./Examples/libraryExamples/pytorch_lightning
-[hf-example]: ./Examples/libraryExamples/huggingface
-[get-started]: https://www.perforatedai.com/contact
-[github-issues]: https://github.com/PerforatedAI/PerforatedAI/issues
+[api-docs]: ./API/README.md
+[case-studies]: https://www.perforatedai.com/case-studies
+[claude-skill]: .github/skills/perforatedai/SKILL.md
+[customization-guide]: ./API/customization.md
 [discord]: https://discord.gg/Fgw3FG3Hzt
-[newsletter]: https://www.perforatedai.com/contact
-[linkedin]: https://www.linkedin.com/company/perforated-ai
+[edge-impulse-example]: ./Examples/hackathonProjects/example-custom-ml-block-pytorch
+[get-started]: https://www.perforatedai.com/get-started
+[github-issues]: https://github.com/PerforatedAI/PerforatedAI/issues
+[github-url]: https://github.com/PerforatedAI/PerforatedAI
+[hf-example]: ./Examples/libraryExamples/huggingface
 [huggingface]: https://huggingface.co/perforated-ai
+[huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-cascor
+[imagenet-example]: ./Examples/imagenet
+[license-url]: ./LICENSE
+[lightning-example]: ./Examples/libraryExamples/pytorch_lightning
+[linkedin]: https://www.linkedin.com/company/perforated-ai
 [mcp-server]: https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md
+[mnist-example]: ./Examples/baseExamples/mnist
+[newsletter]: https://www.perforatedai.com/contact
+[papers]: ./Papers
+[pypi-url]: https://pypi.python.org/pypi/perforatedai
+[pytorch-landscape]: https://landscape.pytorch.org/
+[output-guide]: ./API/output.md
+[td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/develop/Examples/reinforcementLearning/td3_cheetah

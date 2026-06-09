@@ -53,6 +53,16 @@ import os
 from typing import List, Dict, Any, Tuple
 
 
+METRIC_COLUMN_ALIASES = {
+    'arch_param_count': ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count'],
+    'arch_max_val': ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val'],
+    'arch_dendrite_count': ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count'],
+    'final_param_count': ['Final Param Count', 'final_param_count', 'Final_Param_Count'],
+    'final_max_val': ['Final Max Val', 'final_max_val', 'Final_Max_Val'],
+    'final_dendrite_count': ['Final Dendrite Count', 'final_dendrite_count', 'Final_Dendrite_Count'],
+}
+
+
 def parse_wandb_url(url: str) -> Tuple[str, str, str]:
     """
     Parse a wandb sweep URL to extract entity, project, and sweep_id.
@@ -77,6 +87,52 @@ def parse_wandb_url(url: str) -> Tuple[str, str, str]:
     
     entity, project, sweep_id = match.groups()
     return entity, project, sweep_id
+
+
+def normalize_metric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize supported wandb metric column aliases to canonical names."""
+    rename_map = {}
+
+    for canonical_name, aliases in METRIC_COLUMN_ALIASES.items():
+        if canonical_name in df.columns:
+            continue
+
+        for alias in aliases:
+            if alias in df.columns:
+                rename_map[alias] = canonical_name
+                break
+
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    return df
+
+
+def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame:
+    """Validate that an input DataFrame has the raw arch score schema this script expects."""
+    df = normalize_metric_columns(df)
+
+    required_columns = {'arch_param_count', 'arch_max_val'}
+    missing_columns = sorted(required_columns - set(df.columns))
+    if not missing_columns:
+        return df
+
+    if 'Arch Param Count' in df.columns and 'arch_max_val' not in df.columns:
+        raise ValueError(
+            f"Input file '{input_label}' appears to be a by-run pivot CSV, not a raw arch_scores CSV. "
+            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+        )
+
+    if 'param_count' in df.columns and any(col.startswith('dendrite_') for col in df.columns):
+        raise ValueError(
+            f"Input file '{input_label}' appears to be a by-dendrite output CSV, not a raw arch_scores CSV. "
+            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+        )
+
+    raise ValueError(
+        f"Input file '{input_label}' is missing required columns: {', '.join(missing_columns)}. "
+        f"Expected a raw arch_scores CSV containing columns like arch_param_count and arch_max_val."
+    )
 
 
 def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: bool = False) -> pd.DataFrame:
@@ -118,14 +174,14 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     print(f"Processing {len(runs)} runs...")
     
     # Look for these metric names in history
-    arch_param_count_keys = ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count']
-    arch_max_val_keys = ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val']
-    arch_dendrite_count_keys = ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count']
+    arch_param_count_keys = METRIC_COLUMN_ALIASES['arch_param_count']
+    arch_max_val_keys = METRIC_COLUMN_ALIASES['arch_max_val']
+    arch_dendrite_count_keys = METRIC_COLUMN_ALIASES['arch_dendrite_count']
     
     if include_final:
-        final_param_count_keys = ['Final Param Count', 'final_param_count', 'Final_Param_Count']
-        final_max_val_keys = ['Final Max Val', 'final_max_val', 'Final_Max_Val']
-        final_dendrite_count_keys = ['Final Dendrite Count', 'final_dendrite_count', 'Final_Dendrite_Count']
+        final_param_count_keys = METRIC_COLUMN_ALIASES['final_param_count']
+        final_max_val_keys = METRIC_COLUMN_ALIASES['final_max_val']
+        final_dendrite_count_keys = METRIC_COLUMN_ALIASES['final_dendrite_count']
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
@@ -247,6 +303,7 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     
     # Create DataFrame
     df = pd.DataFrame(all_results)
+    df = normalize_metric_columns(df)
     
     print(f"\nTotal raw log entries: {len(df)}")
     
@@ -509,14 +566,22 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Example:
-  %(prog)s https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7
-  %(prog)s https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7 --output results.csv
+  %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7
+  %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7 --output results.csv
+  %(prog)s --input_csv perforated-ai_pets_i00x001o_arch_scores.csv -m gen-by-run
         """
     )
-    
-    parser.add_argument(
-        'url',
+
+    input_group = parser.add_mutually_exclusive_group(required=True)
+
+    input_group.add_argument(
+        '--url',
         help='wandb sweep URL (e.g., https://wandb.ai/entity/project/sweeps/sweep_id)'
+    )
+
+    input_group.add_argument(
+        '--input-csv',
+        help='path to an existing raw CSV file (download mode output) to use as input instead of fetching from wandb'
     )
     
     parser.add_argument(
@@ -567,39 +632,64 @@ Example:
         for prefix, count in dendrite_offsets.items():
             print(f"  Runs starting with '{prefix}' begin at dendrite count {count}")
     
-    # Parse URL to extract entity, project, and sweep_id
-    try:
-        entity, project, sweep_id = parse_wandb_url(args.url)
-        print(f"Parsed URL:")
-        print(f"  Entity: {entity}")
-        print(f"  Project: {project}")
-        print(f"  Sweep ID: {sweep_id}\n")
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    
-    # Determine if we need to fetch or can use existing CSV
-    raw_csv_file = f"{entity}_{project}_{sweep_id}_arch_scores.csv"
-    
-    if args.mode != 'download' and os.path.exists(raw_csv_file):
-        # Load existing CSV instead of fetching
-        print(f"Found existing raw data file: {raw_csv_file}")
-        print(f"Loading data from file instead of fetching from wandb...\n")
-        df = pd.read_csv(raw_csv_file)
-        print(f"Loaded {len(df)} raw log entries from CSV")
-    else:
-        # Fetch sweep results from wandb
-        df = get_sweep_results(entity, project, sweep_id, include_final=args.include_final)
-        
-        if df.empty:
-            print("No results found!")
+    entity = None
+    project = None
+    sweep_id = None
+    raw_csv_file = None
+    output_stem = None
+
+    if args.input_csv:
+        if not os.path.exists(args.input_csv):
+            print(f"Error: Input CSV file not found: {args.input_csv}", file=sys.stderr)
             sys.exit(1)
-        
-        # Save raw data if in download mode
-        if args.mode == 'download':
-            output_file = args.output if args.output else raw_csv_file
-            df.to_csv(output_file, index=False)
-            print(f"\nResults saved to: {output_file}")
+
+        print(f"Loading data from input CSV: {args.input_csv}")
+        try:
+            df = validate_input_dataframe(pd.read_csv(args.input_csv), args.input_csv)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Loaded {len(df)} raw log entries from CSV")
+        output_stem = os.path.splitext(os.path.basename(args.input_csv))[0]
+    else:
+        # Parse URL to extract entity, project, and sweep_id
+        try:
+            entity, project, sweep_id = parse_wandb_url(args.url)
+            print(f"Parsed URL:")
+            print(f"  Entity: {entity}")
+            print(f"  Project: {project}")
+            print(f"  Sweep ID: {sweep_id}\n")
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Determine if we need to fetch or can use existing CSV
+        raw_csv_file = f"{entity}_{project}_{sweep_id}_arch_scores.csv"
+        output_stem = f"{entity}_{project}_{sweep_id}"
+
+        if args.mode != 'download' and os.path.exists(raw_csv_file):
+            # Load existing CSV instead of fetching
+            print(f"Found existing raw data file: {raw_csv_file}")
+            print(f"Loading data from file instead of fetching from wandb...\n")
+            try:
+                df = validate_input_dataframe(pd.read_csv(raw_csv_file), raw_csv_file)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+            print(f"Loaded {len(df)} raw log entries from CSV")
+        else:
+            # Fetch sweep results from wandb
+            df = get_sweep_results(entity, project, sweep_id, include_final=args.include_final)
+
+            if df.empty:
+                print("No results found!")
+                sys.exit(1)
+
+            # Save raw data if in download mode
+            if args.mode == 'download':
+                output_file = args.output if args.output else raw_csv_file
+                df.to_csv(output_file, index=False)
+                print(f"\nResults saved to: {output_file}")
     
     # Always show diagnostic info
     diagnose_data(df, dendrite_offsets)
@@ -660,7 +750,8 @@ Example:
                     
                     # Build the command with short format (just model index)
                     offset_args = " ".join([f'"{m}:{d}"' for m, d in suggestions])
-                    print(f"  python {os.path.basename(sys.argv[0])} {args.url} --dendrite-offset {offset_args}")
+                    if args.url:
+                        print(f"  python {os.path.basename(sys.argv[0])} --url {args.url} --dendrite-offset {offset_args}")
                     
                     print(f"\nDetails:")
                     for model_idx, start_dend in suggestions:
@@ -698,7 +789,7 @@ Example:
     if args.output:
         output_file = args.output
     else:
-        output_file = f"{entity}_{project}_{sweep_id}_{mode_suffix}.csv"
+        output_file = f"{output_stem}_{mode_suffix}.csv"
     
     # Save to CSV
     output_df.to_csv(output_file, index=save_index)

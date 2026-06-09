@@ -52,7 +52,11 @@ These usually mean the processors were not set up correctly. Look at 1.2 from cu
 This specifically is saying that you are returning a tuple of tensors rather than a single tensor.  Your processor needs to tell you how to handle this so the Dendrite only collaborates on one tensor with the neuron.
 
 Make sure that you put the GPA.pc.get_modules_with_processing() setup before the call to convertNetwork
-    
+
+## Exponential Moving Average (EMA)
+
+If you have any problems with EMA it is because EMA keeps a shadow copy of the model you are working with.  This has to be created after perforate_model has been called.  Also it must be reinitialized after each time restructured returns true.
+
 ## Errors in filterBackward
 There are a couple errors that can happen in the filterBackward function
 
