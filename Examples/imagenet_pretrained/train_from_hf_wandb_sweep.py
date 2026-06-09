@@ -14,6 +14,7 @@ python train_from_hf_wandb_sweep.py --model resnet-34 --dataset flowers102
 
 import datetime
 import os
+import shutil
 import sys
 import time
 import torch
@@ -525,14 +526,36 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
                 save_name=save_name,
                 maximizing_score=True,
             )
+
+            # Use the effective save_name from PAI (may be sanitized by perforate_model).
+            effective_save_name = GPA.pc.get_save_name()
+
+            # Seed the run directory with the pretrained baseline checkpoint.
+            source_checkpoint = os.path.join(
+                os.path.dirname(__file__), "pretrained-prefc", "beforeSwitch_0.pt"
+            )
+            if os.path.exists(source_checkpoint):
+                os.makedirs(effective_save_name, exist_ok=True)
+                destination_checkpoint = os.path.join(
+                    effective_save_name, "best_model_beforeSwitch_0.pt"
+                )
+                shutil.copy2(source_checkpoint, destination_checkpoint)
+                print(
+                    f"Copied pretrained checkpoint to {destination_checkpoint}"
+                )
+            else:
+                print(
+                    f"Warning: Source checkpoint not found at {source_checkpoint}; skipping copy"
+                )
+
             print(
-                f"Model perforated successfully (pre_fc layer only) - save_name: {save_name}"
+                f"Model perforated successfully (pre_fc layer only) - save_name: {effective_save_name}"
             )
 
         # Load pretrained pre-fc weights from local folder (if exists)
         pretrained_folder = os.path.join(os.path.dirname(__file__), "pretrained-prefc")
         if os.path.exists(pretrained_folder):
-            model = UPA.load_system(model, pretrained_folder, "beforeSwitch_0")
+            model = UPA.load_pretrained_model(model, pretrained_folder, "beforeSwitch_0")
             print(
                 f"Successfully loaded ResNetPAI with pretrained weights from {pretrained_folder}"
             )
@@ -630,6 +653,7 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
         
         # If perforate is True, wrap the new fc layer in appropriate PAI module
         if perforate:
+            from perforatedai import utils_perforatedai as UPA
             from perforatedai.modules_perforatedai import PAINeuronModule, TrackedNeuronModule
             
             if model_name in ("resnet-18-perforated-cascor-fc", "resnet-18-perforated-cascor-hf-fc"):
@@ -640,6 +664,13 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
                 # For pre-fc model: track the fc layer (don't perforate it)
                 model.fc = TrackedNeuronModule(new_fc, "fc")
                 print(f"Replaced fc layer for {num_classes} classes and converted to TrackedNeuronModule")
+
+            # Seed best_model with a class-compatible head for switch/load calls.
+            effective_save_name = GPA.pc.get_save_name()
+            UPA.save_system(model, effective_save_name, "best_model")
+            print(
+                f"Seeded class-compatible best_model at {effective_save_name}/best_model.pt"
+            )
         else:
             model.fc = new_fc
             print(f"Replaced fc layer for {num_classes} classes")
@@ -1096,7 +1127,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "flowers102"},
             "model_index": {
-                "values": [0, 1, 2, 3, 4]
+                "values": [0, 1, 2, 3]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
             "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
@@ -1112,7 +1143,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "pets"},
             "model_index": {
-                "values": [0, 1, 2, 3, 4]
+                "values": [0, 1, 2, 3]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
@@ -1128,7 +1159,7 @@ def get_sweep_config(dataset_name):
         base_config["parameters"] = {
             "dataset": {"value": "food101"},
             "model_index": {
-                "values": [0, 1, 2, 3, 4]
+                "values": [0, 1, 2, 3]
             },  # Maps to model names via get_model_name_from_index
             "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
@@ -1162,109 +1193,115 @@ def train_with_wandb():
     args, unknown = parser.parse_known_args()  # Ignore unknown args from main script
 
     # Initialize wandb (project is inherited from sweep context)
-    wandb.init()
-    config = wandb.config
+    wandb.init(reinit=True)
+    try:
+        config = wandb.config
 
-    # Override wandb sweep's silent mode (wandb.agent sets this to True)
-    from perforatedai import globals_perforatedai as GPA
-    from perforatedai import utils_perforatedai as UPA
-    GPA.pc.set_silent(False)
+        # Override wandb sweep's silent mode (wandb.agent sets this to True)
+        from perforatedai import globals_perforatedai as GPA
+        from perforatedai import utils_perforatedai as UPA
+        GPA.pc.set_silent(False)
 
-    # Map model_index to model name
-    model_name = get_model_name_from_index(config.model_index)
+        # Map model_index to model name
+        model_name = get_model_name_from_index(config.model_index)
 
-    # Set run name to match save_name pattern (from wandb.md recommendation)
-    # Start with run ID for uniqueness
-    name_parts = [wandb.run.id]
-    # Use all config keys (sorted for consistency)
-    config_keys = sorted(config.keys())
-    # Put any key containing 'model' first
-    model_keys = [k for k in config_keys if 'model' in k.lower()]
-    other_keys = [k for k in config_keys if 'model' not in k.lower()]
-    config_keys = model_keys + other_keys
-    name_parts.extend([f"{k}_{config[k]}" for k in config_keys])
-    if name_parts:
-        wandb.run.name = "_".join(name_parts)
+        # Set run name to match save_name pattern (from wandb.md recommendation)
+        # Start with run ID for uniqueness
+        name_parts = [wandb.run.id]
+        # Use all config keys (sorted for consistency)
+        config_keys = sorted(config.keys())
+        # Put any key containing 'model' first
+        model_keys = [k for k in config_keys if 'model' in k.lower()]
+        other_keys = [k for k in config_keys if 'model' not in k.lower()]
+        config_keys = model_keys + other_keys
+        name_parts.extend([f"{k}_{config[k]}" for k in config_keys])
+        if name_parts:
+            wandb.run.name = "_".join(name_parts)
 
-    # Set args from sweep config
-    args.model = model_name
-    args.dataset = config.dataset
-    args.lr = config.lr
-    args.weight_decay = config.weight_decay
-    args.label_smoothing = config.label_smoothing
+        # Set args from sweep config
+        args.model = model_name
+        args.dataset = config.dataset
+        args.lr = config.lr
+        args.weight_decay = config.weight_decay
+        args.label_smoothing = config.label_smoothing
 
-    # Apply dataset-specific defaults for non-swept parameters
-    dataset_config = get_dataset_config(args.dataset)
-    args.batch_size = dataset_config.get("batch_size", 32)
-    args.epochs = dataset_config.get("epochs", 50)
-    args.lr_warmup_epochs = dataset_config.get("lr_warmup_epochs", 5)
+        # Apply dataset-specific defaults for non-swept parameters
+        dataset_config = get_dataset_config(args.dataset)
+        args.batch_size = dataset_config.get("batch_size", 32)
+        args.epochs = dataset_config.get("epochs", 50)
+        args.lr_warmup_epochs = dataset_config.get("lr_warmup_epochs", 5)
 
-    print(f"\n{'='*80}")
-    print(f"WandB Sweep Run Configuration")
-    print(f"{'='*80}")
-    print(f"Model: {args.model}")
-    print(f"Dataset: {args.dataset}")
-    print(f"Learning rate: {args.lr}")
-    print(f"Weight decay: {args.weight_decay}")
-    print(f"Label smoothing: {args.label_smoothing}")
-    print(f"Epochs: {args.epochs}")
-    print(f"Batch size: {args.batch_size}")
-    print(f"{'='*80}\n")
+        print(f"\n{'='*80}")
+        print(f"WandB Sweep Run Configuration")
+        print(f"{'='*80}")
+        print(f"Model: {args.model}")
+        print(f"Dataset: {args.dataset}")
+        print(f"Learning rate: {args.lr}")
+        print(f"Weight decay: {args.weight_decay}")
+        print(f"Label smoothing: {args.label_smoothing}")
+        print(f"Epochs: {args.epochs}")
+        print(f"Batch size: {args.batch_size}")
+        print(f"{'='*80}\n")
 
-    # Load dataset
-    train_loader, test_loader, num_classes = load_dataset(
-        args.dataset, args.data_path, args.batch_size, args.workers
-    )
-
-    # Train
-    best_acc1, best_epoch, model = train_single_run(
-        args, train_loader, test_loader, num_classes
-    )
-
-    # Measure inference latency
-    device = torch.device(args.device)
-    latency_results = measure_inference_latency(model, test_loader, device)
-
-    # Count parameters
-    param_count = UPA.count_params(model)
-
-    # Log final results - using wandb.md recommended naming
-    # Skip for perforated models since Final metrics are already logged inside training loop with dendrite count
-    perforate = args.model in [
-        "resnet-18-perforated-cascor-fc",
-        "resnet-18-perforated-cascor-pre-fc",
-        "resnet-18-perforated-cascor-hf-fc",
-    ]
-    if not perforate:
-        # Non-perforated models: log Final scores here
-        wandb.log(
-            {
-                "Final Max Val": best_acc1,
-                "Final Max Test": best_acc1,  # For transfer learning, val=test
-                "Final Param Count": param_count,
-                "best_epoch": best_epoch,
-                "fps": latency_results["fps"],
-                "mean_latency_ms": latency_results["mean_latency_ms"],
-                "p95_latency_ms": latency_results["p95_latency_ms"],
-            }
-        )
-    else:
-        # Perforated models: just log latency (Final scores already logged)
-        wandb.log(
-            {
-                "best_epoch": best_epoch,
-                "fps": latency_results["fps"],
-                "mean_latency_ms": latency_results["mean_latency_ms"],
-                "p95_latency_ms": latency_results["p95_latency_ms"],
-            }
+        # Load dataset
+        train_loader, test_loader, num_classes = load_dataset(
+            args.dataset, args.data_path, args.batch_size, args.workers
         )
 
-    print(f"\n{'='*80}")
-    print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
-    print(f"{'='*80}\n")
+        # Train
+        best_acc1, best_epoch, model = train_single_run(
+            args, train_loader, test_loader, num_classes
+        )
 
-    # Finish wandb run to prevent state leakage between sweep iterations
-    wandb.finish()
+        # Measure inference latency
+        device = torch.device(args.device)
+        latency_results = measure_inference_latency(model, test_loader, device)
+
+        # Count parameters
+        param_count = UPA.count_params(model)
+
+        # Log final results - using wandb.md recommended naming
+        # Skip for perforated models since Final metrics are already logged inside training loop with dendrite count
+        perforate = args.model in [
+            "resnet-18-perforated-cascor-fc",
+            "resnet-18-perforated-cascor-pre-fc",
+            "resnet-18-perforated-cascor-hf-fc",
+        ]
+        if not perforate:
+            # Non-perforated models: log Final scores here
+            wandb.log(
+                {
+                    "Final Max Val": best_acc1,
+                    "Final Max Test": best_acc1,  # For transfer learning, val=test
+                    "Final Param Count": param_count,
+                    "best_epoch": best_epoch,
+                    "fps": latency_results["fps"],
+                    "mean_latency_ms": latency_results["mean_latency_ms"],
+                    "p95_latency_ms": latency_results["p95_latency_ms"],
+                }
+            )
+        else:
+            # Perforated models: just log latency (Final scores already logged)
+            wandb.log(
+                {
+                    "best_epoch": best_epoch,
+                    "fps": latency_results["fps"],
+                    "mean_latency_ms": latency_results["mean_latency_ms"],
+                    "p95_latency_ms": latency_results["p95_latency_ms"],
+                }
+            )
+
+        print(f"\n{'='*80}")
+        print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
+        print(f"{'='*80}\n")
+    except Exception as e:
+        import pdb
+        pdb.set_trace()
+        raise
+    finally:
+        # Always finish the run to avoid state leakage across sweep iterations.
+        if wandb.run is not None:
+            wandb.finish()
 
 
 def main():
