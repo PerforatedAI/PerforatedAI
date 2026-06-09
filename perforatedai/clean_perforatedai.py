@@ -157,6 +157,8 @@ def refresh_pai(net, depth, name_so_far, converted_list):
         return net
     else:
         for member in all_members:
+            if isinstance(getattr(type(net), member, None), property):
+                continue
             try:
                 getattr(net, member, None)
             except:
