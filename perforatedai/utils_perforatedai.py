@@ -1030,6 +1030,17 @@ def load_pretrained_model(
     if GPA.pc.get_verbose():
         print("Resetting tracker state for fresh training...")
     
+    # Reset structural training state to true initial values.
+    # Keeping pretrained architecture/weights while zeroing cycle counters avoids
+    # stale dendrite bookkeeping referencing empty score buffers.
+    GPA.pai_tracker.reset_module_vector(net, load_from_restart=True)
+    GPA.pai_tracker.member_vars["mode"] = "n"
+    GPA.pai_tracker.member_vars["num_dendrites_added"] = 0
+    GPA.pai_tracker.member_vars["num_dendrites_integrated"] = 0
+    GPA.pai_tracker.member_vars["num_cycles"] = 0
+    GPA.pai_tracker.member_vars["num_dendrite_tries"] = 0
+    GPA.pai_tracker.member_vars["current_n_set_global_best"] = True
+
     # Reset epoch counters
     GPA.pai_tracker.member_vars["num_epochs_run"] = -1
     GPA.pai_tracker.member_vars["total_epochs_run"] = -1
@@ -1064,9 +1075,7 @@ def load_pretrained_model(
     GPA.pai_tracker.member_vars["extra_scores_without_graphing"] = {}
     GPA.pai_tracker.member_vars["n_extra_scores"] = {}
     
-    # Clear dendrite scores
-    GPA.pai_tracker.member_vars["best_scores"] = []
-    GPA.pai_tracker.member_vars["current_scores"] = []
+    # Keep per-layer dendrite score buffers initialized by reset_module_vector.
     
     # Clear timing arrays
     GPA.pai_tracker.member_vars["n_epoch_times"] = []
@@ -1088,16 +1097,16 @@ def load_pretrained_model(
     GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = -1
     GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
     GPA.pai_tracker.member_vars["current_step_count"] = 0
+    GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+    GPA.pai_tracker.member_vars["best_mean_score_improved_this_epoch"] = 0
+    GPA.pai_tracker.member_vars["step_status"] = TPA.STEP_CLEARED
     
     # Reset saved time
+    GPA.pai_tracker.start_time = time.time()
     GPA.pai_tracker.saved_time = 0
 
     # Match tracker initialization behavior so first validation uses epoch 0.
     GPA.pai_tracker.start_epoch(internal_call=True)
-    
-    # Keep: num_dendrites_added, num_dendrites_integrated, mode, doing_pai
-    # Keep: maximizing_score, switch_mode, param_vals_setting
-    # These define the model structure and behavior, not training history
     
     if GPA.pc.get_verbose():
         print(
@@ -1197,63 +1206,11 @@ def load_model_with_weight_tying(model, filepath):
             pdb.set_trace()
         else:
             print("Error: No tracker_string found in state_dict")
-            pdb.set_trace()
-    # To restore the tracker the string may have changed lengths
-    # so handle that before load_state_dict
-    if hasattr(model, "tracker_string"):
+
+    if tracker_key is not None and hasattr(model, "tracker_string"):
         model.tracker_string = state_dict[tracker_key]
-    else:
-        model.register_buffer("tracker_string", state_dict[tracker_key])
 
-    # Load the state dict
-    model.load_state_dict(state_dict, strict=False)
-
-    # Prefer model-native weight tying restoration when available (e.g. HuggingFace models)
-    used_model_tie_weights = False
-    if hasattr(model, "tie_weights") and callable(model.tie_weights):
-        try:
-            model.tie_weights()
-            used_model_tie_weights = True
-            print("Restored weight tying via model.tie_weights()")
-        except Exception as e:
-            print(f"Warning: model.tie_weights() failed, falling back to manual tying: {e}")
-
-    # Re-establish weight tying at the model level
-    # This ensures the actual tensor objects are shared, not just copied
-    if tied_weights and not used_model_tie_weights:
-        for secondary_key, primary_key in tied_weights.items():
-            try:
-                # Navigate to primary parameter
-                primary_param = model
-                for attr in primary_key.split("."):
-                    if attr.isdigit():
-                        primary_param = primary_param[int(attr)]
-                    else:
-                        primary_param = getattr(primary_param, attr)
-
-                # Navigate to secondary parameter's parent
-                secondary_param = model
-                secondary_attrs = secondary_key.split(".")
-                for attr in secondary_attrs[:-1]:
-                    if attr.isdigit():
-                        secondary_param = secondary_param[int(attr)]
-                    else:
-                        secondary_param = getattr(secondary_param, attr)
-
-                # Actually tie the weights by sharing the tensor
-                final_attr = secondary_attrs[-1]
-                if final_attr.isdigit():
-                    secondary_param[int(final_attr)] = primary_param
-                else:
-                    setattr(secondary_param, final_attr, primary_param)
-
-                print(f"Re-tied weights: {secondary_key} = {primary_key}")
-            except (AttributeError, IndexError) as e:
-                pdb.set_trace()
-                print(
-                    f"Warning: Could not re-tie {secondary_key} -> {primary_key}: {e}"
-                )
-
+    model.load_state_dict(state_dict)
     return model
 
 
