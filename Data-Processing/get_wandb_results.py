@@ -10,6 +10,7 @@ MODES:
     --mode download (default) - Download raw CSV with all metrics, other modes use that csv
     --mode gen-by-run         - Generate pivot table for line graphs (runs as lines)
     --mode by-dendrite        - Generate scatter plot data (grouped by dendrite count)
+    --mode by-dendrite-separate - Generate scatter plot data grouped by model type + dendrite count
 
 COMMON OPTIONS:
     --include-final       - Include final metrics (for verification, not graphing)
@@ -24,21 +25,21 @@ EXAMPLES:
     python get_wandb_results.py "https://wandb.ai/myteam/project/sweeps/abc123"
     
     # Generate by-run comparison
-    python get_wandb_results.py "URL" -m gen-by-run
+    python get_wandb_results.py "URL" --mode gen-by-run
     
     # Analyze dendrite progression with pretrained model offset
-    python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
+    python get_wandb_results.py "URL" --mode by-dendrite --dendrite-offset "0:2"
     
     # Generate scatter plot with dendrite offset
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
-        -m by-dendrite --dendrite-offset "0:2"
+        --mode by-dendrite --dendrite-offset "0:2"
     
     # Multiple models with different offsets
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" \\
-        -m by-dendrite --dendrite-offset "0:2" "1:3"
+        --mode by-dendrite --dendrite-offset "0:2" "1:3"
     
     # Custom output filename
-    python get_wandb_results.py "URL" -m by-dendrite -o my_results.csv
+    python get_wandb_results.py "URL" --mode by-dendrite --output my_results.csv
     
     # Include Final metrics to verify they match last Arch values
     python get_wandb_results.py "https://wandb.ai/myteam/myproject/sweeps/abc123" --include-final
@@ -120,13 +121,13 @@ def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame
     if 'Arch Param Count' in df.columns and 'arch_max_val' not in df.columns:
         raise ValueError(
             f"Input file '{input_label}' appears to be a by-run pivot CSV, not a raw arch_scores CSV. "
-            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+            f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
         )
 
     if 'param_count' in df.columns and any(col.startswith('dendrite_') for col in df.columns):
         raise ValueError(
             f"Input file '{input_label}' appears to be a by-dendrite output CSV, not a raw arch_scores CSV. "
-            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+            f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
         )
 
     raise ValueError(
@@ -178,10 +179,13 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     arch_max_val_keys = METRIC_COLUMN_ALIASES['arch_max_val']
     arch_dendrite_count_keys = METRIC_COLUMN_ALIASES['arch_dendrite_count']
     
-    if include_final:
-        final_param_count_keys = METRIC_COLUMN_ALIASES['final_param_count']
-        final_max_val_keys = METRIC_COLUMN_ALIASES['final_max_val']
-        final_dendrite_count_keys = METRIC_COLUMN_ALIASES['final_dendrite_count']
+    final_param_count_keys = METRIC_COLUMN_ALIASES['final_param_count']
+    final_max_val_keys = METRIC_COLUMN_ALIASES['final_max_val']
+    final_dendrite_count_keys = METRIC_COLUMN_ALIASES['final_dendrite_count']
+
+    total_runs = len(runs)
+    reported_runs = 0
+    excluded_runs = 0
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
@@ -227,26 +231,40 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         final_param_count_col = None
         final_max_val_col = None
         final_dendrite_count_col = None
-        
-        if include_final:
-            for key in final_param_count_keys:
-                if key in history.columns:
-                    final_param_count_col = key
-                    break
-            
-            for key in final_max_val_keys:
-                if key in history.columns:
-                    final_max_val_col = key
-                    break
-            
-            for key in final_dendrite_count_keys:
-                if key in history.columns:
-                    final_dendrite_count_col = key
-                    break
+
+        for key in final_param_count_keys:
+            if key in history.columns:
+                final_param_count_col = key
+                break
+
+        for key in final_max_val_keys:
+            if key in history.columns:
+                final_max_val_col = key
+                break
+
+        for key in final_dendrite_count_keys:
+            if key in history.columns:
+                final_dendrite_count_col = key
+                break
+
+        # Only report runs that finished and actually logged final metrics.
+        run_finished_state = str(run.state).lower() == 'finished'
+        run_has_final_scores = (
+            final_param_count_col is not None
+            and final_max_val_col is not None
+            and history[final_param_count_col].notna().any()
+            and history[final_max_val_col].notna().any()
+        )
+
+        if not run_finished_state or not run_has_final_scores:
+            excluded_runs += 1
+            continue
+
+        reported_runs += 1
         
         # Check if we have any relevant metrics
         has_arch = arch_param_count_col is not None or arch_max_val_col is not None
-        has_final = include_final and (final_param_count_col is not None or final_max_val_col is not None)
+        has_final = final_param_count_col is not None or final_max_val_col is not None
         
         if not has_arch and not has_final:
             print(f"    No relevant metrics found in history")
@@ -304,6 +322,11 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     # Create DataFrame
     df = pd.DataFrame(all_results)
     df = normalize_metric_columns(df)
+
+    print("\nRun completion summary (wandb fetch):")
+    print(f"  Total runs: {total_runs}")
+    print(f"  Reported runs (finished with final scores): {reported_runs}")
+    print(f"  Excluded runs (unfinished or missing final scores): {excluded_runs}")
     
     print(f"\nTotal raw log entries: {len(df)}")
     
@@ -355,7 +378,11 @@ def create_graph_by_run(df: pd.DataFrame) -> pd.DataFrame:
     return pivot_df
 
 
-def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None) -> pd.DataFrame:
+def create_graph_by_dendrite(
+    df: pd.DataFrame,
+    dendrite_offsets: Dict[str, int] = None,
+    separate_by_model: bool = False,
+) -> pd.DataFrame:
     """
     Create a scatter plot format grouped by dendrite count.
     
@@ -370,7 +397,8 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
         dendrite_offsets: Dict mapping run name prefixes to starting dendrite counts
     
     Returns:
-        DataFrame with param_count and dendrite max_val columns
+        DataFrame with param_count and dendrite max_val columns.
+        If separate_by_model is True, columns are split by (model_type, dendrite_count).
     """
     if dendrite_offsets is None:
         dendrite_offsets = {}
@@ -423,16 +451,56 @@ def create_graph_by_dendrite(df: pd.DataFrame, dendrite_offsets: Dict[str, int] 
         df_filtered['run_offset'] = df_filtered['run_name'].apply(get_dendrite_offset)
         df_filtered['dendrite_count'] = df_filtered['base_count'] + df_filtered['run_offset']
     
-    # Pivot: rows are (run_id, run_name, param_count), columns are dendrite counts
-    scatter_df = df_filtered.pivot_table(
-        index=['run_id', 'run_name', 'arch_param_count'],
-        columns='dendrite_count',
-        values='arch_max_val',
-        aggfunc='first'  # Take first value if duplicates
-    )
-    
-    # Rename columns to be more descriptive
-    scatter_df.columns = [f'dendrite_{int(col)}_max_val' for col in scatter_df.columns]
+    if separate_by_model:
+        # Split columns by model type first, then dendrite count (e.g. model_0_dendrite_2_max_val)
+        def get_model_type(row: pd.Series) -> str:
+            config_model_index = row.get('config_model_index', None)
+            if pd.notna(config_model_index):
+                try:
+                    return f"model_{int(config_model_index)}"
+                except (TypeError, ValueError):
+                    pass
+
+            run_name = str(row.get('run_name', ''))
+            match = re.search(r'model_index_(\d+)', run_name)
+            if match:
+                return f"model_{int(match.group(1))}"
+
+            return 'model_unknown'
+
+        df_filtered['model_type'] = df_filtered.apply(get_model_type, axis=1)
+
+        scatter_df = df_filtered.pivot_table(
+            index=['run_id', 'run_name', 'arch_param_count'],
+            columns=['model_type', 'dendrite_count'],
+            values='arch_max_val',
+            aggfunc='first'  # Take first value if duplicates
+        )
+
+        def model_sort_key(item: Tuple[str, Any]) -> Tuple[int, str, int]:
+            model_type, dendrite_count = item
+            model_match = re.match(r'model_(\d+)$', str(model_type))
+            if model_match:
+                return (0, '', int(model_match.group(1)) * 100000 + int(dendrite_count))
+            return (1, str(model_type), int(dendrite_count))
+
+        sorted_columns = sorted(scatter_df.columns.tolist(), key=model_sort_key)
+        scatter_df = scatter_df.reindex(columns=sorted_columns)
+        scatter_df.columns = [
+            f'{model_type}_dendrite_{int(dendrite_count)}_max_val'
+            for model_type, dendrite_count in scatter_df.columns
+        ]
+    else:
+        # Pivot: rows are (run_id, run_name, param_count), columns are dendrite counts
+        scatter_df = df_filtered.pivot_table(
+            index=['run_id', 'run_name', 'arch_param_count'],
+            columns='dendrite_count',
+            values='arch_max_val',
+            aggfunc='first'  # Take first value if duplicates
+        )
+
+        # Rename columns to be more descriptive
+        scatter_df.columns = [f'dendrite_{int(col)}_max_val' for col in scatter_df.columns]
     
     # Reset index to make run_id, run_name and param_count regular columns
     scatter_df = scatter_df.reset_index()
@@ -568,7 +636,7 @@ def main():
 Example:
   %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7
   %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7 --output results.csv
-  %(prog)s --input_csv perforated-ai_pets_i00x001o_arch_scores.csv -m gen-by-run
+    %(prog)s --csv perforated-ai_pets_i00x001o_arch_scores.csv --mode gen-by-run
         """
     )
 
@@ -580,19 +648,19 @@ Example:
     )
 
     input_group.add_argument(
-        '--input-csv',
+        '--csv',
         help='path to an existing raw CSV file (download mode output) to use as input instead of fetching from wandb'
     )
     
     parser.add_argument(
-        '-m', '--mode',
-        choices=['download', 'gen-by-run', 'by-dendrite'],
+        '--mode',
+        choices=['download', 'gen-by-run', 'by-dendrite', 'by-dendrite-separate'],
         default='download',
-        help='output mode: "download" for raw data, "gen-by-run" for line graph by run, "by-dendrite" for scatter plot by dendrite count (default: download)'
+        help='output mode: "download" for raw data, "gen-by-run" for line graph by run, "by-dendrite" for scatter plot by dendrite count, "by-dendrite-separate" for scatter plot split by model type + dendrite count (default: download)'
     )
     
     parser.add_argument(
-        '-o', '--output',
+        '--output',
         help='output CSV file path (optional). If not specified, uses entity_project_sweep_arch_scores.csv'
     )
     
@@ -638,19 +706,20 @@ Example:
     raw_csv_file = None
     output_stem = None
 
-    if args.input_csv:
-        if not os.path.exists(args.input_csv):
-            print(f"Error: Input CSV file not found: {args.input_csv}", file=sys.stderr)
+    if args.csv:
+        if not os.path.exists(args.csv):
+            print(f"Error: Input CSV file not found: {args.csv}", file=sys.stderr)
             sys.exit(1)
 
-        print(f"Loading data from input CSV: {args.input_csv}")
+        print(f"Loading data from input CSV: {args.csv}")
         try:
-            df = validate_input_dataframe(pd.read_csv(args.input_csv), args.input_csv)
+            df = validate_input_dataframe(pd.read_csv(args.csv), args.csv)
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+
         print(f"Loaded {len(df)} raw log entries from CSV")
-        output_stem = os.path.splitext(os.path.basename(args.input_csv))[0]
+        output_stem = os.path.splitext(os.path.basename(args.csv))[0]
     else:
         # Parse URL to extract entity, project, and sweep_id
         try:
@@ -779,6 +848,14 @@ Example:
             sys.exit(1)
         mode_suffix = "by_dendrite"
         save_index = False
+    elif args.mode == 'by-dendrite-separate':
+        # Create scatter plot data grouped by model type + dendrite count
+        output_df = create_graph_by_dendrite(df, dendrite_offsets, separate_by_model=True)
+        if output_df.empty:
+            print("Failed to create scatter plot data!")
+            sys.exit(1)
+        mode_suffix = "by_dendrite_separate"
+        save_index = False
     else:
         # Should not reach here
         output_df = df
@@ -792,7 +869,30 @@ Example:
         output_file = f"{output_stem}_{mode_suffix}.csv"
     
     # Save to CSV
-    output_df.to_csv(output_file, index=save_index)
+    if args.mode == 'by-dendrite-separate':
+        dendrite_cols = [col for col in output_df.columns if 'dendrite' in col]
+        non_dendrite_cols = [col for col in output_df.columns if 'dendrite' not in col]
+        n_prefix = len(non_dendrite_cols)
+
+        # Build param_count metadata rows: for each dendrite column, find the param_count
+        # of any row that has a non-null value in it (all runs share the same param_count
+        # for a given model+dendrite combination).
+        col_param_counts = {}
+        for col in dendrite_cols:
+            non_null = output_df.loc[output_df[col].notna(), 'param_count']
+            col_param_counts[col] = non_null.iloc[0] if not non_null.empty else ''
+
+        label_row = [''] * n_prefix + [f'param_count {col}' for col in dendrite_cols]
+        value_row = [''] * n_prefix + [col_param_counts[col] for col in dendrite_cols]
+
+        import csv
+        with open(output_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(label_row)
+            writer.writerow(value_row)
+        output_df.to_csv(output_file, index=save_index, mode='a')
+    else:
+        output_df.to_csv(output_file, index=save_index)
     print(f"\nResults saved to: {output_file}")
 
 

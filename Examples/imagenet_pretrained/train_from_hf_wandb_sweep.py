@@ -17,6 +17,7 @@ import os
 import shutil
 import sys
 import time
+import traceback
 import torch
 import torch.utils.data
 import torchvision
@@ -1419,8 +1420,9 @@ def train_with_wandb():
         print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
         print(f"{'='*80}\n")
     except Exception as e:
-        import pdb
-        pdb.set_trace()
+        print(f"\nERROR in train_with_wandb: {e}")
+        traceback.print_exc()
+        import pdb; pdb.set_trace()
         raise
     finally:
         # Always finish the run to avoid state leakage across sweep iterations.
