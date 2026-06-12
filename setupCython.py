@@ -2,6 +2,7 @@
 import os
 import fnmatch
 import sysconfig
+from pathlib import Path
 
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py as _build_py
@@ -50,8 +51,11 @@ class build_py(_build_py):
             )
         return filtered_modules
 
-with open("README.md", "r", encoding="utf-8") as f:
-    long_description = f.read()
+readme_path = Path(__file__).resolve().parent / "README.md"
+if readme_path.exists():
+    long_description = readme_path.read_text(encoding="utf-8")
+else:
+    long_description = "Official package for the artificial dendrite library for PyTorch, Perforated AI"
 
 setup(
     name="perforatedai",
