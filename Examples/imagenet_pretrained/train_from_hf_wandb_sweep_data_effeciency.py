@@ -840,9 +840,14 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
     # Setup training
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     
-    # Get scheduler mode from wandb.config if running in sweep, default to 0 (CosineAnnealing)
-    scheduler_mode = 0  # Default: CosineAnnealingLR
-    if hasattr(wandb, "run") and wandb.run is not None and hasattr(wandb, "config"):
+    # Prefer explicit args scheduler mode; fall back to wandb config for compatibility.
+    scheduler_mode = getattr(args, "scheduler_mode", 0)
+    if (
+        not hasattr(args, "scheduler_mode")
+        and hasattr(wandb, "run")
+        and wandb.run is not None
+        and hasattr(wandb, "config")
+    ):
         scheduler_mode = wandb.config.get("scheduler_mode", 0)
     
     # Setup optimizer
@@ -1312,20 +1317,15 @@ def get_sweep_config(dataset_name):
         }
 
     elif dataset_name == "pets":
-        # Medium dataset - all 4 models, broader LR range
+        # Pets data-efficiency experiment: fixed per-model hyperparameters,
+        # sweep only model type x data percent (4 x 5 = 20 runs).
+        base_config["method"] = "grid"
         base_config["parameters"] = {
             "dataset": {"value": "pets"},
             "model_index": {
                 "values": [0, 1, 2, 3]
             },  # Maps to model names via get_model_name_from_index
-            "lr": {"values": [0.0003, 0.001, 0.003, 0.01]},
-            "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
-            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
-            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             "data_percent": {"values": [10, 25, 50, 75, 100]},
-            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
-            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
-            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
         }
 
     elif dataset_name == "food101":
@@ -1430,10 +1430,64 @@ def train_with_wandb():
         # Set args from sweep config
         args.model = model_name
         args.dataset = config.dataset
-        args.lr = config.lr
-        args.weight_decay = config.weight_decay
-        args.label_smoothing = config.label_smoothing
+        args.lr = config.get("lr", 0.001)
+        args.weight_decay = config.get("weight_decay", 1e-4)
+        args.label_smoothing = config.get("label_smoothing", 0.0)
+        args.scheduler_mode = config.get("scheduler_mode", 0)
         args.data_percent = config.get("data_percent", 100)
+
+        # Pets data-efficiency: enforce selected best hyperparameters per model.
+        if args.dataset == "pets":
+            fixed_pets_hparams = {
+                0: {
+                    "lr": 0.0003,
+                    "weight_decay": 0.0001,
+                    "label_smoothing": 0.0,
+                    "scheduler_mode": 1,
+                    "improvement_threshold": [0],
+                    "pai_forward_function": "sigmoid",
+                },
+                1: {
+                    "lr": 0.001,
+                    "weight_decay": 1e-5,
+                    "label_smoothing": 0.0,
+                    "scheduler_mode": 0,
+                    "improvement_threshold": [0],
+                    "pai_forward_function": "tanh",
+                },
+                2: {
+                    "lr": 0.0003,
+                    "weight_decay": 0.0001,
+                    "label_smoothing": 0.0,
+                    "scheduler_mode": 1,
+                    "improvement_threshold": [0.01, 0.001, 0.0001, 0],
+                    "pai_forward_function": "relu",
+                },
+                3: {
+                    "lr": 0.001,
+                    "weight_decay": 0.0,
+                    "label_smoothing": 0.1,
+                    "scheduler_mode": 1,
+                    "improvement_threshold": [0.01, 0.001, 0.0001, 0],
+                    "pai_forward_function": "sigmoid",
+                },
+            }
+
+            model_idx = int(config.model_index)
+            selected = fixed_pets_hparams[model_idx]
+            args.lr = selected["lr"]
+            args.weight_decay = selected["weight_decay"]
+            args.label_smoothing = selected["label_smoothing"]
+            args.scheduler_mode = selected["scheduler_mode"]
+
+            # Apply PAI settings directly so perforated models receive fixed settings.
+            GPA.pc.set_improvement_threshold(selected["improvement_threshold"])
+            if selected["pai_forward_function"] == "sigmoid":
+                GPA.pc.set_pai_forward_function(torch.sigmoid)
+            elif selected["pai_forward_function"] == "relu":
+                GPA.pc.set_pai_forward_function(torch.relu)
+            elif selected["pai_forward_function"] == "tanh":
+                GPA.pc.set_pai_forward_function(torch.tanh)
 
         # Apply dataset-specific defaults for non-swept parameters
         dataset_config = get_dataset_config(args.dataset)
@@ -1449,6 +1503,7 @@ def train_with_wandb():
         print(f"Learning rate: {args.lr}")
         print(f"Weight decay: {args.weight_decay}")
         print(f"Label smoothing: {args.label_smoothing}")
+        print(f"Scheduler mode: {args.scheduler_mode}")
         print(f"Data percent: {args.data_percent}")
         print(f"Epochs: {args.epochs}")
         print(f"Batch size: {args.batch_size}")
