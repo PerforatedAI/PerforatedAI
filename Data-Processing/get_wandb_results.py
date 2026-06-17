@@ -57,9 +57,11 @@ from typing import List, Dict, Any, Tuple
 METRIC_COLUMN_ALIASES = {
     'arch_param_count': ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count'],
     'arch_max_val': ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val'],
+    'arch_max_test': ['Arch Max Test', 'arch_max_test', 'Arch_Max_Test'],
     'arch_dendrite_count': ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count'],
     'final_param_count': ['Final Param Count', 'final_param_count', 'Final_Param_Count'],
     'final_max_val': ['Final Max Val', 'final_max_val', 'Final_Max_Val'],
+    'final_max_test': ['Final Max Test', 'final_max_test', 'Final_Max_Test'],
     'final_dendrite_count': ['Final Dendrite Count', 'final_dendrite_count', 'Final_Dendrite_Count'],
 }
 
@@ -113,12 +115,12 @@ def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame
     """Validate that an input DataFrame has the raw arch score schema this script expects."""
     df = normalize_metric_columns(df)
 
-    required_columns = {'arch_param_count', 'arch_max_val'}
-    missing_columns = sorted(required_columns - set(df.columns))
-    if not missing_columns:
+    has_param_count = 'arch_param_count' in df.columns
+    has_score_column = 'arch_max_val' in df.columns or 'arch_max_test' in df.columns
+    if has_param_count and has_score_column:
         return df
 
-    if 'Arch Param Count' in df.columns and 'arch_max_val' not in df.columns:
+    if 'Arch Param Count' in df.columns and not has_score_column:
         raise ValueError(
             f"Input file '{input_label}' appears to be a by-run pivot CSV, not a raw arch_scores CSV. "
             f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
@@ -130,9 +132,15 @@ def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame
             f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
         )
 
+    missing_columns = []
+    if not has_param_count:
+        missing_columns.append('arch_param_count')
+    if not has_score_column:
+        missing_columns.append('arch_max_val or arch_max_test')
+
     raise ValueError(
         f"Input file '{input_label}' is missing required columns: {', '.join(missing_columns)}. "
-        f"Expected a raw arch_scores CSV containing columns like arch_param_count and arch_max_val."
+        f"Expected a raw arch_scores CSV containing columns like arch_param_count and arch_max_val (or arch_max_test)."
     )
 
 
@@ -177,10 +185,12 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     # Look for these metric names in history
     arch_param_count_keys = METRIC_COLUMN_ALIASES['arch_param_count']
     arch_max_val_keys = METRIC_COLUMN_ALIASES['arch_max_val']
+    arch_max_test_keys = METRIC_COLUMN_ALIASES['arch_max_test']
     arch_dendrite_count_keys = METRIC_COLUMN_ALIASES['arch_dendrite_count']
     
     final_param_count_keys = METRIC_COLUMN_ALIASES['final_param_count']
     final_max_val_keys = METRIC_COLUMN_ALIASES['final_max_val']
+    final_max_test_keys = METRIC_COLUMN_ALIASES['final_max_test']
     final_dendrite_count_keys = METRIC_COLUMN_ALIASES['final_dendrite_count']
 
     total_runs = len(runs)
@@ -221,6 +231,12 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
             if key in history.columns:
                 arch_max_val_col = key
                 break
+
+        arch_max_test_col = None
+        for key in arch_max_test_keys:
+            if key in history.columns:
+                arch_max_test_col = key
+                break
         
         arch_dendrite_count_col = None
         for key in arch_dendrite_count_keys:
@@ -230,6 +246,7 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         
         final_param_count_col = None
         final_max_val_col = None
+        final_max_test_col = None
         final_dendrite_count_col = None
 
         for key in final_param_count_keys:
@@ -240,6 +257,11 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         for key in final_max_val_keys:
             if key in history.columns:
                 final_max_val_col = key
+                break
+
+        for key in final_max_test_keys:
+            if key in history.columns:
+                final_max_test_col = key
                 break
 
         for key in final_dendrite_count_keys:
@@ -263,8 +285,16 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         reported_runs += 1
         
         # Check if we have any relevant metrics
-        has_arch = arch_param_count_col is not None or arch_max_val_col is not None
-        has_final = final_param_count_col is not None or final_max_val_col is not None
+        has_arch = (
+            arch_param_count_col is not None
+            or arch_max_val_col is not None
+            or arch_max_test_col is not None
+        )
+        has_final = (
+            final_param_count_col is not None
+            or final_max_val_col is not None
+            or final_max_test_col is not None
+        )
         
         if not has_arch and not has_final:
             print(f"    No relevant metrics found in history")
@@ -274,23 +304,39 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         for idx, row in history.iterrows():
             arch_param_count = row.get(arch_param_count_col) if arch_param_count_col else None
             arch_max_val = row.get(arch_max_val_col) if arch_max_val_col else None
+            arch_max_test = row.get(arch_max_test_col) if arch_max_test_col else None
             arch_dendrite_count = row.get(arch_dendrite_count_col) if arch_dendrite_count_col else None
             
             final_param_count = None
             final_max_val = None
+            final_max_test = None
             final_dendrite_count = None
             
             if include_final:
                 final_param_count = row.get(final_param_count_col) if final_param_count_col else None
                 final_max_val = row.get(final_max_val_col) if final_max_val_col else None
+                final_max_test = row.get(final_max_test_col) if final_max_test_col else None
                 final_dendrite_count = row.get(final_dendrite_count_col) if final_dendrite_count_col else None
             
             # Skip rows where all metrics are NaN
             if include_final:
-                all_nan = (pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count) and
-                          pd.isna(final_param_count) and pd.isna(final_max_val) and pd.isna(final_dendrite_count))
+                all_nan = (
+                    pd.isna(arch_param_count)
+                    and pd.isna(arch_max_val)
+                    and pd.isna(arch_max_test)
+                    and pd.isna(arch_dendrite_count)
+                    and pd.isna(final_param_count)
+                    and pd.isna(final_max_val)
+                    and pd.isna(final_max_test)
+                    and pd.isna(final_dendrite_count)
+                )
             else:
-                all_nan = (pd.isna(arch_param_count) and pd.isna(arch_max_val) and pd.isna(arch_dendrite_count))
+                all_nan = (
+                    pd.isna(arch_param_count)
+                    and pd.isna(arch_max_val)
+                    and pd.isna(arch_max_test)
+                    and pd.isna(arch_dendrite_count)
+                )
             
             if all_nan:
                 continue
@@ -303,12 +349,14 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
                 'timestamp': row.get('_timestamp', None),
                 'arch_param_count': arch_param_count,
                 'arch_max_val': arch_max_val,
+                'arch_max_test': arch_max_test,
                 'arch_dendrite_count': arch_dendrite_count,
             }
             
             if include_final:
                 entry['final_param_count'] = final_param_count
                 entry['final_max_val'] = final_max_val
+                entry['final_max_test'] = final_max_test
                 entry['final_dendrite_count'] = final_dendrite_count
             
             # Add config parameters
@@ -403,8 +451,21 @@ def create_graph_by_dendrite(
     if dendrite_offsets is None:
         dendrite_offsets = {}
     
-    # Filter to only rows with both metrics
-    df_filtered = df[df['arch_param_count'].notna() & df['arch_max_val'].notna()].copy()
+    available_score_columns = [
+        col for col in ('arch_max_val', 'arch_max_test')
+        if col in df.columns and df[col].notna().any()
+    ]
+
+    if not available_score_columns:
+        print("Warning: No entries with Arch Max Val/Test found!")
+        return pd.DataFrame()
+
+    # Filter to rows with param_count and at least one available score metric.
+    has_any_score = pd.Series(False, index=df.index)
+    for score_col in available_score_columns:
+        has_any_score = has_any_score | df[score_col].notna()
+
+    df_filtered = df[df['arch_param_count'].notna() & has_any_score].copy()
     
     if df_filtered.empty:
         print("Warning: No entries with both Arch Param Count and Arch Max Val found!")
@@ -470,13 +531,6 @@ def create_graph_by_dendrite(
 
         df_filtered['model_type'] = df_filtered.apply(get_model_type, axis=1)
 
-        scatter_df = df_filtered.pivot_table(
-            index=['run_id', 'run_name', 'arch_param_count'],
-            columns=['model_type', 'dendrite_count'],
-            values='arch_max_val',
-            aggfunc='first'  # Take first value if duplicates
-        )
-
         def model_sort_key(item: Tuple[str, Any]) -> Tuple[int, str, int]:
             model_type, dendrite_count = item
             model_match = re.match(r'model_(\d+)$', str(model_type))
@@ -484,23 +538,64 @@ def create_graph_by_dendrite(
                 return (0, '', int(model_match.group(1)) * 100000 + int(dendrite_count))
             return (1, str(model_type), int(dendrite_count))
 
-        sorted_columns = sorted(scatter_df.columns.tolist(), key=model_sort_key)
-        scatter_df = scatter_df.reindex(columns=sorted_columns)
-        scatter_df.columns = [
-            f'{model_type}_dendrite_{int(dendrite_count)}_max_val'
-            for model_type, dendrite_count in scatter_df.columns
-        ]
-    else:
-        # Pivot: rows are (run_id, run_name, param_count), columns are dendrite counts
-        scatter_df = df_filtered.pivot_table(
-            index=['run_id', 'run_name', 'arch_param_count'],
-            columns='dendrite_count',
-            values='arch_max_val',
-            aggfunc='first'  # Take first value if duplicates
-        )
+        def flat_column_sort_key(col: str) -> Tuple[int, str, int]:
+            match = re.match(r'(model_\d+)_dendrite_(\d+)_max_(?:val|test)$', str(col))
+            if not match:
+                return (1, str(col), 0)
+            model_match = re.match(r'model_(\d+)$', match.group(1))
+            if model_match:
+                return (0, '', int(model_match.group(1)) * 100000 + int(match.group(2)))
+            return (1, str(col), int(match.group(2)))
 
-        # Rename columns to be more descriptive
-        scatter_df.columns = [f'dendrite_{int(col)}_max_val' for col in scatter_df.columns]
+        score_pivots = []
+        for score_col in available_score_columns:
+            metric_suffix = 'val' if score_col == 'arch_max_val' else 'test'
+            metric_pivot = df_filtered.pivot_table(
+                index=['run_id', 'run_name', 'arch_param_count'],
+                columns=['model_type', 'dendrite_count'],
+                values=score_col,
+                aggfunc='first'  # Take first value if duplicates
+            )
+
+            sorted_columns = sorted(metric_pivot.columns.tolist(), key=model_sort_key)
+            metric_pivot = metric_pivot.reindex(columns=sorted_columns)
+            metric_pivot.columns = [
+                f'{model_type}_dendrite_{int(dendrite_count)}_max_{metric_suffix}'
+                for model_type, dendrite_count in metric_pivot.columns
+            ]
+            score_pivots.append(metric_pivot)
+
+        scatter_df = pd.concat(score_pivots, axis=1)
+
+        ordered_score_columns: List[str] = []
+        ordered_score_columns.extend(sorted([c for c in scatter_df.columns if c.endswith('_max_val')], key=flat_column_sort_key))
+        ordered_score_columns.extend(sorted([c for c in scatter_df.columns if c.endswith('_max_test')], key=flat_column_sort_key))
+        scatter_df = scatter_df[ordered_score_columns]
+    else:
+        def flat_dendrite_sort_key(col: str) -> Tuple[int, str, int]:
+            match = re.match(r'dendrite_(\d+)_max_(?:val|test)$', str(col))
+            if not match:
+                return (1, str(col), 0)
+            return (0, '', int(match.group(1)))
+
+        score_pivots = []
+        for score_col in available_score_columns:
+            metric_suffix = 'val' if score_col == 'arch_max_val' else 'test'
+            metric_pivot = df_filtered.pivot_table(
+                index=['run_id', 'run_name', 'arch_param_count'],
+                columns='dendrite_count',
+                values=score_col,
+                aggfunc='first'  # Take first value if duplicates
+            )
+            metric_pivot.columns = [f'dendrite_{int(col)}_max_{metric_suffix}' for col in metric_pivot.columns]
+            score_pivots.append(metric_pivot)
+
+        scatter_df = pd.concat(score_pivots, axis=1)
+
+        ordered_score_columns: List[str] = []
+        ordered_score_columns.extend(sorted([c for c in scatter_df.columns if c.endswith('_max_val')], key=flat_dendrite_sort_key))
+        ordered_score_columns.extend(sorted([c for c in scatter_df.columns if c.endswith('_max_test')], key=flat_dendrite_sort_key))
+        scatter_df = scatter_df[ordered_score_columns]
     
     # Reset index to make run_id, run_name and param_count regular columns
     scatter_df = scatter_df.reset_index()
@@ -532,11 +627,21 @@ def diagnose_data(df: pd.DataFrame, dendrite_offsets: Dict[str, int] = None):
     print("DIAGNOSTIC SUMMARY")
     print("="*70)
     
+    score_column = None
+    if 'arch_max_val' in df.columns and df['arch_max_val'].notna().any():
+        score_column = 'arch_max_val'
+    elif 'arch_max_test' in df.columns and df['arch_max_test'].notna().any():
+        score_column = 'arch_max_test'
+
+    if score_column is None:
+        print("No data with arch_param_count and arch_max_val/arch_max_test")
+        return
+
     # Filter to relevant data
-    df_filtered = df[df['arch_param_count'].notna() & df['arch_max_val'].notna()].copy()
+    df_filtered = df[df['arch_param_count'].notna() & df[score_column].notna()].copy()
     
     if df_filtered.empty:
-        print("No data with both arch_param_count and arch_max_val")
+        print("No data with both arch_param_count and arch_max_val/arch_max_test")
         return
     
     # Check for dendrite count column
@@ -765,7 +870,16 @@ Example:
     
     # After download, check each model_index to suggest offsets if needed
     if args.mode == 'download':
-        df_filtered = df[df['arch_param_count'].notna() & df['arch_max_val'].notna()].copy()
+        score_column = None
+        if 'arch_max_val' in df.columns and df['arch_max_val'].notna().any():
+            score_column = 'arch_max_val'
+        elif 'arch_max_test' in df.columns and df['arch_max_test'].notna().any():
+            score_column = 'arch_max_test'
+
+        if score_column is None:
+            df_filtered = pd.DataFrame()
+        else:
+            df_filtered = df[df['arch_param_count'].notna() & df[score_column].notna()].copy()
         if not df_filtered.empty:
             has_dendrite_count = 'arch_dendrite_count' in df_filtered.columns and df_filtered['arch_dendrite_count'].notna().any()
             
@@ -871,6 +985,9 @@ Example:
     # Save to CSV
     if args.mode == 'by-dendrite-separate':
         dendrite_cols = [col for col in output_df.columns if 'dendrite' in col]
+        dendrite_cols = [col for col in dendrite_cols if col.endswith('_max_val')] + [
+            col for col in dendrite_cols if col.endswith('_max_test')
+        ]
         non_dendrite_cols = [col for col in output_df.columns if 'dendrite' not in col]
         n_prefix = len(non_dendrite_cols)
 

@@ -311,7 +311,34 @@ def class_balanced_split(dataset, seed=42):
     return dataset_val, dataset_test
 
 
-def load_dataset(dataset_name, data_path, batch_size, workers):
+def class_balanced_subsample(dataset, data_percent, seed=42):
+    """Subsample training dataset with equal class counts at the requested percent."""
+    if data_percent >= 100:
+        return dataset
+
+    if data_percent <= 0:
+        raise ValueError(f"data_percent must be > 0, got {data_percent}")
+
+    fraction = data_percent / 100.0
+    targets = _get_dataset_targets(dataset)
+    class_to_indices = defaultdict(list)
+    for idx, label in enumerate(targets):
+        class_to_indices[int(label)].append(idx)
+
+    generator = torch.Generator().manual_seed(seed)
+    selected_indices = []
+
+    for class_id in sorted(class_to_indices.keys()):
+        class_indices = class_to_indices[class_id]
+        perm = torch.randperm(len(class_indices), generator=generator).tolist()
+        shuffled_indices = [class_indices[i] for i in perm]
+        keep_count = max(1, int(len(shuffled_indices) * fraction))
+        selected_indices.extend(shuffled_indices[:keep_count])
+
+    return torch.utils.data.Subset(dataset, selected_indices)
+
+
+def load_dataset(dataset_name, data_path, batch_size, workers, data_percent=100):
     """Load dataset with standard preprocessing."""
     print(f"Loading {dataset_name} dataset from {data_path}")
 
@@ -440,6 +467,9 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
 
     # Split original evaluation set into class-balanced validation and test subsets.
     dataset_val, dataset_test = class_balanced_split(dataset_test, seed=42)
+
+    # Subsample training set only (leave validation/test unchanged).
+    dataset_train = class_balanced_subsample(dataset_train, data_percent, seed=42)
 
     print(f"Train dataset size: {len(dataset_train)}")
     print(f"Validation dataset size: {len(dataset_val)}")
@@ -1275,6 +1305,7 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
             "label_smoothing": {"values": [0.05, 0.1, 0.15]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
+            "data_percent": {"values": [10, 25, 50, 75, 100]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1291,6 +1322,7 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
+            "data_percent": {"values": [10, 25, 50, 75, 100]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1307,6 +1339,7 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             "label_smoothing": {"values": [0.0, 0.05]},
+            "data_percent": {"values": [10, 25, 50, 75, 100]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1323,6 +1356,7 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
+            "data_percent": {"values": [10, 25, 50, 75, 100]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1339,6 +1373,7 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
             "label_smoothing": {"values": [0.0, 0.05, 0.1]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
+            "data_percent": {"values": [10, 25, 50, 75, 100]},
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1398,6 +1433,7 @@ def train_with_wandb():
         args.lr = config.lr
         args.weight_decay = config.weight_decay
         args.label_smoothing = config.label_smoothing
+        args.data_percent = config.get("data_percent", 100)
 
         # Apply dataset-specific defaults for non-swept parameters
         dataset_config = get_dataset_config(args.dataset)
@@ -1413,13 +1449,18 @@ def train_with_wandb():
         print(f"Learning rate: {args.lr}")
         print(f"Weight decay: {args.weight_decay}")
         print(f"Label smoothing: {args.label_smoothing}")
+        print(f"Data percent: {args.data_percent}")
         print(f"Epochs: {args.epochs}")
         print(f"Batch size: {args.batch_size}")
         print(f"{'='*80}\n")
 
         # Load dataset
         train_loader, val_loader, test_loader, num_classes = load_dataset(
-            args.dataset, args.data_path, args.batch_size, args.workers
+            args.dataset,
+            args.data_path,
+            args.batch_size,
+            args.workers,
+            data_percent=args.data_percent,
         )
 
         # Train
@@ -1560,6 +1601,13 @@ def main():
         help="Weight decay (default: dataset-specific)",
     )
     parser.add_argument(
+        "--data-percent",
+        default=100,
+        type=int,
+        choices=[10, 25, 50, 75, 100],
+        help="Training data percent for class-balanced subsampling (default: 100)",
+    )
+    parser.add_argument(
         "--workers", default=16, type=int, help="Number of data loading workers"
     )
     parser.add_argument(
@@ -1672,6 +1720,7 @@ def main():
                 config={
                     "model": args.model,
                     "dataset": args.dataset,
+                    "data_percent": args.data_percent,
                     "epochs": args.epochs,
                     "batch_size": args.batch_size,
                     "lr": args.lr,
@@ -1682,7 +1731,7 @@ def main():
             )
         # Update args from wandb config if in sweep
         if wandb.config:
-            for key in ["model", "lr", "weight_decay", "label_smoothing"]:
+            for key in ["model", "lr", "weight_decay", "label_smoothing", "data_percent"]:
                 if key in wandb.config:
                     setattr(args, key, wandb.config[key])
 
@@ -1697,12 +1746,17 @@ def main():
     print(f"Weight decay: {args.weight_decay}")
     print(f"LR warmup epochs: {args.lr_warmup_epochs}")
     print(f"Label smoothing: {args.label_smoothing}")
+    print(f"Data percent: {args.data_percent}")
     print(f"Device: {args.device}")
     print(f"{'='*80}\n")
 
     # Load dataset
     train_loader, val_loader, test_loader, num_classes = load_dataset(
-        args.dataset, args.data_path, args.batch_size, args.workers
+        args.dataset,
+        args.data_path,
+        args.batch_size,
+        args.workers,
+        data_percent=args.data_percent,
     )
 
     # Run single training trial
