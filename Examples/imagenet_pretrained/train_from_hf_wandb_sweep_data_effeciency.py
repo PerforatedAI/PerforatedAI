@@ -41,6 +41,47 @@ from perforatedai import globals_perforatedai as GPA
 GPA.pc.set_strict_loading(False)
 #GPA.pc.set_test_saves(False)
 
+SWEEP_DATASETS = ["flowers102", "pets", "food101", "cifar10", "cifar100"]
+DEFAULT_SWEEP_MODEL_INDICES = [0, 1, 2, 3]
+DEFAULT_SWEEP_DATA_PERCENTS = [10, 25, 50, 75, 100]
+
+FIXED_SWEEP_HPARAMS = {
+    "pets": {
+        0: {
+            "lr": 0.0003,
+            "weight_decay": 0.0001,
+            "label_smoothing": 0.0,
+            "scheduler_mode": 1,
+            "improvement_threshold": [0],
+            "pai_forward_function": "sigmoid",
+        },
+        1: {
+            "lr": 0.001,
+            "weight_decay": 1e-5,
+            "label_smoothing": 0.0,
+            "scheduler_mode": 0,
+            "improvement_threshold": [0],
+            "pai_forward_function": "tanh",
+        },
+        2: {
+            "lr": 0.0003,
+            "weight_decay": 0.0001,
+            "label_smoothing": 0.0,
+            "scheduler_mode": 1,
+            "improvement_threshold": [0.01, 0.001, 0.0001, 0],
+            "pai_forward_function": "relu",
+        },
+        3: {
+            "lr": 0.001,
+            "weight_decay": 0.0,
+            "label_smoothing": 0.1,
+            "scheduler_mode": 1,
+            "improvement_threshold": [0.01, 0.001, 0.0001, 0],
+            "pai_forward_function": "sigmoid",
+        },
+    }
+}
+
 def get_dataset_config(dataset_name):
     """Get recommended hyperparameters for each dataset
 
@@ -1292,97 +1333,49 @@ def get_model_name_from_index(model_index):
     return model_mapping[model_index]
 
 
-def get_sweep_config(dataset_name):
-    """Get WandB sweep configuration for a specific dataset."""
-    base_config = {
-        "method": "random",  # Random sampling instead of exhaustive grid
-        "metric": {"name": "Final Max Val", "goal": "maximize"},
+def get_default_sweep_hparams(dataset_name, model_index):
+    dataset_config = get_dataset_config(dataset_name)
+    scheduler_name = dataset_config.get("lr_scheduler", "cosineannealinglr")
+    selected = {
+        "lr": dataset_config.get("lr", 0.001),
+        "weight_decay": dataset_config.get("weight_decay", 1e-4),
+        "label_smoothing": dataset_config.get("label_smoothing", 0.0),
+        "scheduler_mode": 0 if scheduler_name == "cosineannealinglr" else 1,
+        "improvement_threshold": [0],
+        "pai_forward_function": "sigmoid",
     }
 
-    if dataset_name == "flowers102":
-        # Small dataset - use all 4 models, higher regularization
-        base_config["parameters"] = {
-            "dataset": {"value": "flowers102"},
-            "model_index": {
-                "values": [0, 1, 2, 3]
-            },  # Maps to model names via get_model_name_from_index
-            "lr": {"values": [0.0001, 0.0003, 0.001, 0.003]},
-            "weight_decay": {"values": [1e-5, 1e-4, 1e-3]},
-            "label_smoothing": {"values": [0.05, 0.1, 0.15]},
-            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
-            "data_percent": {"values": [10, 25, 50, 75, 100]},
-            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
-            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
-            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-        }
+    dataset_overrides = FIXED_SWEEP_HPARAMS.get(dataset_name, {})
+    selected.update(dataset_overrides.get(model_index, {}))
+    return selected
 
-    elif dataset_name == "pets":
-        # Pets data-efficiency experiment: fixed per-model hyperparameters,
-        # sweep only model type x data percent (4 x 5 = 20 runs).
-        base_config["method"] = "grid"
-        base_config["parameters"] = {
-            "dataset": {"value": "pets"},
-            "model_index": {
-                "values": [0, 1, 2, 3]
-            },  # Maps to model names via get_model_name_from_index
-            "data_percent": {"values": [10, 25, 50, 75, 100]},
-        }
 
-    elif dataset_name == "food101":
-        # Larger dataset - all 4 models, can handle higher LR
-        base_config["parameters"] = {
-            "dataset": {"value": "food101"},
-            "model_index": {
-                "values": [0, 1, 2, 3]
-            },  # Maps to model names via get_model_name_from_index
-            "lr": {"values": [0.001, 0.003, 0.01, 0.03]},
-            "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
-            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
-            "label_smoothing": {"values": [0.0, 0.05]},
-            "data_percent": {"values": [10, 25, 50, 75, 100]},
-            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
-            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
-            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-        }
-
-    elif dataset_name == "cifar10":
-        # CIFAR-10 - same experiment structure as other datasets
-        base_config["parameters"] = {
-            "dataset": {"value": "cifar10"},
-            "model_index": {
-                "values": [0, 1, 2, 3]
-            },  # Maps to model names via get_model_name_from_index
-            "lr": {"values": [0.03, 0.1, 0.2]},
-            "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
-            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
-            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
-            "data_percent": {"values": [10, 25, 50, 75, 100]},
-            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
-            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
-            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-        }
-
-    elif dataset_name == "cifar100":
-        # CIFAR-100 - same experiment structure as other datasets
-        base_config["parameters"] = {
-            "dataset": {"value": "cifar100"},
-            "model_index": {
-                "values": [0, 1, 2, 3]
-            },  # Maps to model names via get_model_name_from_index
-            "lr": {"values": [0.03, 0.1, 0.2]},
-            "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
-            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
-            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
-            "data_percent": {"values": [10, 25, 50, 75, 100]},
-            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
-            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
-            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
-        }
-
+def apply_pai_sweep_settings(improvement_threshold, pai_forward_function):
+    GPA.pc.set_improvement_threshold(improvement_threshold)
+    if pai_forward_function == "sigmoid":
+        GPA.pc.set_pai_forward_function(torch.sigmoid)
+    elif pai_forward_function == "relu":
+        GPA.pc.set_pai_forward_function(torch.relu)
+    elif pai_forward_function == "tanh":
+        GPA.pc.set_pai_forward_function(torch.tanh)
     else:
+        raise ValueError(f"Unsupported pai_forward_function: {pai_forward_function}")
+
+
+def get_sweep_config(dataset_name):
+    """Get WandB sweep configuration for a specific dataset."""
+    if dataset_name not in SWEEP_DATASETS:
         raise ValueError(f"No sweep config defined for dataset: {dataset_name}")
 
-    return base_config
+    return {
+        "method": "grid",
+        "metric": {"name": "Final Max Val", "goal": "maximize"},
+        "parameters": {
+            "dataset": {"value": dataset_name},
+            "model_index": {"values": DEFAULT_SWEEP_MODEL_INDICES},
+            "data_percent": {"values": DEFAULT_SWEEP_DATA_PERCENTS},
+        },
+    }
 
 
 def train_with_wandb():
@@ -1436,58 +1429,16 @@ def train_with_wandb():
         args.scheduler_mode = config.get("scheduler_mode", 0)
         args.data_percent = config.get("data_percent", 100)
 
-        # Pets data-efficiency: enforce selected best hyperparameters per model.
-        if args.dataset == "pets":
-            fixed_pets_hparams = {
-                0: {
-                    "lr": 0.0003,
-                    "weight_decay": 0.0001,
-                    "label_smoothing": 0.0,
-                    "scheduler_mode": 1,
-                    "improvement_threshold": [0],
-                    "pai_forward_function": "sigmoid",
-                },
-                1: {
-                    "lr": 0.001,
-                    "weight_decay": 1e-5,
-                    "label_smoothing": 0.0,
-                    "scheduler_mode": 0,
-                    "improvement_threshold": [0],
-                    "pai_forward_function": "tanh",
-                },
-                2: {
-                    "lr": 0.0003,
-                    "weight_decay": 0.0001,
-                    "label_smoothing": 0.0,
-                    "scheduler_mode": 1,
-                    "improvement_threshold": [0.01, 0.001, 0.0001, 0],
-                    "pai_forward_function": "relu",
-                },
-                3: {
-                    "lr": 0.001,
-                    "weight_decay": 0.0,
-                    "label_smoothing": 0.1,
-                    "scheduler_mode": 1,
-                    "improvement_threshold": [0.01, 0.001, 0.0001, 0],
-                    "pai_forward_function": "sigmoid",
-                },
-            }
-
-            model_idx = int(config.model_index)
-            selected = fixed_pets_hparams[model_idx]
-            args.lr = selected["lr"]
-            args.weight_decay = selected["weight_decay"]
-            args.label_smoothing = selected["label_smoothing"]
-            args.scheduler_mode = selected["scheduler_mode"]
-
-            # Apply PAI settings directly so perforated models receive fixed settings.
-            GPA.pc.set_improvement_threshold(selected["improvement_threshold"])
-            if selected["pai_forward_function"] == "sigmoid":
-                GPA.pc.set_pai_forward_function(torch.sigmoid)
-            elif selected["pai_forward_function"] == "relu":
-                GPA.pc.set_pai_forward_function(torch.relu)
-            elif selected["pai_forward_function"] == "tanh":
-                GPA.pc.set_pai_forward_function(torch.tanh)
+        model_idx = int(config.model_index)
+        selected = get_default_sweep_hparams(args.dataset, model_idx)
+        args.lr = selected["lr"]
+        args.weight_decay = selected["weight_decay"]
+        args.label_smoothing = selected["label_smoothing"]
+        args.scheduler_mode = selected["scheduler_mode"]
+        apply_pai_sweep_settings(
+            selected["improvement_threshold"],
+            selected["pai_forward_function"],
+        )
 
         # Apply dataset-specific defaults for non-swept parameters
         dataset_config = get_dataset_config(args.dataset)
@@ -1579,13 +1530,44 @@ def train_with_wandb():
 def main():
     import argparse
 
+    def initialize_and_run_sweep(dataset_name, args):
+        print(f"\n{'='*80}")
+        print(f"Initializing WandB sweep for {dataset_name}")
+        print(f"{'='*80}\n")
+
+        sweep_config = get_sweep_config(dataset_name)
+        project_name = dataset_name
+        sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=project_name)
+
+        print(f"Sweep initialized: {sweep_id}")
+        print(f"Project: {project_name}")
+        print(f"View at: https://wandb.ai")
+        print(f"\nTo join this sweep from other machines, run:")
+        entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
+        print(
+            f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id} --wandb-project {project_name}{entity_arg}"
+        )
+        print(f"\nStarting sweep agent (count={args.sweep_count})...\n")
+
+        wandb.agent(
+            sweep_id,
+            function=train_with_wandb,
+            count=args.sweep_count,
+            entity=args.wandb_entity,
+            project=project_name,
+        )
+
+        print(f"\n{'='*80}")
+        print(f"Sweep complete for {dataset_name}! View results at: https://wandb.ai")
+        print(f"{'='*80}\n")
+
     parser = argparse.ArgumentParser(
         description="Train ResNet models with WandB sweep support"
     )
     parser.add_argument(
         "--sweep-dataset",
         type=str,
-        choices=["flowers102", "pets", "food101", "cifar10", "cifar100"],
+        choices=SWEEP_DATASETS + ["all"],
         help="Initialize and run WandB sweep for this dataset",
     )
     parser.add_argument(
@@ -1708,36 +1690,9 @@ def main():
             print(f"{'='*80}\n")
             return
         elif args.sweep_dataset:
-            # Initialize new sweep
-            print(f"\n{'='*80}")
-            print(f"Initializing WandB sweep for {args.sweep_dataset}")
-            print(f"{'='*80}\n")
-
-            sweep_config = get_sweep_config(args.sweep_dataset)
-            project_name = args.sweep_dataset  # Use dataset name as project
-            sweep_id = wandb.sweep(sweep_config, entity=args.wandb_entity, project=project_name)
-
-            print(f"Sweep initialized: {sweep_id}")
-            print(f"Project: {project_name}")
-            print(f"View at: https://wandb.ai")
-            print(f"\nTo join this sweep from other machines, run:")
-            entity_arg = f" --wandb-entity {args.wandb_entity}" if args.wandb_entity else ""
-            print(
-                f"  python train_from_hf_wandb_sweep.py --sweep-id {sweep_id} --wandb-project {project_name}{entity_arg}"
-            )
-            print(f"\nStarting sweep agent (count={args.sweep_count})...\n")
-
-            wandb.agent(
-                sweep_id,
-                function=train_with_wandb,
-                count=args.sweep_count,
-                entity=args.wandb_entity,
-                project=project_name,
-            )
-
-            print(f"\n{'='*80}")
-            print(f"Sweep complete! View results at: https://wandb.ai")
-            print(f"{'='*80}\n")
+            datasets_to_run = SWEEP_DATASETS if args.sweep_dataset == "all" else [args.sweep_dataset]
+            for dataset_name in datasets_to_run:
+                initialize_and_run_sweep(dataset_name, args)
             return
         else:
             parser.error("--sweep-dataset is required when using --sweep-id main")
