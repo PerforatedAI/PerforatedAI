@@ -1040,6 +1040,11 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
             GPA.pc.set_verbose(False)
             model = model.to(device)
 
+            if restructured:
+                # Warmup is only for the initial training process.
+                # After first restructure, all later optimizer resets run without warmup.
+                args.lr_warmup_epochs = 0
+
             # Log arch max when dendrites are successfully integrated (or first switch for base model)
             if restructured and not training_complete:
                 current_integrated = GPA.pai_tracker.member_vars["num_dendrites_integrated"]
@@ -1084,7 +1089,7 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
                         f"  Max val: {max_val}, Max test: {max_test}, Max train: {max_train}"
                     )
 
-                # Reinitialize optimizer and scheduler after restructuring (same as initial setup)
+                # Reinitialize optimizer and scheduler after restructuring
                 optimArgs = {
                     "params": model.parameters(),
                     "lr": args.lr,
@@ -1092,7 +1097,7 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
                     "weight_decay": args.weight_decay,
                 }
                 
-                # Recreate scheduler (same as initial setup)
+                # Recreate scheduler without warmup after restructuring
                 if scheduler_mode == 1:
                     # ReduceLROnPlateau mode
                     schedArgs = {
@@ -1101,20 +1106,11 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
                         "patience": 10,
                     }
                     optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
-                elif args.lr_warmup_epochs > 0:
-                    # SequentialLR case - describe component schedulers in schedArgs
-                    schedArgs = {
-                        "schedulers": [
-                            (torch.optim.lr_scheduler.ConstantLR, {"factor": 0.01, "total_iters": args.lr_warmup_epochs}),
-                            (torch.optim.lr_scheduler.CosineAnnealingLR, {"T_max": max(1, args.epochs - args.lr_warmup_epochs), "eta_min": 0.0})
-                        ],
-                        "milestones": [args.lr_warmup_epochs]
-                    }
-                    optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
                 else:
-                    # Simple CosineAnnealingLR case
+                    # After restructuring: use CosineAnnealingLR without warmup
+                    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)
                     schedArgs = {
-                        "T_max": max(1, args.epochs - args.lr_warmup_epochs),
+                        "T_max": max(1, args.epochs),  # Full remaining epochs without warmup offset
                         "eta_min": 0.0
                     }
                     optimizer, lr_scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
@@ -1214,6 +1210,7 @@ def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
 
         while epochs_without_improvement < max_epochs_without_improvement:
             epoch += 1
+            
             train_acc1, train_loss = train_one_epoch(
                 model,
                 criterion,
