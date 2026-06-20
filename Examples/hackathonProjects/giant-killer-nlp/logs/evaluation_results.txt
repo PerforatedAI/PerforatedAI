@@ -1,0 +1,13 @@
+Giant-Killer NLP Evaluation Results
+============================================================
+
+
+Dendritic BERT-Tiny:
+  Parameters: 4,798,468
+  F1 Score: 0.3582
+  Latency: 2.25 ms
+
+BERT-Base:
+  Parameters: 109,483,778
+  F1 Score: 0.0500
+  Latency: 40.10 ms

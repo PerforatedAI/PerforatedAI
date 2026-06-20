@@ -1,0 +1,81 @@
+# Giant-Killer NLP Configuration
+# Dendritic Optimization Hackathon
+
+# Model Configuration
+model:
+  name: "prajjwal1/bert-tiny"  # 2 layers, 128 hidden size, ~4M params
+  num_labels: 2  # Binary classification (toxic/non-toxic)
+  hidden_dropout_prob: 0.1
+  attention_probs_dropout_prob: 0.1
+
+# Data Configuration
+data:
+  dataset_name: "jigsaw_toxicity_pred"  # Jigsaw Unintended Bias dataset
+  max_length: 128  # For fast real-time processing
+  train_split: "train"
+  val_split: "validation"
+  test_split: "test"
+  batch_size: 32
+  num_workers: 4
+  
+# Training Configuration
+training:
+  epochs: 10
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_steps: 500
+  max_grad_norm: 1.0
+  
+  # Scheduler configuration (handled by PAI tracker)
+  scheduler:
+    step_size: 1
+    gamma: 0.1
+    
+  # Early stopping
+  early_stopping:
+    patience: 3
+    min_delta: 0.001
+
+# Perforated AI Configuration
+perforated_ai:
+  enabled: true
+  # Dendrite learning starts after base model plateaus
+  dendrite_learning:
+    enabled: true
+    correlation_threshold: 0.95
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - accuracy
+    - f1
+    - precision
+    - recall
+    - auc_roc
+  
+  # Benchmarking configuration
+  benchmark:
+    num_samples: 100
+    device: "cpu"  # Benchmark on CPU for edge deployment
+    warm_up_runs: 10
+
+# Quantization Configuration
+quantization:
+  enabled: true
+  dtype: "qint8"
+  # Layers to quantize
+  layers:
+    - torch.nn.Linear
+    - torch.nn.Embedding
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  tensorboard: true
+  log_dir: "logs/"
+  save_dir: "checkpoints/"
+  save_every_n_epochs: 1
+
+# Reproducibility
+seed: 42
+deterministic: true
