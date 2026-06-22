@@ -41,11 +41,21 @@ from perforatedai import globals_perforatedai as GPA
 GPA.pc.set_strict_loading(False)
 #GPA.pc.set_test_saves(False)
 
-SWEEP_DATASETS = ["flowers102", "pets", "food101", "cifar10", "cifar100"]
-DEFAULT_SWEEP_MODEL_INDICES = [0, 1, 2, 3]
+SWEEP_DATASETS = ["flowers102"]
+DEFAULT_SWEEP_MODEL_INDICES = [1]
 DEFAULT_SWEEP_DATA_PERCENTS = [10, 25, 50, 75, 100]
 
 FIXED_SWEEP_HPARAMS = {
+    "flowers102": {
+        1: {
+            "lr": 0.003,
+            "weight_decay": 0.001,
+            "label_smoothing": 0.1,
+            "scheduler_mode": 1,
+            "improvement_threshold": [0],
+            "pai_forward_function": "tanh",
+        },
+    },
     "pets": {
         0: {
             "lr": 0.0003,
@@ -1575,8 +1585,8 @@ def main():
     parser.add_argument(
         "--sweep-count",
         type=int,
-        default=300,
-        help="Number of runs for sweep agent (default: 300)",
+        default=5,
+        help="Number of runs for sweep agent (default: 5)",
     )
     parser.add_argument(
         "--model",

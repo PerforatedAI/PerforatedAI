@@ -371,6 +371,7 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
     interpolation = InterpolationMode.BILINEAR
 
     # Training transforms
+    ## TODO: if running more experiments in the future transforms should be per dataset.
     train_transform = torchvision.transforms.Compose(
         [
             torchvision.transforms.RandomResizedCrop(
@@ -1248,11 +1249,11 @@ def get_model_name_from_index(model_index):
         Model name string
     """
     model_mapping = {
-        0: "resnet-18-perforated-cascor-pretrained",
-        1: "resnet-18-perforated-cascor-fc",
-        2: "resnet-18-perforated-cascor-pre-fc",
+        0: "resnet-18-perforated-cascor-pretrained", # pretrained
+        1: "resnet-18-perforated-cascor-fc", # perforate fc
+        2: "resnet-18-perforated-cascor-pre-fc", # perforate pre-fc
         3: "resnet-34",
-        4: "resnet-18-perforated-cascor-hf-fc",
+        4: "resnet-18-perforated-cascor-hf-fc", # perforate fc with the pretrained perforated pre-fc
     }
     return model_mapping[model_index]
 
