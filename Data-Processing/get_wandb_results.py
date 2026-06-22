@@ -51,7 +51,7 @@ import pandas as pd
 import sys
 import re
 import os
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 
 METRIC_COLUMN_ALIASES = {
@@ -111,6 +111,60 @@ def normalize_metric_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def infer_model_index_from_row(row: pd.Series) -> Optional[int]:
+    """Infer model index from a row using config_model_index or run_name pattern."""
+    config_model_index = row.get('config_model_index', None)
+    if pd.notna(config_model_index):
+        try:
+            return int(config_model_index)
+        except (TypeError, ValueError):
+            pass
+
+    run_name = str(row.get('run_name', ''))
+    match = re.search(r'model_index_(\d+)', run_name)
+    if match:
+        return int(match.group(1))
+
+    return None
+
+
+def filter_ignored_models(df: pd.DataFrame, ignored_models: List[int]) -> pd.DataFrame:
+    """Filter out runs whose inferred model index is in ignored_models."""
+    if not ignored_models or df.empty:
+        return df
+
+    ignored_set = set(ignored_models)
+
+    run_model_index = (
+        df.groupby('run_id')
+        .apply(lambda g: infer_model_index_from_row(g.iloc[0]))
+        .reset_index(name='model_index')
+    )
+
+    ignored_run_ids = set(
+        run_model_index[
+            run_model_index['model_index'].isin(ignored_set)
+        ]['run_id'].tolist()
+    )
+
+    if ignored_run_ids:
+        before_runs = df['run_id'].nunique() if 'run_id' in df.columns else 0
+        before_rows = len(df)
+        df = df[~df['run_id'].isin(ignored_run_ids)].copy()
+        after_runs = df['run_id'].nunique() if 'run_id' in df.columns else 0
+        after_rows = len(df)
+        print("\nIgnored model filter applied:")
+        print(f"  Ignored model indices: {sorted(ignored_set)}")
+        print(f"  Removed runs: {before_runs - after_runs}")
+        print(f"  Removed rows: {before_rows - after_rows}")
+    else:
+        print("\nIgnored model filter applied:")
+        print(f"  Ignored model indices: {sorted(ignored_set)}")
+        print("  No matching runs found to remove")
+
+    return df
+
+
 def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame:
     """Validate that an input DataFrame has the raw arch score schema this script expects."""
     df = normalize_metric_columns(df)
@@ -144,7 +198,13 @@ def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame
     )
 
 
-def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: bool = False) -> pd.DataFrame:
+def get_sweep_results(
+    entity: str,
+    project: str,
+    sweep_id: str,
+    include_final: bool = False,
+    max_completed: Optional[int] = None,
+) -> pd.DataFrame:
     """
     Fetch all runs from a wandb sweep and extract all raw log entries.
     
@@ -153,6 +213,7 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
         project: wandb project name
         sweep_id: sweep ID (can be full path or just the ID)
         include_final: whether to include Final metrics (Final Param Count, etc.)
+        max_completed: if set, only include the first N finished runs with final scores
     
     Returns:
         DataFrame with all raw log entries containing arch metrics and optionally 
@@ -196,6 +257,9 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     total_runs = len(runs)
     reported_runs = 0
     excluded_runs = 0
+    failed_or_incomplete_runs = 0
+    completed_discarded_runs = 0
+    selected_run_ids = []
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
@@ -280,9 +344,16 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
 
         if not run_finished_state or not run_has_final_scores:
             excluded_runs += 1
+            failed_or_incomplete_runs += 1
+            continue
+
+        if max_completed is not None and reported_runs >= max_completed:
+            excluded_runs += 1
+            completed_discarded_runs += 1
             continue
 
         reported_runs += 1
+        selected_run_ids.append(run.id)
         
         # Check if we have any relevant metrics
         has_arch = (
@@ -369,12 +440,19 @@ def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: b
     
     # Create DataFrame
     df = pd.DataFrame(all_results)
+    if max_completed is not None and not df.empty and selected_run_ids:
+        df = df[df['run_id'].isin(selected_run_ids)].copy()
     df = normalize_metric_columns(df)
 
     print("\nRun completion summary (wandb fetch):")
     print(f"  Total runs: {total_runs}")
     print(f"  Reported runs (finished with final scores): {reported_runs}")
     print(f"  Excluded runs (unfinished or missing final scores): {excluded_runs}")
+
+    if max_completed is not None:
+        print(f"  Requested max completed runs: {max_completed}")
+        print(f"  Failed/incomplete runs: {failed_or_incomplete_runs}")
+        print(f"  Completed runs discarded by max-completed: {completed_discarded_runs}")
     
     print(f"\nTotal raw log entries: {len(df)}")
     
@@ -782,8 +860,28 @@ Example:
         action='store_true',
         help='include Final Param Count, Final Max Val, and Final Dendrite Count metrics (logged at end of run). Useful for verification but not for graph generation.'
     )
+
+    parser.add_argument(
+        '--max-completed',
+        type=int,
+        default=None,
+        help='only include the first N runs that are finished and have final scores; when set, also prints failed/incomplete count and completed-discarded count'
+    )
+
+    parser.add_argument(
+        '--ignore-models',
+        nargs='*',
+        type=int,
+        default=[],
+        metavar='MODEL_INDEX',
+        help='ignore one or more model indices (from model_info.csv), e.g. --ignore-models 0 2 3'
+    )
     
     args = parser.parse_args()
+
+    if args.max_completed is not None and args.max_completed <= 0:
+        print("Error: --max-completed must be a positive integer", file=sys.stderr)
+        sys.exit(1)
     
     # Parse dendrite offsets - support only numeric format "0:2" which expands to "model_index_0:2"
     dendrite_offsets = {}
@@ -812,6 +910,9 @@ Example:
     output_stem = None
 
     if args.csv:
+        if args.max_completed is not None:
+            print("Warning: --max-completed is ignored when using --csv input")
+
         if not os.path.exists(args.csv):
             print(f"Error: Input CSV file not found: {args.csv}", file=sys.stderr)
             sys.exit(1)
@@ -841,7 +942,7 @@ Example:
         raw_csv_file = f"{entity}_{project}_{sweep_id}_arch_scores.csv"
         output_stem = f"{entity}_{project}_{sweep_id}"
 
-        if args.mode != 'download' and os.path.exists(raw_csv_file):
+        if args.mode != 'download' and os.path.exists(raw_csv_file) and args.max_completed is None:
             # Load existing CSV instead of fetching
             print(f"Found existing raw data file: {raw_csv_file}")
             print(f"Loading data from file instead of fetching from wandb...\n")
@@ -853,7 +954,13 @@ Example:
             print(f"Loaded {len(df)} raw log entries from CSV")
         else:
             # Fetch sweep results from wandb
-            df = get_sweep_results(entity, project, sweep_id, include_final=args.include_final)
+            df = get_sweep_results(
+                entity,
+                project,
+                sweep_id,
+                include_final=args.include_final,
+                max_completed=args.max_completed,
+            )
 
             if df.empty:
                 print("No results found!")
@@ -866,6 +973,12 @@ Example:
                 print(f"\nResults saved to: {output_file}")
     
     # Always show diagnostic info
+    df = filter_ignored_models(df, args.ignore_models)
+
+    if df.empty:
+        print("No results remain after applying --ignore-models filter")
+        sys.exit(1)
+
     diagnose_data(df, dendrite_offsets)
     
     # After download, check each model_index to suggest offsets if needed
