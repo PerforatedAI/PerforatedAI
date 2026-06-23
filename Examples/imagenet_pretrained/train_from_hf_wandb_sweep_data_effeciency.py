@@ -43,7 +43,7 @@ GPA.pc.set_strict_loading(False)
 
 SWEEP_DATASETS = ["flowers102"]
 DEFAULT_SWEEP_MODEL_INDICES = [1]
-DEFAULT_SWEEP_DATA_PERCENTS = [25, 50, 75, 100]
+DEFAULT_SWEEP_DATA_PERCENTS = [25, 50, 75, 90, 100]
 
 HARDCODED_FLOWERS_MODEL1_PROFILE = {
     "lr": 0.003,
@@ -598,7 +598,7 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
             GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
             GPA.pc.set_max_dendrites(3)
             GPA.pc.set_max_dendrite_tries(1)
-            GPA.pc.set_initial_correlation_batches(10)
+            GPA.pc.set_initial_correlation_batches(5)
             GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
             GPA.pc.set_module_names_to_perforate(["Linear"])
             GPA.pc.set_module_ids_to_track(
@@ -666,7 +666,7 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
             GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
             GPA.pc.set_max_dendrites(3)
             GPA.pc.set_max_dendrite_tries(1)
-            GPA.pc.set_initial_correlation_batches(10)
+            GPA.pc.set_initial_correlation_batches(5)
             GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
             GPA.pc.set_module_names_to_perforate(["Linear"])
             GPA.pc.set_module_ids_to_track(
@@ -771,7 +771,7 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
             GPA.pc.set_testing_dendrite_capacity(False)  # Full training mode
             GPA.pc.set_max_dendrites(3)
             GPA.pc.set_max_dendrite_tries(1)
-            GPA.pc.set_initial_correlation_batches(10)
+            GPA.pc.set_initial_correlation_batches(5)
             GPA.pc.set_cap_at_n(True)  # Cap dendrite epochs to neuron epochs
             GPA.pc.set_module_ids_to_perforate([".fc"])  # Only perforate fc; pre_fc already perforated
             GPA.pc.set_module_ids_to_track(
