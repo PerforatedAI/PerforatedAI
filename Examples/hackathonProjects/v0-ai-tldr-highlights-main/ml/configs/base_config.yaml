@@ -1,0 +1,44 @@
+# Base Configuration for TL;DR Experiments
+# Override via CLI: python -m ml.scripts.train_pl --config ml/configs/base_config.yaml --dataset samsum
+
+# === Experiment ===
+experiment_name: tldr_summarizer
+experiment_type: compressed_pai  # baseline, compressed_pai, compressed_control
+seed: 42
+
+# === Dataset ===
+dataset: samsum  # samsum, reddit_tldr, cnn_dailymail, forums_export
+max_train_samples: null  # null for full dataset
+max_eval_samples: null
+
+# === Model ===
+model_family: t5
+model_name: t5-small
+compression_ratio: 1.0  # 1.0 = no compression
+
+# === PerforatedAI ===
+n_epochs_to_switch: 5
+p_epochs_to_switch: 2
+output_dimensions: [-1, 0, -1, -1]
+pai_testing_capacity: false
+dendrite_capacity: 8
+
+# === Training ===
+batch_size: 16
+learning_rate: 0.0003
+weight_decay: 0.0001
+max_steps: 100000
+eval_steps: 500
+gradient_accumulation_steps: 1
+max_grad_norm: 1.0
+warmup_steps: 500
+
+# === Logging ===
+wandb_project: v0-pai-experiments
+wandb_enabled: true
+log_level: INFO
+
+# === Artifacts ===
+output_dir: ./artifacts
+save_steps: 1000
+save_total_limit: 3
