@@ -43,7 +43,16 @@ GPA.pc.set_strict_loading(False)
 
 SWEEP_DATASETS = ["flowers102"]
 DEFAULT_SWEEP_MODEL_INDICES = [1]
-DEFAULT_SWEEP_DATA_PERCENTS = [10, 25, 50, 75, 100]
+DEFAULT_SWEEP_DATA_PERCENTS = [25, 50, 75, 100]
+
+HARDCODED_FLOWERS_MODEL1_PROFILE = {
+    "lr": 0.003,
+    "weight_decay": 0.001,
+    "label_smoothing": 0.1,
+    "scheduler_mode": 1,
+    "improvement_threshold": [0],
+    "pai_forward_function": "tanh",
+}
 
 FIXED_SWEEP_HPARAMS = {
     "flowers102": {
@@ -1427,24 +1436,55 @@ def train_with_wandb():
         if name_parts:
             wandb.run.name = "_".join(name_parts)
 
-        # Set args from sweep config
+        # Set args from sweep config.
+        # Prefer explicitly provided config values (for reproducibility from prior runs),
+        # then fall back to this script's fixed defaults.
         args.model = model_name
         args.dataset = config.dataset
-        args.lr = config.get("lr", 0.001)
-        args.weight_decay = config.get("weight_decay", 1e-4)
-        args.label_smoothing = config.get("label_smoothing", 0.0)
-        args.scheduler_mode = config.get("scheduler_mode", 0)
         args.data_percent = config.get("data_percent", 100)
 
         model_idx = int(config.model_index)
         selected = get_default_sweep_hparams(args.dataset, model_idx)
-        args.lr = selected["lr"]
-        args.weight_decay = selected["weight_decay"]
-        args.label_smoothing = selected["label_smoothing"]
-        args.scheduler_mode = selected["scheduler_mode"]
-        apply_pai_sweep_settings(
-            selected["improvement_threshold"],
-            selected["pai_forward_function"],
+
+        args.lr = config.get("lr", selected["lr"])
+        args.weight_decay = config.get("weight_decay", selected["weight_decay"])
+        args.label_smoothing = config.get("label_smoothing", selected["label_smoothing"])
+        args.scheduler_mode = config.get("scheduler_mode", selected["scheduler_mode"])
+
+        improvement_threshold = config.get(
+            "improvement_threshold", selected["improvement_threshold"]
+        )
+        pai_forward_function = config.get(
+            "pai_forward_function", selected["pai_forward_function"]
+        )
+
+        # Hardcode the requested best-run profile for data efficiency tests.
+        if args.dataset == "flowers102" and model_idx == 1:
+            args.lr = HARDCODED_FLOWERS_MODEL1_PROFILE["lr"]
+            args.weight_decay = HARDCODED_FLOWERS_MODEL1_PROFILE["weight_decay"]
+            args.label_smoothing = HARDCODED_FLOWERS_MODEL1_PROFILE["label_smoothing"]
+            args.scheduler_mode = HARDCODED_FLOWERS_MODEL1_PROFILE["scheduler_mode"]
+            improvement_threshold = HARDCODED_FLOWERS_MODEL1_PROFILE[
+                "improvement_threshold"
+            ]
+            pai_forward_function = HARDCODED_FLOWERS_MODEL1_PROFILE[
+                "pai_forward_function"
+            ]
+
+        apply_pai_sweep_settings(improvement_threshold, pai_forward_function)
+
+        # Rebuild run name from effective settings so comparisons across scripts are reliable.
+        wandb.run.name = (
+            f"{wandb.run.id}"
+            f"_model_index_{config.model_index}"
+            f"_dataset_{args.dataset}"
+            f"_data_percent_{args.data_percent}"
+            f"_improvement_threshold_{improvement_threshold}"
+            f"_label_smoothing_{args.label_smoothing}"
+            f"_lr_{args.lr}"
+            f"_pai_forward_function_{pai_forward_function}"
+            f"_scheduler_mode_{args.scheduler_mode}"
+            f"_weight_decay_{args.weight_decay}"
         )
 
         # Apply dataset-specific defaults for non-swept parameters
@@ -1462,6 +1502,8 @@ def train_with_wandb():
         print(f"Weight decay: {args.weight_decay}")
         print(f"Label smoothing: {args.label_smoothing}")
         print(f"Scheduler mode: {args.scheduler_mode}")
+        print(f"Improvement threshold: {improvement_threshold}")
+        print(f"PAI forward function: {pai_forward_function}")
         print(f"Data percent: {args.data_percent}")
         print(f"Epochs: {args.epochs}")
         print(f"Batch size: {args.batch_size}")
