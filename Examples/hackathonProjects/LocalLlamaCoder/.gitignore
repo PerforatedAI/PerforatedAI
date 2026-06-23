@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Models and Data
+models/*.pt
+models/*.bin
+models/*.safetensors
+!models/.gitkeep
+data/*
+!data/.gitkeep
+
+# PAI Outputs (keep graphs, exclude large CSVs if needed)
+# PAI_LocalLlamaCoder/*.csv
+
+# HuggingFace Cache
+.cache/
+*.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
