@@ -788,7 +788,7 @@ def main(args):
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
-    save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
+    save_name = f"{args.model}_c{args.convert_count}_wd{args.train_data_fraction}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
 
