@@ -17,6 +17,7 @@ CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
 
 import datetime
 import os
+import random
 import time
 import warnings
 import argparse
@@ -302,6 +303,43 @@ def filter_imagenet100(dataset):
     return dataset
 
 
+def stratified_subsample_dataset(dataset, fraction, seed):
+    """Subsample training data per class with random stratified sampling."""
+    if fraction >= 1.0:
+        return dataset
+    if fraction <= 0.0:
+        raise ValueError("train_data_fraction must be in (0, 1].")
+
+    rng = random.Random(seed)
+    class_to_indices = {}
+    for sample_idx, (_, class_idx) in enumerate(dataset.samples):
+        class_to_indices.setdefault(class_idx, []).append(sample_idx)
+
+    selected_indices = []
+    for class_idx in sorted(class_to_indices.keys()):
+        indices = class_to_indices[class_idx]
+        shuffled = indices[:]
+        rng.shuffle(shuffled)
+
+        keep_count = int(round(len(indices) * fraction))
+        keep_count = max(1, min(len(indices), keep_count))
+        selected_indices.extend(shuffled[:keep_count])
+
+    rng.shuffle(selected_indices)
+    subsampled_samples = [dataset.samples[i] for i in selected_indices]
+
+    dataset.samples = subsampled_samples
+    dataset.targets = [s[1] for s in subsampled_samples]
+    if hasattr(dataset, "imgs"):
+        dataset.imgs = subsampled_samples
+
+    print(
+        f"Applied stratified train subsampling: fraction={fraction}, seed={seed}, "
+        f"samples={len(dataset.samples)}"
+    )
+    return dataset
+
+
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
     """Create optimizer and scheduler for the model using PerforatedAI setup.
 
@@ -465,7 +503,13 @@ def load_data(traindir, valdir, args):
 
     print("Loading training data")
     st = time.time()
-    cache_path = _get_cache_path(traindir)
+    if args.train_data_fraction < 1.0:
+        train_cache_key = (
+            f"{traindir}|frac={args.train_data_fraction}|seed={args.train_data_fraction_seed}"
+        )
+    else:
+        train_cache_key = traindir
+    cache_path = _get_cache_path(train_cache_key)
     if args.cache_dataset and os.path.exists(cache_path):
         # Attention, as the transforms are also cached!
         print(f"Loading dataset_train from {cache_path}")
@@ -494,6 +538,10 @@ def load_data(traindir, valdir, args):
         # Filter to ImageNet-100 unless full dataset is requested
         if not args.full_dataset:
             dataset = filter_imagenet100(dataset)
+
+        dataset = stratified_subsample_dataset(
+            dataset, args.train_data_fraction, args.train_data_fraction_seed
+        )
 
         if args.cache_dataset:
             print(f"Saving dataset_train to {cache_path}")
@@ -1261,6 +1309,19 @@ def get_args_parser(add_help=True):
         default=True,
         action=argparse.BooleanOptionalAction,
         help="Use full ImageNet-1000 instead of ImageNet-100 subset (default: True)",
+    )
+    parser.add_argument(
+        "--train-data-fraction",
+        default=1.0,
+        type=float,
+        choices=[1.0, 0.9, 0.75, 0.5, 0.25],
+        help="Fraction of training data to keep with per-class random stratified subsampling",
+    )
+    parser.add_argument(
+        "--train-data-fraction-seed",
+        default=42,
+        type=int,
+        help="Random seed for train-data stratified subsampling",
     )
 
     # PerforatedAI parameters
