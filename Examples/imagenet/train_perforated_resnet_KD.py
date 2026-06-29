@@ -17,6 +17,7 @@ CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
 
 import datetime
 import os
+import random
 import time
 import warnings
 import argparse
@@ -44,7 +45,7 @@ import wandb
 from types import SimpleNamespace
 
 
-KD_ALPHA = 0.7
+KD_ALPHA = 0.4
 KD_TEMPERATURE = 4.0
 
 
@@ -173,6 +174,52 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     )
 
     return model, metric_logger.acc1.global_avg, restructured, trainingComplete
+
+
+def test(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = f"TestHoldout: {log_suffix}"
+
+    num_processed_samples = 0
+
+    with torch.inference_mode():
+        for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            image = image.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            output = model(image)
+            loss = criterion(output, target)
+
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            batch_size = image.shape[0]
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+            num_processed_samples += batch_size
+
+    num_processed_samples = utils.reduce_across_processes(num_processed_samples)
+    if (
+        hasattr(data_loader.dataset, "__len__")
+        and len(data_loader.dataset) != num_processed_samples
+        and torch.distributed.get_rank() == 0
+    ):
+        warnings.warn(
+            f"It looks like the dataset has {len(data_loader.dataset)} samples, but {num_processed_samples} "
+            "samples were used for testing, which might bias the results. "
+            "Try adjusting the batch size and / or the world size. "
+            "Setting the world size to 1 is always a safe bet."
+        )
+
+    metric_logger.synchronize_between_processes()
+
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
+
+    GPA.pai_tracker.add_extra_score(metric_logger.acc1.global_avg, "Test Acc 1")
+    GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Test Acc 5")
+
+    return metric_logger.acc1.global_avg
 
 
 def _get_cache_path(filepath):
@@ -319,6 +366,87 @@ def filter_imagenet100(dataset):
         f"Filtered dataset to {len(valid_classes)} classes with {len(filtered_samples)} samples"
     )
     return dataset
+
+
+def stratified_subset_by_class(dataset, fraction, seed):
+    """Return a stratified random subset preserving per-class proportions."""
+    if fraction >= 1.0:
+        return dataset
+    if fraction <= 0.0:
+        raise ValueError("train_label_fraction must be in (0, 1].")
+
+    if hasattr(dataset, "targets"):
+        targets = dataset.targets
+    elif hasattr(dataset, "samples"):
+        targets = [s[1] for s in dataset.samples]
+    else:
+        raise RuntimeError("Dataset does not expose targets/samples for stratified subset")
+
+    class_to_indices = {}
+    for idx, cls in enumerate(targets):
+        class_to_indices.setdefault(int(cls), []).append(idx)
+
+    rng = random.Random(seed)
+    selected_indices = []
+    for cls in sorted(class_to_indices.keys()):
+        cls_indices = class_to_indices[cls]
+        shuffled = cls_indices[:]
+        rng.shuffle(shuffled)
+        keep = int(round(len(cls_indices) * fraction))
+        keep = max(1, min(len(cls_indices), keep))
+        selected_indices.extend(shuffled[:keep])
+
+    rng.shuffle(selected_indices)
+    print(
+        f"Using stratified train subset: fraction={fraction}, seed={seed}, "
+        f"samples={len(selected_indices)}/{len(targets)}"
+    )
+    return torch.utils.data.Subset(dataset, selected_indices)
+
+
+def get_dataset_classes(dataset):
+    """Return class labels, unwrapping Subset wrappers if needed."""
+    if hasattr(dataset, "classes"):
+        return dataset.classes
+    if isinstance(dataset, torch.utils.data.Subset):
+        return get_dataset_classes(dataset.dataset)
+    raise RuntimeError("Dataset does not expose class labels via .classes")
+
+
+def split_eval_dataset_stratified(dataset, seed):
+    """Split an eval dataset into stratified val/test halves per class."""
+    if hasattr(dataset, "targets"):
+        targets = dataset.targets
+    elif hasattr(dataset, "samples"):
+        targets = [s[1] for s in dataset.samples]
+    else:
+        raise RuntimeError("Dataset does not expose targets/samples for stratified split")
+
+    class_to_indices = {}
+    for idx, cls in enumerate(targets):
+        class_to_indices.setdefault(int(cls), []).append(idx)
+
+    rng = random.Random(seed)
+    val_indices = []
+    test_indices = []
+
+    for cls in sorted(class_to_indices.keys()):
+        indices = class_to_indices[cls][:]
+        rng.shuffle(indices)
+        split_point = len(indices) // 2
+        val_indices.extend(indices[:split_point])
+        test_indices.extend(indices[split_point:])
+
+    rng.shuffle(val_indices)
+    rng.shuffle(test_indices)
+
+    print(
+        f"Split eval set stratified by class: val={len(val_indices)}, test={len(test_indices)}, seed={seed}"
+    )
+    return (
+        torch.utils.data.Subset(dataset, val_indices),
+        torch.utils.data.Subset(dataset, test_indices),
+    )
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
@@ -475,6 +603,63 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
 def load_data(traindir, valdir, args):
     # Data loading code
     print("Loading data")
+
+    if args.dataset == "cifar100":
+        normalize = torchvision.transforms.Normalize(
+            mean=(0.4914, 0.4822, 0.4465),
+            std=(0.2470, 0.2435, 0.2616),
+        )
+        train_transform = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.RandomCrop(32, padding=4),
+                torchvision.transforms.RandomHorizontalFlip(),
+                torchvision.transforms.ToTensor(),
+                normalize,
+            ]
+        )
+        test_transform = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.ToTensor(),
+                normalize,
+            ]
+        )
+
+        dataset = torchvision.datasets.CIFAR100(
+            root=args.data_path,
+            train=True,
+            transform=train_transform,
+            download=args.download_cifar,
+        )
+        dataset = stratified_subset_by_class(
+            dataset, args.train_label_fraction, args.label_subset_seed
+        )
+
+        eval_dataset = torchvision.datasets.CIFAR100(
+            root=args.data_path,
+            train=False,
+            transform=test_transform,
+            download=args.download_cifar,
+        )
+        dataset_val, dataset_test = split_eval_dataset_stratified(
+            eval_dataset, args.val_test_split_seed
+        )
+
+        print("Creating data loaders")
+        if args.distributed:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+            val_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset_val, shuffle=False
+            )
+            test_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset_test, shuffle=False
+            )
+        else:
+            train_sampler = torch.utils.data.RandomSampler(dataset)
+            val_sampler = torch.utils.data.SequentialSampler(dataset_val)
+            test_sampler = torch.utils.data.SequentialSampler(dataset_test)
+
+        return dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler
+
     val_resize_size, val_crop_size, train_crop_size = (
         args.val_resize_size,
         args.val_crop_size,
@@ -558,20 +743,28 @@ def load_data(traindir, valdir, args):
             utils.mkdir(os.path.dirname(cache_path))
             utils.save_on_master((dataset_test, valdir), cache_path)
 
+    dataset_val, dataset_test = split_eval_dataset_stratified(
+        dataset_test, args.val_test_split_seed
+    )
+
     print("Creating data loaders")
     if args.distributed:
         if hasattr(args, "ra_sampler") and args.ra_sampler:
             train_sampler = RASampler(dataset, shuffle=True, repetitions=args.ra_reps)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset_val, shuffle=False
+        )
         test_sampler = torch.utils.data.distributed.DistributedSampler(
             dataset_test, shuffle=False
         )
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
+        val_sampler = torch.utils.data.SequentialSampler(dataset_val)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
-    return dataset, dataset_test, train_sampler, test_sampler
+    return dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler
 
 
 def main(args):
@@ -625,24 +818,29 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    train_dir = os.path.join(args.data_path, "train")
-    val_dir = os.path.join(args.data_path, "val")
-    dataset, dataset_test, train_sampler, test_sampler = load_data(
-        train_dir, val_dir, args
-    )
+    if args.dataset == "cifar100":
+        dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler = load_data(None, None, args)
+    else:
+        train_dir = os.path.join(args.data_path, "train")
+        val_dir = os.path.join(args.data_path, "val")
+        dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler = load_data(
+            train_dir, val_dir, args
+        )
 
-    num_classes = len(dataset.classes)
-    dataset_type = "full ImageNet" if args.full_dataset else "ImageNet-100 subset"
+    classes = get_dataset_classes(dataset)
+    num_classes = len(classes)
+    if args.dataset == "cifar100":
+        dataset_type = f"CIFAR-100 train subset ({args.train_label_fraction:.2f} labels)"
+    else:
+        dataset_type = "full ImageNet" if args.full_dataset else "ImageNet-100 subset"
     print(f"Training with {num_classes} classes ({dataset_type})")
 
     print("Creating teacher model: resnet50")
-    if num_classes != 1000:
-        raise RuntimeError(
-            "This KD script expects full ImageNet (1000 classes) for pretrained resnet50 teacher logits."
-        )
     teacher_model = torchvision.models.resnet50(
         weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2
     )
+    if num_classes != 1000:
+        teacher_model.fc = nn.Linear(teacher_model.fc.in_features, num_classes)
     teacher_model.to(device)
     teacher_model.eval()
     for p in teacher_model.parameters():
@@ -717,6 +915,13 @@ def main(args):
         pin_memory=True,
         collate_fn=collate_fn,
     )
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val,
+        batch_size=args.batch_size,
+        sampler=val_sampler,
+        num_workers=args.workers,
+        pin_memory=True,
+    )
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
         batch_size=args.batch_size,
@@ -726,9 +931,9 @@ def main(args):
     )
 
     print("Creating student model: resnet18")
-    model = torchvision.models.get_model(
-        "resnet18", weights=args.weights, num_classes=num_classes
-    )
+    model = torchvision.models.get_model("resnet18", weights=args.weights)
+    if hasattr(model, "fc") and model.fc.out_features != num_classes:
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
 
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
 
@@ -764,11 +969,11 @@ def main(args):
 
     for i in range(skip_layers):
         GPA.pc.append_module_ids_to_track([".layer" + str(i + 1)])
-    GPA.pc.append_module_ids_to_track([".conv1", ".bn1", "conv1", ".fc"])
+    GPA.pc.append_module_ids_to_track([".conv1", ".bn1", ".fc"])
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
-    save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
+    save_name = f"CIFAR_KD_{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
 
@@ -845,10 +1050,12 @@ def main(args):
         torch.backends.cudnn.deterministic = True
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
             )
+            test(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
         else:
-            evaluate(model, criterion, data_loader_test, device=device)
+            evaluate(model, criterion, data_loader_val, device=device)
+            test(model, criterion, data_loader_test, device=device)
         return
 
     print("Start training")
@@ -883,8 +1090,9 @@ def main(args):
         # lr_scheduler.step()
 
         model, acc1, restructured, trainingComplete = evaluate(
-            model, criterion, data_loader_test, device=device
+            model, criterion, data_loader_val, device=device
         )
+        test_acc1 = test(model, criterion, data_loader_test, device=device)
 
         # Get training accuracy from PAI tracker extra scores
         train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get(
@@ -902,6 +1110,7 @@ def main(args):
             run.log(
                 {
                     "ValAcc": acc1,
+                    "TestAcc": test_acc1,
                     "TrainAcc": train_acc1,
                     "Param Count": UPA.count_params(model),
                     "Dendrite Count": GPA.pai_tracker.member_vars.get(
@@ -938,7 +1147,14 @@ def main(args):
 
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
+            )
+            test(
+                model_ema,
+                criterion,
+                data_loader_test,
+                device=device,
+                log_suffix="EMA",
             )
 
         if args.output_dir:
@@ -993,9 +1209,39 @@ def get_args_parser(add_help=True):
 
     parser.add_argument(
         "--data-path",
-        default="/home/rbrenner/Datasets/imagenet",
+        default="/home/rbrenner/Datasets",
         type=str,
-        help="dataset path",
+        help="dataset root path",
+    )
+    parser.add_argument(
+        "--dataset",
+        default="cifar100",
+        type=str,
+        choices=["cifar100", "imagenet"],
+        help="dataset to train on",
+    )
+    parser.add_argument(
+        "--train-label-fraction",
+        default=0.25,
+        type=float,
+        help="fraction of labeled training data to use (stratified per class)",
+    )
+    parser.add_argument(
+        "--label-subset-seed",
+        default=42,
+        type=int,
+        help="random seed for stratified label subset selection",
+    )
+    parser.add_argument(
+        "--download-cifar",
+        action="store_true",
+        help="download CIFAR-100 to --data-path if missing",
+    )
+    parser.add_argument(
+        "--val-test-split-seed",
+        default=42,
+        type=int,
+        help="random seed for class-balanced validation/test split",
     )
     parser.add_argument("--model", default="resnet18", type=str, help="model name")
     parser.add_argument(

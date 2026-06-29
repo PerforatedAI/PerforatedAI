@@ -157,6 +157,52 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     return model, metric_logger.acc1.global_avg, restructured, trainingComplete
 
 
+def test(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = f"TestHoldout: {log_suffix}"
+
+    num_processed_samples = 0
+
+    with torch.inference_mode():
+        for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            image = image.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            output = model(image)
+            loss = criterion(output, target)
+
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            batch_size = image.shape[0]
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+            num_processed_samples += batch_size
+
+    num_processed_samples = utils.reduce_across_processes(num_processed_samples)
+    if (
+        hasattr(data_loader.dataset, "__len__")
+        and len(data_loader.dataset) != num_processed_samples
+        and torch.distributed.get_rank() == 0
+    ):
+        warnings.warn(
+            f"It looks like the dataset has {len(data_loader.dataset)} samples, but {num_processed_samples} "
+            "samples were used for testing, which might bias the results. "
+            "Try adjusting the batch size and / or the world size. "
+            "Setting the world size to 1 is always a safe bet."
+        )
+
+    metric_logger.synchronize_between_processes()
+
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
+
+    GPA.pai_tracker.add_extra_score(metric_logger.acc1.global_avg, "Test Acc 1")
+    GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Test Acc 5")
+
+    return metric_logger.acc1.global_avg
+
+
 def _get_cache_path(filepath):
     import hashlib
 
@@ -338,6 +384,36 @@ def stratified_subsample_dataset(dataset, fraction, seed):
         f"samples={len(dataset.samples)}"
     )
     return dataset
+
+
+def split_val_test_stratified(dataset, seed):
+    """Split an eval dataset into stratified val/test halves per class."""
+    rng = random.Random(seed)
+    class_to_indices = {}
+    for sample_idx, (_, class_idx) in enumerate(dataset.samples):
+        class_to_indices.setdefault(class_idx, []).append(sample_idx)
+
+    val_indices = []
+    test_indices = []
+
+    for class_idx in sorted(class_to_indices.keys()):
+        indices = class_to_indices[class_idx]
+        shuffled = indices[:]
+        rng.shuffle(shuffled)
+        split_point = len(shuffled) // 2
+        val_indices.extend(shuffled[:split_point])
+        test_indices.extend(shuffled[split_point:])
+
+    rng.shuffle(val_indices)
+    rng.shuffle(test_indices)
+
+    print(
+        f"Split eval set stratified by class: val={len(val_indices)}, test={len(test_indices)}, seed={seed}"
+    )
+    return (
+        torch.utils.data.Subset(dataset, val_indices),
+        torch.utils.data.Subset(dataset, test_indices),
+    )
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
@@ -587,20 +663,28 @@ def load_data(traindir, valdir, args):
             utils.mkdir(os.path.dirname(cache_path))
             utils.save_on_master((dataset_test, valdir), cache_path)
 
+    dataset_val, dataset_test = split_val_test_stratified(
+        dataset_test, args.val_test_split_seed
+    )
+
     print("Creating data loaders")
     if args.distributed:
         if hasattr(args, "ra_sampler") and args.ra_sampler:
             train_sampler = RASampler(dataset, shuffle=True, repetitions=args.ra_reps)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset_val, shuffle=False
+        )
         test_sampler = torch.utils.data.distributed.DistributedSampler(
             dataset_test, shuffle=False
         )
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
+        val_sampler = torch.utils.data.SequentialSampler(dataset_val)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
-    return dataset, dataset_test, train_sampler, test_sampler
+    return dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler
 
 
 def main(args):
@@ -656,7 +740,7 @@ def main(args):
 
     train_dir = os.path.join(args.data_path, "train")
     val_dir = os.path.join(args.data_path, "val")
-    dataset, dataset_test, train_sampler, test_sampler = load_data(
+    dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler = load_data(
         train_dir, val_dir, args
     )
 
@@ -732,6 +816,13 @@ def main(args):
         num_workers=args.workers,
         pin_memory=True,
         collate_fn=collate_fn,
+    )
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val,
+        batch_size=args.batch_size,
+        sampler=val_sampler,
+        num_workers=args.workers,
+        pin_memory=True,
     )
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
@@ -867,10 +958,12 @@ def main(args):
         torch.backends.cudnn.deterministic = True
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
             )
+            test(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
         else:
-            evaluate(model, criterion, data_loader_test, device=device)
+            evaluate(model, criterion, data_loader_val, device=device)
+            test(model, criterion, data_loader_test, device=device)
         return
 
     print("Start training")
@@ -904,8 +997,9 @@ def main(args):
         # lr_scheduler.step()
 
         model, acc1, restructured, trainingComplete = evaluate(
-            model, criterion, data_loader_test, device=device
+            model, criterion, data_loader_val, device=device
         )
+        test_acc1 = test(model, criterion, data_loader_test, device=device)
 
         # Get training accuracy from PAI tracker extra scores
         train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get(
@@ -923,6 +1017,7 @@ def main(args):
             run.log(
                 {
                     "ValAcc": acc1,
+                    "TestAcc": test_acc1,
                     "TrainAcc": train_acc1,
                     "Param Count": UPA.count_params(model),
                     "Dendrite Count": GPA.pai_tracker.member_vars.get(
@@ -959,7 +1054,14 @@ def main(args):
 
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
+                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
+            )
+            test(
+                model_ema,
+                criterion,
+                data_loader_test,
+                device=device,
+                log_suffix="EMA",
             )
 
         if args.output_dir:
@@ -1322,6 +1424,12 @@ def get_args_parser(add_help=True):
         default=42,
         type=int,
         help="Random seed for train-data stratified subsampling",
+    )
+    parser.add_argument(
+        "--val-test-split-seed",
+        default=42,
+        type=int,
+        help="Random seed for class-balanced validation/test split",
     )
 
     # PerforatedAI parameters
