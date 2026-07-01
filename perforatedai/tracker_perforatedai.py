@@ -24,21 +24,12 @@ from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
 try:
-    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
+    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
 except ImportError:
     _dashboard_emitter = None
 
 
 def _pai_log(level, message):
-    """Emit a tracker log message to dashboard or stdout.
-
-    Parameters
-    ----------
-    level : str
-        Log level such as ``info``, ``warning``, or ``error``.
-    message : str
-        Message text to emit.
-    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -450,10 +441,7 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
-        old_silent = GPA.pc.get_silent()
-        GPA.pc.set_silent(True)
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
-        GPA.pc.set_silent(old_silent)
         GPA.pai_tracker.save_graphs()
         UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
         return TRAINING_COMPLETE, net
@@ -3484,14 +3472,6 @@ class PAINeuronModuleTracker:
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                         GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
                         _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
-                        if _dashboard_emitter is not None:
-                            _dashboard_emitter.emit_dendrite_added(
-                                GPA.pc,
-                                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
-                                num_dendrites_integrated=GPA.pai_tracker.member_vars[
-                                    "num_dendrites_integrated"
-                                ],
-                            )
                     if _dashboard_emitter is not None:
                         _dashboard_emitter.emit_run_end(GPA.pc)
                     return net, True, True
@@ -3541,14 +3521,6 @@ class PAINeuronModuleTracker:
                 if should_increment_integrated:
                     GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
                     _pai_log("info", f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
-                    if _dashboard_emitter is not None:
-                        _dashboard_emitter.emit_dendrite_added(
-                            GPA.pc,
-                            epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
-                            num_dendrites_integrated=GPA.pai_tracker.member_vars[
-                                "num_dendrites_integrated"
-                            ],
-                        )
 
             # If restructured is true, clear scheduler/optimizer before saving
             if restructuring_status_value != NETWORK_RESTRUCTURED:
@@ -3585,13 +3557,12 @@ class PAINeuronModuleTracker:
             _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (_mv["p_train_times"] and _mv["p_val_times"]) else None]
             _dashboard_emitter.emit_epoch(
                 GPA.pc,
-                epoch=_mv["num_epochs_run"],
+                epoch=_mv["total_epochs_run"],
                 validation_score=accuracy,
                 learning_rate=_lr,
                 train_score=_train_score,
                 normal_time=_n_times[-1],
                 pai_time=_p_times[-1],
-                pb_scores=epoch_pb_scores,
             )
         GPA.pai_tracker.save_graphs()
 
@@ -3629,9 +3600,8 @@ class PAINeuronModuleTracker:
             _dashboard_emitter.emit_switch(
                 GPA.pc,
                 switch_number=GPA.pai_tracker.member_vars["num_dendrites_added"],
-                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
+                epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
                 param_count=_param_count,
-                switch_type=GPA.pai_tracker.member_vars["mode"],
             )
 
         # Always False for training complete if nothing triggered that training is over
