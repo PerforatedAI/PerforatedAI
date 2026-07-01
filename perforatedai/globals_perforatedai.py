@@ -378,6 +378,8 @@ class PAIConfig:
                 "candidate_weight_init_by_main",
                 "perforated_backpropagation",
                 "weight_tying_experimental",
+                "dashboard_events_enabled",
+                "dashboard_debug",
             )
         },
         **{
@@ -403,7 +405,7 @@ class PAIConfig:
                 "candidate_weight_initialization_multiplier",
             )
         },
-        **{k: str for k in ("save_name", "library_validation_score")},
+        **{k: str for k in ("save_name", "library_validation_score", "dashboard_url")},
         "device": torch.device,
         "d_type": torch.dtype,
         "pai_forward_function": callable,
@@ -835,6 +837,20 @@ class PAIConfig:
             self.weight_tying_experimental = False
             add_pai_config_var_functions(
                 self, "weight_tying_experimental", self.weight_tying_experimental
+            )
+
+            # Dashboard event streaming settings
+            self.dashboard_events_enabled = False
+            add_pai_config_var_functions(
+                self, "dashboard_events_enabled", self.dashboard_events_enabled
+            )
+            self.dashboard_url = "http://localhost:3002"
+            add_pai_config_var_functions(
+                self, "dashboard_url", self.dashboard_url
+            )
+            self.dashboard_debug = False
+            add_pai_config_var_functions(
+                self, "dashboard_debug", self.dashboard_debug
             )
 
             # These are settings where libraries must be doing the scoring adding to

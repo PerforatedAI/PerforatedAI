@@ -23,6 +23,19 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
+try:
+    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+except ImportError:
+    _dashboard_emitter = None
+
+
+def _pai_log(level, message):
+    if _dashboard_emitter is not None:
+        _dashboard_emitter.log(GPA.pc, level, message)
+    else:
+        if level in ("warning", "error") or not GPA.pc.get_silent():
+            print(message)
+
 
 try:
     from perforatedbp import tracker_pbp as TPB
@@ -110,12 +123,12 @@ def check_input_problems(net, accuracy):
 
     # Make sure you are passing in the model and not the dataparallel wrapper
     if issubclass(type(net), nn.DataParallel):
-        print("Need to call .module when using add validation score")
+        _pai_log("error", "Need to call .module when using add validation score")
         pdb.set_trace()
         sys.exit(-1)
 
     if "module" in net.__dir__():
-        print("Need to call .module when using add validation score")
+        _pai_log("error", "Need to call .module when using add validation score")
         pdb.set_trace()
         sys.exit(-1)
 
@@ -123,11 +136,10 @@ def check_input_problems(net, accuracy):
         try:
             accuracy = accuracy.item()
         except:
-            print(
-                "Scores added for add_validation_score should be "
-                "float, int, or tensor, yours is a:"
+            _pai_log(
+                "error",
+                f"Scores added for add_validation_score should be float, int, or tensor, yours is a: {type(accuracy)}",
             )
-            print(type(accuracy))
             pdb.set_trace()
             sys.exit(-1)
     return accuracy
@@ -392,13 +404,13 @@ def process_no_improvement(net):
         GPA.pai_tracker.member_vars["num_dendrite_tries"]
         < GPA.pc.get_max_dendrite_tries() -1
     ):
-        if not GPA.pc.get_silent():
-            print(
-                f"The newest added dendrites did not improve but current tries "
-                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} '
-                f"is less than max tries {GPA.pc.get_max_dendrite_tries()} "
-                f"so loading last switch and trying new Dendrites."
-            )
+        _pai_log(
+            "info",
+            f"The newest added dendrites did not improve but current tries "
+            f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} '
+            f"is less than max tries {GPA.pc.get_max_dendrite_tries()} "
+            f"so loading last switch and trying new Dendrites.",
+        )
         old_tries = GPA.pai_tracker.member_vars["num_dendrite_tries"]
         # Load best model from previous n mode
         net = UPA.change_learning_modes(
@@ -410,24 +422,18 @@ def process_no_improvement(net):
         GPA.pai_tracker.member_vars["num_dendrite_tries"] = old_tries + 1
         return NETWORK_RESTRUCTURED, net
     else:
-        if not GPA.pc.get_silent():
-            print(
-                f"The newest added dendrites did not improve system and "
-                f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} > '
-                f"{GPA.pc.get_max_dendrite_tries()} so returning training_complete."
-            )
-            print(
-                "You should now exit your training loop and "
-                "best_model will be your final model for inference"
-            )
-            if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
-                print("For improved results, try perforated backpropagation next time!")
+        _pai_log(
+            "info",
+            f"The newest added dendrites did not improve system and "
+            f'{GPA.pai_tracker.member_vars["num_dendrite_tries"] + 1} > '
+            f"{GPA.pc.get_max_dendrite_tries()} so returning training_complete.",
+        )
+        _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
+        if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+            _pai_log("info", "For improved results, try perforated backpropagation next time!")
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
-        print('before graphs')
         GPA.pai_tracker.save_graphs()
-        print('after graphs')
         UPA.pai_save_system(net, GPA.pc.get_save_name(), "final_clean")
-        print('after save')
         return TRAINING_COMPLETE, net
 
 
@@ -445,12 +451,9 @@ def process_final_network(net):
         The final neural network model.
     """
 
-    if not GPA.pc.get_silent():
-        print(
-            f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}"
-        )
-        if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
-            print("For improved results, try perforated backpropagation next time!")
+    _pai_log("info", f"Last Dendrites were good and this hit the max of {GPA.pc.get_max_dendrites()}")
+    if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
+        _pai_log("info", "For improved results, try perforated backpropagation next time!")
     GPA.pai_tracker.save_graphs("before_final")
     UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
     GPA.pai_tracker.save_graphs()
@@ -1561,9 +1564,9 @@ class PAINeuronModuleTracker:
                     param_group["weight_decay"] > 0
                     and GPA.pc.get_weight_decay_accepted() is False
                 ):
-                    print(
-                        "For PAI training it is recommended to not use "
-                        "weight decay in your optimizer"
+                    _pai_log(
+                        "warning",
+                        "For PAI training it is recommended to not use weight decay in your optimizer",
                     )
 
         except:
@@ -1707,9 +1710,9 @@ class PAINeuronModuleTracker:
 
         """
         if "weight_decay" in opt_args and not GPA.pc.get_weight_decay_accepted():
-            print(
-                "For PAI training it is recommended to not use "
-                "weight decay in your optimizer"
+            _pai_log(
+                "warning",
+                "For PAI training it is recommended to not use weight decay in your optimizer",
             )
 
         if ("model" not in opt_args.keys()) and "params" not in opt_args.keys():
@@ -3232,8 +3235,7 @@ class PAINeuronModuleTracker:
         get loaded the actual tracker you are working with can change.
         """
 
-        if not GPA.pc.get_silent():
-            print(f"Adding validation score {accuracy:.8f}")
+        _pai_log("info", f"Adding validation score {accuracy:.8f}")
 
         update_learning_rate()
         update_param_count(net)
@@ -3279,10 +3281,10 @@ class PAINeuronModuleTracker:
                 and GPA.pc.get_testing_dendrite_capacity()
             ):
                 GPA.pai_tracker.save_graphs()
-                print(
-                    "Successfully added 3 dendrites with "
-                    "GPA.pc.set_testing_dendrite_capacity(True) (default). "
-                    "You may now set that to False and run a real experiment."
+                _pai_log(
+                    "info",
+                    "Successfully added 3 dendrites with GPA.pc.set_testing_dendrite_capacity(True) (default). "
+                    "You may now set that to False and run a real experiment.",
                 )
                 return net, False, True
 
@@ -3294,6 +3296,8 @@ class PAINeuronModuleTracker:
                 new_restructuring_status_value, net = process_no_improvement(net)
                 # if this was the final try return that training is complete
                 if new_restructuring_status_value == TRAINING_COMPLETE:
+                    if _dashboard_emitter is not None:
+                        _dashboard_emitter.emit_run_end(GPA.pc)
                     return net, True, True
                 else:
                     restructuring_status_value = update_restructuring_status(
@@ -3330,8 +3334,9 @@ class PAINeuronModuleTracker:
                     # Increment integrated if we have dendrites (means they're integrated)
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                         GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                        if not GPA.pc.get_silent():
-                            print(f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                    if _dashboard_emitter is not None:
+                        _dashboard_emitter.emit_run_end(GPA.pc)
                     return net, True, True
 
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
@@ -3378,8 +3383,7 @@ class PAINeuronModuleTracker:
                 # This ensures the increment persists and doesn't get overwritten
                 if should_increment_integrated:
                     GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                    if not GPA.pc.get_silent():
-                        print(f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                    _pai_log("info", f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
 
             # If restructured is true, clear scheduler/optimizer before saving
             if restructuring_status_value != NETWORK_RESTRUCTURED:
@@ -3408,6 +3412,21 @@ class PAINeuronModuleTracker:
             )
 
         GPA.pai_tracker.start_epoch(internal_call=True)
+        if _dashboard_emitter is not None:
+            _mv = GPA.pai_tracker.member_vars
+            _lr = _mv["training_learning_rates"][-1] if _mv["training_learning_rates"] else None
+            _train_score = _mv["extra_scores"].get("train", [None])[-1]
+            _n_times = _mv["n_epoch_times"] or [(_mv["n_train_times"][-1] + _mv["n_val_times"][-1]) if (_mv["n_train_times"] and _mv["n_val_times"]) else None]
+            _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (_mv["p_train_times"] and _mv["p_val_times"]) else None]
+            _dashboard_emitter.emit_epoch(
+                GPA.pc,
+                epoch=_mv["total_epochs_run"],
+                validation_score=accuracy,
+                learning_rate=_lr,
+                train_score=_train_score,
+                normal_time=_n_times[-1],
+                pai_time=_p_times[-1],
+            )
         GPA.pai_tracker.save_graphs()
 
         if restructuring_status_value == NETWORK_RESTRUCTURED:
@@ -3438,6 +3457,15 @@ class PAINeuronModuleTracker:
                 f"\ncurrent switch list is:"
             )
             print(GPA.pai_tracker.member_vars["switch_epochs"])
+
+        if _dashboard_emitter is not None and restructuring_status_value == NETWORK_RESTRUCTURED:
+            _param_count = UPA.count_params(net)
+            _dashboard_emitter.emit_switch(
+                GPA.pc,
+                switch_number=GPA.pai_tracker.member_vars["num_dendrites_added"],
+                epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                param_count=_param_count,
+            )
 
         # Always False for training complete if nothing triggered that training is over
         return net, restructuring_status_value, False

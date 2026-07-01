@@ -21,6 +21,11 @@ from perforatedai import blockwise_perforatedai as BPA
 from perforatedai import network_perforatedai as NPA
 
 try:
+    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+except ImportError:
+    _dashboard_emitter = None
+
+try:
     from perforatedbp import utils_pbp as UPB
     from perforatedbp import modules_pbp as MPB
 except ModuleNotFoundError as e:
@@ -110,6 +115,8 @@ def perforate_model(
         doing_pai=doing_pai, save_name=save_name
     )
     GPA.pc.set_save_name(save_name)
+    if _dashboard_emitter is not None:
+        _dashboard_emitter.emit_run_start(GPA.pc, save_name)
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
