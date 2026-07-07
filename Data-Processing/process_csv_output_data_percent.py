@@ -20,9 +20,9 @@ Outputs:
      Same summaries, but positioned on the x-axis by metadata param_count.
 
 Example:
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --output my_output_folder
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --output my_output_folder
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
 """
 
 import argparse
@@ -40,6 +40,27 @@ import pandas as pd
 from matplotlib.lines import Line2D
 
 
+_FONT_SCALE = 1.5
+
+
+def _scale_rc_value(value: Any, fallback: float) -> float:
+    """Scale numeric matplotlib rc values safely."""
+    if isinstance(value, (int, float)):
+        return float(value) * _FONT_SCALE
+    return fallback * _FONT_SCALE
+
+
+plt.rcParams.update({
+    "font.size": _scale_rc_value(plt.rcParams.get("font.size"), 10.0),
+    "axes.titlesize": _scale_rc_value(plt.rcParams.get("axes.titlesize"), 12.0),
+    "axes.labelsize": _scale_rc_value(plt.rcParams.get("axes.labelsize"), 10.0),
+    "xtick.labelsize": _scale_rc_value(plt.rcParams.get("xtick.labelsize"), 10.0),
+    "ytick.labelsize": _scale_rc_value(plt.rcParams.get("ytick.labelsize"), 10.0),
+    "legend.fontsize": _scale_rc_value(plt.rcParams.get("legend.fontsize"), 10.0),
+    "figure.titlesize": _scale_rc_value(plt.rcParams.get("figure.titlesize"), 12.0),
+})
+
+
 def _safe_float(value: str) -> Optional[float]:
     """Parse a float value from string, returning None on empty/invalid input."""
     if value is None:
@@ -54,22 +75,27 @@ def _safe_float(value: str) -> Optional[float]:
 
 
 def _dendrite_sort_key(column_name: str) -> Tuple[int, int, str, int]:
-    """Sort known model_N_dendrite_M columns first, with val before test."""
-    match = re.match(r"model_(\d+)_dendrite_(\d+)_max_(val|test)$", column_name)
+    """Sort known model_*_dendrite_M columns first, with val before test."""
+    match = re.match(r"(model_.+?)_dendrite_(\d+)_max_(val|test)$", column_name)
     if match:
-        model_idx = int(match.group(1))
+        model_id = match.group(1)
         dendrite_idx = int(match.group(2))
         metric = match.group(3)
         metric_order = 0 if metric == "val" else 1
-        return (0, metric_order, "", model_idx * 100000 + dendrite_idx)
+        numeric_model = re.match(r"model_(\d+)$", model_id)
+        if numeric_model:
+            model_rank = int(numeric_model.group(1))
+            return (0, metric_order, "", model_rank * 100000 + dendrite_idx)
+        # Keep non-numeric models (e.g. model_unknown) ordered after numeric ones.
+        return (0, metric_order, model_id, dendrite_idx)
     return (1, 2, column_name, 0)
 
 
 def _display_label(column_name: str, model_name_map: Optional[Dict[str, str]] = None) -> str:
     """Build a compact display label for a dendrite metric column."""
-    match = re.match(r"model_(\d+)_dendrite_(\d+)_max_(?:val|test)$", column_name)
+    match = re.match(r"(model_.+?)_dendrite_(\d+)_max_(?:val|test)$", column_name)
     if match:
-        model_id = f"model_{match.group(1)}"
+        model_id = match.group(1)
         model_label = model_name_map.get(model_id, model_id) if model_name_map else model_id
         return f"{model_label} / dendrite_{match.group(2)}"
     return column_name.replace("_max_val", "").replace("_max_test", "")
@@ -119,10 +145,124 @@ def _load_model_name_map(base_dir: str) -> Dict[str, str]:
 
 def _parse_model_and_dendrite(column_name: str) -> Tuple[Optional[str], Optional[int]]:
     """Extract model_id and dendrite index from a standard dendrite metric column."""
-    match = re.match(r"(model_\d+)_dendrite_(\d+)_max_(?:val|test)$", column_name)
+    match = re.match(r"(model_.+?)_dendrite_(\d+)_max_(?:val|test)$", column_name)
     if not match:
         return None, None
     return match.group(1), int(match.group(2))
+
+
+def _model_sort_key(model_id: str) -> Tuple[int, int, str]:
+    """Sort numeric model_N first, then non-numeric model IDs."""
+    match = re.match(r"model_(\d+)$", model_id)
+    if match:
+        return (0, int(match.group(1)), "")
+    return (1, 0, model_id)
+
+
+def _extract_data_percent_from_run_name(run_name: str) -> Tuple[Optional[str], str]:
+    """Extract data-percent color key from known run_name conventions.
+
+    Supported conventions:
+    - data_percent_<N>
+    - subj_<N>_samp_<M>
+    - subj_<N> or samp_<N>
+    """
+    text = str(run_name)
+
+    match_data_percent = re.search(r"data_percent_([0-9]+(?:\.[0-9]+)?)", text)
+    if match_data_percent:
+        value = match_data_percent.group(1)
+        return f"data_percent_{value}", f"{float(value):g}% data"
+
+    match_subj = re.search(r"subj_([0-9]+(?:\.[0-9]+)?)", text)
+    match_samp = re.search(r"samp_([0-9]+(?:\.[0-9]+)?)", text)
+
+    if match_subj and match_samp:
+        subj_pct = match_subj.group(1)
+        samp_pct = match_samp.group(1)
+        return f"subj_{subj_pct}_samp_{samp_pct}", f"subj={float(subj_pct):g}%, samp={float(samp_pct):g}%"
+
+    if match_subj:
+        subj_pct = match_subj.group(1)
+        return f"subj_{subj_pct}", f"subj={float(subj_pct):g}%"
+
+    if match_samp:
+        samp_pct = match_samp.group(1)
+        return f"samp_{samp_pct}", f"samp={float(samp_pct):g}%"
+
+    return None, "unknown"
+
+
+def _extract_subject_sample_from_run_name(run_name: str) -> Tuple[Optional[str], str, Optional[str], str]:
+    """Extract subject/sample keys and labels from run_name.
+
+    Returns:
+        (subject_key, subject_label, sample_key, sample_label)
+    """
+    text = str(run_name)
+
+    match_subj = re.search(r"subj_([0-9]+(?:\.[0-9]+)?)", text)
+    match_samp = re.search(r"samp_([0-9]+(?:\.[0-9]+)?)", text)
+    if match_subj and match_samp:
+        subj_value = match_subj.group(1)
+        samp_value = match_samp.group(1)
+        return (
+            f"subj_{subj_value}",
+            f"subj={float(subj_value):g}%",
+            f"samp_{samp_value}",
+            f"samp={float(samp_value):g}%",
+        )
+
+    data_percent_key, data_percent_label = _extract_data_percent_from_run_name(text)
+    if data_percent_key is not None:
+        # Fallback for naming schemes that only provide a single data_percent axis.
+        return data_percent_key, data_percent_label, data_percent_key, data_percent_label
+
+    return None, "unknown", None, "unknown"
+
+
+def _extract_split_label(run_name: str) -> str:
+    """Extract split strategy label from run_name for coloring."""
+    text = str(run_name)
+    match = re.search(r"split_([^_]+)", text)
+    if match:
+        return match.group(1)
+    return "split_unknown"
+
+
+def _percent_key_sort_key(percent_key: str) -> Tuple[int, float, str]:
+    """Sort keys like samp_50, subj_75, data_percent_100 by numeric value."""
+    text = str(percent_key)
+    match = re.search(r"_([0-9]+(?:\.[0-9]+)?)$", text)
+    if match:
+        return (0, float(match.group(1)), text)
+    return (1, float("inf"), text)
+
+
+def _parse_split_values_arg(values: Optional[str], key_prefix: str) -> Optional[List[str]]:
+    """Parse comma-separated percent values into normalized split keys.
+
+    Example: "50,62,75" with key_prefix="samp" -> ["samp_50", "samp_62", "samp_75"]
+    """
+    if values is None:
+        return None
+
+    parsed_keys: List[str] = []
+    for raw_piece in values.split(","):
+        piece = raw_piece.strip()
+        if not piece:
+            continue
+        try:
+            numeric_value = float(piece)
+        except ValueError as exc:
+            raise ValueError(f"Invalid split value '{piece}' for {key_prefix}. Expected numeric values.") from exc
+        parsed_keys.append(f"{key_prefix}_{numeric_value:g}")
+
+    # Preserve order while dropping duplicates.
+    deduped_keys = list(dict.fromkeys(parsed_keys))
+    if not deduped_keys:
+        raise ValueError(f"No valid split values provided for {key_prefix}.")
+    return deduped_keys
 
 
 def _parse_hyperparams_from_run_name(run_name: str, known_keys: Sequence[str]) -> Dict[str, str]:
@@ -1133,7 +1273,7 @@ def _create_param_count_plot(
             handles.append(Line2D([0], [0], marker="s", linestyle="none", markersize=6, markerfacecolor=color, markeredgecolor=color))
             labels.append(item["label"])
         if handles:
-            ax.legend(handles, labels, loc="lower right", fontsize=7, framealpha=0.85)
+            ax.legend(handles, labels, loc="lower right", fontsize=10.5, framealpha=0.85)
 
     stats_with_counts = [
         item for item in stats
@@ -1620,125 +1760,302 @@ def _create_data_percent_line_plot(
     model_name_map: Optional[Dict[str, str]] = None,
     metric_label: str = "Val",
     x_break: Optional[Tuple[float, float]] = None,
+    split_filter: Optional[str] = None,
+    require_complete_repeat_dendrites: bool = False,
+    expected_repeat_count: int = 5,
+    dendrite_percent_to_graph: Optional[float] = None,
+    sample_split_keys: Optional[Sequence[str]] = None,
+    subject_split_keys: Optional[Sequence[str]] = None,
+    subject_filter_key: Optional[str] = None,
 ) -> None:
-    """Create a single line graph: one line per run, color=model, marker=data_percent.
+    """Create a single line graph with one connected line per run.
 
     X-axis: parameter count.
     Y-axis: score.
-    Each run corresponds to one (model_index, data_percent) combination.
+    Color: data percent.
+    Marker shape: unique per run.
+
+    Each run contributes one point per dendrite count (ordered by dendrite index),
+    connected by a line.
+
+    If repeated runs exist for the same split/model/data-percent group, they are
+    averaged before plotting (sweep_number in metadata/name is one way to signal
+    this). Dendrite points are averaged independently, so missing higher
+    dendrites in some runs do not block averaging for the available points.
+
+    When require_complete_repeat_dendrites is enabled, a dendrite point is kept
+    only if it appears in all repeats for that group and the repeat count meets
+    expected_repeat_count.
+
+    When dendrite_percent_to_graph is set (for example 0.6), a dendrite point
+    is kept if it appears in at least that fraction of runs within the group.
     """
-    # Build per-model dendrite-column lookup: model_id -> [(param_count, col)]
     model_dendrite_cols: Dict[str, List[Tuple[int, str]]] = {}
     for col in dendrite_columns:
         model_id, dendrite_idx = _parse_model_and_dendrite(col)
         if model_id is None or dendrite_idx is None:
             continue
         model_dendrite_cols.setdefault(model_id, []).append((dendrite_idx, col))
-    for mid in model_dendrite_cols:
-        model_dendrite_cols[mid].sort(key=lambda x: x[0])
+    for model_id in model_dendrite_cols:
+        model_dendrite_cols[model_id].sort(key=lambda x: x[0])
 
-    # Collect per-run data from all rows.
-    # run_data[run_id] = {"model_id": str, "data_percent": str, "scores": {param_count: float}}
-    run_data: Dict[str, Dict] = {}
-
+    run_data: Dict[str, Dict[str, Any]] = {}
+    has_sweep_number = False
+    has_config_sweep_number = "config_sweep_number" in df.columns
     for _, row in df.iterrows():
         run_id = str(row.get("run_id", "")).strip()
         run_name = str(row.get("run_name", "")).strip()
+        split_label = _extract_split_label(run_name)
+
+        if split_filter is not None and split_label != split_filter:
+            continue
+
+        data_percent, data_percent_label = _extract_data_percent_from_run_name(run_name)
+        if data_percent is None:
+            continue
+
+        subject_key, subject_label, sample_key, sample_label = _extract_subject_sample_from_run_name(run_name)
+        if subject_key is None or sample_key is None:
+            continue
+
+        if subject_filter_key is not None and str(subject_key) != str(subject_filter_key):
+            continue
+
+        if sample_split_keys is not None and str(sample_key) not in sample_split_keys:
+            continue
+        if subject_split_keys is not None and str(subject_key) not in subject_split_keys:
+            continue
+
+        if re.search(r"sweep_number_([^_]+)", run_name):
+            has_sweep_number = True
+        elif has_config_sweep_number:
+            config_sweep_value = row.get("config_sweep_number", None)
+            if pd.notna(config_sweep_value):
+                has_sweep_number = True
 
         model_match = re.search(r"model_index_(\d+)", run_name)
-        if not model_match:
-            continue
-        model_id = f"model_{model_match.group(1)}"
+        model_id = f"model_{model_match.group(1)}" if model_match else None
 
-        dp_match = re.search(r"data_percent_(\d+)", run_name)
-        data_percent = dp_match.group(1) if dp_match else "unknown"
+        # Fallback for run names without model_index token.
+        if model_id is None:
+            populated_models: List[str] = []
+            for col in dendrite_columns:
+                model_from_col, _ = _parse_model_and_dendrite(col)
+                if model_from_col is None:
+                    continue
+                value = pd.to_numeric(row.get(col, None), errors="coerce")
+                if not pd.isna(value):
+                    populated_models.append(model_from_col)
+            unique_models = sorted(set(populated_models), key=_model_sort_key)
+            if len(unique_models) == 1:
+                model_id = unique_models[0]
+
+        if model_id is None:
+            continue
 
         if run_id not in run_data:
             run_data[run_id] = {
+                "split_label": split_label,
                 "model_id": model_id,
-                "data_percent": data_percent,
+                "data_percent": str(data_percent),
+                "data_percent_label": data_percent_label,
+                "subject_key": subject_key,
+                "subject_label": subject_label,
+                "sample_key": sample_key,
+                "sample_label": sample_label,
                 "scores": {},
             }
 
-        if model_id in model_dendrite_cols:
-            for dendrite_idx, col in model_dendrite_cols[model_id]:
-                if col not in param_counts_by_column:
+        for dendrite_idx, col in model_dendrite_cols.get(model_id, []):
+            if col not in param_counts_by_column:
+                continue
+            value = pd.to_numeric(row.get(col, None), errors="coerce")
+            if not pd.isna(value):
+                param_count = float(param_counts_by_column[col])
+                run_data[run_id]["scores"][dendrite_idx] = (param_count, float(value))
+
+    grouped: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    for run_id, data in run_data.items():
+        group_key = (str(data["split_label"]), str(data["model_id"]), str(data["data_percent"]))
+        if group_key not in grouped:
+            grouped[group_key] = {
+                "split_label": data["split_label"],
+                "model_id": data["model_id"],
+                "data_percent": data["data_percent"],
+                "data_percent_label": data["data_percent_label"],
+                "subject_key": data["subject_key"],
+                "subject_label": data["subject_label"],
+                "sample_key": data["sample_key"],
+                "sample_label": data["sample_label"],
+                "scores_accum": defaultdict(list),
+                "run_ids": [],
+            }
+        grouped[group_key]["run_ids"].append(run_id)
+        for dendrite_idx, pair in data["scores"].items():
+            grouped[group_key]["scores_accum"][dendrite_idx].append(pair)
+
+    has_repeated_groups = any(len(grouped_entry["run_ids"]) > 1 for grouped_entry in grouped.values())
+
+    if (has_sweep_number or has_repeated_groups) and run_data:
+
+        averaged_run_data: Dict[str, Dict[str, Any]] = {}
+        for i, group_key in enumerate(sorted(grouped.keys())):
+            grouped_entry = grouped[group_key]
+            averaged_scores: Dict[int, Tuple[float, float]] = {}
+            group_run_count = len(grouped_entry["run_ids"])
+            for dendrite_idx, pair_list in grouped_entry["scores_accum"].items():
+                if not pair_list:
                     continue
-                param_count = param_counts_by_column[col]
-                val = pd.to_numeric(row.get(col, None), errors="coerce")
-                if not pd.isna(val):
-                    run_data[run_id]["scores"][param_count] = float(val)
+
+                if require_complete_repeat_dendrites:
+                    has_full_group_coverage = len(pair_list) == group_run_count
+                    meets_expected_repeat_count = group_run_count >= expected_repeat_count
+                    if not (has_full_group_coverage and meets_expected_repeat_count):
+                        continue
+                elif dendrite_percent_to_graph is not None:
+                    if group_run_count <= 0:
+                        continue
+                    present_fraction = len(pair_list) / group_run_count
+                    if present_fraction < dendrite_percent_to_graph:
+                        continue
+
+                avg_param_count = float(sum(p[0] for p in pair_list) / len(pair_list))
+                avg_score = float(sum(p[1] for p in pair_list) / len(pair_list))
+                averaged_scores[dendrite_idx] = (avg_param_count, avg_score)
+
+            if not averaged_scores:
+                continue
+
+            averaged_run_data[f"avg_{i}"] = {
+                "split_label": grouped_entry["split_label"],
+                "model_id": grouped_entry["model_id"],
+                "data_percent": grouped_entry["data_percent"],
+                "data_percent_label": grouped_entry["data_percent_label"],
+                "subject_key": grouped_entry["subject_key"],
+                "subject_label": grouped_entry["subject_label"],
+                "sample_key": grouped_entry["sample_key"],
+                "sample_label": grouped_entry["sample_label"],
+                "scores": averaged_scores,
+                "avg_from_runs": len(grouped_entry["run_ids"]),
+            }
+
+        run_data = averaged_run_data
 
     if not run_data:
-        raise ValueError("No run data could be extracted for the data_percent line plot.")
+        split_text = f" for split '{split_filter}'" if split_filter is not None else ""
+        raise ValueError(f"No run data could be extracted for the data_percent line plot{split_text}.")
 
-    # Sorted unique data_percent and model_id values.
-    all_data_percents = sorted(
-        set(d["data_percent"] for d in run_data.values()),
-        key=lambda x: int(x) if x.isdigit() else float("inf"),
-    )
-    all_model_ids = sorted(
-        set(d["model_id"] for d in run_data.values()),
-        key=lambda m: int(re.match(r"model_(\d+)$", m).group(1)) if re.match(r"model_(\d+)$", m) else 9999,
-    )
+    observed_sample_keys = {str(d["sample_key"]) for d in run_data.values()}
+    if sample_split_keys is not None:
+        all_sample_keys = sorted(
+            [key for key in sample_split_keys if key in observed_sample_keys],
+            key=_percent_key_sort_key,
+            reverse=True,
+        )
+    else:
+        all_sample_keys = sorted(observed_sample_keys, key=_percent_key_sort_key, reverse=True)
 
-    # Colors: model_id -> RGBA from plasma colormap.
-    n_models = len(all_model_ids)
-    cmap = plt.get_cmap("plasma")
-    model_colors = {
-        mid: cmap(i / max(1, n_models - 1)) for i, mid in enumerate(all_model_ids)
+    if not all_sample_keys:
+        split_text = f" for split '{split_filter}'" if split_filter is not None else ""
+        raise ValueError(f"No matching sample splits found in run data{split_text}.")
+
+    sample_cmap = plt.get_cmap("viridis")
+    sample_colors = {
+        sample_key: sample_cmap(i / max(1, len(all_sample_keys) - 1))
+        for i, sample_key in enumerate(all_sample_keys)
     }
 
-    # Marker shapes: data_percent -> marker character.
-    marker_cycle = ["o", "s", "^", "D", "v", "P", "*", "X"]
-    data_percent_markers = {dp: marker_cycle[i % len(marker_cycle)] for i, dp in enumerate(all_data_percents)}
+    sample_labels = {
+        str(d["sample_key"]): str(d["sample_label"])
+        for d in run_data.values()
+    }
 
-    def _build_legend_handles(
-        ax,
-        model_ids: Sequence[str],
-        data_percents: Sequence[str],
-    ) -> None:
+    observed_subject_keys = {str(d["subject_key"]) for d in run_data.values()}
+    if subject_split_keys is not None:
+        all_subject_keys = sorted(
+            [key for key in subject_split_keys if key in observed_subject_keys],
+            key=_percent_key_sort_key,
+            reverse=True,
+        )
+    else:
+        all_subject_keys = sorted(observed_subject_keys, key=_percent_key_sort_key, reverse=True)
+
+    if not all_subject_keys:
+        split_text = f" for split '{split_filter}'" if split_filter is not None else ""
+        raise ValueError(f"No matching subject splits found in run data{split_text}.")
+
+    base_markers = [
+        "o", "s", "^", "D", "v", "P", "*", "X", "<", ">",
+        "h", "H", "d", "p", "8", "1", "2", "3", "4", "+", "x",
+    ]
+    subject_markers: Dict[str, str] = {}
+    for i, subject_key in enumerate(all_subject_keys):
+        if i < len(base_markers):
+            subject_markers[subject_key] = base_markers[i]
+        else:
+            subject_markers[subject_key] = f"${i + 1}$"
+
+    subject_labels = {
+        str(d["subject_key"]): str(d["subject_label"])
+        for d in run_data.values()
+    }
+
+    def _build_legend(ax) -> None:
         handles: List[Line2D] = []
         labels: List[str] = []
-        for mid in model_ids:
-            model_label = model_name_map.get(mid, mid) if model_name_map else mid
-            handles.append(Line2D([0], [0], color=model_colors[mid], linewidth=2))
-            labels.append(model_label)
-        handles.append(Line2D([0], [0], linestyle="none", color="none"))
-        labels.append("")
-        for dp in data_percents:
+
+        for sample_key in all_sample_keys:
+            handles.append(Line2D([0], [0], color=sample_colors[sample_key], linewidth=2))
+            labels.append(sample_labels.get(sample_key, sample_key))
+
+        if all_sample_keys and all_subject_keys:
+            handles.append(Line2D([0], [0], linestyle="none", color="none"))
+            labels.append("")
+
+        for subject_key in all_subject_keys:
             handles.append(
                 Line2D(
-                    [0], [0],
-                    marker=data_percent_markers[dp],
+                    [0],
+                    [0],
+                    marker=subject_markers[subject_key],
                     linestyle="none",
                     markersize=7,
                     color="black",
                     markerfacecolor="black",
                 )
             )
-            labels.append(f"{dp}% data")
+            labels.append(subject_labels.get(subject_key, subject_key))
+
         ax.legend(handles, labels, loc="lower right", fontsize=8, framealpha=0.85)
 
-    def _plot_runs(ax, x_min_filter=None, x_max_filter=None):
-        for run_id, data in sorted(run_data.items()):
+    def _plot_runs(ax, x_min_filter=None, x_max_filter=None) -> None:
+        for run_id in sorted(run_data.keys()):
+            data = run_data[run_id]
             scores = data["scores"]
             if not scores:
                 continue
-            sorted_params = sorted(scores.keys())
-            pairs = [(p, scores[p]) for p in sorted_params]
-            if x_min_filter is not None:
-                pairs = [(p, s) for p, s in pairs if p >= x_min_filter]
-            if x_max_filter is not None:
-                pairs = [(p, s) for p, s in pairs if p <= x_max_filter]
-            if not pairs:
-                continue
-            x_vals, y_vals = zip(*pairs)
-            color = model_colors[data["model_id"]]
-            marker = data_percent_markers[data["data_percent"]]
-            ax.plot(x_vals, y_vals, marker=marker, color=color, linewidth=1.5, markersize=6, alpha=0.85)
 
-    all_x = [p for data in run_data.values() for p in data["scores"].keys()]
+            points = [scores[dendrite_idx] for dendrite_idx in sorted(scores.keys())]
+
+            if x_min_filter is not None:
+                points = [(x, y) for x, y in points if x >= x_min_filter]
+            if x_max_filter is not None:
+                points = [(x, y) for x, y in points if x <= x_max_filter]
+            if not points:
+                continue
+
+            x_vals, y_vals = zip(*points)
+            ax.plot(
+                x_vals,
+                y_vals,
+                marker=subject_markers[str(data["subject_key"])],
+                color=sample_colors[str(data["sample_key"])],
+                linewidth=1.5,
+                markersize=5,
+                alpha=0.8,
+            )
+
+    all_x = [scores_pair[0] for data in run_data.values() for scores_pair in data["scores"].values()]
     x_min = min(all_x)
     x_max = max(all_x)
     x_span = x_max - x_min
@@ -1748,8 +2065,11 @@ def _create_data_percent_line_plot(
         x_pad = max(1.0, x_span * 0.05)
         ax.set_xlim(x_min - x_pad, x_max + x_pad)
         _plot_runs(ax)
-        _build_legend_handles(ax, all_model_ids, all_data_percents)
-        ax.set_title(f"Score by Parameter Count ({metric_label})")
+        _build_legend(ax)
+        split_title = f" [{split_filter}]" if split_filter is not None else ""
+        if subject_filter_key is not None:
+            split_title += f" [{subject_labels.get(subject_filter_key, subject_filter_key)}]"
+        ax.set_title(f"Score by Parameter Count ({metric_label}){split_title}")
         ax.set_xlabel("Parameter Count")
         ax.set_ylabel(f"Max {metric_label} Score")
         ax.grid(axis="y", alpha=0.25)
@@ -1759,8 +2079,8 @@ def _create_data_percent_line_plot(
         return
 
     break_start, break_end = x_break
-    left_x = [p for p in all_x if p <= break_start]
-    right_x = [p for p in all_x if p >= break_end]
+    left_x = [x for x in all_x if x <= break_start]
+    right_x = [x for x in all_x if x >= break_end]
     if not left_x or not right_x:
         raise ValueError(
             "x-break range removes one side of the line plot. "
@@ -1779,7 +2099,8 @@ def _create_data_percent_line_plot(
     right_span = max(1.0, right_xlim_max - right_xlim_min)
 
     fig, (ax_left, ax_right) = plt.subplots(
-        1, 2,
+        1,
+        2,
         sharey=True,
         figsize=(14, 6),
         gridspec_kw={"width_ratios": [left_span, right_span]},
@@ -1790,8 +2111,11 @@ def _create_data_percent_line_plot(
     _plot_runs(ax_left, x_max_filter=break_start)
     _plot_runs(ax_right, x_min_filter=break_end)
 
-    _build_legend_handles(ax_right, all_model_ids, all_data_percents)
-    ax_left.set_title(f"Score by Parameter Count ({metric_label})")
+    _build_legend(ax_right)
+    split_title = f" [{split_filter}]" if split_filter is not None else ""
+    if subject_filter_key is not None:
+        split_title += f" [{subject_labels.get(subject_filter_key, subject_filter_key)}]"
+    ax_left.set_title(f"Score by Parameter Count ({metric_label}){split_title}")
     ax_left.set_xlabel("Parameter Count")
     ax_right.set_xlabel("Parameter Count")
     ax_left.set_ylabel(f"Max {metric_label} Score")
@@ -1803,7 +2127,15 @@ def _create_data_percent_line_plot(
     ax_right.yaxis.tick_right()
     ax_right.tick_params(labelright=False)
 
-    marker_kwargs = dict(marker=[(-1, -1), (1, 1)], markersize=8, linestyle="none", color="k", mec="k", mew=1, clip_on=False)
+    marker_kwargs = dict(
+        marker=[(-1, -1), (1, 1)],
+        markersize=8,
+        linestyle="none",
+        color="k",
+        mec="k",
+        mew=1,
+        clip_on=False,
+    )
     ax_left.plot([1, 1], [0, 1], transform=ax_left.transAxes, **marker_kwargs)
     ax_right.plot([0, 0], [0, 1], transform=ax_right.transAxes, **marker_kwargs)
 
@@ -1817,7 +2149,7 @@ def main() -> None:
         description="Process a by-dendrite-separate CSV and generate candlestick summary graphs.",
     )
     parser.add_argument(
-        "--input-csv",
+        "--csv",
         required=True,
         help="Path to by-dendrite-separate CSV file",
     )
@@ -1828,6 +2160,39 @@ def main() -> None:
     parser.add_argument(
         "--x-break",
         help="Optional x-axis break range for param-count plot, format: START,END (e.g., 13000000,22000000)",
+    )
+    parser.add_argument(
+        "--require-complete-repeat-dendrites",
+        action="store_true",
+        help="When averaging repeats, only keep dendrite points that exist in all repeats for that group.",
+    )
+    parser.add_argument(
+        "--expected-repeat-count",
+        type=int,
+        default=5,
+        help="Expected number of repeats per group used with --require-complete-repeat-dendrites (default: 5).",
+    )
+    parser.add_argument(
+        "--dendrite-percent-to-graph",
+        type=float,
+        help=(
+            "When averaging repeats, keep and graph a dendrite point only if it is present in at least "
+            "this fraction of runs in the group (e.g., 0.6 means >=60%% of runs)."
+        ),
+    )
+    parser.add_argument(
+        "--sample-splits",
+        help=(
+            "Optional comma-separated sample split percentages to include and order explicitly "
+            "(e.g., 50,62,75,87,100)."
+        ),
+    )
+    parser.add_argument(
+        "--subject-splits",
+        help=(
+            "Optional comma-separated subject split percentages to include and order explicitly "
+            "(e.g., 50,75,100)."
+        ),
     )
     args = parser.parse_args()
 
@@ -1848,7 +2213,23 @@ def main() -> None:
             sys.exit(1)
         x_break = (break_start, break_end)
 
-    csv_path = args.input_csv
+    if args.expected_repeat_count < 1:
+        print("Error: --expected-repeat-count must be >= 1", file=sys.stderr)
+        sys.exit(1)
+
+    if args.dendrite_percent_to_graph is not None:
+        if args.dendrite_percent_to_graph < 0.0 or args.dendrite_percent_to_graph > 1.0:
+            print("Error: --dendrite-percent-to-graph must be between 0.0 and 1.0", file=sys.stderr)
+            sys.exit(1)
+
+    try:
+        sample_split_keys = _parse_split_values_arg(args.sample_splits, "samp")
+        subject_split_keys = _parse_split_values_arg(args.subject_splits, "subj")
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    csv_path = args.csv
     if not os.path.exists(csv_path):
         print(f"Error: CSV file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
@@ -1877,6 +2258,10 @@ def main() -> None:
             )
 
         created_files: List[str] = []
+        split_modes = sorted({_extract_split_label(str(name)) for name in df["run_name"].dropna().astype(str)})
+        sample_only_split_mode = next((s for s in split_modes if s == "sample-split"), None)
+        if sample_only_split_mode is None:
+            sample_only_split_mode = next((s for s in split_modes if "sample" in s), None)
 
         for metric_key, metric_label, metric_columns in metric_runs:
             line_plot_path = os.path.join(output_dir, f"data_percent_line_plot_{metric_key}.png")
@@ -1888,8 +2273,79 @@ def main() -> None:
                 model_name_map=model_name_map,
                 metric_label=metric_label,
                 x_break=x_break,
+                require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                expected_repeat_count=args.expected_repeat_count,
+                dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                sample_split_keys=sample_split_keys,
+                subject_split_keys=subject_split_keys,
             )
             created_files.append(line_plot_path)
+
+            for split_mode in split_modes:
+                split_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", split_mode)
+                split_plot_path = os.path.join(
+                    output_dir,
+                    f"data_percent_line_plot_{metric_key}_{split_safe}.png",
+                )
+                _create_data_percent_line_plot(
+                    df,
+                    metric_columns,
+                    param_counts_by_column,
+                    split_plot_path,
+                    model_name_map=model_name_map,
+                    metric_label=metric_label,
+                    x_break=x_break,
+                    split_filter=split_mode,
+                    require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                    expected_repeat_count=args.expected_repeat_count,
+                    dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                    sample_split_keys=sample_split_keys,
+                    subject_split_keys=subject_split_keys,
+                )
+                created_files.append(split_plot_path)
+
+            if sample_only_split_mode is not None:
+                sample_split_subject_keys = sorted(
+                    {
+                        str(subject_key)
+                        for run_name in df["run_name"].dropna().astype(str)
+                        if _extract_split_label(run_name) == sample_only_split_mode
+                        for subject_key in [_extract_subject_sample_from_run_name(run_name)[0]]
+                        if subject_key is not None
+                    },
+                    key=_percent_key_sort_key,
+                    reverse=True,
+                )
+
+                if subject_split_keys is not None:
+                    sample_split_subject_keys = [
+                        key for key in sample_split_subject_keys if key in set(subject_split_keys)
+                    ]
+
+                for subject_key in sample_split_subject_keys:
+                    subject_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", subject_key)
+                    split_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", sample_only_split_mode)
+                    split_subject_plot_path = os.path.join(
+                        output_dir,
+                        f"data_percent_line_plot_{metric_key}_{split_safe}_{subject_safe}.png",
+                    )
+                    _create_data_percent_line_plot(
+                        df,
+                        metric_columns,
+                        param_counts_by_column,
+                        split_subject_plot_path,
+                        model_name_map=model_name_map,
+                        metric_label=metric_label,
+                        x_break=x_break,
+                        split_filter=sample_only_split_mode,
+                        require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                        expected_repeat_count=args.expected_repeat_count,
+                        dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                        sample_split_keys=sample_split_keys,
+                        subject_split_keys=subject_split_keys,
+                        subject_filter_key=subject_key,
+                    )
+                    created_files.append(split_subject_plot_path)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

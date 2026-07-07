@@ -20,9 +20,9 @@ Outputs:
      Same summaries, but positioned on the x-axis by metadata param_count.
 
 Example:
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --output my_output_folder
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --output my_output_folder
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
 """
 
 import argparse
@@ -39,6 +39,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
+
+
+_FONT_SCALE = 1.5
+
+
+def _scale_rc_value(value: Any, fallback: float) -> float:
+    """Scale numeric matplotlib rc values safely."""
+    if isinstance(value, (int, float)):
+        return float(value) * _FONT_SCALE
+    return fallback * _FONT_SCALE
+
+
+plt.rcParams.update({
+    "font.size": _scale_rc_value(plt.rcParams.get("font.size"), 10.0),
+    "axes.titlesize": _scale_rc_value(plt.rcParams.get("axes.titlesize"), 12.0),
+    "axes.labelsize": _scale_rc_value(plt.rcParams.get("axes.labelsize"), 10.0),
+    "xtick.labelsize": _scale_rc_value(plt.rcParams.get("xtick.labelsize"), 10.0),
+    "ytick.labelsize": _scale_rc_value(plt.rcParams.get("ytick.labelsize"), 10.0),
+    "legend.fontsize": _scale_rc_value(plt.rcParams.get("legend.fontsize"), 10.0),
+    "figure.titlesize": _scale_rc_value(plt.rcParams.get("figure.titlesize"), 12.0),
+})
 
 
 def _safe_float(value: str) -> Optional[float]:
@@ -145,6 +166,30 @@ def _parse_hyperparams_from_run_name(run_name: str, known_keys: Sequence[str]) -
                 parsed[key] = value
 
     return parsed
+
+
+def _write_companion_csv_for_png(
+    png_path: str,
+    data: Any,
+    empty_note: str = "No data available for this chart.",
+) -> str:
+    """Write a CSV with the same stem as a PNG containing chart source data."""
+    csv_path = os.path.splitext(png_path)[0] + ".csv"
+
+    if isinstance(data, pd.DataFrame):
+        out_df = data.copy()
+    elif isinstance(data, list):
+        out_df = pd.DataFrame(data)
+    elif isinstance(data, dict):
+        out_df = pd.DataFrame([data])
+    else:
+        out_df = pd.DataFrame([{"note": empty_note}])
+
+    if out_df.empty:
+        out_df = pd.DataFrame([{"note": empty_note}])
+
+    out_df.to_csv(csv_path, index=False)
+    return csv_path
 
 
 def _extract_model_id_from_run_name(run_name: str) -> Optional[str]:
@@ -349,8 +394,11 @@ def _create_base_model_d0_vs_final_histogram(
     base_model_id: str,
     output_path: str,
     model_name_map: Optional[Dict[str, str]] = None,
-) -> None:
-    """Create histogram-only comparison for base model: d0 vs final d>0 per run."""
+) -> Tuple[List[str], pd.DataFrame]:
+    """Create histogram-only comparison for base model: d0 vs final d>0 per run.
+
+    Writes separate images for validation and test metrics.
+    """
     model_pattern = re.compile(rf"{re.escape(base_model_id)}_dendrite_(\d+)_max_(val|test)$")
     generic_pattern = re.compile(r"dendrite_(\d+)_max_(val|test)$")
     metric_to_cols: Dict[str, List[Tuple[int, str]]] = {"val": [], "test": []}
@@ -366,21 +414,24 @@ def _create_base_model_d0_vs_final_histogram(
         metric_to_cols[metric].append((dendrite_idx, col))
 
     if (not metric_to_cols["val"]) and (not metric_to_cols["test"]):
-        # Always write an image so users can see why it is empty.
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.axis("off")
-        ax.text(
-            0.5,
-            0.5,
-            f"No dendrite columns found for base model: {base_model_id}",
-            ha="center",
-            va="center",
-            fontsize=11,
-        )
-        fig.tight_layout()
-        fig.savefig(output_path, dpi=150)
-        plt.close(fig)
-        return
+        created_paths: List[str] = []
+        for metric in ("val", "test"):
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                f"No dendrite columns found for base model: {base_model_id}",
+                ha="center",
+                va="center",
+                fontsize=11,
+            )
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
+        return created_paths, pd.DataFrame([{"note": f"No dendrite columns found for base model: {base_model_id}"}])
 
     base_label = model_name_map.get(base_model_id, base_model_id) if model_name_map else base_model_id
 
@@ -398,16 +449,23 @@ def _create_base_model_d0_vs_final_histogram(
     else:
         run_groups = [(idx, row.to_frame().T) for idx, row in base_rows_df.iterrows()]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=False)
+    hist_rows: List[Dict[str, Any]] = []
     metric_specs = [("val", "Validation"), ("test", "Test")]
+    created_paths: List[str] = []
 
-    for ax, (metric, metric_title) in zip(axes, metric_specs):
+    for metric, metric_title in metric_specs:
+        fig, ax = plt.subplots(figsize=(10, 5), sharey=False)
         cols = sorted(metric_to_cols[metric], key=lambda x: x[0])
         if not cols:
             ax.set_title(f"{metric_title} (not available)")
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         d0_cols = [c for c in cols if c[0] == 0]
@@ -416,6 +474,11 @@ def _create_base_model_d0_vs_final_histogram(
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         d0_col = d0_cols[0][1]
@@ -427,10 +490,22 @@ def _create_base_model_d0_vs_final_histogram(
         gt_zero_cols_sorted = sorted(gt_zero_cols, key=lambda x: x[0])
 
         for _, group_df in run_groups:
+            run_key = str(group_df["run_id"].iloc[0]) if "run_id" in group_df.columns else ""
             # d0 per run
             d0_series = pd.to_numeric(group_df[d0_col], errors="coerce").dropna()
             if not d0_series.empty:
-                d0_values.append(float(d0_series.max()))
+                score = float(d0_series.max())
+                d0_values.append(score)
+                hist_rows.append(
+                    {
+                        "model_id": base_model_id,
+                        "model_name": base_label,
+                        "metric": metric,
+                        "bucket": "d0",
+                        "run_id": run_key,
+                        "score": score,
+                    }
+                )
 
             # final d>0 per run: take highest dendrite index that has a score in this run
             chosen_final: Optional[float] = None
@@ -441,12 +516,27 @@ def _create_base_model_d0_vs_final_histogram(
                     break
             if chosen_final is not None:
                 final_gt_zero_values.append(chosen_final)
+                hist_rows.append(
+                    {
+                        "model_id": base_model_id,
+                        "model_name": base_label,
+                        "metric": metric,
+                        "bucket": "final_d_gt_0",
+                        "run_id": run_key,
+                        "score": chosen_final,
+                    }
+                )
 
         if (not d0_values) and (not final_gt_zero_values):
             ax.set_title(f"{metric_title} (no data)")
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         combined: List[float] = d0_values + final_gt_zero_values
@@ -463,7 +553,7 @@ def _create_base_model_d0_vs_final_histogram(
                 alpha=0.45,
                 color="black",
                 edgecolor="black",
-                label=f"d0 (n={len(d0_values)})",
+                label="d0",
             )
         if final_gt_zero_values:
             ax.hist(
@@ -472,22 +562,24 @@ def _create_base_model_d0_vs_final_histogram(
                 alpha=0.45,
                 color="tab:blue",
                 edgecolor="tab:blue",
-                label=f"final d>0 per run (n={len(final_gt_zero_values)})",
+                label="final d>0 per run",
             )
 
         ax.set_title(
-            f"{metric_title}: {base_label} d0 vs final d>0 "
-            f"(runs with d0={len(d0_values)}, runs with final d>0={len(final_gt_zero_values)})"
+            f"{metric_title}: {base_label} d0 vs final d>0"
         )
         ax.set_xlabel("Score")
         ax.set_ylabel("Count")
         ax.grid(axis="y", alpha=0.25)
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=16)
 
-    fig.suptitle("Histogram-Only: Base Model d0 vs Final d>0 Per Run")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(output_path, dpi=150)
-    plt.close(fig)
+        metric_output_path = output_path.replace(".png", f"_{metric}.png")
+        fig.tight_layout()
+        fig.savefig(metric_output_path, dpi=150)
+        plt.close(fig)
+        created_paths.append(metric_output_path)
+
+    return created_paths, pd.DataFrame(hist_rows)
 
 
 def _write_best_run_per_model_csv(
@@ -988,7 +1080,7 @@ def _compute_within_model_stats(
                 "error_reduction_per_param": round(error_reduction / extra_params, 8),
             })
 
-    # --- Metric 4: baseline top-percentile thresholds and beat rates by model/dendrite combo ---
+    # --- Metric 4: baseline top-percentile thresholds and cumulative beat rates by max-allowed dendrites ---
     metric4_rows: List[Dict] = []
 
     if initial_model_id and initial_model_id in model_dendrite_cols:
@@ -1044,11 +1136,16 @@ def _compute_within_model_stats(
                         if model_id == initial_model_id and d_idx == baseline_d:
                             continue
 
-                        combo_scores = [
-                            data["scores"][d_idx]
-                            for data in model_runs.get(model_id, [])
-                            if d_idx in data["scores"]
-                        ]
+                        # Cumulative semantics: for each run, consider the best score achievable
+                        # with at most d_idx dendrites (i.e. max over scores at dendrite<=d_idx).
+                        combo_scores: List[float] = []
+                        for data in model_runs.get(model_id, []):
+                            eligible_scores = [
+                                s for d_cur, s in data["scores"].items() if d_cur <= d_idx
+                            ]
+                            if eligible_scores:
+                                combo_scores.append(float(max(eligible_scores)))
+
                         if not combo_scores:
                             continue
 
@@ -1058,6 +1155,7 @@ def _compute_within_model_stats(
                         metric4_rows.append({
                             "percentile_label": label,
                             "percentile": pct,
+                            "comparison_mode": "cumulative_max_allowed_dendrites",
                             "baseline_model_id": initial_model_id,
                             "baseline_model_name": model_name_map.get(initial_model_id, initial_model_id),
                             "baseline_dendrite_count": baseline_d,
@@ -1072,6 +1170,7 @@ def _compute_within_model_stats(
                             "model_name": model_name_map.get(model_id, model_id),
                             "dendrite_count": d_idx,
                             "combo_column": col,
+                            "combo_label_mode": "best_score_with_max_dendrites_leq_d",
                             "combo_param_count": int(param_counts_by_column.get(col, 0)),
                             "combo_n_runs": len(combo_scores),
                             "combo_n_beating_threshold": beats,
@@ -1096,6 +1195,7 @@ def _compute_within_model_stats(
     csv4_columns = [
         "percentile_label",
         "percentile",
+        "comparison_mode",
         "baseline_model_id",
         "baseline_model_name",
         "baseline_dendrite_count",
@@ -1110,6 +1210,7 @@ def _compute_within_model_stats(
         "model_name",
         "dendrite_count",
         "combo_column",
+        "combo_label_mode",
         "combo_param_count",
         "combo_n_runs",
         "combo_n_beating_threshold",
@@ -1138,6 +1239,7 @@ def _compute_within_model_stats(
         fig.savefig(chart1_path, dpi=150)
         plt.close(fig)
         created.append(chart1_path)
+        created.append(_write_companion_csv_for_png(chart1_path, pd.DataFrame(metric1_rows)))
 
     # --- Chart 2: avg error reduction by model + dendrite ---
     if metric2_rows:
@@ -1168,6 +1270,7 @@ def _compute_within_model_stats(
         fig.savefig(chart2_path, dpi=150)
         plt.close(fig)
         created.append(chart2_path)
+        created.append(_write_companion_csv_for_png(chart2_path, pd.DataFrame(metric2_rows)))
 
     # --- Chart 3: per-model error reduction per parameter vs baseline dendrite ---
     if metric3_rows:
@@ -1200,8 +1303,9 @@ def _compute_within_model_stats(
         fig.savefig(chart3_path, dpi=150)
         plt.close(fig)
         created.append(chart3_path)
+        created.append(_write_companion_csv_for_png(chart3_path, pd.DataFrame(metric3_rows)))
 
-    # --- Chart 4/5: % of scores beating baseline top-1% and top-5% thresholds ---
+    # --- Chart 4/5: % of runs beating baseline thresholds using cumulative max-dendrite scoring ---
     if metric4_rows:
         df4 = pd.DataFrame(metric4_rows)
 
@@ -1293,10 +1397,11 @@ def _compute_within_model_stats(
                 ax.scatter([baseline_x], [baseline_y], s=80, marker="*", color="black")
 
                 ax.set_title(
-                    f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})"
+                    f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})\n"
+                    f"(Cumulative: best score with max allowed dendrites <= d)"
                 )
                 ax.set_xlabel("Parameter Count")
-                ax.set_ylabel("% Scores Above Baseline Threshold")
+                ax.set_ylabel("% Runs Above Baseline Threshold")
                 ax.grid(axis="y", alpha=0.25)
                 ax.set_ylim(0, 100)
                 _add_scatter_legend(ax, rows)
@@ -1359,11 +1464,12 @@ def _compute_within_model_stats(
                 ax_right.scatter([baseline_x], [baseline_y], s=80, marker="*", color="black")
 
             ax_left.set_title(
-                f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})"
+                f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})\n"
+                f"(Cumulative: best score with max allowed dendrites <= d)"
             )
             ax_left.set_xlabel("Parameter Count")
             ax_right.set_xlabel("Parameter Count")
-            ax_left.set_ylabel("% Scores Above Baseline Threshold")
+            ax_left.set_ylabel("% Runs Above Baseline Threshold")
             ax_left.grid(axis="y", alpha=0.25)
             ax_right.grid(axis="y", alpha=0.25)
             ax_left.set_ylim(0, 100)
@@ -1394,7 +1500,7 @@ def _compute_within_model_stats(
 
             subset = subset.copy()
             subset["combo_label"] = subset.apply(
-                lambda r: f"{r['model_name']} / d{int(r['dendrite_count'])}",
+                lambda r: f"{r['model_name']} / max d{int(r['dendrite_count'])}",
                 axis=1,
             )
             subset = subset.sort_values(["model_id", "dendrite_count"])
@@ -1409,10 +1515,11 @@ def _compute_within_model_stats(
             baseline_d = int(subset["baseline_dendrite_count"].iloc[0])
             threshold_score = float(subset["baseline_threshold_score"].iloc[0])
             ax.set_title(
-                f"% Beating {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f}) [{metric_label}]"
+                f"% Beating {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f}) [{metric_label}]\n"
+                f"(Cumulative: best score with max allowed dendrites <= d)"
             )
-            ax.set_xlabel("Model / Dendrite Combo")
-            ax.set_ylabel("% Scores Above Baseline Threshold")
+            ax.set_xlabel("Model / Max Allowed Dendrites")
+            ax.set_ylabel("% Runs Above Baseline Threshold")
             ax.grid(axis="y", alpha=0.25)
             plt.setp(ax.get_xticklabels(), rotation=35, ha="right")
 
@@ -1431,6 +1538,7 @@ def _compute_within_model_stats(
             fig.savefig(out_path, dpi=150)
             plt.close(fig)
             created.append(out_path)
+            created.append(_write_companion_csv_for_png(out_path, subset))
 
         scatter_top1 = _plot_metric4_param_scatter(
             df4[df4["percentile_label"] == "top_1pct"],
@@ -1440,6 +1548,12 @@ def _compute_within_model_stats(
         )
         if scatter_top1:
             created.append(scatter_top1)
+            created.append(
+                _write_companion_csv_for_png(
+                    scatter_top1,
+                    df4[df4["percentile_label"] == "top_1pct"],
+                )
+            )
 
         scatter_top5 = _plot_metric4_param_scatter(
             df4[df4["percentile_label"] == "top_5pct"],
@@ -1449,6 +1563,12 @@ def _compute_within_model_stats(
         )
         if scatter_top5:
             created.append(scatter_top5)
+            created.append(
+                _write_companion_csv_for_png(
+                    scatter_top5,
+                    df4[df4["percentile_label"] == "top_5pct"],
+                )
+            )
 
     return created
 
@@ -1539,7 +1659,7 @@ def _create_param_count_plot(
             handles.append(Line2D([0], [0], marker="s", linestyle="none", markersize=6, markerfacecolor=color, markeredgecolor=color))
             labels.append(item["label"])
         if handles:
-            ax.legend(handles, labels, loc="lower right", fontsize=7, framealpha=0.85)
+            ax.legend(handles, labels, loc="lower right", fontsize=10.5, framealpha=0.85)
 
     stats_with_counts = [
         item for item in stats
@@ -2023,7 +2143,7 @@ def main() -> None:
         description="Process a by-dendrite-separate CSV and generate candlestick summary graphs.",
     )
     parser.add_argument(
-        "--input-csv",
+        "--csv",
         required=True,
         help="Path to by-dendrite-separate CSV file",
     )
@@ -2054,7 +2174,7 @@ def main() -> None:
             sys.exit(1)
         x_break = (break_start, break_end)
 
-    csv_path = args.input_csv
+    csv_path = args.csv
     if not os.path.exists(csv_path):
         print(f"Error: CSV file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
@@ -2133,15 +2253,18 @@ def main() -> None:
             base_model_zero_label=base_model_zero_label,
         )
         created_files.append(bell_curve_plot_path)
+        created_files.append(_write_companion_csv_for_png(bell_curve_plot_path, run_best_scores_df))
 
         base_d0_vs_final_hist_path = os.path.join(output_dir, "hist_base_d0_vs_final.png")
-        _create_base_model_d0_vs_final_histogram(
+        base_hist_paths, base_hist_df = _create_base_model_d0_vs_final_histogram(
             df,
             base_model_id_for_hist,
             base_d0_vs_final_hist_path,
             model_name_map=model_name_map,
         )
-        created_files.append(base_d0_vs_final_hist_path)
+        for hist_path in base_hist_paths:
+            created_files.append(hist_path)
+            created_files.append(_write_companion_csv_for_png(hist_path, base_hist_df))
 
         best_run_summary_csv_val = _write_best_run_per_model_csv(
             run_best_scores_df,
@@ -2173,6 +2296,10 @@ def main() -> None:
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            stats_df = pd.DataFrame(stats)
+            stats_df["metric"] = metric_key
+            stats_df["param_count"] = stats_df["column"].map(param_counts_by_column)
+            created_files.append(_write_companion_csv_for_png(categorical_plot_path, stats_df))
             _create_param_count_plot(
                 stats,
                 param_counts_by_column,
@@ -2181,6 +2308,7 @@ def main() -> None:
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            created_files.append(_write_companion_csv_for_png(param_count_plot_path, stats_df))
             _create_param_count_plot(
                 stats,
                 param_counts_by_column,
@@ -2190,6 +2318,7 @@ def main() -> None:
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            created_files.append(_write_companion_csv_for_png(param_count_with_lines_plot_path, stats_df))
             _create_param_count_scatter_plot(
                 df,
                 metric_columns,
@@ -2200,6 +2329,22 @@ def main() -> None:
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            scatter_rows: List[Dict[str, Any]] = []
+            for col in metric_columns:
+                if col not in param_counts_by_column:
+                    continue
+                vals = pd.to_numeric(df[col], errors="coerce").dropna().tolist()
+                for v in vals:
+                    scatter_rows.append(
+                        {
+                            "metric": metric_key,
+                            "column": col,
+                            "label": _display_label(col, model_name_map),
+                            "param_count": float(param_counts_by_column[col]),
+                            "score": float(v),
+                        }
+                    )
+            created_files.append(_write_companion_csv_for_png(scatter_by_param_count_plot_path, scatter_rows))
             stat_files = _compute_within_model_stats(
                 df,
                 metric_columns,
