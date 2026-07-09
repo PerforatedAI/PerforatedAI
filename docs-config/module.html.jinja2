@@ -1,0 +1,22 @@
+{% extends "default/module.html.jinja2" %}
+
+{% block attribution %}
+    <a class="attribution" title="Perforated AI" href="https://www.perforatedai.com" target="_blank">
+        <img alt="Perforated AI" src="data:image/svg+xml,{%- filter urlencode %}{% include "wordmark.svg" %}{% endfilter %}"/>
+    </a>
+    <style>
+        .pdoc .attribution {
+            filter: none;
+            opacity: 0.75;
+        }
+        .pdoc .attribution:hover {
+            opacity: 1;
+        }
+        .pdoc .attribution img {
+            margin-left: 0;
+            width: auto;
+            height: 34px;
+            max-width: 100%;
+        }
+    </style>
+{% endblock %}
