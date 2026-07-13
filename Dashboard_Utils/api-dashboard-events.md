@@ -107,13 +107,20 @@ Ingest a training lifecycle event. Used by the training script to push progress 
   "train_score": 97.1,
   "learning_rate": 0.01,
   "normal_time": 8.4,
-  "pai_time": 6.2
+  "pai_time": 6.2,
+  "pb_scores": { ".conv1": 0.83, ".conv2": 0.71 }
 }
 ```
+`pb_scores` (`dict[str, float]`, layer name → best PBScore) is optional and only present while candidate dendrites are being scored. Outside those phases the key is omitted entirely — never sent as `{}`, `null`, or a carried-forward value — so the chart shows a truthful break in the line. Layer keys are model-dependent and stay stable for the whole run.
 
 **`switch`** — appends to run state, pushes `switch` event to all SSE clients
 ```json
 { "type": "switch", "switch_number": 1, "epoch": 10, "param_count": 1199882 }
+```
+
+**`dendrite_added`** — posted only when a dendrite set is successfully integrated. Every integration is also a `switch`, but not every `switch` integrates — a rejected dendrite set switches back without one. `num_dendrites_integrated` is the absolute counter value after the increment, not a delta, and is global rather than per-layer.
+```json
+{ "type": "dendrite_added", "epoch": 14, "num_dendrites_integrated": 2 }
 ```
 
 **`log`** — pushes a `log` event to all SSE clients; does not mutate `RunState.events` and is not persisted
