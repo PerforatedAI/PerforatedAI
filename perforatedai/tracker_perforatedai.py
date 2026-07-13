@@ -2831,14 +2831,9 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict[str, Any]
+        dict
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
-
-
-        Parameters
-        ----------
-        None
 
         """
         if not self.member_vars["doing_pai"]:
@@ -3472,6 +3467,14 @@ class PAINeuronModuleTracker:
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                         GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
                         _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        if _dashboard_emitter is not None:
+                            _dashboard_emitter.emit_dendrite_added(
+                                GPA.pc,
+                                epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                                num_dendrites_integrated=GPA.pai_tracker.member_vars[
+                                    "num_dendrites_integrated"
+                                ],
+                            )
                     if _dashboard_emitter is not None:
                         _dashboard_emitter.emit_run_end(GPA.pc)
                     return net, True, True
@@ -3521,6 +3524,14 @@ class PAINeuronModuleTracker:
                 if should_increment_integrated:
                     GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
                     _pai_log("info", f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                    if _dashboard_emitter is not None:
+                        _dashboard_emitter.emit_dendrite_added(
+                            GPA.pc,
+                            epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                            num_dendrites_integrated=GPA.pai_tracker.member_vars[
+                                "num_dendrites_integrated"
+                            ],
+                        )
 
             # If restructured is true, clear scheduler/optimizer before saving
             if restructuring_status_value != NETWORK_RESTRUCTURED:
@@ -3563,6 +3574,7 @@ class PAINeuronModuleTracker:
                 train_score=_train_score,
                 normal_time=_n_times[-1],
                 pai_time=_p_times[-1],
+                pb_scores=epoch_pb_scores,
             )
         GPA.pai_tracker.save_graphs()
 

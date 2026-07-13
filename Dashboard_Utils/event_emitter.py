@@ -57,10 +57,10 @@ class DashboardEventEmitter:
             "timestamp": datetime.now().isoformat(),
         }, pc)
 
-    def emit_epoch(self, pc, epoch, validation_score, learning_rate, train_score=None, normal_time=None, pai_time=None):
+    def emit_epoch(self, pc, epoch, validation_score, learning_rate, train_score=None, normal_time=None, pai_time=None, pb_scores=None):
         if not self._enabled(pc):
             return
-        self._post(self._url(pc), {
+        payload = {
             "type": "epoch",
             "epoch": epoch,
             "validation_score": validation_score,
@@ -68,7 +68,12 @@ class DashboardEventEmitter:
             "learning_rate": learning_rate,
             "normal_time": normal_time,
             "pai_time": pai_time,
-        }, pc)
+        }
+        # Omit pb_scores entirely outside dendrite scoring phases so the
+        # dashboard draws a break in the line rather than a carried-forward value
+        if pb_scores:
+            payload["pb_scores"] = pb_scores
+        self._post(self._url(pc), payload, pc)
 
     def emit_switch(self, pc, switch_number, epoch, param_count):
         if not self._enabled(pc):
@@ -78,6 +83,15 @@ class DashboardEventEmitter:
             "switch_number": switch_number,
             "epoch": epoch,
             "param_count": param_count,
+        }, pc)
+
+    def emit_dendrite_added(self, pc, epoch, num_dendrites_integrated):
+        if not self._enabled(pc):
+            return
+        self._post(self._url(pc), {
+            "type": "dendrite_added",
+            "epoch": epoch,
+            "num_dendrites_integrated": num_dendrites_integrated,
         }, pc)
 
     def emit_run_end(self, pc):
