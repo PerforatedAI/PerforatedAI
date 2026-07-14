@@ -3,8 +3,13 @@ from datetime import datetime
 try:
     import requests
     _requests_available = True
-except ImportError:
-    _requests_available = False
+except ModuleNotFoundError as e:
+    # Only pass if the requests package itself is missing
+    if e.name == "requests":
+        _requests_available = False
+    else:
+        # requests exists but is missing a dependency
+        raise
 
 _MAX_FAILURES = 3
 
