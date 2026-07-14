@@ -75,15 +75,21 @@ class DashboardEventEmitter:
             payload["pb_scores"] = pb_scores
         self._post(self._url(pc), payload, pc)
 
-    def emit_switch(self, pc, switch_number, epoch, param_count):
+    def emit_switch(self, pc, switch_number, epoch, param_count, switch_type=None):
         if not self._enabled(pc):
             return
-        self._post(self._url(pc), {
+        payload = {
             "type": "switch",
             "switch_number": switch_number,
             "epoch": epoch,
             "param_count": param_count,
-        }, pc)
+        }
+        # switch_type names the phase being entered, not the one that ended.
+        # Omit rather than guess: the dashboard renders a missing value as
+        # unknown, but would draw "n" as a confident claim
+        if switch_type in ("n", "p"):
+            payload["switch_type"] = switch_type
+        self._post(self._url(pc), payload, pc)
 
     def emit_dendrite_added(self, pc, epoch, num_dendrites_integrated):
         if not self._enabled(pc):

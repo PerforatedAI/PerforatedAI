@@ -3524,6 +3524,7 @@ class PAINeuronModuleTracker:
                 switch_number=GPA.pai_tracker.member_vars["num_dendrites_added"],
                 epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
                 param_count=_param_count,
+                switch_type=GPA.pai_tracker.member_vars["mode"],
             )
 
         # Always False for training complete if nothing triggered that training is over
