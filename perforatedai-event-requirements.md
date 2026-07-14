@@ -49,6 +49,41 @@ The existing `switch` event:
 
 ---
 
+## The `epoch` field is an index, not a counter — it can go backwards
+
+This applies to **every** event carrying an `epoch` (`epoch`, `switch`, `dendrite_added`) and it is
+the one thing on this page most likely to produce a wrong-looking chart from a correct emitter.
+
+`epoch` is `num_epochs_run` — the index into the tracker's score lists. It is deliberately **not**
+`total_epochs_run`. At a cycle switch the library loads the best model from earlier in the cycle and
+`num_epochs_run` **rewinds** to that point; the epochs in between are discarded as *overwritten*.
+So a real run emits sequences like:
+
+```
+… epoch 29 → epoch 30 → [switch] → epoch 28 → epoch 29 → …
+```
+
+The same epoch number is legitimately sent more than once, with different scores.
+
+**The Dashboard must treat `epoch` as an authoritative x-position to overwrite at, not as an
+ever-growing counter to append to.** Append, and a rewind draws a sawtooth: the line doubles back on
+itself and the chart is garbage. Overwrite at the index, and the live chart matches the offline
+graph the library already produces.
+
+### Why this is the right definition
+
+It is what PerforatedAI's own graphs plot. `generate_accuracy_plots` draws
+`np.arange(len(accuracies))` — the list index, i.e. `num_epochs_run`. The overwritten epochs are not
+dropped; the library redraws them as separate overlay lines that restart at zero. Sending
+`total_epochs_run` instead would keep the number monotonic (nicer to consume, no rewinds) but would
+put every point to the right of where the offline graph puts it, with the drift growing by the
+number of epochs discarded at each switch. The two charts would disagree about the same run, which
+is worse than a rewind the consumer knows to expect.
+
+If the Dashboard needs a monotonic axis for some visual, derive it — do not ask the library for it.
+
+---
+
 ## Change 1 — new `dendrite_added` event
 
 ### Why

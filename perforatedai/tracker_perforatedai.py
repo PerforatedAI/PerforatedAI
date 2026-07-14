@@ -3380,7 +3380,7 @@ class PAINeuronModuleTracker:
                         if _dashboard_emitter is not None:
                             _dashboard_emitter.emit_dendrite_added(
                                 GPA.pc,
-                                epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
                                 num_dendrites_integrated=GPA.pai_tracker.member_vars[
                                     "num_dendrites_integrated"
                                 ],
@@ -3437,7 +3437,7 @@ class PAINeuronModuleTracker:
                     if _dashboard_emitter is not None:
                         _dashboard_emitter.emit_dendrite_added(
                             GPA.pc,
-                            epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                            epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
                             num_dendrites_integrated=GPA.pai_tracker.member_vars[
                                 "num_dendrites_integrated"
                             ],
@@ -3478,7 +3478,7 @@ class PAINeuronModuleTracker:
             _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (_mv["p_train_times"] and _mv["p_val_times"]) else None]
             _dashboard_emitter.emit_epoch(
                 GPA.pc,
-                epoch=_mv["total_epochs_run"],
+                epoch=_mv["num_epochs_run"],
                 validation_score=accuracy,
                 learning_rate=_lr,
                 train_score=_train_score,
@@ -3522,7 +3522,7 @@ class PAINeuronModuleTracker:
             _dashboard_emitter.emit_switch(
                 GPA.pc,
                 switch_number=GPA.pai_tracker.member_vars["num_dendrites_added"],
-                epoch=GPA.pai_tracker.member_vars["total_epochs_run"],
+                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
                 param_count=_param_count,
                 switch_type=GPA.pai_tracker.member_vars["mode"],
             )
