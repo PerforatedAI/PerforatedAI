@@ -62,7 +62,8 @@ def train_one_epoch(
     scaler=None,
 ):
     model.train()
-    teacher_model.eval()
+    if args.use_kd and teacher_model is not None:
+        teacher_model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
@@ -77,18 +78,24 @@ def train_one_epoch(
         start_time = time.time()
         image, target = image.to(device), target.to(device)
 
-        with torch.inference_mode():
-            teacher_output = teacher_model(image)
+        teacher_output = None
+        if args.use_kd and teacher_model is not None:
+            with torch.inference_mode():
+                teacher_output = teacher_model(image)
 
         with torch.cuda.amp.autocast(enabled=scaler is not None):
             output = model(image)
             ce_loss = criterion(output, target)
-            kd_loss = F.kl_div(
-                F.log_softmax(output / KD_TEMPERATURE, dim=1),
-                F.softmax(teacher_output / KD_TEMPERATURE, dim=1),
-                reduction="batchmean",
-            ) * (KD_TEMPERATURE * KD_TEMPERATURE)
-            loss = (1.0 - KD_ALPHA) * ce_loss + KD_ALPHA * kd_loss
+            if args.use_kd and teacher_output is not None:
+                kd_loss = F.kl_div(
+                    F.log_softmax(output / KD_TEMPERATURE, dim=1),
+                    F.softmax(teacher_output / KD_TEMPERATURE, dim=1),
+                    reduction="batchmean",
+                ) * (KD_TEMPERATURE * KD_TEMPERATURE)
+                loss = (1.0 - KD_ALPHA) * ce_loss + KD_ALPHA * kd_loss
+            else:
+                kd_loss = torch.zeros(1, device=device, dtype=ce_loss.dtype)
+                loss = ce_loss
 
         optimizer.zero_grad()
         if scaler is not None:
@@ -122,6 +129,168 @@ def train_one_epoch(
     # Add training accuracies to PerforatedAI tracker
     GPA.pai_tracker.add_extra_score(metric_logger.acc1.global_avg, "Train Acc 1")
     GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Train Acc 5")
+
+
+def train_one_epoch_supervised(
+    model,
+    criterion,
+    optimizer,
+    data_loader,
+    device,
+    epoch,
+    args,
+    scaler=None,
+):
+    model.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
+    header = f"Teacher Epoch: [{epoch}]"
+
+    for image, target in metric_logger.log_every(data_loader, args.print_freq, header):
+        image, target = image.to(device), target.to(device)
+
+        with torch.cuda.amp.autocast(enabled=scaler is not None):
+            output = model(image)
+            loss = criterion(output, target)
+
+        optimizer.zero_grad()
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            if args.clip_grad_norm is not None:
+                scaler.unscale_(optimizer)
+                nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            if args.clip_grad_norm is not None:
+                nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_norm)
+            optimizer.step()
+
+        acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+        batch_size = image.shape[0]
+        metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
+        metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+        metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+
+    metric_logger.synchronize_between_processes()
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
+
+
+def evaluate_plain(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
+    model.eval()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = f"EvalPlain: {log_suffix}"
+
+    with torch.inference_mode():
+        for image, target in metric_logger.log_every(data_loader, print_freq, header):
+            image = image.to(device, non_blocking=True)
+            target = target.to(device, non_blocking=True)
+            output = model(image)
+            loss = criterion(output, target)
+
+            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
+            batch_size = image.shape[0]
+            metric_logger.update(loss=loss.item())
+            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
+            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
+
+    metric_logger.synchronize_between_processes()
+    print(
+        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
+    )
+    return metric_logger.acc1.global_avg
+
+
+def pretrain_teacher(
+    args,
+    device,
+    num_classes,
+    data_loader,
+    data_loader_val,
+    data_loader_test,
+):
+    if args.distributed:
+        raise RuntimeError("--pre-train-teacher currently supports single-process training only")
+
+    print("Pre-training teacher model: resnet50")
+    teacher_model = torchvision.models.resnet50(
+        weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2
+    )
+    if teacher_model.fc.out_features != num_classes:
+        teacher_model.fc = nn.Linear(teacher_model.fc.in_features, num_classes)
+    teacher_model.to(device)
+
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+    optimizer = torch.optim.SGD(
+        teacher_model.parameters(),
+        lr=args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+        nesterov="nesterov" in args.opt.lower(),
+    )
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma
+    )
+    scaler = torch.cuda.amp.GradScaler() if args.amp else None
+
+    if args.teacher_checkpoint:
+        teacher_checkpoint_path = args.teacher_checkpoint
+    else:
+        base_dir = args.output_dir if args.output_dir else "."
+        teacher_checkpoint_path = os.path.join(
+            base_dir, f"teacher_resnet50_{args.dataset}.pth"
+        )
+    os.makedirs(os.path.dirname(os.path.abspath(teacher_checkpoint_path)), exist_ok=True)
+
+    best_val_acc = -1.0
+    for epoch in range(args.start_epoch, args.epochs):
+        train_one_epoch_supervised(
+            teacher_model,
+            criterion,
+            optimizer,
+            data_loader,
+            device,
+            epoch,
+            args,
+            scaler,
+        )
+        val_acc1 = evaluate_plain(
+            teacher_model,
+            criterion,
+            data_loader_val,
+            device,
+            print_freq=args.print_freq,
+            log_suffix="val",
+        )
+        evaluate_plain(
+            teacher_model,
+            criterion,
+            data_loader_test,
+            device,
+            print_freq=args.print_freq,
+            log_suffix="test",
+        )
+        lr_scheduler.step()
+
+        if val_acc1 > best_val_acc:
+            best_val_acc = val_acc1
+            torch.save(
+                {
+                    "model": teacher_model.state_dict(),
+                    "dataset": args.dataset,
+                    "num_classes": num_classes,
+                    "best_val_acc1": best_val_acc,
+                },
+                teacher_checkpoint_path,
+            )
+            print(
+                f"Saved teacher checkpoint to {teacher_checkpoint_path} (val Acc@1={best_val_acc:.3f})"
+            )
+
+    print(f"Teacher pretraining complete. Best checkpoint: {teacher_checkpoint_path}")
 
 def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
     model.eval()
@@ -377,6 +546,8 @@ def stratified_subset_by_class(dataset, fraction, seed):
 
     if hasattr(dataset, "targets"):
         targets = dataset.targets
+    elif hasattr(dataset, "_labels"):
+        targets = dataset._labels
     elif hasattr(dataset, "samples"):
         targets = [s[1] for s in dataset.samples]
     else:
@@ -417,6 +588,8 @@ def split_eval_dataset_stratified(dataset, seed):
     """Split an eval dataset into stratified val/test halves per class."""
     if hasattr(dataset, "targets"):
         targets = dataset.targets
+    elif hasattr(dataset, "_labels"):
+        targets = dataset._labels
     elif hasattr(dataset, "samples"):
         targets = [s[1] for s in dataset.samples]
     else:
@@ -603,6 +776,62 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
 def load_data(traindir, valdir, args):
     # Data loading code
     print("Loading data")
+
+    if args.dataset == "food101":
+        interpolation = InterpolationMode(args.interpolation)
+        train_transform = presets.ClassificationPresetTrain(
+            crop_size=args.train_crop_size,
+            interpolation=interpolation,
+            auto_augment_policy=args.auto_augment,
+            random_erase_prob=args.random_erase,
+            ra_magnitude=args.ra_magnitude,
+            augmix_severity=args.augmix_severity,
+            backend=args.backend,
+            use_v2=args.use_v2,
+        )
+        eval_transform = presets.ClassificationPresetEval(
+            crop_size=args.val_crop_size,
+            resize_size=args.val_resize_size,
+            interpolation=interpolation,
+            backend=args.backend,
+            use_v2=args.use_v2,
+        )
+
+        dataset = torchvision.datasets.Food101(
+            root=args.data_path,
+            split="train",
+            transform=train_transform,
+            download=args.download_food101,
+        )
+        dataset = stratified_subset_by_class(
+            dataset, args.train_label_fraction, args.label_subset_seed
+        )
+
+        eval_dataset = torchvision.datasets.Food101(
+            root=args.data_path,
+            split="test",
+            transform=eval_transform,
+            download=args.download_food101,
+        )
+        dataset_val, dataset_test = split_eval_dataset_stratified(
+            eval_dataset, args.val_test_split_seed
+        )
+
+        print("Creating data loaders")
+        if args.distributed:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+            val_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset_val, shuffle=False
+            )
+            test_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset_test, shuffle=False
+            )
+        else:
+            train_sampler = torch.utils.data.RandomSampler(dataset)
+            val_sampler = torch.utils.data.SequentialSampler(dataset_val)
+            test_sampler = torch.utils.data.SequentialSampler(dataset_test)
+
+        return dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler
 
     if args.dataset == "cifar100":
         normalize = torchvision.transforms.Normalize(
@@ -818,7 +1047,7 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    if args.dataset == "cifar100":
+    if args.dataset in ("cifar100", "food101"):
         dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler = load_data(None, None, args)
     else:
         train_dir = os.path.join(args.data_path, "train")
@@ -831,20 +1060,41 @@ def main(args):
     num_classes = len(classes)
     if args.dataset == "cifar100":
         dataset_type = f"CIFAR-100 train subset ({args.train_label_fraction:.2f} labels)"
+    elif args.dataset == "food101":
+        dataset_type = f"Food-101 train subset ({args.train_label_fraction:.2f} labels)"
     else:
         dataset_type = "full ImageNet" if args.full_dataset else "ImageNet-100 subset"
     print(f"Training with {num_classes} classes ({dataset_type})")
 
-    print("Creating teacher model: resnet50")
-    teacher_model = torchvision.models.resnet50(
-        weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2
-    )
-    if num_classes != 1000:
-        teacher_model.fc = nn.Linear(teacher_model.fc.in_features, num_classes)
-    teacher_model.to(device)
-    teacher_model.eval()
-    for p in teacher_model.parameters():
-        p.requires_grad = False
+    teacher_model = None
+    if args.pre_train_teacher and args.use_kd:
+        raise ValueError("--pre-train-teacher and --use-kd are mutually exclusive")
+
+    if args.use_kd:
+        print("Creating teacher model: resnet50")
+        teacher_model = torchvision.models.resnet50(
+            weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2
+        )
+        if num_classes != 1000:
+            teacher_model.fc = nn.Linear(teacher_model.fc.in_features, num_classes)
+
+        if args.teacher_checkpoint:
+            print(f"Loading teacher checkpoint: {args.teacher_checkpoint}")
+            checkpoint = torch.load(
+                args.teacher_checkpoint, map_location="cpu", weights_only=True
+            )
+            teacher_state = checkpoint["model"] if "model" in checkpoint else checkpoint
+            teacher_model.load_state_dict(teacher_state)
+        elif args.dataset != "imagenet":
+            raise ValueError(
+                "--use-kd with non-imagenet dataset requires --teacher-checkpoint "
+                "(generate it first with --pre-train-teacher)."
+            )
+
+        teacher_model.to(device)
+        teacher_model.eval()
+        for p in teacher_model.parameters():
+            p.requires_grad = False
 
     # Set up PerforatedAI global parameters
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
@@ -930,6 +1180,17 @@ def main(args):
         pin_memory=True,
     )
 
+    if args.pre_train_teacher:
+        pretrain_teacher(
+            args,
+            device,
+            num_classes,
+            data_loader,
+            data_loader_val,
+            data_loader_test,
+        )
+        return
+
     print("Creating student model: resnet18")
     model = torchvision.models.get_model("resnet18", weights=args.weights)
     if hasattr(model, "fc") and model.fc.out_features != num_classes:
@@ -945,6 +1206,9 @@ def main(args):
             model.fc = nn.Sequential(
                 nn.Dropout(p=args.dropout), nn.Linear(in_features, num_classes)
             )
+            # Keep attributes expected by ResNetPAI wrapper.
+            model.fc.in_features = in_features
+            model.fc.out_features = num_classes
             print(f"Applied dropout rate: {args.dropout}")
 
     # Apply stochastic depth if specified (for ResNet models)
@@ -973,7 +1237,8 @@ def main(args):
     # Wrap model with PerforatedAI
     model = custom_resnet.ResNetPAI(model)
     # Build save name
-    save_name = f"CIFAR_KD_{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
+    mode_tag = "KD" if args.use_kd else "CE"
+    save_name = f"{args.dataset}_{mode_tag}_{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
 
@@ -1049,13 +1314,13 @@ def main(args):
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
         if model_ema:
+            test(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
             evaluate(
                 model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
             )
-            test(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
         else:
-            evaluate(model, criterion, data_loader_val, device=device)
             test(model, criterion, data_loader_test, device=device)
+            evaluate(model, criterion, data_loader_val, device=device)
         return
 
     print("Start training")
@@ -1215,9 +1480,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--dataset",
-        default="cifar100",
+        default="food101",
         type=str,
-        choices=["cifar100", "imagenet"],
+        choices=["cifar100", "food101", "imagenet"],
         help="dataset to train on",
     )
     parser.add_argument(
@@ -1236,6 +1501,27 @@ def get_args_parser(add_help=True):
         "--download-cifar",
         action="store_true",
         help="download CIFAR-100 to --data-path if missing",
+    )
+    parser.add_argument(
+        "--download-food101",
+        action="store_true",
+        help="download Food-101 to --data-path if missing",
+    )
+    parser.add_argument(
+        "--use-kd",
+        action="store_true",
+        help="enable KD loss; for non-imagenet datasets also pass --teacher-checkpoint",
+    )
+    parser.add_argument(
+        "--pre-train-teacher",
+        action="store_true",
+        help="train a resnet50 teacher and save checkpoint for later KD",
+    )
+    parser.add_argument(
+        "--teacher-checkpoint",
+        default="",
+        type=str,
+        help="teacher checkpoint path to load for KD, or save path when using --pre-train-teacher",
     )
     parser.add_argument(
         "--val-test-split-seed",
