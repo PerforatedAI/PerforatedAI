@@ -4,7 +4,7 @@ setup(
     name="perforatedai",
     # Remember to also edit setupCython
     version="3.2.1",
-    packages=["perforatedai"],
+    packages=["perforatedai", "Dashboard_Utils"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
     description="perforatedai baseline package",
@@ -23,6 +23,7 @@ setup(
         "cryptography",
         "pyyaml",
         "safetensors",
+        "requests",
     ],
     # may need setuptools upgraded
 )
