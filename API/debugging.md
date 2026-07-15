@@ -151,7 +151,7 @@ This is done automatically for most variables.  But for special varialbes and fu
 
 This means the pai_tracker was not initialized.  This generally only happens if zero layers are converted.  Make sure that at least one layer has been converted correctly.
 
-# Path Error During AddValidationScore
+## Path Error During AddValidationScore
 
     TypeError: stat: path should be string, bytes, os.PathLike or integer, not NoneType
     
@@ -163,12 +163,29 @@ This means you entered None for the saveName, likely args.saveName did not have 
     
 If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
 
+## Learning_Rate Error
+
+    UnboundLocalError: cannot access local variable 'learning_rate' where it is not associated with a value
+
+This happens if your optimizer does not have any params it is optimizing for.  Can be the case when you are in 'p' mode during perforated learning but none of the modules are actually being perforated.  Similarly, if you are using multiple optimizers if you passed a optimizer to the pai_tracker which is not the one actually pointing to the perforated module this error will come up.
+
+## Parameter not Wrapped
+
     WARNING: Parameter does not have parameter_type attribute in n mode
     You can find this param by going up in the stack and calling:
     UPA.find_param_name_by_id(model,124630993409104)
-    Ensure that model is either converted or tracked
 
 This means there is a module that was not properly handled during the call to perforate_model.  Is is generally one of two things.  First, confirm that all of your module are either tracked or perforated.  Second, confirm that you are not changing anything about the model definition after perforate_model.  For example, if you are doing transfer learning and replacing your fc layer, make sure to replace it before the call to perforate_model.
+
+In some cases this will also happen if you have a module that can not be perforated or tracked because one of its submodules will be.  If this is from a different submodule, then just perforate or track that one.  However, if a module has both submodules and also raw torch.Parameter's, then you can add those by id with a call to GPA.pc.append_parameter_ids_to_track with the id that gets printed after you go up in the pdb trace that flagged this warning and call find_param_name_by_id as instructed.
+
+Another common cause with external training libraries is that everything is properly tagged right after perforate_model, but then the library recreates or reloads parameters before training begins (for example during Trainer setup, wrapping, or optimizer preparation).  In this case parameter_type attributes can be lost and this warning appears at the first training step.
+
+If this happens, move perforate_model so it is called immediately before the function that starts training (or immediately before the library function that finalizes the trainable model state).  In short: avoid any model mutation, weight loading, wrapping, or replacement steps between perforate_model and training start.
+
+If running on XLA, this can also be caused if the model is perforated before moving to XLA.  When moving to cuda the same parameter variable is used, but on XLA, it is a new variable that copies the values, but not our values.  To fix this issue move the model to the XLA device before calling perforate_model().
+
+## Unpacking a Non-Existing Scheduler
 
         optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optimArgs, None)
             ^^^^^^^^^^^^
@@ -244,6 +261,7 @@ A memory leak is happening if you run out of memory in the middle of a training 
     values but then never actually use them for anything that goes towards calculating loss,
     so make sure to avoid that.  To check for this you can use:
         GPA.pc.set_debugging_memory_leak(True)
+- Check if you are using model.zero_grad rather than optimizer.zero_grad.  Current system requires optimizer.  
 - If this is happening in the validation/test loop after safely completing the train loop make sure you are in eval() mode which does not have a backwards pass.
 - Check for your training loop if there are any tensors being tracked during the loop which
     would not be cleared every time.  One we have seen often is a cumulative loss being tracked.

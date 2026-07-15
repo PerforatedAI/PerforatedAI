@@ -104,7 +104,11 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 "Setting custom module config values should only be done "
                 "from JSON config files or the GUI"
             )
-        if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+        if var_name in (
+            "module_ids_to_track",
+            "module_ids_to_perforate",
+            "parameter_ids_to_track",
+        ):
             for module_id in value:
                 _validate_module_id(module_id)
         setattr(self, private_name, value)
@@ -124,7 +128,11 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     def appender(self, value):
         """Append a value to the property if it is a list."""
         if isinstance(getattr(self, private_name), list):
-            if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+            if var_name in (
+                "module_ids_to_track",
+                "module_ids_to_perforate",
+                "parameter_ids_to_track",
+            ):
                 for module_id in value:
                     _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
@@ -416,6 +424,7 @@ class PAIConfig:
                 "module_ids_to_perforate",
                 "module_names_to_track",
                 "module_ids_to_track",
+                "parameter_ids_to_track",
                 "module_names_with_processing",
                 "module_names_to_not_save",
                 "library_extra_scores",
@@ -518,7 +527,6 @@ class PAIConfig:
             self.device = torch.device("cuda" if self.use_cuda else "cpu")
             add_pai_config_var_functions(self, "device", self.device)
 
-            # User should never set this manually
             self.save_name = ""
             add_pai_config_var_functions(self, "save_name", self.save_name)
 
@@ -761,6 +769,16 @@ class PAIConfig:
             self.module_ids_to_track = []
             add_pai_config_var_functions(
                 self, "module_ids_to_track", self.module_ids_to_track, list_type=True
+            )
+
+            # Parameter IDs to track as neuron parameters without recursive behavior
+            # (e.g., [".my_custom_parameter"]).
+            self.parameter_ids_to_track = []
+            add_pai_config_var_functions(
+                self,
+                "parameter_ids_to_track",
+                self.parameter_ids_to_track,
+                list_type=True,
             )
 
             # Replacement modules happen before the conversion,

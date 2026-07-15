@@ -422,7 +422,10 @@ def process_no_improvement(net):
             )
             if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                 print("For improved results, try perforated backpropagation next time!")
+        old_silent = GPA.pc.get_silent()
+        GPA.pc.set_silent(True)
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
+        GPA.pc.set_silent(old_silent)
         print('before graphs')
         GPA.pai_tracker.save_graphs()
         print('after graphs')
@@ -1541,7 +1544,7 @@ class PAINeuronModuleTracker:
         for layer in self.neuron_module_vector:
             layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
 
-    def set_optimizer_instance(self, optimizer_instance):
+    def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
 
         Parameters
@@ -1571,6 +1574,8 @@ class PAINeuronModuleTracker:
         self.member_vars["optimizer_instance"] = optimizer_instance
         if GPA.pc.get_perforated_backpropagation():
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
+            for optimizer in additional_optimizers:
+                TPB.filter_params(optimizer)
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later

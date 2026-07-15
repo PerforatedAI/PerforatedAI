@@ -239,6 +239,15 @@ def _percent_key_sort_key(percent_key: str) -> Tuple[int, float, str]:
     return (1, float("inf"), text)
 
 
+def _percent_key_to_float(percent_key: str) -> Optional[float]:
+    """Extract numeric percent value from keys like samp_50 or subj_75."""
+    text = str(percent_key)
+    match = re.search(r"_([0-9]+(?:\.[0-9]+)?)$", text)
+    if not match:
+        return None
+    return float(match.group(1))
+
+
 def _parse_split_values_arg(values: Optional[str], key_prefix: str) -> Optional[List[str]]:
     """Parse comma-separated percent values into normalized split keys.
 
@@ -1767,6 +1776,8 @@ def _create_data_percent_line_plot(
     sample_split_keys: Optional[Sequence[str]] = None,
     subject_split_keys: Optional[Sequence[str]] = None,
     subject_filter_key: Optional[str] = None,
+    draw_boxplots: bool = False,
+    average_repeats: bool = True,
 ) -> None:
     """Create a single line graph with one connected line per run.
 
@@ -1896,7 +1907,7 @@ def _create_data_percent_line_plot(
 
     has_repeated_groups = any(len(grouped_entry["run_ids"]) > 1 for grouped_entry in grouped.values())
 
-    if (has_sweep_number or has_repeated_groups) and run_data:
+    if average_repeats and (has_sweep_number or has_repeated_groups) and run_data:
 
         averaged_run_data: Dict[str, Dict[str, Any]] = {}
         for i, group_key in enumerate(sorted(grouped.keys())):
@@ -1940,6 +1951,40 @@ def _create_data_percent_line_plot(
             }
 
         run_data = averaged_run_data
+
+    # In non-averaged mode (used by boxplots), still enforce dendrite coverage
+    # threshold at the repeat-group level so sparse dendrites are excluded.
+    if (not average_repeats) and (dendrite_percent_to_graph is not None) and run_data:
+        allowed_dendrites_by_group: Dict[Tuple[str, str, str], set] = {}
+        for group_key, grouped_entry in grouped.items():
+            group_run_count = len(grouped_entry["run_ids"])
+            if group_run_count <= 0:
+                continue
+
+            allowed = {
+                dendrite_idx
+                for dendrite_idx, pair_list in grouped_entry["scores_accum"].items()
+                if (len(pair_list) / group_run_count) >= dendrite_percent_to_graph
+            }
+            allowed_dendrites_by_group[group_key] = allowed
+
+        filtered_run_data: Dict[str, Dict[str, Any]] = {}
+        for run_id, data in run_data.items():
+            group_key = (str(data["split_label"]), str(data["model_id"]), str(data["data_percent"]))
+            allowed = allowed_dendrites_by_group.get(group_key, set())
+            filtered_scores = {
+                dendrite_idx: pair
+                for dendrite_idx, pair in data["scores"].items()
+                if dendrite_idx in allowed
+            }
+            if not filtered_scores:
+                continue
+
+            new_data = dict(data)
+            new_data["scores"] = filtered_scores
+            filtered_run_data[run_id] = new_data
+
+        run_data = filtered_run_data
 
     if not run_data:
         split_text = f" for split '{split_filter}'" if split_filter is not None else ""
@@ -2055,6 +2100,76 @@ def _create_data_percent_line_plot(
                 alpha=0.8,
             )
 
+    def _plot_boxplots(ax, x_min_filter=None, x_max_filter=None) -> None:
+        grouped_values: Dict[Tuple[float, str, str], List[float]] = defaultdict(list)
+
+        for run_id in sorted(run_data.keys()):
+            data = run_data[run_id]
+            sample_key = str(data["sample_key"])
+            subject_key = str(data["subject_key"])
+            scores = data["scores"]
+            if not scores:
+                continue
+
+            for dendrite_idx in sorted(scores.keys()):
+                x, y = scores[dendrite_idx]
+                if x_min_filter is not None and x < x_min_filter:
+                    continue
+                if x_max_filter is not None and x > x_max_filter:
+                    continue
+                grouped_values[(float(x), sample_key, subject_key)].append(float(y))
+
+        if not grouped_values:
+            return
+
+        sorted_group_keys = sorted(
+            grouped_values.keys(),
+            key=lambda key: (
+                key[0],
+                _percent_key_sort_key(key[1]),
+                _percent_key_sort_key(key[2]),
+            ),
+        )
+
+        x_values_local = sorted({key[0] for key in sorted_group_keys})
+        x_span_local = x_values_local[-1] - x_values_local[0] if len(x_values_local) > 1 else 0.0
+        offset_step = max(1.0, x_span_local * 0.003)
+        box_width = max(1.0, x_span_local * 0.006)
+
+        x_to_group_keys: Dict[float, List[Tuple[float, str, str]]] = defaultdict(list)
+        for group_key in sorted_group_keys:
+            x_to_group_keys[group_key[0]].append(group_key)
+
+        for x_value in x_values_local:
+            same_x_groups = x_to_group_keys[x_value]
+            center = (len(same_x_groups) - 1) / 2.0
+            for i, group_key in enumerate(same_x_groups):
+                _, sample_key, _subject_key = group_key
+                y_values = grouped_values[group_key]
+                if len(y_values) < 2:
+                    continue
+                position = x_value + (i - center) * offset_step
+
+                artists = ax.boxplot(
+                    [y_values],
+                    positions=[position],
+                    widths=box_width,
+                    showfliers=False,
+                    patch_artist=True,
+                    manage_ticks=False,
+                )
+
+                color = sample_colors.get(sample_key, (0.2, 0.4, 0.8, 1.0))
+                artists["boxes"][0].set_facecolor((*color[:3], 0.35) if len(color) == 4 else (*color, 0.35))
+                artists["boxes"][0].set_edgecolor(color)
+                artists["boxes"][0].set_linewidth(1.2)
+                artists["medians"][0].set_color(color)
+                artists["medians"][0].set_linewidth(1.8)
+                for whisker in artists["whiskers"]:
+                    whisker.set_color(color)
+                for cap in artists["caps"]:
+                    cap.set_color(color)
+
     all_x = [scores_pair[0] for data in run_data.values() for scores_pair in data["scores"].values()]
     x_min = min(all_x)
     x_max = max(all_x)
@@ -2064,12 +2179,18 @@ def _create_data_percent_line_plot(
         fig, ax = plt.subplots(figsize=(10, 6))
         x_pad = max(1.0, x_span * 0.05)
         ax.set_xlim(x_min - x_pad, x_max + x_pad)
-        _plot_runs(ax)
+        if draw_boxplots:
+            _plot_boxplots(ax)
+        else:
+            _plot_runs(ax)
         _build_legend(ax)
-        split_title = f" [{split_filter}]" if split_filter is not None else ""
+        title_parts = [f"Score by Parameter Count ({metric_label})"]
+        if split_filter is not None:
+            title_parts.append(str(split_filter))
         if subject_filter_key is not None:
-            split_title += f" [{subject_labels.get(subject_filter_key, subject_filter_key)}]"
-        ax.set_title(f"Score by Parameter Count ({metric_label}){split_title}")
+            title_parts.append(str(subject_labels.get(subject_filter_key, subject_filter_key)))
+        box_title_suffix = " (Boxplot)" if draw_boxplots else ""
+        ax.set_title(" - ".join(title_parts) + box_title_suffix)
         ax.set_xlabel("Parameter Count")
         ax.set_ylabel(f"Max {metric_label} Score")
         ax.grid(axis="y", alpha=0.25)
@@ -2108,14 +2229,21 @@ def _create_data_percent_line_plot(
     ax_left.set_xlim(left_xlim_min, left_xlim_max)
     ax_right.set_xlim(right_xlim_min, right_xlim_max)
 
-    _plot_runs(ax_left, x_max_filter=break_start)
-    _plot_runs(ax_right, x_min_filter=break_end)
+    if draw_boxplots:
+        _plot_boxplots(ax_left, x_max_filter=break_start)
+        _plot_boxplots(ax_right, x_min_filter=break_end)
+    else:
+        _plot_runs(ax_left, x_max_filter=break_start)
+        _plot_runs(ax_right, x_min_filter=break_end)
 
     _build_legend(ax_right)
-    split_title = f" [{split_filter}]" if split_filter is not None else ""
+    title_parts = [f"Score by Parameter Count ({metric_label})"]
+    if split_filter is not None:
+        title_parts.append(str(split_filter))
     if subject_filter_key is not None:
-        split_title += f" [{subject_labels.get(subject_filter_key, subject_filter_key)}]"
-    ax_left.set_title(f"Score by Parameter Count ({metric_label}){split_title}")
+        title_parts.append(str(subject_labels.get(subject_filter_key, subject_filter_key)))
+    box_title_suffix = " (Boxplot)" if draw_boxplots else ""
+    ax_left.set_title(" - ".join(title_parts) + box_title_suffix)
     ax_left.set_xlabel("Parameter Count")
     ax_right.set_xlabel("Parameter Count")
     ax_left.set_ylabel(f"Max {metric_label} Score")
@@ -2139,6 +2267,640 @@ def _create_data_percent_line_plot(
     ax_left.plot([1, 1], [0, 1], transform=ax_left.transAxes, **marker_kwargs)
     ax_right.plot([0, 0], [0, 1], transform=ax_right.transAxes, **marker_kwargs)
 
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def _create_sample_split_average_plot(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+    output_path: str,
+    metric_label: str = "Val",
+    split_filter: str = "sample-split",
+    sample_split_keys: Optional[Sequence[str]] = None,
+    subject_split_keys: Optional[Sequence[str]] = None,
+    subject_filter_key: Optional[str] = None,
+    dendrite_percent_to_graph: Optional[float] = None,
+    flip_axes: bool = False,
+) -> None:
+    """Create sample-split average plot: d0 average vs best dendrite average.
+
+    X-axis: sample split percent.
+    Y-axis: score.
+    """
+    sample_data: Dict[str, Dict[str, Any]] = {}
+
+    for _, row in df.iterrows():
+        run_name = str(row.get("run_name", "")).strip()
+        run_id = str(row.get("run_id", "")).strip()
+        if not run_name or not run_id:
+            continue
+
+        if _extract_split_label(run_name) != split_filter:
+            continue
+
+        subject_key, _subject_label, sample_key, _sample_label = _extract_subject_sample_from_run_name(run_name)
+        if subject_key is None or sample_key is None:
+            continue
+
+        if sample_split_keys is not None and str(sample_key) not in sample_split_keys:
+            continue
+        if subject_split_keys is not None and str(subject_key) not in subject_split_keys:
+            continue
+        if subject_filter_key is not None and str(subject_key) != str(subject_filter_key):
+            continue
+
+        sample_entry = sample_data.setdefault(
+            str(sample_key),
+            {
+                "run_ids": set(),
+                "scores": defaultdict(list),
+                "run_ids_by_dendrite": defaultdict(set),
+            },
+        )
+        sample_entry["run_ids"].add(run_id)
+
+        for col in dendrite_columns:
+            model_id, dendrite_idx = _parse_model_and_dendrite(col)
+            if model_id is None or dendrite_idx is None:
+                continue
+            value = pd.to_numeric(row.get(col, None), errors="coerce")
+            if pd.isna(value):
+                continue
+            sample_entry["scores"][dendrite_idx].append(float(value))
+            sample_entry["run_ids_by_dendrite"][dendrite_idx].add(run_id)
+
+    if not sample_data:
+        raise ValueError("No sample-split run data found for average sample-split plot.")
+
+    x_vals: List[float] = []
+    d0_vals: List[float] = []
+    best_d_vals: List[float] = []
+
+    for sample_key in sorted(sample_data.keys(), key=_percent_key_sort_key):
+        sample_pct = _percent_key_to_float(sample_key)
+        if sample_pct is None:
+            continue
+
+        entry = sample_data[sample_key]
+        total_runs = len(entry["run_ids"])
+        if total_runs <= 0:
+            continue
+
+        allowed_dendrites: List[int] = []
+        for dendrite_idx in sorted(entry["scores"].keys()):
+            if dendrite_percent_to_graph is None:
+                allowed_dendrites.append(dendrite_idx)
+                continue
+            present_runs = len(entry["run_ids_by_dendrite"].get(dendrite_idx, set()))
+            if (present_runs / total_runs) >= dendrite_percent_to_graph:
+                allowed_dendrites.append(dendrite_idx)
+
+        if 0 not in allowed_dendrites:
+            continue
+
+        d0_scores = entry["scores"].get(0, [])
+        if not d0_scores:
+            continue
+
+        dendrite_candidates = [d for d in allowed_dendrites if d > 0 and entry["scores"].get(d)]
+        if not dendrite_candidates:
+            continue
+
+        best_avg = max(sum(entry["scores"][d]) / len(entry["scores"][d]) for d in dendrite_candidates)
+        d0_avg = sum(d0_scores) / len(d0_scores)
+
+        x_vals.append(sample_pct)
+        d0_vals.append(d0_avg)
+        best_d_vals.append(best_avg)
+
+    if not x_vals:
+        raise ValueError("No sample-split points passed filters for average sample-split plot.")
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    if flip_axes:
+        ax.plot(d0_vals, x_vals, marker="o", linewidth=2, markersize=5, label="Baseline Model")
+        ax.plot(best_d_vals, x_vals, marker="s", linewidth=2, markersize=5, label="Best Dendrite Average")
+    else:
+        ax.plot(x_vals, d0_vals, marker="o", linewidth=2, markersize=5, label="Baseline Model")
+        ax.plot(x_vals, best_d_vals, marker="s", linewidth=2, markersize=5, label="Best Dendrite Average")
+
+    title_parts = ["Sample-Split Averages", str(metric_label)]
+    if subject_filter_key is not None:
+        title_parts.append(str(subject_filter_key))
+    ax.set_title(" - ".join(title_parts))
+    if flip_axes:
+        ax.set_xlabel(f"Max {metric_label} Score")
+        ax.set_ylabel("Sample Split (%)")
+    else:
+        ax.set_xlabel("Sample Split (%)")
+        ax.set_ylabel(f"Max {metric_label} Score")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="best", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def _catmull_rom_smooth_series(
+    x_vals: Sequence[float],
+    y_vals: Sequence[float],
+    samples_per_segment: int = 40,
+) -> Tuple[List[float], List[float]]:
+    """Create a smooth curve through points using Catmull-Rom interpolation."""
+    points = sorted(zip(x_vals, y_vals), key=lambda p: p[0])
+    if len(points) < 3:
+        return [p[0] for p in points], [p[1] for p in points]
+
+    def _interp(p0: float, p1: float, p2: float, p3: float, t: float) -> float:
+        t2 = t * t
+        t3 = t2 * t
+        return 0.5 * (
+            (2.0 * p1)
+            + (-p0 + p2) * t
+            + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
+            + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+        )
+
+    smooth_x: List[float] = []
+    smooth_y: List[float] = []
+    n = len(points)
+
+    for i in range(n - 1):
+        x0, y0 = points[i - 1] if i > 0 else points[i]
+        x1, y1 = points[i]
+        x2, y2 = points[i + 1]
+        x3, y3 = points[i + 2] if (i + 2) < n else points[i + 1]
+
+        for j in range(samples_per_segment):
+            t = j / float(samples_per_segment)
+            smooth_x.append(_interp(x0, x1, x2, x3, t))
+            smooth_y.append(_interp(y0, y1, y2, y3, t))
+
+    smooth_x.append(points[-1][0])
+    smooth_y.append(points[-1][1])
+    return smooth_x, smooth_y
+
+
+def _find_left_intersection_x(
+    x_vals: Sequence[float],
+    y_vals: Sequence[float],
+    target_y: float,
+    start_x: float,
+) -> Optional[float]:
+    """Find the nearest intersection on/left of start_x for y(x)=target_y."""
+    if len(x_vals) < 2:
+        return None
+
+    best_x: Optional[float] = None
+    for i in range(len(x_vals) - 1):
+        x1, y1 = x_vals[i], y_vals[i]
+        x2, y2 = x_vals[i + 1], y_vals[i + 1]
+
+        seg_min_x = min(x1, x2)
+        seg_max_x = max(x1, x2)
+        if seg_min_x > start_x:
+            continue
+
+        if y1 == y2:
+            if y1 != target_y:
+                continue
+            candidate_x = min(start_x, seg_max_x)
+            if candidate_x >= seg_min_x and (best_x is None or candidate_x > best_x):
+                best_x = candidate_x
+            continue
+
+        if (target_y - y1) * (target_y - y2) > 0:
+            continue
+
+        t = (target_y - y1) / (y2 - y1)
+        if t < 0.0 or t > 1.0:
+            continue
+        candidate_x = x1 + t * (x2 - x1)
+        if candidate_x <= start_x and (best_x is None or candidate_x > best_x):
+            best_x = candidate_x
+
+    return best_x
+
+
+def _create_sample_split_average_plot_smoothed(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+    output_path: str,
+    metric_label: str = "Val",
+    split_filter: str = "sample-split",
+    sample_split_keys: Optional[Sequence[str]] = None,
+    subject_split_keys: Optional[Sequence[str]] = None,
+    subject_filter_key: Optional[str] = None,
+    dendrite_percent_to_graph: Optional[float] = None,
+) -> None:
+    """Create smoothed 2-line sample-split average chart without markers.
+
+    Includes a horizontal guide line from the top-right Baseline Model point
+    to where it intersects the Best Dendrite Average curve.
+    """
+    sample_data: Dict[str, Dict[str, Any]] = {}
+
+    for _, row in df.iterrows():
+        run_name = str(row.get("run_name", "")).strip()
+        run_id = str(row.get("run_id", "")).strip()
+        if not run_name or not run_id:
+            continue
+
+        if _extract_split_label(run_name) != split_filter:
+            continue
+
+        subject_key, _subject_label, sample_key, _sample_label = _extract_subject_sample_from_run_name(run_name)
+        if subject_key is None or sample_key is None:
+            continue
+
+        if sample_split_keys is not None and str(sample_key) not in sample_split_keys:
+            continue
+        if subject_split_keys is not None and str(subject_key) not in subject_split_keys:
+            continue
+        if subject_filter_key is not None and str(subject_key) != str(subject_filter_key):
+            continue
+
+        sample_entry = sample_data.setdefault(
+            str(sample_key),
+            {
+                "run_ids": set(),
+                "scores": defaultdict(list),
+                "run_ids_by_dendrite": defaultdict(set),
+            },
+        )
+        sample_entry["run_ids"].add(run_id)
+
+        for col in dendrite_columns:
+            model_id, dendrite_idx = _parse_model_and_dendrite(col)
+            if model_id is None or dendrite_idx is None:
+                continue
+            value = pd.to_numeric(row.get(col, None), errors="coerce")
+            if pd.isna(value):
+                continue
+            sample_entry["scores"][dendrite_idx].append(float(value))
+            sample_entry["run_ids_by_dendrite"][dendrite_idx].add(run_id)
+
+    if not sample_data:
+        raise ValueError("No sample-split run data found for smoothed average sample-split plot.")
+
+    x_vals: List[float] = []
+    d0_vals: List[float] = []
+    best_d_vals: List[float] = []
+
+    for sample_key in sorted(sample_data.keys(), key=_percent_key_sort_key):
+        sample_pct = _percent_key_to_float(sample_key)
+        if sample_pct is None:
+            continue
+
+        entry = sample_data[sample_key]
+        total_runs = len(entry["run_ids"])
+        if total_runs <= 0:
+            continue
+
+        allowed_dendrites: List[int] = []
+        for dendrite_idx in sorted(entry["scores"].keys()):
+            if dendrite_percent_to_graph is None:
+                allowed_dendrites.append(dendrite_idx)
+                continue
+            present_runs = len(entry["run_ids_by_dendrite"].get(dendrite_idx, set()))
+            if (present_runs / total_runs) >= dendrite_percent_to_graph:
+                allowed_dendrites.append(dendrite_idx)
+
+        if 0 not in allowed_dendrites:
+            continue
+
+        d0_scores = entry["scores"].get(0, [])
+        if not d0_scores:
+            continue
+
+        dendrite_candidates = [d for d in allowed_dendrites if d > 0 and entry["scores"].get(d)]
+        if not dendrite_candidates:
+            continue
+
+        best_avg = max(sum(entry["scores"][d]) / len(entry["scores"][d]) for d in dendrite_candidates)
+        d0_avg = sum(d0_scores) / len(d0_scores)
+
+        x_vals.append(sample_pct)
+        d0_vals.append(d0_avg)
+        best_d_vals.append(best_avg)
+
+    if not x_vals:
+        raise ValueError("No sample-split points passed filters for smoothed average sample-split plot.")
+
+    smooth_x_d0, smooth_y_d0 = _catmull_rom_smooth_series(x_vals, d0_vals)
+    smooth_x_best, smooth_y_best = _catmull_rom_smooth_series(x_vals, best_d_vals)
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    ax.plot(smooth_x_d0, smooth_y_d0, linewidth=2.2, label="Baseline Model")
+    ax.plot(smooth_x_best, smooth_y_best, linewidth=2.2, label="Best Dendrite Average")
+
+    top_right_idx = max(range(len(x_vals)), key=lambda i: x_vals[i])
+    top_right_x = x_vals[top_right_idx]
+    top_right_y = d0_vals[top_right_idx]
+    intersection_x = _find_left_intersection_x(smooth_x_best, smooth_y_best, top_right_y, top_right_x)
+    if intersection_x is not None and intersection_x < top_right_x:
+        ax.plot(
+            [intersection_x, top_right_x],
+            [top_right_y, top_right_y],
+            linestyle="--",
+            linewidth=1.5,
+            color="gray",
+            alpha=0.8,
+        )
+
+    title_parts = ["Sample-Split Averages", str(metric_label)]
+    if subject_filter_key is not None:
+        title_parts.append(str(subject_filter_key))
+    ax.set_title(" - ".join(title_parts))
+    ax.set_xlabel("Sample Split (%)")
+    ax.set_ylabel(f"Max {metric_label} Score")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="best", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def _create_subject_split_lines_by_sample_plot(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+    output_path: str,
+    metric_label: str = "Val",
+    split_filter: str = "sample-split",
+    sample_split_keys: Optional[Sequence[str]] = None,
+    subject_split_keys: Optional[Sequence[str]] = None,
+    dendrite_percent_to_graph: Optional[float] = None,
+    score_mode: str = "best_dendrite",
+) -> None:
+    """Create subject-on-x plots with one line per sample split.
+
+    score_mode:
+        - "d0": uses dendrite 0 average only
+        - "best_dendrite": uses best average across allowed dendrite > 0
+    """
+    if score_mode not in ("d0", "best_dendrite"):
+        raise ValueError(f"Unsupported score_mode: {score_mode}")
+
+    grouped: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+    for _, row in df.iterrows():
+        run_name = str(row.get("run_name", "")).strip()
+        run_id = str(row.get("run_id", "")).strip()
+        if not run_name or not run_id:
+            continue
+
+        if _extract_split_label(run_name) != split_filter:
+            continue
+
+        subject_key, _subject_label, sample_key, _sample_label = _extract_subject_sample_from_run_name(run_name)
+        if subject_key is None or sample_key is None:
+            continue
+
+        subject_key = str(subject_key)
+        sample_key = str(sample_key)
+        if sample_split_keys is not None and sample_key not in sample_split_keys:
+            continue
+        if subject_split_keys is not None and subject_key not in subject_split_keys:
+            continue
+
+        key = (subject_key, sample_key)
+        entry = grouped.setdefault(
+            key,
+            {
+                "run_ids": set(),
+                "scores": defaultdict(list),
+                "run_ids_by_dendrite": defaultdict(set),
+            },
+        )
+        entry["run_ids"].add(run_id)
+
+        for col in dendrite_columns:
+            model_id, dendrite_idx = _parse_model_and_dendrite(col)
+            if model_id is None or dendrite_idx is None:
+                continue
+            value = pd.to_numeric(row.get(col, None), errors="coerce")
+            if pd.isna(value):
+                continue
+            entry["scores"][dendrite_idx].append(float(value))
+            entry["run_ids_by_dendrite"][dendrite_idx].add(run_id)
+
+    if not grouped:
+        raise ValueError("No sample-split run data found for subject-split-by-sample plot.")
+
+    subjects_sorted = sorted({k[0] for k in grouped.keys()}, key=_percent_key_sort_key)
+    samples_sorted = sorted({k[1] for k in grouped.keys()}, key=_percent_key_sort_key)
+    if not subjects_sorted or not samples_sorted:
+        raise ValueError("No subject/sample keys available for subject-split-by-sample plot.")
+
+    x_subjects: List[float] = []
+    for subject_key in subjects_sorted:
+        subject_pct = _percent_key_to_float(subject_key)
+        if subject_pct is None:
+            continue
+        x_subjects.append(subject_pct)
+
+    if not x_subjects:
+        raise ValueError("Could not parse subject split percentages for x-axis.")
+
+    cmap = plt.get_cmap("viridis")
+    sample_colors = {
+        sample_key: cmap(i / max(1, len(samples_sorted) - 1))
+        for i, sample_key in enumerate(samples_sorted)
+    }
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+
+    plotted_any = False
+    for sample_key in samples_sorted:
+        x_vals: List[float] = []
+        y_vals: List[float] = []
+
+        for subject_key in subjects_sorted:
+            key = (subject_key, sample_key)
+            if key not in grouped:
+                continue
+
+            entry = grouped[key]
+            total_runs = len(entry["run_ids"])
+            if total_runs <= 0:
+                continue
+
+            allowed_dendrites: List[int] = []
+            for dendrite_idx in sorted(entry["scores"].keys()):
+                if dendrite_percent_to_graph is None:
+                    allowed_dendrites.append(dendrite_idx)
+                    continue
+                present_runs = len(entry["run_ids_by_dendrite"].get(dendrite_idx, set()))
+                if (present_runs / total_runs) >= dendrite_percent_to_graph:
+                    allowed_dendrites.append(dendrite_idx)
+
+            y_value: Optional[float] = None
+            if score_mode == "d0":
+                if 0 in allowed_dendrites and entry["scores"].get(0):
+                    vals = entry["scores"][0]
+                    y_value = sum(vals) / len(vals)
+            else:
+                candidates = [d for d in allowed_dendrites if d > 0 and entry["scores"].get(d)]
+                if candidates:
+                    y_value = max(sum(entry["scores"][d]) / len(entry["scores"][d]) for d in candidates)
+
+            if y_value is None:
+                continue
+
+            subject_pct = _percent_key_to_float(subject_key)
+            if subject_pct is None:
+                continue
+            x_vals.append(subject_pct)
+            y_vals.append(y_value)
+
+        if x_vals and y_vals:
+            label = f"samp={_percent_key_to_float(sample_key):g}%" if _percent_key_to_float(sample_key) is not None else sample_key
+            ax.plot(
+                x_vals,
+                y_vals,
+                marker="o",
+                linewidth=2,
+                markersize=5,
+                color=sample_colors[sample_key],
+                label=label,
+            )
+            plotted_any = True
+
+    if not plotted_any:
+        plt.close(fig)
+        raise ValueError("No points passed filters for subject-split-by-sample plot.")
+
+    mode_label = "Baseline Model" if score_mode == "d0" else "Best Dendrite Average"
+    ax.set_title(f"Subject-Split Lines by Sample ({metric_label}) - {mode_label}")
+    ax.set_xlabel("Subject Split (%)")
+    ax.set_ylabel(f"Max {metric_label} Score")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def _create_subject_split_two_line_plot_for_sample(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+    output_path: str,
+    sample_filter_key: str,
+    metric_label: str = "Val",
+    split_filter: str = "sample-split",
+    subject_split_keys: Optional[Sequence[str]] = None,
+    dendrite_percent_to_graph: Optional[float] = None,
+) -> None:
+    """Create one subject-axis chart for a specific sample split with 2 lines.
+
+    Lines:
+      - d0 average
+      - best dendrite average (best non-zero dendrite among allowed dendrites)
+    """
+    grouped: Dict[str, Dict[str, Any]] = {}
+
+    for _, row in df.iterrows():
+        run_name = str(row.get("run_name", "")).strip()
+        run_id = str(row.get("run_id", "")).strip()
+        if not run_name or not run_id:
+            continue
+
+        if _extract_split_label(run_name) != split_filter:
+            continue
+
+        subject_key, _subject_label, sample_key, _sample_label = _extract_subject_sample_from_run_name(run_name)
+        if subject_key is None or sample_key is None:
+            continue
+
+        subject_key = str(subject_key)
+        sample_key = str(sample_key)
+        if sample_key != str(sample_filter_key):
+            continue
+        if subject_split_keys is not None and subject_key not in subject_split_keys:
+            continue
+
+        entry = grouped.setdefault(
+            subject_key,
+            {
+                "run_ids": set(),
+                "scores": defaultdict(list),
+                "run_ids_by_dendrite": defaultdict(set),
+            },
+        )
+        entry["run_ids"].add(run_id)
+
+        for col in dendrite_columns:
+            model_id, dendrite_idx = _parse_model_and_dendrite(col)
+            if model_id is None or dendrite_idx is None:
+                continue
+            value = pd.to_numeric(row.get(col, None), errors="coerce")
+            if pd.isna(value):
+                continue
+            entry["scores"][dendrite_idx].append(float(value))
+            entry["run_ids_by_dendrite"][dendrite_idx].add(run_id)
+
+    if not grouped:
+        raise ValueError(
+            f"No sample-split run data found for subject-axis two-line plot ({sample_filter_key})."
+        )
+
+    subjects_sorted = sorted(grouped.keys(), key=_percent_key_sort_key)
+
+    x_vals: List[float] = []
+    d0_vals: List[float] = []
+    best_d_vals: List[float] = []
+
+    for subject_key in subjects_sorted:
+        subject_pct = _percent_key_to_float(subject_key)
+        if subject_pct is None:
+            continue
+
+        entry = grouped[subject_key]
+        total_runs = len(entry["run_ids"])
+        if total_runs <= 0:
+            continue
+
+        allowed_dendrites: List[int] = []
+        for dendrite_idx in sorted(entry["scores"].keys()):
+            if dendrite_percent_to_graph is None:
+                allowed_dendrites.append(dendrite_idx)
+                continue
+            present_runs = len(entry["run_ids_by_dendrite"].get(dendrite_idx, set()))
+            if (present_runs / total_runs) >= dendrite_percent_to_graph:
+                allowed_dendrites.append(dendrite_idx)
+
+        if 0 not in allowed_dendrites or not entry["scores"].get(0):
+            continue
+
+        candidates = [d for d in allowed_dendrites if d > 0 and entry["scores"].get(d)]
+        if not candidates:
+            continue
+
+        d0_avg = sum(entry["scores"][0]) / len(entry["scores"][0])
+        best_avg = max(sum(entry["scores"][d]) / len(entry["scores"][d]) for d in candidates)
+
+        x_vals.append(subject_pct)
+        d0_vals.append(d0_avg)
+        best_d_vals.append(best_avg)
+
+    if not x_vals:
+        raise ValueError(
+            f"No subject points passed filters for sample {sample_filter_key} in subject-axis two-line plot."
+        )
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+    ax.plot(x_vals, d0_vals, marker="o", linewidth=2, markersize=5, label="Baseline Model")
+    ax.plot(x_vals, best_d_vals, marker="s", linewidth=2, markersize=5, label="Best Dendrite Average")
+
+    sample_pct = _percent_key_to_float(str(sample_filter_key))
+    sample_label = f"samp={sample_pct:g}%" if sample_pct is not None else str(sample_filter_key)
+    ax.set_title(f"Subject-Split Two-Line Averages ({metric_label}) [{sample_label}]")
+    ax.set_xlabel("Subject Split (%)")
+    ax.set_ylabel(f"Max {metric_label} Score")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="best", fontsize=9)
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
@@ -2281,6 +3043,25 @@ def main() -> None:
             )
             created_files.append(line_plot_path)
 
+            line_plot_box_path = os.path.join(output_dir, f"data_percent_line_plot_{metric_key}_boxplot.png")
+            _create_data_percent_line_plot(
+                df,
+                metric_columns,
+                param_counts_by_column,
+                line_plot_box_path,
+                model_name_map=model_name_map,
+                metric_label=metric_label,
+                x_break=x_break,
+                require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                expected_repeat_count=args.expected_repeat_count,
+                dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                sample_split_keys=sample_split_keys,
+                subject_split_keys=subject_split_keys,
+                draw_boxplots=True,
+                average_repeats=False,
+            )
+            created_files.append(line_plot_box_path)
+
             for split_mode in split_modes:
                 split_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", split_mode)
                 split_plot_path = os.path.join(
@@ -2303,6 +3084,29 @@ def main() -> None:
                     subject_split_keys=subject_split_keys,
                 )
                 created_files.append(split_plot_path)
+
+                split_plot_box_path = os.path.join(
+                    output_dir,
+                    f"data_percent_line_plot_{metric_key}_{split_safe}_boxplot.png",
+                )
+                _create_data_percent_line_plot(
+                    df,
+                    metric_columns,
+                    param_counts_by_column,
+                    split_plot_box_path,
+                    model_name_map=model_name_map,
+                    metric_label=metric_label,
+                    x_break=x_break,
+                    split_filter=split_mode,
+                    require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                    expected_repeat_count=args.expected_repeat_count,
+                    dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                    sample_split_keys=sample_split_keys,
+                    subject_split_keys=subject_split_keys,
+                    draw_boxplots=True,
+                    average_repeats=False,
+                )
+                created_files.append(split_plot_box_path)
 
             if sample_only_split_mode is not None:
                 sample_split_subject_keys = sorted(
@@ -2346,6 +3150,121 @@ def main() -> None:
                         subject_filter_key=subject_key,
                     )
                     created_files.append(split_subject_plot_path)
+
+                    split_subject_box_plot_path = os.path.join(
+                        output_dir,
+                        f"data_percent_line_plot_{metric_key}_{split_safe}_{subject_safe}_boxplot.png",
+                    )
+                    _create_data_percent_line_plot(
+                        df,
+                        metric_columns,
+                        param_counts_by_column,
+                        split_subject_box_plot_path,
+                        model_name_map=model_name_map,
+                        metric_label=metric_label,
+                        x_break=x_break,
+                        split_filter=sample_only_split_mode,
+                        require_complete_repeat_dendrites=args.require_complete_repeat_dendrites,
+                        expected_repeat_count=args.expected_repeat_count,
+                        dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                        sample_split_keys=sample_split_keys,
+                        subject_split_keys=subject_split_keys,
+                        subject_filter_key=subject_key,
+                        draw_boxplots=True,
+                        average_repeats=False,
+                    )
+                    created_files.append(split_subject_box_plot_path)
+
+                for subject_key in sample_split_subject_keys:
+                    subject_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", subject_key)
+                    sample_average_plot_path = os.path.join(
+                        output_dir,
+                        f"sample_split_average_lines_{metric_key}_{subject_safe}.png",
+                    )
+                    _create_sample_split_average_plot(
+                        df,
+                        metric_columns,
+                        sample_average_plot_path,
+                        metric_label=metric_label,
+                        split_filter=sample_only_split_mode,
+                        sample_split_keys=sample_split_keys,
+                        subject_split_keys=subject_split_keys,
+                        subject_filter_key=subject_key,
+                        dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                    )
+                    created_files.append(sample_average_plot_path)
+
+                    if metric_key == "test" and str(subject_key) == "subj_100":
+                        sample_average_flipped_plot_path = os.path.join(
+                            output_dir,
+                            f"sample_split_average_lines_{metric_key}_{subject_safe}_flipped.png",
+                        )
+                        _create_sample_split_average_plot(
+                            df,
+                            metric_columns,
+                            sample_average_flipped_plot_path,
+                            metric_label=metric_label,
+                            split_filter=sample_only_split_mode,
+                            sample_split_keys=sample_split_keys,
+                            subject_split_keys=subject_split_keys,
+                            subject_filter_key=subject_key,
+                            dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                            flip_axes=True,
+                        )
+                        created_files.append(sample_average_flipped_plot_path)
+
+                        sample_average_smoothed_plot_path = os.path.join(
+                            output_dir,
+                            f"sample_split_average_lines_{metric_key}_{subject_safe}_smoothed.png",
+                        )
+                        _create_sample_split_average_plot_smoothed(
+                            df,
+                            metric_columns,
+                            sample_average_smoothed_plot_path,
+                            metric_label=metric_label,
+                            split_filter=sample_only_split_mode,
+                            sample_split_keys=sample_split_keys,
+                            subject_split_keys=subject_split_keys,
+                            subject_filter_key=subject_key,
+                            dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                        )
+                        created_files.append(sample_average_smoothed_plot_path)
+
+                sample_split_keys_for_subject_plots = sorted(
+                    {
+                        str(sample_key)
+                        for run_name in df["run_name"].dropna().astype(str)
+                        if _extract_split_label(run_name) == sample_only_split_mode
+                        for sample_key in [_extract_subject_sample_from_run_name(run_name)[2]]
+                        if sample_key is not None
+                    },
+                    key=_percent_key_sort_key,
+                    reverse=True,
+                )
+
+                if sample_split_keys is not None:
+                    sample_split_keys_for_subject_plots = [
+                        key for key in sample_split_keys_for_subject_plots if key in set(sample_split_keys)
+                    ]
+
+                split_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", sample_only_split_mode)
+                for sample_key in sample_split_keys_for_subject_plots:
+                    sample_safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", sample_key)
+                    subject_two_line_path = os.path.join(
+                        output_dir,
+                        f"subject_split_two_line_{metric_key}_{split_safe}_{sample_safe}.png",
+                    )
+                    _create_subject_split_two_line_plot_for_sample(
+                        df,
+                        metric_columns,
+                        subject_two_line_path,
+                        sample_filter_key=sample_key,
+                        metric_label=metric_label,
+                        split_filter=sample_only_split_mode,
+                        subject_split_keys=subject_split_keys,
+                        dendrite_percent_to_graph=args.dendrite_percent_to_graph,
+                    )
+                    created_files.append(subject_two_line_path)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
