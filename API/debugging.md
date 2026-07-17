@@ -433,15 +433,27 @@ This means you are trying to perforate a model that has already been perforated.
     
     These functions are applied after the computation graph is created from the forward pass and types within both PB and the original model are set.  Then when they make adjustments to tensors within the model they do not make the equivilent changes to the tensors in the PB version of the model.  At the moment there is not a workaround for this, so if you encounter this error you just have to turn off loss scaling.
 
+## AMP - No inf checks were recorded
+
+    AssertionError: No inf checks were recorded for this optimizer.
+
+This error can sometimes come up when amp is being used with perforatedbp.  The workaround is to not use AMP during 'p' learning mode such as with the block below.
+
+    if scaler is not None and GPA.pai_tracker.member_vars['mode'] != 'p':
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+    else:
+        loss.backward()
+        optimizer.step()
+
+
 ## Errors that are currently not fixable
 
 ### Centered RMSprop cusing nan
 
     We are aware that with RMSprop centered = True can cause correlations to be calculated as nan.  For now, just set the setting to not be centered or pick an alternative optimizer.
 
-### No inf checks were recorded prior to update
-
-This error can sometimes come up when amp is being used.  We currently do not have a working around for this.
 
 ## Extra Debugging
 

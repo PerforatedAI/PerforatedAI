@@ -1577,6 +1577,7 @@ class PAINeuronModuleTracker:
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
             for optimizer in additional_optimizers:
                 TPB.filter_params(optimizer)
+        optimizer_instance.zero_grad()
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later

@@ -668,7 +668,7 @@ class PAIConfig:
             # Resets score on switch
             # This can be useful if you need many epochs to catch up to the best score
             # from the previous version after adding dendrites
-            self.reset_best_score_on_switch = False
+            self.reset_best_score_on_switch = True
             add_pai_config_var_functions(
                 self, "reset_best_score_on_switch", self.reset_best_score_on_switch
             )
