@@ -104,7 +104,11 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 "Setting custom module config values should only be done "
                 "from JSON config files or the GUI"
             )
-        if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+        if var_name in (
+            "module_ids_to_track",
+            "module_ids_to_perforate",
+            "parameter_ids_to_track",
+        ):
             for module_id in value:
                 _validate_module_id(module_id)
         setattr(self, private_name, value)
@@ -124,7 +128,11 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     def appender(self, value):
         """Append a value to the property if it is a list."""
         if isinstance(getattr(self, private_name), list):
-            if var_name in ("module_ids_to_track", "module_ids_to_perforate"):
+            if var_name in (
+                "module_ids_to_track",
+                "module_ids_to_perforate",
+                "parameter_ids_to_track",
+            ):
                 for module_id in value:
                     _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
@@ -378,6 +386,8 @@ class PAIConfig:
                 "candidate_weight_init_by_main",
                 "perforated_backpropagation",
                 "weight_tying_experimental",
+                "dashboard_events_enabled",
+                "dashboard_debug",
             )
         },
         **{
@@ -403,7 +413,7 @@ class PAIConfig:
                 "candidate_weight_initialization_multiplier",
             )
         },
-        **{k: str for k in ("save_name", "library_validation_score")},
+        **{k: str for k in ("save_name", "library_validation_score", "dashboard_url")},
         "device": torch.device,
         "d_type": torch.dtype,
         "pai_forward_function": callable,
@@ -416,6 +426,7 @@ class PAIConfig:
                 "module_ids_to_perforate",
                 "module_names_to_track",
                 "module_ids_to_track",
+                "parameter_ids_to_track",
                 "module_names_with_processing",
                 "module_names_to_not_save",
                 "library_extra_scores",
@@ -518,7 +529,6 @@ class PAIConfig:
             self.device = torch.device("cuda" if self.use_cuda else "cpu")
             add_pai_config_var_functions(self, "device", self.device)
 
-            # User should never set this manually
             self.save_name = ""
             add_pai_config_var_functions(self, "save_name", self.save_name)
 
@@ -658,7 +668,7 @@ class PAIConfig:
             # Resets score on switch
             # This can be useful if you need many epochs to catch up to the best score
             # from the previous version after adding dendrites
-            self.reset_best_score_on_switch = False
+            self.reset_best_score_on_switch = True
             add_pai_config_var_functions(
                 self, "reset_best_score_on_switch", self.reset_best_score_on_switch
             )
@@ -763,6 +773,16 @@ class PAIConfig:
                 self, "module_ids_to_track", self.module_ids_to_track, list_type=True
             )
 
+            # Parameter IDs to track as neuron parameters without recursive behavior
+            # (e.g., [".my_custom_parameter"]).
+            self.parameter_ids_to_track = []
+            add_pai_config_var_functions(
+                self,
+                "parameter_ids_to_track",
+                self.parameter_ids_to_track,
+                list_type=True,
+            )
+
             # Replacement modules happen before the conversion,
             # so replaced modules will then also be run through the conversion steps
             # These are for modules that need to be replaced before addition of dendrites
@@ -835,6 +855,20 @@ class PAIConfig:
             self.weight_tying_experimental = False
             add_pai_config_var_functions(
                 self, "weight_tying_experimental", self.weight_tying_experimental
+            )
+
+            # Dashboard event streaming settings
+            self.dashboard_events_enabled = False
+            add_pai_config_var_functions(
+                self, "dashboard_events_enabled", self.dashboard_events_enabled
+            )
+            self.dashboard_url = "http://localhost:3002"
+            add_pai_config_var_functions(
+                self, "dashboard_url", self.dashboard_url
+            )
+            self.dashboard_debug = False
+            add_pai_config_var_functions(
+                self, "dashboard_debug", self.dashboard_debug
             )
 
             # These are settings where libraries must be doing the scoring adding to

@@ -21,7 +21,7 @@
 
 ## Introduction
 
-Perforated is a data-efficiency layer for machine learning. By adding neuron-specific learning signals during training, Perforated helps models achieve higher accuracy with fewer parameters, less data, and lower deployment costs. It integrates directly into existing PyTorch workflows with minimal code changes. Perforated is part of the [PyTorch Landscape][pytorch-landscape].
+Perforated is a data-efficiency layer for machine learning that adds artificial **dendrites** to your neural network. By adding neuron-specific learning signals during training, Perforated helps models achieve higher accuracy with fewer parameters, less data, and lower deployment costs. It integrates directly into existing PyTorch workflows with minimal code changes. Perforated is part of the [PyTorch Landscape][pytorch-landscape].
 
 ## 📊 Key Results
 

@@ -21,6 +21,11 @@ from perforatedai import blockwise_perforatedai as BPA
 from perforatedai import network_perforatedai as NPA
 
 try:
+    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+except ImportError:
+    _dashboard_emitter = None
+
+try:
     from perforatedbp import utils_pbp as UPB
     from perforatedbp import modules_pbp as MPB
 except ModuleNotFoundError as e:
@@ -41,7 +46,7 @@ from safetensors.torch import safe_open
 def perforate_model(
     model,
     doing_pai=True,
-    save_name="PAI",
+    save_name="",
     making_graphs=True,
     maximizing_score=True,
     num_classes=10000000000,
@@ -85,6 +90,12 @@ def perforate_model(
 
     """
 
+    if save_name == "":
+        if GPA.pc.get_save_name() == "":
+            save_name = "PAI"
+        else:
+            save_name = GPA.pc.get_save_name()
+
     if "/" in save_name:
         print(
             f"Warning: save_name '{save_name}' contains '/'. Relative paths are not implemented yet."
@@ -110,6 +121,8 @@ def perforate_model(
         doing_pai=doing_pai, save_name=save_name
     )
     GPA.pc.set_save_name(save_name)
+    if _dashboard_emitter is not None:
+        _dashboard_emitter.emit_run_start(GPA.pc, save_name)
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
@@ -552,6 +565,15 @@ def convert_module(
                 continue
             sub_name = name_so_far + "." + member
             member_obj = getattr(net, member, None)
+
+            if isinstance(member_obj, (torch.nn.Parameter, torch.nn.parameter.Parameter)):
+                if sub_name in GPA.pc.get_parameter_ids_to_track():
+                    if GPA.pc.get_verbose():
+                        print("tracking parameter by ID: %s" % sub_name)
+                    member_obj.parameter_type = "neuron"
+                    member_obj.wrapped = True
+                continue
+
             # Track module object ids once at this level so duplicate aliases are
             # caught consistently (including direct children of the root module).
             if isinstance(member_obj, nn.Module):
@@ -1549,7 +1571,10 @@ def load_net_from_dict(net, state_dict):
                 print(
                     "\n5 - if you are not properly calling backward at all."
                     " If this is the first module in your network it is more"
-                    "likely this is the problem"
+                    "likely this is the problem."
+                    "One check in these cases is to make sure you do not call an initial validation score"
+                    "before the first backward call.\nIf you do this, while testing_dendrite_capacity is True"
+                    "this error will be triggered."
                 )
                 print(
                     "\n6 - You have converted a module that is in a frozen"

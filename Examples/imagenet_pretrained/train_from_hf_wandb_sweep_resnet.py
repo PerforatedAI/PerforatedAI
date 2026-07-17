@@ -13,10 +13,12 @@ python train_from_hf_wandb_sweep.py --model resnet-34 --dataset flowers102
 """
 
 import datetime
+from collections import defaultdict
 import os
 import shutil
 import sys
 import time
+import traceback
 import torch
 import torch.utils.data
 import torchvision
@@ -37,7 +39,7 @@ from perforatedai import globals_perforatedai as GPA
 # TODO: Remove later and do not duplicate if you are making a new sweep
 # Allows loading old checkpoints that are missing new fields like nodes_improved_any
 GPA.pc.set_strict_loading(False)
-
+#GPA.pc.set_test_saves(False)
 
 def get_dataset_config(dataset_name):
     """Get recommended hyperparameters for each dataset
@@ -82,6 +84,30 @@ def get_dataset_config(dataset_name):
             "label_smoothing": 0.0,
             "use_pretrained": True,  # Use pretrained weights
         },
+        "cifar100": {
+            "num_classes": 100,
+            "image_size": 32,
+            "epochs": 200,
+            "batch_size": 128,
+            "lr": 0.1,
+            "lr_scheduler": "cosineannealinglr",
+            "weight_decay": 5e-4,
+            "lr_warmup_epochs": 0,
+            "label_smoothing": 0.0,
+            "use_pretrained": False,
+        },
+        "cifar10": {
+            "num_classes": 10,
+            "image_size": 32,
+            "epochs": 200,
+            "batch_size": 128,
+            "lr": 0.1,
+            "lr_scheduler": "cosineannealinglr",
+            "weight_decay": 5e-4,
+            "lr_warmup_epochs": 0,
+            "label_smoothing": 0.0,
+            "use_pretrained": False,
+        },
 
     }
     return configs.get(dataset_name.lower(), configs["flowers102"])
@@ -122,10 +148,10 @@ def train_one_epoch(
     return metric_logger.acc1.global_avg, metric_logger.loss.global_avg
 
 
-def evaluate(model, criterion, data_loader, device, print_freq=100):
+def evaluate(model, criterion, data_loader, device, print_freq=100, split_name="Eval"):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
-    header = "Test:"
+    header = f"{split_name}:"
 
     with torch.inference_mode():
         for image, target in metric_logger.log_every(data_loader, print_freq, header):
@@ -231,6 +257,60 @@ def measure_inference_latency(model, data_loader, device, warmup_batches=10):
     return results
 
 
+def _get_dataset_targets(dataset):
+    """Extract class labels from common torchvision dataset target fields."""
+    for attr_name in ("targets", "labels", "_labels"):
+        if hasattr(dataset, attr_name):
+            targets = getattr(dataset, attr_name)
+            if isinstance(targets, torch.Tensor):
+                targets = targets.tolist()
+            elif not isinstance(targets, list):
+                targets = list(targets)
+            if len(targets) == len(dataset):
+                return targets
+    raise ValueError(
+        f"Could not find dataset targets for {dataset.__class__.__name__}. "
+        "Expected one of: targets, labels, _labels"
+    )
+
+
+def class_balanced_split(dataset, seed=42):
+    """Split dataset into class-balanced val/test subsets.
+
+    For each class, this uses floor(count/2) samples in val and floor(count/2) in test.
+    If a class has an odd count, one sample from that class is dropped to keep an equal
+    class count in both subsets.
+    """
+    targets = _get_dataset_targets(dataset)
+    class_to_indices = defaultdict(list)
+    for idx, label in enumerate(targets):
+        class_to_indices[int(label)].append(idx)
+
+    generator = torch.Generator().manual_seed(seed)
+    val_indices = []
+    test_indices = []
+    dropped_count = 0
+
+    for class_id in sorted(class_to_indices.keys()):
+        class_indices = class_to_indices[class_id]
+        perm = torch.randperm(len(class_indices), generator=generator).tolist()
+        shuffled_indices = [class_indices[i] for i in perm]
+
+        per_split = len(shuffled_indices) // 2
+        val_indices.extend(shuffled_indices[:per_split])
+        test_indices.extend(shuffled_indices[per_split : 2 * per_split])
+        dropped_count += len(shuffled_indices) - (2 * per_split)
+
+    if dropped_count > 0:
+        print(
+            f"Dropped {dropped_count} samples to keep per-class val/test counts equal"
+        )
+
+    dataset_val = torch.utils.data.Subset(dataset, val_indices)
+    dataset_test = torch.utils.data.Subset(dataset, test_indices)
+    return dataset_val, dataset_test
+
+
 def load_dataset(dataset_name, data_path, batch_size, workers):
     """Load dataset with standard preprocessing."""
     print(f"Loading {dataset_name} dataset from {data_path}")
@@ -265,6 +345,13 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
             "test_split": False,
             "dataset_class": torchvision.datasets.CIFAR100,
         },
+        "cifar10": {
+            "num_classes": 10,
+            "img_size": 32,
+            "train_split": True,  # CIFAR uses True/False
+            "test_split": False,
+            "dataset_class": torchvision.datasets.CIFAR10,
+        },
         "stl10": {
             "num_classes": 10,
             "img_size": 96,
@@ -284,6 +371,7 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
     interpolation = InterpolationMode.BILINEAR
 
     # Training transforms
+    ## TODO: if running more experiments in the future transforms should be per dataset.
     train_transform = torchvision.transforms.Compose(
         [
             torchvision.transforms.RandomResizedCrop(
@@ -311,7 +399,7 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
     )
 
     # Load datasets based on type
-    if dataset_name == "cifar100":
+    if dataset_name in ("cifar100", "cifar10"):
         dataset_train = config["dataset_class"](
             root=data_path,
             train=config["train_split"],
@@ -351,7 +439,11 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
             transform=val_transform,
         )
 
+    # Split original evaluation set into class-balanced validation and test subsets.
+    dataset_val, dataset_test = class_balanced_split(dataset_test, seed=42)
+
     print(f"Train dataset size: {len(dataset_train)}")
+    print(f"Validation dataset size: {len(dataset_val)}")
     print(f"Test dataset size: {len(dataset_test)}")
 
     # Create data loaders
@@ -369,8 +461,15 @@ def load_dataset(dataset_name, data_path, batch_size, workers):
         num_workers=workers,
         pin_memory=True,
     )
+    val_loader = torch.utils.data.DataLoader(
+        dataset_val,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=workers,
+        pin_memory=True,
+    )
 
-    return train_loader, test_loader, config["num_classes"]
+    return train_loader, val_loader, test_loader, config["num_classes"]
 
 
 def load_model(model_name, num_classes, perforate=False, dataset_name=None):
@@ -689,7 +788,7 @@ def load_model(model_name, num_classes, perforate=False, dataset_name=None):
     return model
 
 
-def train_single_run(args, train_loader, test_loader, num_classes):
+def train_single_run(args, train_loader, val_loader, test_loader, num_classes):
     """Perform a single training run and return best accuracy and epoch."""
     device = torch.device(args.device)
 
@@ -799,14 +898,18 @@ def train_single_run(args, train_loader, test_loader, num_classes):
     start_time = time.time()
     best_acc1 = 0.0
     best_epoch = 0
+    best_train_metric = 0.0
+    best_test_metric = 0.0
 
     # For perforated models: arch logging variables
     if perforate:
         last_logged_integrated = -1  # Track last num_dendrites_integrated we logged (-1 = nothing logged yet)
         max_val = 0
+        max_test = 0
         max_train = 0
         max_params = 0
         global_max_val = 0
+        global_max_test = 0
         global_max_train = 0
         global_max_params = 0
 
@@ -824,32 +927,40 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 epoch,
                 args.print_freq,
             )
-            test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+            val_acc1, val_loss = evaluate(
+                model, criterion, val_loader, device, split_name="Val"
+            )
+            test_acc1, test_loss = evaluate(
+                model, criterion, test_loader, device, split_name="Test"
+            )
 
             # Track best accuracy for this architecture (only during neuron training, not dendrite training)
             current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
-            if current_mode == "n" and test_acc1 > max_val:
-                max_val = test_acc1
+            if current_mode == "n" and val_acc1 > max_val:
+                max_val = val_acc1
+                max_test = test_acc1
                 max_train = train_acc1
                 max_params = UPA.count_params(model)
 
             # Track global best (only during neuron training)
-            if current_mode == "n" and test_acc1 > global_max_val:
-                global_max_val = test_acc1
+            if current_mode == "n" and val_acc1 > global_max_val:
+                global_max_val = val_acc1
+                global_max_test = test_acc1
                 global_max_train = train_acc1
                 global_max_params = UPA.count_params(model)
 
             # Track best for return (only n mode for perforated, since d mode improvements won't be saved)
-            if current_mode == "n" and test_acc1 > best_acc1:
-                best_acc1 = test_acc1
+            if current_mode == "n" and val_acc1 > best_acc1:
+                best_acc1 = val_acc1
                 best_epoch = epoch + 1
 
             # Add extra scores for training metrics (must be after add_validation_score)
             GPA.pai_tracker.add_extra_score(train_acc1, "Train Acc 1")
+            GPA.pai_tracker.add_extra_score(test_acc1, "Test Acc 1")
             GPA.pc.set_verbose(True)
             # Add validation score to PAI tracker
             model, restructured, training_complete = (
-                GPA.pai_tracker.add_validation_score(test_acc1, model)
+                GPA.pai_tracker.add_validation_score(val_acc1, model)
             )
             GPA.pc.set_verbose(False)
             model = model.to(device)
@@ -863,16 +974,20 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         # Debug prints
                         print(f"DEBUG: Logging arch scores for dendrite count {current_integrated}")
                         print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
-                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                        print(
+                            f"  Max val: {max_val}, Max test: {max_test}, Max train: {max_train}"
+                        )
                         
                         # Log with architecture-specific metric names to prevent overwriting
                         wandb.log(
                             {
                                 f"Arch_{current_integrated}_Max_Val": max_val,
+                                f"Arch_{current_integrated}_Max_Test": max_test,
                                 f"Arch_{current_integrated}_Max_Train": max_train,
                                 f"Arch_{current_integrated}_Param_Count": max_params,
                                 # Also log generic metrics for backward compatibility
                                 "Arch Max Val": max_val,
+                                "Arch Max Test": max_test,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
                                 "Arch Dendrite Count": current_integrated,
@@ -880,6 +995,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         )
                     last_logged_integrated = current_integrated
                     max_val = 0  # Reset for next arch
+                    max_test = 0
                     max_train = 0
                     max_params = 0
                 else:
@@ -889,7 +1005,9 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                     print(f"  num_dendrites_added: {GPA.pai_tracker.member_vars['num_dendrites_added']}")
                     print(f"  mode: {GPA.pai_tracker.member_vars['mode']}")
                     print(f"  current_n_set_global_best: {GPA.pai_tracker.member_vars['current_n_set_global_best']}")
-                    print(f"  Max val: {max_val}, Max train: {max_train}")
+                    print(
+                        f"  Max val: {max_val}, Max test: {max_test}, Max train: {max_train}"
+                    )
 
                 # Reinitialize optimizer and scheduler after restructuring (same as initial setup)
                 optimArgs = {
@@ -939,9 +1057,10 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         "epoch": epoch + 1,
                         "TrainAcc": train_acc1,
                         "TrainLoss": train_loss,
-                        "ValAcc": test_acc1,
-                        "ValLoss": test_loss,
+                        "ValAcc": val_acc1,
+                        "ValLoss": val_loss,
                         "TestAcc": test_acc1,
+                        "TestLoss": test_loss,
                         "Param Count": UPA.count_params(model),
                         "Dendrite Count": GPA.pai_tracker.member_vars[
                             "num_dendrites_added"
@@ -951,7 +1070,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 )
 
             print(
-                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, "
+                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Val Acc@1: {val_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, "
                 f"Dendrites added: {GPA.pai_tracker.member_vars['num_dendrites_added']}, "
                 f"Integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}"
             )
@@ -966,16 +1085,20 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         # Debug prints
                         print(f"DEBUG: Logging final arch scores for dendrite count {current_integrated}")
                         print(f"  Params: {UPA.count_params(model)}, Integrated: {current_integrated}")
-                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                        print(
+                            f"  Max val: {max_val}, Max test: {max_test}, Max train: {max_train}"
+                        )
                         
                         # Log with architecture-specific metric names to prevent overwriting
                         wandb.log(
                             {
                                 f"Arch_{current_integrated}_Max_Val": max_val,
+                                f"Arch_{current_integrated}_Max_Test": max_test,
                                 f"Arch_{current_integrated}_Max_Train": max_train,
                                 f"Arch_{current_integrated}_Param_Count": max_params,
                                 # Also log generic metrics for backward compatibility
                                 "Arch Max Val": max_val,
+                                "Arch Max Test": max_test,
                                 "Arch Max Train": max_train,
                                 "Arch Param Count": max_params,
                                 "Arch Dendrite Count": current_integrated,
@@ -986,12 +1109,15 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         print(f"DEBUG: NOT logging final arch scores")
                         print(f"  current_integrated: {current_integrated}, last_logged_integrated: {last_logged_integrated}")
                         print(f"  num_dendrites_added: {GPA.pai_tracker.member_vars['num_dendrites_added']}")
-                        print(f"  Max val: {max_val}, Max train: {max_train}")
+                        print(
+                            f"  Max val: {max_val}, Max test: {max_test}, Max train: {max_train}"
+                        )
                     
                     # Always log Final Max scores
                     wandb.log(
                         {
                             "Final Max Val": global_max_val,
+                            "Final Max Test": global_max_test,
                             "Final Max Train": global_max_train,
                             "Final Param Count": global_max_params,
                             "Final Dendrite Count": GPA.pai_tracker.member_vars[
@@ -1000,9 +1126,13 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         }
                     )
                 break
+
+            best_train_metric = global_max_train
+            best_test_metric = global_max_test
     else:
         # Non-perforated training loop
         best_train = 0.0  # Track training accuracy when best val is achieved
+        best_test = 0.0
         epochs_without_improvement = 0
         max_epochs_without_improvement = 25
         epoch = -1
@@ -1018,18 +1148,24 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 epoch,
                 args.print_freq,
             )
-            test_acc1, test_loss = evaluate(model, criterion, test_loader, device)
+            val_acc1, val_loss = evaluate(
+                model, criterion, val_loader, device, split_name="Val"
+            )
+            test_acc1, test_loss = evaluate(
+                model, criterion, test_loader, device, split_name="Test"
+            )
             
             # Step scheduler (ReduceLROnPlateau needs metric, others don't)
             if scheduler_mode == 1:
-                lr_scheduler.step(test_acc1)  # Pass validation accuracy for ReduceLROnPlateau
+                lr_scheduler.step(val_acc1)  # Pass validation accuracy for ReduceLROnPlateau
             else:
                 lr_scheduler.step()  # CosineAnnealingLR doesn't need metric
 
             # Track best accuracy and corresponding training accuracy
-            if test_acc1 > best_acc1:
-                best_acc1 = test_acc1
+            if val_acc1 > best_acc1:
+                best_acc1 = val_acc1
                 best_train = train_acc1
+                best_test = test_acc1
                 best_epoch = epoch + 1
                 epochs_without_improvement = 0  # Reset counter on improvement
             else:
@@ -1042,9 +1178,10 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                         "epoch": epoch + 1,
                         "TrainAcc": train_acc1,
                         "TrainLoss": train_loss,
-                        "ValAcc": test_acc1,
-                        "ValLoss": test_loss,
-                        "TestAcc": test_acc1,  # For transfer learning, val=test
+                        "ValAcc": val_acc1,
+                        "ValLoss": val_loss,
+                        "TestAcc": test_acc1,
+                        "TestLoss": test_loss,
                         "Param Count": param_count,
                         "Dendrite Count": (
                             dendrite_count_override
@@ -1056,7 +1193,8 @@ def train_single_run(args, train_loader, test_loader, num_classes):
                 )
 
             print(
-                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, Loss: {test_loss:.4f}, "
+                f"Epoch {epoch+1} - Train Acc@1: {train_acc1:.3f}, Val Acc@1: {val_acc1:.3f}, Test Acc@1: {test_acc1:.3f}, "
+                f"Val Loss: {val_loss:.4f}, Test Loss: {test_loss:.4f}, "
                 f"Epochs without improvement: {epochs_without_improvement}/{max_epochs_without_improvement}"
             )
 
@@ -1073,6 +1211,7 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             wandb.log(
                 {
                     "Arch Max Val": best_acc1,
+                    "Arch Max Test": best_test,
                     "Arch Max Train": best_train,
                     "Arch Param Count": param_count,
                     "Arch Dendrite Count": final_dendrite_count,
@@ -1082,18 +1221,22 @@ def train_single_run(args, train_loader, test_loader, num_classes):
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
+                    "Final Max Test": best_test,
                     "Final Max Train": best_train,
                     "Final Param Count": param_count,
                     "Final Dendrite Count": final_dendrite_count,
                 }
             )
 
+        best_train_metric = best_train
+        best_test_metric = best_test
+
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print(f"\nTraining complete! Total time: {total_time_str}")
-    print(f"Best Test Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
+    print(f"Best Validation Accuracy: {best_acc1:.3f}% (achieved at epoch {best_epoch})")
 
-    return best_acc1, best_epoch, model
+    return best_acc1, best_epoch, model, best_train_metric, best_test_metric
 
 
 def get_model_name_from_index(model_index):
@@ -1106,11 +1249,11 @@ def get_model_name_from_index(model_index):
         Model name string
     """
     model_mapping = {
-        0: "resnet-18-perforated-cascor-pretrained",
-        1: "resnet-18-perforated-cascor-fc",
-        2: "resnet-18-perforated-cascor-pre-fc",
+        0: "resnet-18-perforated-cascor-pretrained", # pretrained
+        1: "resnet-18-perforated-cascor-fc", # perforate fc
+        2: "resnet-18-perforated-cascor-pre-fc", # perforate pre-fc
         3: "resnet-34",
-        4: "resnet-18-perforated-cascor-hf-fc",
+        4: "resnet-18-perforated-cascor-hf-fc", # perforate fc with the pretrained perforated pre-fc
     }
     return model_mapping[model_index]
 
@@ -1165,6 +1308,38 @@ def get_sweep_config(dataset_name):
             "weight_decay": {"values": [0.0, 1e-5, 1e-4]},
             "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             "label_smoothing": {"values": [0.0, 0.05]},
+            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
+            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
+            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+        }
+
+    elif dataset_name == "cifar10":
+        # CIFAR-10 - same experiment structure as other datasets
+        base_config["parameters"] = {
+            "dataset": {"value": "cifar10"},
+            "model_index": {
+                "values": [0, 1, 2, 3]
+            },  # Maps to model names via get_model_name_from_index
+            "lr": {"values": [0.03, 0.1, 0.2]},
+            "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
+            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
+            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
+            # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
+            "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
+            "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
+        }
+
+    elif dataset_name == "cifar100":
+        # CIFAR-100 - same experiment structure as other datasets
+        base_config["parameters"] = {
+            "dataset": {"value": "cifar100"},
+            "model_index": {
+                "values": [0, 1, 2, 3]
+            },  # Maps to model names via get_model_name_from_index
+            "lr": {"values": [0.03, 0.1, 0.2]},
+            "weight_decay": {"values": [1e-4, 5e-4, 1e-3]},
+            "label_smoothing": {"values": [0.0, 0.05, 0.1]},
+            "scheduler_mode": {"values": [0, 1]},  # 0=CosineAnnealing, 1=ReduceLROnPlateau
             # Dendritic hyperparameters (only used by fc/pre-fc perforated models)
             "improvement_threshold": {"values": [[0.01, 0.001, 0.0001, 0], [0]]},
             "pai_forward_function": {"values": ["sigmoid", "relu", "tanh"]},
@@ -1244,13 +1419,13 @@ def train_with_wandb():
         print(f"{'='*80}\n")
 
         # Load dataset
-        train_loader, test_loader, num_classes = load_dataset(
+        train_loader, val_loader, test_loader, num_classes = load_dataset(
             args.dataset, args.data_path, args.batch_size, args.workers
         )
 
         # Train
-        best_acc1, best_epoch, model = train_single_run(
-            args, train_loader, test_loader, num_classes
+        best_acc1, best_epoch, model, best_train, best_test = train_single_run(
+            args, train_loader, val_loader, test_loader, num_classes
         )
 
         # Measure inference latency
@@ -1272,7 +1447,8 @@ def train_with_wandb():
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
-                    "Final Max Test": best_acc1,  # For transfer learning, val=test
+                    "Final Max Test": best_test,
+                    "Final Max Train": best_train,
                     "Final Param Count": param_count,
                     "best_epoch": best_epoch,
                     "fps": latency_results["fps"],
@@ -1295,8 +1471,9 @@ def train_with_wandb():
         print(f"Run complete - Best Acc@1: {best_acc1:.3f}% at epoch {best_epoch}")
         print(f"{'='*80}\n")
     except Exception as e:
-        import pdb
-        pdb.set_trace()
+        print(f"\nERROR in train_with_wandb: {e}")
+        traceback.print_exc()
+        import pdb; pdb.set_trace()
         raise
     finally:
         # Always finish the run to avoid state leakage across sweep iterations.
@@ -1313,7 +1490,7 @@ def main():
     parser.add_argument(
         "--sweep-dataset",
         type=str,
-        choices=["flowers102", "pets", "food101"],
+        choices=["flowers102", "pets", "food101", "cifar10", "cifar100"],
         help="Initialize and run WandB sweep for this dataset",
     )
     parser.add_argument(
@@ -1343,7 +1520,7 @@ def main():
         "--dataset",
         default="flowers102",
         type=str,
-        choices=["flowers102", "pets", "food101", "cifar100", "stl10"],
+        choices=["flowers102", "pets", "food101", "cifar10", "cifar100", "stl10"],
         help="Dataset to train on (default: flowers102)",
     )
     parser.add_argument("--data-path", default="./data", type=str, help="Dataset path")
@@ -1525,7 +1702,7 @@ def main():
     print(f"{'='*80}\n")
 
     # Load dataset
-    train_loader, test_loader, num_classes = load_dataset(
+    train_loader, val_loader, test_loader, num_classes = load_dataset(
         args.dataset, args.data_path, args.batch_size, args.workers
     )
 
@@ -1534,8 +1711,8 @@ def main():
     print(f"STARTING TRAINING")
     print(f"{'='*80}\n")
 
-    best_acc1, best_epoch, model = train_single_run(
-        args, train_loader, test_loader, num_classes
+    best_acc1, best_epoch, model, best_train, best_test = train_single_run(
+        args, train_loader, val_loader, test_loader, num_classes
     )
 
     print(f"\n{'='*80}")
@@ -1563,7 +1740,8 @@ def main():
             wandb.log(
                 {
                     "Final Max Val": best_acc1,
-                    "Final Max Test": best_acc1,  # For transfer learning, val=test
+                    "Final Max Test": best_test,
+                    "Final Max Train": best_train,
                     "Final Param Count": param_count,
                     "final_best_epoch": best_epoch,
                     "fps": latency_results["fps"],
