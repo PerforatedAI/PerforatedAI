@@ -431,6 +431,8 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
+        old_silent = GPA.pc.get_silent()
+        GPA.set_silent(True)
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
         GPA.pc.set_silent(old_silent)
         GPA.pai_tracker.save_graphs()
@@ -1545,7 +1547,7 @@ class PAINeuronModuleTracker:
         for layer in self.neuron_module_vector:
             layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
 
-    def set_optimizer_instance(self, optimizer_instance):
+    def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
 
         Parameters
