@@ -30,6 +30,15 @@ except ImportError:
 
 
 def _pai_log(level, message):
+    """Emit a tracker log message to dashboard or stdout.
+
+    Parameters
+    ----------
+    level : str
+        Log level such as ``info``, ``warning``, or ``error``.
+    message : str
+        Message text to emit.
+    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -83,7 +92,17 @@ def update_restructuring_status(old_status, new_status):
 
 
 def update_learning_rate():
-    """Update the learning rate in the tracker."""
+    """Update the learning rate in the tracker.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate = param_group["lr"]
     GPA.pai_tracker.add_learning_rate(learning_rate)
@@ -169,27 +188,27 @@ def update_running_accuracy(accuracy, epochs_since_cycle_switch):
                 GPA.pai_tracker.member_vars[
                     "running_accuracy"
                 ] = GPA.pai_tracker.member_vars["running_accuracy"] * (
-                    1 - (1.0 / (epochs_since_cycle_switch + 1))
+                        1 - (1.0 / (epochs_since_cycle_switch + 1))
                 ) + accuracy * (
-                    1.0 / (epochs_since_cycle_switch + 1)
-                )
+                            1.0 / (epochs_since_cycle_switch + 1)
+                    )
         else:
             GPA.pai_tracker.member_vars[
                 "running_accuracy"
             ] = GPA.pai_tracker.member_vars["running_accuracy"] * (
-                1.0 - 1.0 / GPA.pc.get_history_lookback()
+                    1.0 - 1.0 / GPA.pc.get_history_lookback()
             ) + accuracy * (
-                1.0 / GPA.pc.get_history_lookback()
-            )
+                        1.0 / GPA.pc.get_history_lookback()
+                )
 
     GPA.pai_tracker.member_vars["accuracies"].append(accuracy)
     if GPA.pai_tracker.member_vars["mode"] == "n":
         GPA.pai_tracker.member_vars["n_accuracies"].append(accuracy)
 
     if (
-        GPA.pc.get_drawing_pai()
-        or GPA.pai_tracker.member_vars["mode"] == "n"
-        or GPA.pc.get_learn_dendrites_live()
+            GPA.pc.get_drawing_pai()
+            or GPA.pai_tracker.member_vars["mode"] == "n"
+            or GPA.pc.get_learn_dendrites_live()
     ):
         GPA.pai_tracker.member_vars["running_accuracies"].append(
             GPA.pai_tracker.member_vars["running_accuracy"]
@@ -217,13 +236,13 @@ def score_beats_current_best(new_score, old_score):
 
     """
     return (
-        GPA.pai_tracker.member_vars["maximizing_score"]
-        and (new_score * (1.0 - GPA.pc.get_improvement_threshold()) > old_score)
-        and new_score - GPA.pc.get_improvement_threshold_raw() > old_score
+            GPA.pai_tracker.member_vars["maximizing_score"]
+            and (new_score * (1.0 - GPA.pc.get_improvement_threshold()) > old_score)
+            and new_score - GPA.pc.get_improvement_threshold_raw() > old_score
     ) or (
-        (not GPA.pai_tracker.member_vars["maximizing_score"])
-        and (new_score * (1.0 + GPA.pc.get_improvement_threshold()) < old_score)
-        and (new_score + GPA.pc.get_improvement_threshold_raw()) < old_score
+            (not GPA.pai_tracker.member_vars["maximizing_score"])
+            and (new_score * (1.0 + GPA.pc.get_improvement_threshold()) < old_score)
+            and (new_score + GPA.pc.get_improvement_threshold_raw()) < old_score
     )
 
 
@@ -252,12 +271,12 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
     )
 
     enough_time = (
-        epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
-    ) or (GPA.pai_tracker.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME)
+                          epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
+                  ) or (GPA.pai_tracker.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME)
 
     if (
-        score_improved
-        or GPA.pai_tracker.member_vars["current_best_validation_score"] == 0
+            score_improved
+            or GPA.pai_tracker.member_vars["current_best_validation_score"] == 0
     ) and enough_time:
 
         if GPA.pai_tracker.member_vars["maximizing_score"]:
@@ -265,8 +284,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"\n\nGot score of {accuracy:.10f} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1-GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 - GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 - GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 - GPA.pc.get_improvement_threshold())}) '
                     f'which is higher than {GPA.pai_tracker.member_vars["current_best_validation_score"]:.10f} '
                     f"by {GPA.pc.get_improvement_threshold_raw()} so setting epoch to "
                     f'{GPA.pai_tracker.member_vars["num_epochs_run"]}\n\n'
@@ -276,8 +295,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"\n\nGot score of {accuracy:.10f} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1+GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 + GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 + GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 + GPA.pc.get_improvement_threshold())}) '
                     f'which is lower than {GPA.pai_tracker.member_vars["current_best_validation_score"]:.10f} '
                     f'so setting epoch to {GPA.pai_tracker.member_vars["num_epochs_run"]}\n\n'
                 )
@@ -304,8 +323,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
         )
 
         if (
-            is_global_best
-            or GPA.pai_tracker.member_vars["global_best_validation_score"] == 0
+                is_global_best
+                or GPA.pai_tracker.member_vars["global_best_validation_score"] == 0
         ):
             if GPA.pc.get_verbose():
                 print(
@@ -331,8 +350,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"Got score of {accuracy} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1-GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 - GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 - GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 - GPA.pc.get_improvement_threshold())}) '
                     f"which is not higher than "
                     f'{GPA.pai_tracker.member_vars["current_best_validation_score"]}'
                 )
@@ -340,8 +359,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"Got score of {accuracy} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1+GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 + GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 + GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 + GPA.pc.get_improvement_threshold())}) '
                     f"which is not lower than "
                     f'{GPA.pai_tracker.member_vars["current_best_validation_score"]}'
                 )
@@ -401,8 +420,8 @@ def process_no_improvement(net):
     )
 
     if (
-        GPA.pai_tracker.member_vars["num_dendrite_tries"]
-        < GPA.pc.get_max_dendrite_tries() -1
+            GPA.pai_tracker.member_vars["num_dendrite_tries"]
+            < GPA.pc.get_max_dendrite_tries() - 1
     ):
         _pai_log(
             "info",
@@ -431,6 +450,8 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
+        old_silent = GPA.pc.get_silent()
+        GPA.pc.set_silent(True)
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
         GPA.pc.set_silent(old_silent)
         GPA.pai_tracker.save_graphs()
@@ -499,12 +520,12 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
         learning_rate1 = param_group["lr"]
 
     if (
-        type(GPA.pai_tracker.member_vars["scheduler_instance"])
-        is torch.optim.lr_scheduler.ReduceLROnPlateau
+            type(GPA.pai_tracker.member_vars["scheduler_instance"])
+            is torch.optim.lr_scheduler.ReduceLROnPlateau
     ):
         if (
-            epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
-            or GPA.pai_tracker.member_vars["mode"] == "p"
+                epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
+                or GPA.pai_tracker.member_vars["mode"] == "p"
         ):
             if GPA.pc.get_verbose():
                 print(
@@ -515,8 +536,8 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
             if GPA.pai_tracker.member_vars["scheduler"] is not None:
                 GPA.pai_tracker.member_vars["scheduler_instance"].step(metrics=accuracy)
                 if (
-                    GPA.pai_tracker.member_vars["scheduler"]
-                    is torch.optim.lr_scheduler.ReduceLROnPlateau
+                        GPA.pai_tracker.member_vars["scheduler"]
+                        is torch.optim.lr_scheduler.ReduceLROnPlateau
                 ):
                     if GPA.pc.get_verbose():
                         print(
@@ -529,8 +550,8 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
     elif GPA.pai_tracker.member_vars["scheduler"] is not None:
         if (
-            epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
-            or GPA.pai_tracker.member_vars["mode"] == "p"
+                epochs_since_cycle_switch > GPA.pc.get_initial_history_after_switches()
+                or GPA.pai_tracker.member_vars["mode"] == "p"
         ):
             if GPA.pc.get_verbose():
                 if hasattr(GPA.pai_tracker.member_vars["scheduler_instance"], '_step_count'):
@@ -544,8 +565,8 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 )
             GPA.pai_tracker.member_vars["scheduler_instance"].step()
             if (
-                GPA.pai_tracker.member_vars["scheduler"]
-                is torch.optim.lr_scheduler.ReduceLROnPlateau
+                    GPA.pai_tracker.member_vars["scheduler"]
+                    is torch.optim.lr_scheduler.ReduceLROnPlateau
             ):
                 if GPA.pc.get_verbose():
                     print(
@@ -554,8 +575,8 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                     )
 
     if (
-        epochs_since_cycle_switch <= GPA.pc.get_initial_history_after_switches()
-        and GPA.pai_tracker.member_vars["mode"] == "n"
+            epochs_since_cycle_switch <= GPA.pc.get_initial_history_after_switches()
+            and GPA.pai_tracker.member_vars["mode"] == "n"
     ):
         if GPA.pc.get_verbose():
             print(
@@ -580,13 +601,13 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
     # Check if at double or exactly the test count
     if (
-        len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 0
-        and epochs_since_cycle_switch
-        == GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] * 2
+            len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 0
+            and epochs_since_cycle_switch
+            == GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] * 2
     ) or (
-        len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 1
-        and epochs_since_cycle_switch
-        == GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"]
+            len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 1
+            and epochs_since_cycle_switch
+            == GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"]
     ):
         at_last_count = True
 
@@ -607,8 +628,8 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
             )
 
         if (
-            GPA.pai_tracker.member_vars["current_step_count"]
-            == GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]
+                GPA.pai_tracker.member_vars["current_step_count"]
+                == GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]
         ):
             if GPA.pc.get_verbose():
                 print(
@@ -617,11 +638,11 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 )
             # Set it when 1->2 gets to 2, not when 0->1 hits 2 as stopping point
             if (
-                GPA.pai_tracker.member_vars["current_step_count"]
-                - GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-                == 1
+                    GPA.pai_tracker.member_vars["current_step_count"]
+                    - GPA.pai_tracker.member_vars[
+                "current_n_learning_rate_initial_skip_steps"
+            ]
+                    == 1
             ):
                 GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = (
                     epochs_since_cycle_switch
@@ -640,16 +661,16 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
     # If learning rate just stepped, check restart at lower rate
     if (
-        (GPA.pai_tracker.member_vars["scheduler"] is not None)
-        and
-        # If potentially might have higher accuracy
-        (
-            (GPA.pai_tracker.member_vars["mode"] == "n")
-            or GPA.pc.get_learn_dendrites_live()
-        )
-        and
-        # And learning rate just stepped
-        (stepped or at_last_count)
+            (GPA.pai_tracker.member_vars["scheduler"] is not None)
+            and
+            # If potentially might have higher accuracy
+            (
+                    (GPA.pai_tracker.member_vars["mode"] == "n")
+                    or GPA.pc.get_learn_dendrites_live()
+            )
+            and
+            # And learning rate just stepped
+            (stepped or at_last_count)
     ):
 
         # If this is the first dendrite addition (last_max_learning_rate_steps == 0),
@@ -682,14 +703,14 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
             # If no scores saved for this dendrite and initial LR test did second step
             if len(
-                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]
+                    GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]
             ) == 0 and (
-                GPA.pai_tracker.member_vars["current_step_count"]
-                - GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-                == 2
-                or at_last_count
+                    GPA.pai_tracker.member_vars["current_step_count"]
+                    - GPA.pai_tracker.member_vars[
+                        "current_n_learning_rate_initial_skip_steps"
+                    ]
+                    == 2
+                    or at_last_count
             ):
 
                 restructured = True
@@ -753,13 +774,13 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 lr_score_worse = False
                 if GPA.pai_tracker.member_vars["maximizing_score"]:
                     lr_score_worse = (
-                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
-                        > GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
+                            GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
+                            > GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
                     )
                 else:
                     lr_score_worse = (
-                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
-                        < GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
+                            GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
+                            < GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
                     )
 
                 if lr_score_worse:
@@ -768,7 +789,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
 
                     if GPA.pc.get_verbose():
                         print(
-                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1} '
+                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] - 1} '
                             f'step score {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]} '
                             f'and {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
                             f'score at step {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]} '
@@ -804,7 +825,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                         net = UPA.load_system(
                             net,
                             GPA.pc.get_save_name(),
-                            f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1}',
+                            f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] - 1}',
                             switch_call=True,
                         )
 
@@ -851,7 +872,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 else:  # Current LR score is better
                     if GPA.pc.get_verbose():
                         print(
-                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1} '
+                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] - 1} '
                             f'step score {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]} '
                             f'and {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
                             f'score at step {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]} '
@@ -932,13 +953,13 @@ class PAINeuronModuleTracker:
     """
 
     def __init__(
-        self,
-        doing_pai,
-        save_name,
-        making_graphs=True,
-        param_vals_setting=-1,
-        values_per_train_epoch=-1,
-        values_per_val_epoch=-1,
+            self,
+            doing_pai,
+            save_name,
+            making_graphs=True,
+            param_vals_setting=-1,
+            values_per_train_epoch=-1,
+            values_per_val_epoch=-1,
     ):
         """Initialize the tracker
 
@@ -1152,10 +1173,9 @@ class PAINeuronModuleTracker:
         # Flag for if the tracker was loaded
         self.loaded = False
 
-        # flag for 
+        # flag for
         self.member_vars["step_status"] = STEP_CLEARED
         self.member_var_types["step_status"] = "int"
-
 
         # Settings for tracking learning rates
         self.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
@@ -1196,7 +1216,17 @@ class PAINeuronModuleTracker:
             print(f'Initializing with switch_mode {self.member_vars["switch_mode"]}')
 
     def to_string(self):
-        """Convert tracker values to string for saving with safetensors."""
+        """Convert tracker values to string for saving with safetensors.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            Serialized tracker state suitable for storage in a safetensors field.
+        """
 
         full_string = ""
         for var in self.member_vars:
@@ -1212,9 +1242,9 @@ class PAINeuronModuleTracker:
                 full_string += "\n"
             elif self.member_var_types[var] == "type":
                 name = (
-                    self.member_vars[var].__module__
-                    + "."
-                    + self.member_vars[var].__name__
+                        self.member_vars[var].__module__
+                        + "."
+                        + self.member_vars[var].__name__
                 )
                 full_string += str(self.member_vars[var])
                 full_string += "\n"
@@ -1281,6 +1311,11 @@ class PAINeuronModuleTracker:
         ----------
         string : str
             The string to load from.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         f = io.StringIO(string)
         while True:
@@ -1380,6 +1415,11 @@ class PAINeuronModuleTracker:
         ----------
         string : str
             The string to debug load from.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         f = io.StringIO(string)
         print("=== DEBUGGING TRACKER VARIABLES ===")
@@ -1448,7 +1488,7 @@ class PAINeuronModuleTracker:
                         vals_dict = line2.split(",")
                         name = vals_dict[0]
                         print(
-                            f"  Array {array_count}, Key '{name}': {len(vals_dict)-1} elements"
+                            f"  Array {array_count}, Key '{name}': {len(vals_dict) - 1} elements"
                         )
                         key_count += 1
                         line2 = f.readline()[:-1]
@@ -1464,7 +1504,7 @@ class PAINeuronModuleTracker:
                 while line2 != "end":
                     vals_dict = line2.split(",")
                     name = vals_dict[0]
-                    print(f"  Key '{name}': {len(vals_dict)-1} elements")
+                    print(f"  Key '{name}': {len(vals_dict) - 1} elements")
                     key_count += 1
                     line2 = f.readline()[:-1]
                 print(f"  Total keys: {key_count}")
@@ -1545,7 +1585,7 @@ class PAINeuronModuleTracker:
         for layer in self.neuron_module_vector:
             layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
 
-    def set_optimizer_instance(self, optimizer_instance):
+    def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
 
         Parameters
@@ -1562,8 +1602,8 @@ class PAINeuronModuleTracker:
         try:
             for param_group in optimizer_instance.param_groups:
                 if (
-                    param_group["weight_decay"] > 0
-                    and GPA.pc.get_weight_decay_accepted() is False
+                        param_group["weight_decay"] > 0
+                        and GPA.pc.get_weight_decay_accepted() is False
                 ):
                     _pai_log(
                         "warning",
@@ -1577,6 +1617,7 @@ class PAINeuronModuleTracker:
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
             for optimizer in additional_optimizers:
                 TPB.filter_params(optimizer)
+        optimizer_instance.zero_grad()
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later
@@ -1654,22 +1695,22 @@ class PAINeuronModuleTracker:
                 )
 
             if (
-                type(self.member_vars["scheduler_instance"])
-                is torch.optim.lr_scheduler.ReduceLROnPlateau
+                    type(self.member_vars["scheduler_instance"])
+                    is torch.optim.lr_scheduler.ReduceLROnPlateau
             ):
                 if mode == "step_learning_rate":
                     # Step with counter as last improved accuracy
                     self.member_vars["scheduler_instance"].step(
                         metrics=self.member_vars["last_improved_accuracies"][
                             GPA.pai_tracker.steps_after_switch() - 1
-                        ]
+                            ]
                     )
                 elif mode == "increment_epoch_count":
                     # Step with improved epoch counts up to current location
                     self.member_vars["scheduler_instance"].step(
                         metrics=self.member_vars["last_improved_accuracies"][
                             -((num_ticks - 1) - current_ticker) - 1
-                        ]
+                            ]
                     )
             else:
                 self.member_vars["scheduler_instance"].step()
@@ -1786,10 +1827,10 @@ class PAINeuronModuleTracker:
                 schedulers = []
                 milestones = sched_args.get("milestones", [])
                 scheduler_configs = sched_args.get("schedulers", [])
-                
+
                 for scheduler_class, scheduler_args in scheduler_configs:
                     schedulers.append(scheduler_class(optimizer, **scheduler_args))
-                
+
                 self.member_vars["scheduler_instance"] = torch.optim.lr_scheduler.SequentialLR(
                     optimizer, schedulers=schedulers, milestones=milestones
                 )
@@ -1812,10 +1853,10 @@ class PAINeuronModuleTracker:
 
             # Find setting of previously used learning rate before adding dendrites
             if (
-                GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-                != 0
+                    GPA.pai_tracker.member_vars[
+                        "current_n_learning_rate_initial_skip_steps"
+                    ]
+                    != 0
             ):
                 additional_steps, learning_rate1 = self.increment_scheduler(
                     GPA.pai_tracker.member_vars[
@@ -1854,7 +1895,17 @@ class PAINeuronModuleTracker:
             return optimizer
 
     def clear_optimizer_and_scheduler(self):
-        """Clear the instances for saving."""
+        """Clear the instances for saving.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         self.member_vars["optimizer_instance"] = None
         self.member_vars["scheduler_instance"] = None
 
@@ -1892,7 +1943,7 @@ class PAINeuronModuleTracker:
             )
             pdb.set_trace()
         if not GPA.pc.get_silent():
-            if(GPA.pc.get_perforated_backpropagation()):
+            if (GPA.pc.get_perforated_backpropagation()):
                 print(
                     f'Checking PAI switch with mode {self.member_vars["mode"]}, '
                     f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
@@ -1934,22 +1985,25 @@ class PAINeuronModuleTracker:
             print(f'  mode == "n": {self.member_vars["mode"] == "n"}')
             print(f"  get_learn_dendrites_live(): {GPA.pc.get_learn_dendrites_live()}")
             print(f'  committed_to_initial_rate: {GPA.pai_tracker.member_vars["committed_to_initial_rate"]}')
-            print(f"  get_dont_give_up_unless_learning_rate_lowered(): {GPA.pc.get_dont_give_up_unless_learning_rate_lowered()}")
-            print(f'  current_n_learning_rate_initial_skip_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"]}')
+            print(
+                f"  get_dont_give_up_unless_learning_rate_lowered(): {GPA.pc.get_dont_give_up_unless_learning_rate_lowered()}")
+            print(
+                f'  current_n_learning_rate_initial_skip_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"]}')
             print(f'  last_max_learning_rate_steps: {self.member_vars["last_max_learning_rate_steps"]}')
-            print(f'  skip_steps < max_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"] < self.member_vars["last_max_learning_rate_steps"]}')
+            print(
+                f'  skip_steps < max_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"] < self.member_vars["last_max_learning_rate_steps"]}')
             print(f'  scheduler is not None: {self.member_vars["scheduler"] is not None}')
             print("=============================")
-        
+
         if (
-            ((self.member_vars["mode"] == "n") or GPA.pc.get_learn_dendrites_live())
-            and (GPA.pai_tracker.member_vars["committed_to_initial_rate"] is False)
-            and (GPA.pc.get_dont_give_up_unless_learning_rate_lowered())
-            and (
+                ((self.member_vars["mode"] == "n") or GPA.pc.get_learn_dendrites_live())
+                and (GPA.pai_tracker.member_vars["committed_to_initial_rate"] is False)
+                and (GPA.pc.get_dont_give_up_unless_learning_rate_lowered())
+                and (
                 self.member_vars["current_n_learning_rate_initial_skip_steps"]
                 <= self.member_vars["last_max_learning_rate_steps"]
-            )
-            and self.member_vars["scheduler"] is not None
+        )
+                and self.member_vars["scheduler"] is not None
         ):
             if not GPA.pc.get_silent():
                 print(
@@ -1964,39 +2018,39 @@ class PAINeuronModuleTracker:
             this_count = self.member_vars["num_epochs_run"]
         else:
             this_count = (
-                self.member_vars["num_epochs_run"]
-                - self.member_vars["switch_epochs"][-1]
+                    self.member_vars["num_epochs_run"]
+                    - self.member_vars["switch_epochs"][-1]
             )
         cap_switch = False
         if GPA.pc.get_perforated_backpropagation():
             cap_switch = TPB.check_cap_switch(self, this_count)
 
         if self.member_vars["switch_mode"] == GPA.pc.DOING_HISTORY and (
-            (
-                (self.member_vars["mode"] == "n")
-                and (
-                    self.member_vars["num_epochs_run"]
-                    - self.member_vars["epoch_last_improved"]
-                    >= GPA.pc.get_n_epochs_to_switch()
+                (
+                        (self.member_vars["mode"] == "n")
+                        and (
+                                self.member_vars["num_epochs_run"]
+                                - self.member_vars["epoch_last_improved"]
+                                >= GPA.pc.get_n_epochs_to_switch()
+                        )
+                        and this_count
+                        >= GPA.pc.get_initial_history_after_switches()
+                        + GPA.pc.get_n_epochs_to_switch()
                 )
-                and this_count
-                >= GPA.pc.get_initial_history_after_switches()
-                + GPA.pc.get_n_epochs_to_switch()
-            )
-            or (GPA.pc.get_perforated_backpropagation() and TPB.history_switch(self))
-            or cap_switch
+                or (GPA.pc.get_perforated_backpropagation() and TPB.history_switch(self))
+                or cap_switch
         ):
             if not GPA.pc.get_silent():
                 print("Returning True - History and last improved is hit")
             return True
 
         if self.member_vars["switch_mode"] == GPA.pc.DOING_FIXED_SWITCH and (
-            (
-                self.member_vars["total_epochs_run"] % GPA.pc.get_fixed_switch_num()
-                == GPA.pc.get_fixed_switch_num() - 1
-            )
-            and self.member_vars["num_epochs_run"]
-            >= GPA.pc.get_first_fixed_switch_num() - 1
+                (
+                        self.member_vars["total_epochs_run"] % GPA.pc.get_fixed_switch_num()
+                        == GPA.pc.get_fixed_switch_num() - 1
+                )
+                and self.member_vars["num_epochs_run"]
+                >= GPA.pc.get_first_fixed_switch_num() - 1
         ):
             if not GPA.pc.get_silent():
                 print("Returning True - Fixed switch number is hit")
@@ -2025,16 +2079,16 @@ class PAINeuronModuleTracker:
         if self.member_vars["param_vals_setting"] == GPA.pc.PARAM_VALS_BY_TOTAL_EPOCH:
             return self.member_vars["num_epochs_run"]
         elif (
-            self.member_vars["param_vals_setting"] == GPA.pc.PARAM_VALS_BY_UPDATE_EPOCH
+                self.member_vars["param_vals_setting"] == GPA.pc.PARAM_VALS_BY_UPDATE_EPOCH
         ):
             return self.member_vars["num_epochs_run"] - self.member_vars["last_switch"]
         elif (
-            self.member_vars["param_vals_setting"]
-            == GPA.pc.PARAM_VALS_BY_NEURON_EPOCH_START
+                self.member_vars["param_vals_setting"]
+                == GPA.pc.PARAM_VALS_BY_NEURON_EPOCH_START
         ):
             if self.member_vars["mode"] == "p":
                 return (
-                    self.member_vars["num_epochs_run"] - self.member_vars["last_switch"]
+                        self.member_vars["num_epochs_run"] - self.member_vars["last_switch"]
                 )
             else:
                 return self.member_vars["num_epochs_run"]
@@ -2117,7 +2171,17 @@ class PAINeuronModuleTracker:
             self.add_tracked_neuron_module(module, initial_add=load_from_restart)
 
     def reset_vals_for_score_reset(self):
-        """Reset cycle scores for new cycle."""
+        """Reset cycle scores for new cycle.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
 
         if GPA.pc.get_find_best_lr():
             self.member_vars["committed_to_initial_rate"] = False
@@ -2134,7 +2198,17 @@ class PAINeuronModuleTracker:
         self.member_vars["initial_lr_test_epoch_count"] = -1
 
     def set_dendrite_training(self):
-        """Signal all layers to start dendrite training."""
+        """Signal all layers to start dendrite training.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if GPA.pc.get_verbose():
             print("Calling set_dendrite_training")
 
@@ -2168,9 +2242,18 @@ class PAINeuronModuleTracker:
         GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
         GPA.pai_tracker.member_vars["num_cycles"] += 1
 
-
     def set_neuron_training(self):
-        """Signal all layers to start neuron training."""
+        """Signal all layers to start neuron training.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.set_mode("n")
         for module in self.tracked_neuron_module_vector[:]:
@@ -2243,32 +2326,32 @@ class PAINeuronModuleTracker:
                         layer.dendrite_module.dendrite_values[
                             m
                         ].best_score_improved_this_epoch = (
-                            layer.dendrite_module.dendrite_values[
-                                m
-                            ].best_score_improved_this_epoch
-                            * 0
+                                layer.dendrite_module.dendrite_values[
+                                    m
+                                ].best_score_improved_this_epoch
+                                * 0
                         )
                         layer.dendrite_module.dendrite_values[
                             m
                         ].nodes_best_improved_this_epoch = (
-                            layer.dendrite_module.dendrite_values[
-                                m
-                            ].nodes_best_improved_this_epoch
-                            * 0
+                                layer.dendrite_module.dendrite_values[
+                                    m
+                                ].nodes_best_improved_this_epoch
+                                * 0
                         )
                         layer.dendrite_module.dendrite_values[
                             m
                         ].nodes_improved_any = (
-                            layer.dendrite_module.dendrite_values[
-                                m
-                            ].nodes_improved_any
-                            * 0
+                                layer.dendrite_module.dendrite_values[
+                                    m
+                                ].nodes_improved_any
+                                * 0
                         )
             if GPA.pc.get_perforated_backpropagation():
                 self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_vars["num_epochs_run"] += 1
         self.member_vars["total_epochs_run"] = (
-            self.member_vars["num_epochs_run"] + self.member_vars["overwritten_epochs"]
+                self.member_vars["num_epochs_run"] + self.member_vars["overwritten_epochs"]
         )
         self.saved_time = end
 
@@ -2307,16 +2390,16 @@ class PAINeuronModuleTracker:
         self.saved_time = end
 
     def initialize(
-        self,
-        model,
-        doing_pai=True,
-        save_name="PAI",
-        making_graphs=True,
-        maximizing_score=True,
-        num_classes=10000,
-        values_per_train_epoch=-1,
-        values_per_val_epoch=-1,
-        zooming_graph=True,
+            self,
+            model,
+            doing_pai=True,
+            save_name="PAI",
+            making_graphs=True,
+            maximizing_score=True,
+            num_classes=10000,
+            values_per_train_epoch=-1,
+            values_per_val_epoch=-1,
+            zooming_graph=True,
     ):
         """Setup the tracker with initial settings.
 
@@ -2344,6 +2427,11 @@ class PAINeuronModuleTracker:
         zooming_graph : bool, optional
             Whether to zoom on graphs, by default True.
 
+
+        Returns
+        -------
+        nn.Module
+            Converted model instance configured for the tracker settings.
         """
         model = UPA.convert_network(model)
         self.member_vars["doing_pai"] = doing_pai
@@ -2454,8 +2542,8 @@ class PAINeuronModuleTracker:
         else:
             if self.member_vars["mode"] == "n":
                 missed_time = (
-                    self.member_vars["num_epochs_run"]
-                    - self.member_vars["epoch_last_improved"]
+                        self.member_vars["num_epochs_run"]
+                        - self.member_vars["epoch_last_improved"]
                 )
                 ax.plot(
                     (len(self.member_vars["n_accuracies"]) - 1) - missed_time,
@@ -2504,18 +2592,18 @@ class PAINeuronModuleTracker:
 
         # Set y min and max to zoom in on important part of axis
         if (
-            len(self.member_vars["switch_epochs"]) > 0
-            and self.member_vars["switch_epochs"][0] > 0
-            and self.zooming_graph
+                len(self.member_vars["switch_epochs"]) > 0
+                and self.member_vars["switch_epochs"][0] > 0
+                and self.zooming_graph
         ):
             if GPA.pai_tracker.member_vars["maximizing_score"]:
                 min_val = np.array(
-                    accuracies[0 : self.member_vars["switch_epochs"][0]]
+                    accuracies[0: self.member_vars["switch_epochs"][0]]
                 ).mean()
                 for extra_score in extra_scores:
                     min_pot = np.array(
                         extra_scores[extra_score][
-                            0 : self.member_vars["switch_epochs"][0]
+                            0: self.member_vars["switch_epochs"][0]
                         ]
                     ).mean()
                     if min_pot < min_val:
@@ -2523,12 +2611,12 @@ class PAINeuronModuleTracker:
                 ax.set_ylim(ymin=min_val)
             else:
                 max_val = np.array(
-                    accuracies[0 : self.member_vars["switch_epochs"][0]]
+                    accuracies[0: self.member_vars["switch_epochs"][0]]
                 ).mean()
                 for extra_score in extra_scores:
                     max_pot = np.array(
                         extra_scores[extra_score][
-                            0 : self.member_vars["switch_epochs"][0]
+                            0: self.member_vars["switch_epochs"][0]
                         ]
                     ).mean()
                     if max_pot > max_val:
@@ -2754,9 +2842,14 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict
+        dict[str, Any]
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
+
+
+        Parameters
+        ----------
+        None
 
         """
         if not self.member_vars["doing_pai"]:
@@ -2765,8 +2858,8 @@ class PAINeuronModuleTracker:
             return {}
         # Scores only advance while candidate dendrites are being trained
         if (
-            self.member_vars["mode"] != "p"
-            and not GPA.pc.get_learn_dendrites_live()
+                self.member_vars["mode"] != "p"
+                and not GPA.pc.get_learn_dendrites_live()
         ):
             return {}
 
@@ -2790,6 +2883,20 @@ class PAINeuronModuleTracker:
         """
         Generate dendrite score plots for the tracker.
         Also saves csv files associated with the plots.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axis used for plotting dendrite-learning curves.
+        save_folder : str
+            Directory where plot images and CSV summaries are written.
+        extra_string : str
+            Filename suffix used to distinguish this output set.
+
+        Returns
+        -------
+        None
+            Saves plots and score CSV files to disk.
         """
         if self.member_vars["doing_pai"]:
             pd1 = None
@@ -2797,8 +2904,8 @@ class PAINeuronModuleTracker:
             num_colors = len(self.neuron_module_vector)
 
             if (
-                len(self.neuron_module_vector) > 0
-                and len(self.member_vars["current_scores"][0]) != 0
+                    len(self.neuron_module_vector) > 0
+                    and len(self.member_vars["current_scores"][0]) != 0
             ):
                 num_colors *= 2
 
@@ -2844,11 +2951,12 @@ class PAINeuronModuleTracker:
                         "Epochs": np.arange(
                             len(self.member_vars["current_scores"][layer_id])
                         ),
-                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}": self.member_vars[
-                            "current_scores"
-                        ][
-                            layer_id
-                        ],
+                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}":
+                            self.member_vars[
+                                "current_scores"
+                            ][
+                                layer_id
+                            ],
                     }
                 )
                 pd1 = pd.concat([pd1, pd.DataFrame(pd2)], ignore_index=True)
@@ -2866,8 +2974,8 @@ class PAINeuronModuleTracker:
 
             if self.member_vars["mode"] == "p":
                 missed_time = (
-                    self.member_vars["num_epochs_run"]
-                    - self.member_vars["epoch_last_improved"]
+                        self.member_vars["num_epochs_run"]
+                        - self.member_vars["epoch_last_improved"]
                 )
                 plt.axvline(
                     x=(len(self.member_vars["best_scores"][0]) - (missed_time + 1)),
@@ -2939,7 +3047,7 @@ class PAINeuronModuleTracker:
         switch_counts = len(self.member_vars["switch_epochs"])
         best_valid = []
         associated_params = []
-        
+
         # Initialize dictionaries to store best scores for each extra score type
         best_extra_scores = {}
         for score_name in self.member_vars["extra_scores"]:
@@ -2964,7 +3072,7 @@ class PAINeuronModuleTracker:
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
             best_valid.append(best_valid_score)
-            
+
             # Get corresponding scores from all extra_scores
             for score_name in self.member_vars["extra_scores"]:
                 if best_valid_index < len(self.member_vars["extra_scores"][score_name]):
@@ -2973,7 +3081,7 @@ class PAINeuronModuleTracker:
                     )
                 else:
                     best_extra_scores[score_name].append(None)
-            
+
             # Get corresponding scores from all extra_scores_without_graphing
             for score_name in self.member_vars["extra_scores_without_graphing"]:
                 if best_valid_index < len(self.member_vars["extra_scores_without_graphing"][score_name]):
@@ -2982,7 +3090,7 @@ class PAINeuronModuleTracker:
                     )
                 else:
                     best_extra_scores[score_name].append(None)
-            
+
             if self.member_vars["doing_pai"]:
                 associated_params.append(self.member_vars["param_counts"][switch])
             else:
@@ -2990,11 +3098,11 @@ class PAINeuronModuleTracker:
 
         # If in neuron training mode but not the very first epoch
         if self.member_vars["mode"] == "n" and (
-            (len(self.member_vars["switch_epochs"]) == 0)
-            or (
-                self.member_vars["switch_epochs"][-1] + 1
-                != len(self.member_vars["accuracies"])
-            )
+                (len(self.member_vars["switch_epochs"]) == 0)
+                or (
+                        self.member_vars["switch_epochs"][-1] + 1
+                        != len(self.member_vars["accuracies"])
+                )
         ):
             start_index = 0
             if len(self.member_vars["switch_epochs"]) != 0:
@@ -3011,7 +3119,7 @@ class PAINeuronModuleTracker:
 
             best_valid_score = self.member_vars["accuracies"][best_valid_index]
             best_valid.append(best_valid_score)
-            
+
             # Get corresponding scores from all extra_scores
             for score_name in self.member_vars["extra_scores"]:
                 if best_valid_index < len(self.member_vars["extra_scores"][score_name]):
@@ -3020,7 +3128,7 @@ class PAINeuronModuleTracker:
                     )
                 else:
                     best_extra_scores[score_name].append(None)
-            
+
             # Get corresponding scores from all extra_scores_without_graphing
             for score_name in self.member_vars["extra_scores_without_graphing"]:
                 if best_valid_index < len(self.member_vars["extra_scores_without_graphing"][score_name]):
@@ -3029,7 +3137,7 @@ class PAINeuronModuleTracker:
                     )
                 else:
                     best_extra_scores[score_name].append(None)
-            
+
             associated_params.append(self.member_vars["param_counts"][-1])
 
         # Build dataframe with all columns
@@ -3037,11 +3145,11 @@ class PAINeuronModuleTracker:
             "Param Counts": associated_params,
             "Max Valid Scores": best_valid,
         }
-        
+
         # Add columns for each extra score
         for score_name in best_extra_scores:
             csv_data[score_name] = best_extra_scores[score_name]
-        
+
         pd1 = pd.DataFrame(csv_data)
         pd1.to_csv(
             save_folder + "/" + self.save_name + extra_string + "_best_arch_scores.csv",
@@ -3288,8 +3396,8 @@ class PAINeuronModuleTracker:
             epochs_since_cycle_switch = GPA.pai_tracker.member_vars["num_epochs_run"]
         else:
             epochs_since_cycle_switch = (
-                GPA.pai_tracker.member_vars["num_epochs_run"]
-                - GPA.pai_tracker.member_vars["switch_epochs"][-1]
+                    GPA.pai_tracker.member_vars["num_epochs_run"]
+                    - GPA.pai_tracker.member_vars["switch_epochs"][-1]
             )
 
         update_running_accuracy(accuracy, epochs_since_cycle_switch)
@@ -3303,8 +3411,8 @@ class PAINeuronModuleTracker:
 
         # If it is neuron training mode
         if (
-            GPA.pai_tracker.member_vars["mode"] == "n"
-            or GPA.pc.get_learn_dendrites_live()
+                GPA.pai_tracker.member_vars["mode"] == "n"
+                or GPA.pc.get_learn_dendrites_live()
         ):
             check_new_best(net, accuracy, epochs_since_cycle_switch)
         elif GPA.pc.get_perforated_backpropagation():
@@ -3321,9 +3429,9 @@ class PAINeuronModuleTracker:
         if GPA.pai_tracker.switch_time() or force_switch:
             # If testing dendrite capacity switch after enough dendrites added
             if (
-                (GPA.pai_tracker.member_vars["mode"] == "n")
-                and (GPA.pai_tracker.member_vars["num_dendrites_added"] > 2)
-                and GPA.pc.get_testing_dendrite_capacity()
+                    (GPA.pai_tracker.member_vars["mode"] == "n")
+                    and (GPA.pai_tracker.member_vars["num_dendrites_added"] > 2)
+                    and GPA.pc.get_testing_dendrite_capacity()
             ):
                 GPA.pai_tracker.save_graphs()
                 _pai_log(
@@ -3335,8 +3443,8 @@ class PAINeuronModuleTracker:
 
             # If doing neuron training but this dendrite count didn't improve
             if (
-                (GPA.pai_tracker.member_vars["mode"] == "n")
-                or GPA.pc.get_learn_dendrites_live()
+                    (GPA.pai_tracker.member_vars["mode"] == "n")
+                    or GPA.pc.get_learn_dendrites_live()
             ) and (GPA.pai_tracker.member_vars["current_n_set_global_best"] is False):
                 new_restructuring_status_value, net = process_no_improvement(net)
                 # if this was the final try return that training is complete
@@ -3361,15 +3469,16 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["num_dendrites_added"]},'
                         f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]},'
                     )
-                import pdb; pdb.set_trace
+                import pdb;
+                pdb.set_trace
                 # If the max number of dendrites has been hit or not doing pai and adding dendtites
                 # then return rather than adding more
                 if (
-                    (GPA.pai_tracker.member_vars["mode"] == "n")
-                    and (
-                        GPA.pc.get_max_dendrites()
-                        == GPA.pai_tracker.member_vars["num_dendrites_added"]
-                    )
+                        (GPA.pai_tracker.member_vars["mode"] == "n")
+                        and (
+                                GPA.pc.get_max_dendrites()
+                                == GPA.pai_tracker.member_vars["num_dendrites_added"]
+                        )
                 ) or (GPA.pai_tracker.member_vars["doing_pai"] is False):
                     if GPA.pc.get_verbose():
                         print(
@@ -3379,7 +3488,8 @@ class PAINeuronModuleTracker:
                     # Increment integrated if we have dendrites (means they're integrated)
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                         GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                        _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        _pai_log("info",
+                                 f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
                         if _dashboard_emitter is not None:
                             _dashboard_emitter.emit_dendrite_added(
                                 GPA.pc,
@@ -3431,12 +3541,13 @@ class PAINeuronModuleTracker:
                     GPA.pai_tracker.member_vars["doing_pai"],
                 )
                 restructuring_status_value = NETWORK_RESTRUCTURED
-                
+
                 # Now increment after change_learning_modes has loaded the best model
                 # This ensures the increment persists and doesn't get overwritten
                 if should_increment_integrated:
                     GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                    _pai_log("info", f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                    _pai_log("info",
+                             f"Dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
                     if _dashboard_emitter is not None:
                         _dashboard_emitter.emit_dendrite_added(
                             GPA.pc,
@@ -3477,8 +3588,10 @@ class PAINeuronModuleTracker:
             _mv = GPA.pai_tracker.member_vars
             _lr = _mv["training_learning_rates"][-1] if _mv["training_learning_rates"] else None
             _train_score = _mv["extra_scores"].get("train", [None])[-1]
-            _n_times = _mv["n_epoch_times"] or [(_mv["n_train_times"][-1] + _mv["n_val_times"][-1]) if (_mv["n_train_times"] and _mv["n_val_times"]) else None]
-            _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (_mv["p_train_times"] and _mv["p_val_times"]) else None]
+            _n_times = _mv["n_epoch_times"] or [(_mv["n_train_times"][-1] + _mv["n_val_times"][-1]) if (
+                        _mv["n_train_times"] and _mv["n_val_times"]) else None]
+            _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (
+                        _mv["p_train_times"] and _mv["p_val_times"]) else None]
             _dashboard_emitter.emit_epoch(
                 GPA.pc,
                 epoch=_mv["num_epochs_run"],
@@ -3534,23 +3647,63 @@ class PAINeuronModuleTracker:
         return net, restructuring_status_value, False
 
     def clear_all_processors(self):
-        """Clear all processors from modules."""
+        """Clear all processors from modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.clear_processors()
 
     def create_new_dendrite_module(self):
-        """Add dendrite module to all neuron modules."""
+        """Add dendrite module to all neuron modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
 
     def apply_pb_grads(self):
-        """Apply perforated backpropagation gradients to all modules."""
+        """Apply perforated backpropagation gradients to all modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if self.member_vars["mode"] == "p":
             for module in self.neuron_module_vector:
                 module.apply_pb_grads()
 
     def apply_pb_zero(self):
-        """Apply perforated backpropagation zero gradients to all modules."""
+        """Apply perforated backpropagation zero gradients to all modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if self.member_vars["mode"] == "p":
             for module in self.neuron_module_vector:
                 module.apply_pb_zero()
