@@ -117,12 +117,12 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         Parameters
         ----------
         value : Any
-            Function parameter.
+            New value to assign to the dynamic configuration field.
 
         Returns
         -------
         None
-            This function does not return a value.
+            Updates the property and may trigger configuration auto-save.
         """
         if (
             self.__dict__.get("_module_name") is not None
@@ -159,12 +159,12 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         Parameters
         ----------
         value : Any
-            Function parameter.
+            Value or values to append to the underlying list property.
 
         Returns
         -------
         None
-            This function does not return a value.
+            Appends items in-place and prints the resulting list value.
         """
         if isinstance(getattr(self, private_name), list):
             if var_name in (

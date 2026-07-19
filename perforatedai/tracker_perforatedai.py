@@ -1225,8 +1225,8 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        Any
-            Function return value.
+        str
+            Serialized tracker state suitable for storage in a safetensors field.
         """
 
         full_string = ""
@@ -2429,8 +2429,8 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        Any
-            Function return value.
+        nn.Module
+            Converted model instance configured for the tracker settings.
         """
         model = UPA.convert_network(model)
         self.member_vars["doing_pai"] = doing_pai
@@ -2885,17 +2885,17 @@ class PAINeuronModuleTracker:
 
         Parameters
         ----------
-        ax : Any
-            Function parameter.
-        save_folder : Any
-            Function parameter.
-        extra_string : Any
-            Function parameter.
+        ax : matplotlib.axes.Axes
+            Axis used for plotting dendrite-learning curves.
+        save_folder : str
+            Directory where plot images and CSV summaries are written.
+        extra_string : str
+            Filename suffix used to distinguish this output set.
 
         Returns
         -------
         None
-            This function does not return a value.
+            Saves plots and score CSV files to disk.
         """
         if self.member_vars["doing_pai"]:
             pd1 = None

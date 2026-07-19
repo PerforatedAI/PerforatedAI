@@ -364,8 +364,8 @@ def scan_module_aliases(net):
 
     Returns
     -------
-    Any
-        Function return value.
+    dict[str, str]
+        Mapping of alias module paths to their canonical module paths.
     """
     canonical = {}
     aliases = {}
@@ -1179,8 +1179,8 @@ def save_model_with_weight_tying(model, filepath):
 
     Returns
     -------
-    Any
-        Function return value.
+    dict[str, str]
+        Mapping from secondary parameter keys to their primary tied key.
     """
     state_dict = model.state_dict()
 
@@ -2744,14 +2744,14 @@ except:
         Parameters
         ----------
         *args : tuple[Any, ...]
-            Additional positional arguments.
+            Positional arguments accepted for API compatibility.
         **kwargs : dict[str, Any]
-            Additional keyword arguments.
+            Keyword arguments accepted for API compatibility.
 
         Returns
         -------
         None
-            This function does not return a value.
+            Always raises ``ImportError``.
         """
         raise ImportError(
             "huggingface_hub is required for upload_to_huggingface. "
@@ -2764,14 +2764,14 @@ except:
         Parameters
         ----------
         *args : tuple[Any, ...]
-            Additional positional arguments.
+            Positional arguments accepted for API compatibility.
         **kwargs : dict[str, Any]
-            Additional keyword arguments.
+            Keyword arguments accepted for API compatibility.
 
         Returns
         -------
         None
-            This function does not return a value.
+            Always raises ``ImportError``.
         """
         raise ImportError(
             "huggingface_hub is required for from_hf_pretrained. "

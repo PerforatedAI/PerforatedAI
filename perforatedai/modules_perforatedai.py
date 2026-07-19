@@ -55,8 +55,8 @@ def get_DENDRITE_TENSOR_VALUES():
 
     Returns
     -------
-    Any
-        Function return value.
+    list[str]
+        Names of tensor attributes used for dendrite state handling.
     """
     global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
@@ -85,8 +85,8 @@ def get_DENDRITE_SINGLE_VALUES():
 
     Returns
     -------
-    Any
-        Function return value.
+    list[str]
+        Names of scalar attributes used for dendrite state handling.
     """
     global _cached_dendrite_single_values, _cached_dendrite_single_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
@@ -115,8 +115,8 @@ def get_VALUE_TRACKER_ARRAYS():
 
     Returns
     -------
-    Any
-        Function return value.
+    list[str]
+        Names of array-valued fields tracked in ``DendriteValueTracker``.
     """
     global _cached_value_tracker_arrays, _cached_value_tracker_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
@@ -145,8 +145,8 @@ def get_DENDRITE_REINIT_VALUES():
 
     Returns
     -------
-    Any
-        Function return value.
+    list[str]
+        Combined list of attribute names that must be reinitialized.
     """
     return get_DENDRITE_TENSOR_VALUES() + get_DENDRITE_SINGLE_VALUES()
 
@@ -160,8 +160,8 @@ def get_DENDRITE_SAVE_VALUES():
 
     Returns
     -------
-    Any
-        Function return value.
+    list[str]
+        Combined list of attribute names persisted for save/load.
     """
     return (
         get_DENDRITE_TENSOR_VALUES()
