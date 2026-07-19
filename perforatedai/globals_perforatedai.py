@@ -73,13 +73,18 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
 
         Returns
         -------
-        any
+        Any
             Current value of the property.
 
         Notes:
         -----
         Many variables have optimal settings that must change as dendrites are added
         this enables those values to be dynamically set very easily.
+
+        Parameters
+        ----------
+        None
+
         """
         global pai_tracker
         if type(getattr(self, private_name)) is list:
@@ -92,10 +97,33 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         return getattr(self, private_name)
 
     def getter_list(self):
+        """Get the underlying list value for this dynamic config property.
+
+        Returns
+        -------
+        list
+            Raw list stored for this property.
+
+        Parameters
+        ----------
+        None
+
+        """
         return getattr(self, private_name)
 
     def setter(self, value):
-        """Set the value of the property."""
+        """Set the value of the property.
+
+        Parameters
+        ----------
+        value : Any
+            Function parameter.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if (
             self.__dict__.get("_module_name") is not None
             or self.__dict__.get("_module_type") is not None
@@ -126,7 +154,18 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             self.save_config(config_file)
 
     def appender(self, value):
-        """Append a value to the property if it is a list."""
+        """Append a value to the property if it is a list.
+
+        Parameters
+        ----------
+        value : Any
+            Function parameter.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if isinstance(getattr(self, private_name), list):
             if var_name in (
                 "module_ids_to_track",
@@ -972,6 +1011,11 @@ class PAIConfig:
         torch.dtype, nn.Module subclasses, callables) are stored as their
         dotted-string representations so they can be round-tripped by
         :py:meth:`load_config`.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         import json
 
@@ -1059,6 +1103,11 @@ class PAIConfig:
             Display name (id) of the module whose custom settings should be loaded.
         module_type : str, optional
             Short class name of the module type, used as a fallback key.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         import json
 
