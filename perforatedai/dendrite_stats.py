@@ -1,4 +1,6 @@
-"""Record dendrite-to-neuron-error correlation statistics during PAI training."""
+"""
+Record dendrite-to-neuron-error correlation statistics during PAI training.
+"""
 
 import csv
 from dataclasses import dataclass, asdict
@@ -125,12 +127,15 @@ def _summarize_layer(neuron_module: Any) -> dict[str, float] | None:
 
 
 class DendriteStatisticsRecorder:
-    """Collect per-dendrite correlation and error-reduction statistics.
+    """
+    Collect per-dendrite correlation and error-reduction statistics.
 
     The recorder must be driven from the training loop because the values it
     reads are overwritten by the mode switch inside add_validation_score. Call
-    capture_before_validation immediately before that call and
-    observe_after_validation immediately after it, every epoch.
+    capture_mode_and_layer_statistics_before_add_validation_score immediately
+    before that call, and
+    record_score_and_detect_dendrite_addition_after_add_validation_score
+    immediately after it, every epoch.
     """
 
     def __init__(self, output_directory: Path) -> None:
@@ -151,10 +156,11 @@ class DendriteStatisticsRecorder:
         self._snapshot_is_fresh: bool = False
         self._previous_integrated_count: int = 0
 
-    def capture_before_validation(self) -> None:
+    def capture_mode_and_layer_statistics_before_add_validation_score(self) -> None:
         """Snapshot every layer's correlation buffers before the mode can switch.
 
-        Records the current mode unconditionally, because observe_after_validation
+        Records the current mode unconditionally, because
+        record_score_and_detect_dendrite_addition_after_add_validation_score
         needs to know which phase this epoch belonged to and cannot determine that
         afterward. Takes the buffer snapshot only during a dendrite-training
         phase, when the buffers hold meaningful values.
@@ -183,7 +189,9 @@ class DendriteStatisticsRecorder:
         self._latest_snapshot = snapshot
         self._snapshot_is_fresh = True
 
-    def observe_after_validation(self, validation_score: float) -> None:
+    def record_score_and_detect_dendrite_addition_after_add_validation_score(
+        self, validation_score: float
+    ) -> None:
         """Detect a dendrite addition and close out the previous one.
 
         Args:
@@ -218,7 +226,9 @@ class DendriteStatisticsRecorder:
         # A dendrite was added this epoch. The snapshot taken moments ago serves
         # two purposes: it is the after-retraining measurement for the previous
         # dendrite, and the at-add measurement for this one.
-        self._close_pending_records(measure_error=True)
+        self._complete_and_store_records_for_most_recent_dendrite_addition(
+            another_dendrite_phase_followed=True
+        )
 
         add_event_index: int = self._previous_dendrite_count
         epoch_added: int = tracker.member_vars["num_epochs_run"]
@@ -239,7 +249,9 @@ class DendriteStatisticsRecorder:
                     mean_absolute_neuron_error_at_add=summary[
                         "mean_absolute_neuron_error"
                     ],
-                    validation_score_before=self._best_neuron_phase_score(),
+                    validation_score_before=(
+                        self._select_best_validation_score_of_most_recent_neuron_phase()
+                    ),
                 )
             )
 
@@ -247,38 +259,50 @@ class DendriteStatisticsRecorder:
         self._snapshot_is_fresh = False
         self._previous_dendrite_count = current_dendrite_count
 
-    def _best_neuron_phase_score(self) -> float | None:
-        """Return the best score from the neuron phase that just ended."""
+    def _select_best_validation_score_of_most_recent_neuron_phase(
+        self,
+    ) -> float | None:
+        """Return the best score from the most recent neuron phase."""
         if not self._neuron_phase_scores:
             return None
         if GPA.pai_tracker.member_vars["maximizing_score"]:
             return max(self._neuron_phase_scores)
         return min(self._neuron_phase_scores)
 
-    def _close_pending_records(self, measure_error: bool) -> None:
+    def _complete_and_store_records_for_most_recent_dendrite_addition(
+        self, another_dendrite_phase_followed: bool
+    ) -> None:
         """Fill in the after-retraining fields of the previous set of records.
 
         Args:
-            measure_error: True only when a later dendrite phase has produced a
-                fresh neuron-error measurement. When False, the error fields are
-                left as None rather than being filled from the same snapshot that
-                supplied the at-add value, which would fabricate a reduction of
-                exactly zero.
+            another_dendrite_phase_followed: True only when a later dendrite
+                phase has produced a fresh neuron-error measurement. When False,
+                the error fields are left as None rather than being filled from
+                the same snapshot that supplied the at-add value, which would
+                fabricate a reduction of exactly zero. This flag also decides
+                whether an undecided generation is marked as discarded, because
+                a following dendrite phase is what makes that fate known.
         """
         if not self._pending_records:
             return
-        if measure_error:
+        if another_dendrite_phase_followed:
             # Another generation is starting and this one was never marked
             # integrated, so it was tried and discarded.
             for record in self._pending_records:
                 if record.retained is None:
                     record.retained = False
-        score_after: float | None = self._best_neuron_phase_score()
+        score_after: float | None = (
+            self._select_best_validation_score_of_most_recent_neuron_phase()
+        )
         maximizing: bool = GPA.pai_tracker.member_vars["maximizing_score"]
 
         for record in self._pending_records:
             summary = self._latest_snapshot.get(record.layer_name)
-            if measure_error and self._snapshot_is_fresh and summary is not None:
+            if (
+                another_dendrite_phase_followed
+                and self._snapshot_is_fresh
+                and summary is not None
+            ):
                 error_after: float = summary["mean_absolute_neuron_error"]
                 record.mean_absolute_neuron_error_after_retraining = error_after
                 record.neuron_error_reduction = (
@@ -293,7 +317,9 @@ class DendriteStatisticsRecorder:
             self._records.append(record)
         self._pending_records = []
 
-    def finalize(self, file_name: str = "dendrite_statistics.csv") -> Path:
+    def complete_final_records_and_write_csv_file(
+        self, csv_file_name: str = "dendrite_statistics.csv"
+    ) -> Path:
         """Close any open records and write the CSV file.
 
         The final dendrite's error fields are left empty, because measuring the
@@ -301,13 +327,15 @@ class DendriteStatisticsRecorder:
         ran. Its validation-score fields are still filled in.
 
         Args:
-            file_name: Name of the CSV file to write.
+            csv_file_name: Name of the CSV file to write.
 
         Returns:
             The path of the file written.
         """
-        self._close_pending_records(measure_error=False)
-        output_path: Path = self._output_directory / file_name
+        self._complete_and_store_records_for_most_recent_dendrite_addition(
+            another_dendrite_phase_followed=False
+        )
+        output_path: Path = self._output_directory / csv_file_name
         field_names: list[str] = list(DendriteStatisticsRecord.__annotations__)
         with output_path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=field_names)
