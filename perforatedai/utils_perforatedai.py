@@ -46,7 +46,7 @@ from safetensors.torch import safe_open
 def perforate_model(
     model,
     doing_pai=True,
-    save_name="PAI",
+    save_name="",
     making_graphs=True,
     maximizing_score=True,
     num_classes=10000000000,
@@ -89,6 +89,12 @@ def perforate_model(
         The modified model with dendrite scaffolding added if doing_pai is True
 
     """
+
+    if save_name == "":
+        if GPA.pc.get_save_name() == "":
+            save_name = "PAI"
+        else:
+            save_name = GPA.pc.get_save_name()
 
     if "/" in save_name:
         print(
@@ -350,7 +356,17 @@ def replace_predefined_modules(start_module):
 
 
 def scan_module_aliases(net):
-    """Find alias module paths that point to already-seen module instances."""
+    """Find alias module paths that point to already-seen module instances.
+
+    Parameters
+    ----------
+    net : Any PyTorch Module.
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping of alias module paths to their canonical module paths.
+    """
     canonical = {}
     aliases = {}
     for name, module in net.named_modules(remove_duplicate=False):
@@ -559,6 +575,15 @@ def convert_module(
                 continue
             sub_name = name_so_far + "." + member
             member_obj = getattr(net, member, None)
+
+            if isinstance(member_obj, (torch.nn.Parameter, torch.nn.parameter.Parameter)):
+                if sub_name in GPA.pc.get_parameter_ids_to_track():
+                    if GPA.pc.get_verbose():
+                        print("tracking parameter by ID: %s" % sub_name)
+                    member_obj.parameter_type = "neuron"
+                    member_obj.wrapped = True
+                continue
+
             # Track module object ids once at this level so duplicate aliases are
             # caught consistently (including direct children of the root module).
             if isinstance(member_obj, nn.Module):
@@ -1145,7 +1170,18 @@ import torch
 
 
 def save_model_with_weight_tying(model, filepath):
-    """Save model with safetensors while handling weight tying automatically"""
+    """Save model with safetensors while handling weight tying automatically
+
+    Parameters
+    ----------
+    model : Any PyTorch Module.
+    filepath : Path to filename.
+
+    Returns
+    -------
+    dict[str, str]
+        Mapping from secondary parameter keys to their primary tied key.
+    """
     state_dict = model.state_dict()
 
     # Find all weight tied parameters
@@ -1184,7 +1220,17 @@ def save_model_with_weight_tying(model, filepath):
 
 
 def load_model_with_weight_tying(model, filepath):
-    """Load model from safetensors while restoring weight tying"""
+    """Load model from safetensors while restoring weight tying
+
+    Parameters
+    ----------
+    model : Any PyTorch module.
+    filepath : Path to model file.
+
+    Returns
+    -------
+    Loaded model.
+    """
     with safe_open(filepath, framework="pt") as f:
         metadata = f.metadata()
         state_dict = {key: f.get_tensor(key) for key in f.keys()}
@@ -1354,6 +1400,24 @@ def save_pai_net(net, folder, name):
 
 
 def manual_load_state_dict(model, state_dict):
+    """Load a state dict into a model key-by-key with relaxed checks.
+
+    Parameters
+    ----------
+    model : nn.Module
+        Model receiving parameters.
+    state_dict : dict
+        Source parameter dictionary.
+
+    Notes
+    -----
+    Keys configured in ``module_names_to_not_save`` are skipped.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     own_state = model.state_dict()
     not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
     for name, param in state_dict.items():
@@ -1429,6 +1493,18 @@ def load_net(net, folder, name):
 
 
 def get_module_base_name(module):
+    """Normalize a wrapped module name for state-dict key lookup.
+
+    Parameters
+    ----------
+    module : nn.Module
+        Module containing a ``name`` attribute.
+
+    Returns
+    -------
+    str
+        Base name with leading dot and optional ``module.`` prefix removed.
+    """
     module_name = module.name
     # This should always be true
     if module_name[0] == ".":
@@ -1556,7 +1632,10 @@ def load_net_from_dict(net, state_dict):
                 print(
                     "\n5 - if you are not properly calling backward at all."
                     " If this is the first module in your network it is more"
-                    "likely this is the problem"
+                    "likely this is the problem."
+                    "One check in these cases is to make sure you do not call an initial validation score"
+                    "before the first backward call.\nIf you do this, while testing_dendrite_capacity is True"
+                    "this error will be triggered."
                 )
                 print(
                     "\n6 - You have converted a module that is in a frozen"
@@ -1600,6 +1679,18 @@ def load_net_from_dict(net, state_dict):
         not_save_state_names = [ns.lstrip('.') for ns in not_save]
 
         def is_ignored_key(key):
+            """Check whether a state-dict key should be ignored.
+
+            Parameters
+            ----------
+            key : str
+                State-dict key to test.
+
+            Returns
+            -------
+            bool
+                ``True`` when key belongs to a not-saved namespace.
+            """
             return any(key.startswith(ns) for ns in not_save_state_names)
 
         missing_keys = [key for key in load_result.missing_keys if not is_ignored_key(key)]
@@ -1986,6 +2077,15 @@ def find_param_name_by_id(model, param_id):
     for the parameter whose id matches param_id. Returns None if not found.
 
     This uses model.named_parameters(), which already recurses through submodules.
+
+    Parameters
+    ----------
+    model : Model to look for param id.
+    param_id : pointer to a parameter.
+
+    Returns
+    -------
+    String representing the module within the model or None if not found.
     """
     for name, p in model.named_parameters(recurse=True):
         if id(p) == param_id:
@@ -2003,13 +2103,48 @@ def add_method_delegation_to_module(wrapper_module, method_name):
     Args:
         wrapper_module: A wrapper module instance with a main_module attribute
         method_name: The method name to delegate (e.g., '_gradient_checkpointing_func')
+
+    Parameters
+    ----------
+    wrapper_module : PyTorch Module that contains a sub module.
+    method_name : Name of method to wrap.
+
+    Returns
+    -------
+    None
     """
     import types
 
     if hasattr(wrapper_module.main_module, method_name):
         # Create a delegating method that forwards to main_module
         def make_delegated_method(name):
+            """Create a bound delegation function for a given attribute name.
+
+            Parameters
+            ----------
+            name : str
+                Attribute name to forward to ``main_module``.
+
+            Returns
+            -------
+            callable
+                Function that delegates access or invocation.
+            """
             def delegated_method(self, *args, **kwargs):
+                """Delegate attribute access or method call to ``main_module``.
+
+                Parameters
+                ----------
+                *args : tuple
+                    Positional arguments forwarded to delegated callables.
+                **kwargs : dict
+                    Keyword arguments forwarded to delegated callables.
+
+                Returns
+                -------
+                Any
+                    Delegated attribute value or method result.
+                """
                 main_module_attr = getattr(self.main_module, name, None)
                 if main_module_attr is None:
                     raise AttributeError(
@@ -2048,6 +2183,17 @@ def apply_method_delegation_to_model(model, method_name, main_module_type):
             '_gradient_checkpointing_func',
             main_module_type='Qwen2DecoderLayer'
         )
+
+    Parameters
+    ----------
+    model : PyTorch model.
+    method_name : method to delegate.
+    main_module_type : type of module that has this method.
+
+    Returns
+    -------
+    None
+        This function does not return a value.
     """
     count = 0
     for name, module in model.named_modules():
@@ -2076,7 +2222,7 @@ def make_json_serializable(obj):
 
     Returns
     -------
-    any
+    Any
         JSON-serializable version of the object
     """
     if isinstance(obj, (str, int, float, bool, type(None))):
@@ -2095,13 +2241,18 @@ def extract_gpa_config():
 
     Returns
     -------
-    dict
+    dict[str, Any]
         Dictionary with all GPA.pc configuration values and type metadata
 
     Examples
     --------
     >>> config = extract_gpa_config()
     >>> # Returns: {'max_dendrites': 10, 'device': 'cuda', '_types': {...}}
+
+    Parameters
+    ----------
+    None
+
     """
     config = {}
     config_types = {}
@@ -2167,7 +2318,7 @@ def convert_to_type(value, type_name):
 
     Returns
     -------
-    any
+    Any
         The converted value
     """
     if type_name == "NoneType" or value is None:
@@ -2324,6 +2475,10 @@ def set_gpa_config(config):
     >>> config = {'verbose': True, 'device': 'cuda'}
     >>> set_gpa_config(config)
     # Calls GPA.pc.set_verbose(True), GPA.pc.set_device('cuda'), etc.
+
+    Returns
+    -------
+    Count of parameters that were set
     """
     set_count = 0
     skip_count = 0
@@ -2538,11 +2693,22 @@ try:
 
         Returns:
             net: The loaded model with PAI modules initialized
+
+        Parameters
+        ----------
+        net : PyTorch Model.
+        repo_id : Name of HuggingFace repository.
+        force_download : Force an update even if local file exists.
+
+        Returns
+        -------
+        Loaded Model
         """
 
         # Wrap in a class that inherits from PyTorchModelHubMixin
         class PAIHFModel(net.__class__, PyTorchModelHubMixin):
             def __init__(self, *args, **kwargs):
+                """Initialize the temporary HuggingFace-compatible wrapper."""
                 super().__init__(*args, **kwargs)
 
         # Create an instance that can use from_pretrained
@@ -2573,12 +2739,40 @@ try:
 except:
 
     def upload_to_huggingface(*args, **kwargs):
+        """Raise an informative error when HuggingFace dependencies are missing.
+
+        Parameters
+        ----------
+        *args : tuple[Any, ...]
+            Positional arguments accepted for API compatibility.
+        **kwargs : dict[str, Any]
+            Keyword arguments accepted for API compatibility.
+
+        Returns
+        -------
+        None
+            Always raises ``ImportError``.
+        """
         raise ImportError(
             "huggingface_hub is required for upload_to_huggingface. "
             "Install it with: pip install huggingface_hub"
         )
 
     def from_hf_pretrained(*args, **kwargs):
+        """Raise an informative error when HuggingFace dependencies are missing.
+
+        Parameters
+        ----------
+        *args : tuple[Any, ...]
+            Positional arguments accepted for API compatibility.
+        **kwargs : dict[str, Any]
+            Keyword arguments accepted for API compatibility.
+
+        Returns
+        -------
+        None
+            Always raises ``ImportError``.
+        """
         raise ImportError(
             "huggingface_hub is required for from_hf_pretrained. "
             "Install it with: pip install huggingface_hub"

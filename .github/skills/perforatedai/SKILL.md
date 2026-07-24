@@ -7,10 +7,10 @@ description: "Expert in PerforatedAI library for adding artificial dendrites to 
 
 ## Available Resources
 
-This skill has access to:
-- **API Documentation**: [api-docs/](./api-docs/) - All API guides and references
-- **Source Code**: [source-code/](./source-code/) - Complete PerforatedAI library implementation
-- **Examples**: [examples/](./examples/) - Working code examples for various architectures
+This skill has access to (via the PerforatedAI git submodule):
+- **API Documentation**: [PerforatedAI/API/](./PerforatedAI/API/) - All API guides and references
+- **Source Code**: [PerforatedAI/PAI/perforatedai/](./PerforatedAI/PAI/perforatedai/) - Complete PerforatedAI library implementation
+- **Examples**: [PerforatedAI/Examples/](./PerforatedAI/Examples/) - Working code examples for various architectures
 
 Feel free to reference these when helping users debug or understand implementation details.
 
@@ -52,6 +52,19 @@ Based on their choice:
 **If no PAI integration found:**
 
 Proceed with Step 1 below.
+
+### Prerequisites: Install PerforatedAI Packages
+
+Before doing anything else, instruct the user to install the two required pip packages. These are not bundled with the server — the user must install them in their Python environment:
+
+```bash
+pip install perforatedai perforatedbp
+```
+
+- **`perforatedai`** — core dendrite library (`globals_perforatedai`, `utils_perforatedai`, etc.)
+- **`perforatedbp`** — Perforated Backpropagation extension (required for dendrite scoring)
+
+Ask them to confirm the install completed without errors before continuing.
 
 ### Step 1: Discovery
 
@@ -545,6 +558,45 @@ Tell them: "Your optimizer setup is complex, so I'm using the simpler integratio
 
 **IMPORTANT NOTE:** When using `set_optimizer_instance`, PAI will NOT handle the scheduler. You must keep all existing `scheduler.step()` calls in your training loop.
 
+**🔍 CHECK: Does their code use multiple optimizers?**
+
+Before calling `set_optimizer_instance`, scan their code for multiple optimizer definitions (e.g., separate optimizers for encoder/decoder, backbone/head, generator/discriminator, etc.).
+
+**If they have multiple optimizers:**
+
+`set_optimizer_instance` accepts an `additional_optimizers` list for this case:
+
+```python
+GPA.pai_tracker.set_optimizer_instance(main_optimizer, additional_optimizers=[optimizer2, optimizer3])
+```
+
+- The **first argument** (`main_optimizer`) must be the optimizer that contains the **perforated modules** (the ones listed in `set_module_names_to_perforate`). PAI will add dendrite parameters to this optimizer's param groups.
+- **`additional_optimizers`** should contain all other optimizers in the training setup. PAI will handle freezing/unfreezing their parameters correctly across n/p mode switches, but will NOT add dendrites to them.
+
+**🚨 IMPORTANT LIMITATION:** PAI currently only supports perforating modules that are covered by a single optimizer — the first argument to `set_optimizer_instance`. Modules whose parameters are split across multiple optimizers cannot be perforated. Design your `set_module_names_to_perforate` configuration accordingly so all perforated modules live in the main optimizer.
+
+**🏆 BEST PRACTICE: Extract optimizer/scheduler setup into a helper function**
+
+Whether using `setup_optimizer` or `set_optimizer_instance`, the optimizer and scheduler must be rebuilt identically after each `restructured=True` event. The safest way to guarantee this is to extract the setup into a shared function called from both the initial setup and the restructured block:
+
+```python
+def build_optimizer_and_scheduler(model, args):
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    return optimizer, scheduler
+
+# Initial setup
+optimizer, scheduler = build_optimizer_and_scheduler(model, args)
+GPA.pai_tracker.set_optimizer_instance(optimizer)
+
+# After restructure
+elif restructured and not training_complete:
+    optimizer, scheduler = build_optimizer_and_scheduler(model, args)
+    GPA.pai_tracker.set_optimizer_instance(optimizer)
+```
+
+This prevents subtle divergence where the initial setup and restructured setup drift apart over time. Always recommend this pattern for any setup more complex than 2-3 lines.
+
 ---
 
 ### Step 7: Update Training Loop
@@ -653,6 +705,25 @@ Tell them: "I've modified your training loop to allow PAI to control when traini
 ### Step 8: Optional Configuration Tuning
 
 Before running the first experiment, check with them about optional configurations that can improve results and analysis:
+
+#### 7.0 Switch Mode
+
+By default PAI uses history-based switching — it adds a dendrite when validation score stops improving. Ask if they want predictable/fixed-interval switching instead:
+
+Ask: "Would you like to use fixed switch mode, where PAI switches between main and dendrite training on a fixed epoch schedule rather than waiting for plateau detection? This makes total training time more predictable."
+
+If yes, add these two lines to the PAI configuration block (before `perforate_model`):
+
+```python
+GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
+GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
+```
+
+- `set_fixed_switch_num` — how many epochs between each switch after the first
+- `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
+
+Set both to the same value for uniform switching throughout training.
 
 #### 7.1 Additional Score Tracking (Training and Test)
 

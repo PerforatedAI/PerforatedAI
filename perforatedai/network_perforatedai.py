@@ -17,6 +17,20 @@ loaded_full_print = False
 
 
 def convert_network(net, layer_name=""):
+    """Convert a model to use PAI perforated wrappers.
+
+    Parameters
+    ----------
+    net : nn.Module
+        Model or submodule to convert.
+    layer_name : str, optional
+        Required name when converting a single module directly.
+
+    Returns
+    -------
+    nn.Module
+        Converted module tree.
+    """
     # If the net itself has a substitution make that substitution first
     if type(net) in GPA.pc.get_modules_to_replace():
         net = UPA.replace_predefined_modules(net)
@@ -35,6 +49,22 @@ def convert_network(net, layer_name=""):
 
 
 def get_pai_modules(net, depth, seen_ids=None):
+    """Collect unique PerforatedModule instances from a module tree.
+
+    Parameters
+    ----------
+    net : nn.Module
+        Root module to traverse.
+    depth : int
+        Current recursion depth.
+    seen_ids : set or None, optional
+        Set of module object IDs already collected.
+
+    Returns
+    -------
+    list
+        List of unique ``PerforatedModule`` objects.
+    """
     if seen_ids is None:
         seen_ids = set()
     all_members = net.__dir__()
@@ -73,6 +103,20 @@ def get_pai_modules(net, depth, seen_ids=None):
 
 
 def load_pai_model_from_dict(net, state_dict):
+    """Load PAI-specific module state from a state dictionary.
+
+    Parameters
+    ----------
+    net : nn.Module
+        Converted network containing perforated modules.
+    state_dict : dict
+        Serialized model state.
+
+    Returns
+    -------
+    nn.Module
+        Network with loaded state and reconstructed runtime buffers.
+    """
     pai_modules = get_pai_modules(net, 0)
     if pai_modules == []:
         print("No PAI modules were found something went wrong with convert network")
@@ -123,6 +167,20 @@ def load_pai_model_from_dict(net, state_dict):
 
 
 def load_pai_model(net, filename):
+    """Load a saved PAI model file into a converted network.
+
+    Parameters
+    ----------
+    net : nn.Module
+        Base network architecture.
+    filename : str
+        Path to a safetensors state file.
+
+    Returns
+    -------
+    nn.Module
+        Loaded PAI network.
+    """
     net = convert_network(net)
     state_dict = load_file(filename)
     return load_pai_model_from_dict(net, state_dict)
@@ -130,6 +188,15 @@ def load_pai_model(net, filename):
 
 class PerforatedModule(nn.Module):
     def __init__(self, original_module, name):
+        """Initialize a perforated wrapper around a single module.
+
+        Parameters
+        ----------
+        original_module : nn.Module
+            Original module being wrapped.
+        name : str
+            Qualified module name used for save/load mapping.
+        """
         super(PerforatedModule, self).__init__()
         self.name = name
         self.register_buffer("node_index", torch.tensor(-1))
@@ -155,6 +222,20 @@ class PerforatedModule(nn.Module):
             ]()
 
     def simulate_cycles(self, num_cycles, nodeCount):
+        """Expand internal layer/processor lists for stored dendrite cycles.
+
+        Parameters
+        ----------
+        num_cycles : int
+            Number of perforation cycles represented in saved state.
+        nodeCount : int
+            Node count hint kept for interface compatibility.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for i in range(0, num_cycles, 2):
             self.layer_array.append(copy.deepcopy(self.layer_array[0]))
             if not self.processor is None:
@@ -166,6 +247,21 @@ class PerforatedModule(nn.Module):
                 self.processor_array.append(None)
 
     def process_and_forward(self, *args2, **kwargs2):
+        """Execute one dendrite layer and write output into shared storage.
+
+        Parameters
+        ----------
+        *args2 : tuple
+            Positional values where first entries are layer index and output
+            buffer, followed by layer inputs.
+        **kwargs2 : dict
+            Keyword arguments forwarded to the wrapped layer.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         c = args2[0]
         dendrite_outs = args2[1]
         args2 = args2[2:]
@@ -179,6 +275,20 @@ class PerforatedModule(nn.Module):
         dendrite_outs[c] = out
 
     def process_and_pre(self, *args, **kwargs):
+        """Run the final pre-dendrite layer pass and cache its output.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional values with output buffer first, then model inputs.
+        **kwargs : dict
+            Keyword arguments forwarded to the wrapped layer.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         dendrite_outs = args[0]
         args = args[1:]
         out = self.layer_array[-1].forward(*args, **kwargs)
@@ -187,6 +297,20 @@ class PerforatedModule(nn.Module):
         dendrite_outs[len(self.layer_array) - 1] = out
 
     def forward(self, *args, **kwargs):
+        """Run perforated forward pass with dendrite accumulation.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments forwarded through wrapped layers.
+        **kwargs : dict
+            Keyword arguments forwarded through wrapped layers.
+
+        Returns
+        -------
+        Any
+            Final model output after optional processor post-processing.
+        """
         # this is currently false anyway, just remove the doing multi idea
         doing_multi = doing_threading
         dendrite_outs = [None] * len(self.layer_array)

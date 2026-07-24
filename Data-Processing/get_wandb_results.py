@@ -66,6 +66,16 @@ METRIC_COLUMN_ALIASES = {
 }
 
 
+METRIC_COLUMN_ALIASES = {
+    'arch_param_count': ['Arch Param Count', 'arch_param_count', 'Arch_Param_Count'],
+    'arch_max_val': ['Arch Max Val', 'arch_max_val', 'Arch_Max_Val'],
+    'arch_dendrite_count': ['Arch Dendrite Count', 'arch_dendrite_count', 'Arch_Dendrite_Count'],
+    'final_param_count': ['Final Param Count', 'final_param_count', 'Final_Param_Count'],
+    'final_max_val': ['Final Max Val', 'final_max_val', 'Final_Max_Val'],
+    'final_dendrite_count': ['Final Dendrite Count', 'final_dendrite_count', 'Final_Dendrite_Count'],
+}
+
+
 def parse_wandb_url(url: str) -> Tuple[str, str, str]:
     """
     Parse a wandb sweep URL to extract entity, project, and sweep_id.
@@ -111,6 +121,7 @@ def normalize_metric_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
 def infer_model_index_from_row(row: pd.Series) -> Optional[int]:
     """Infer model index from a row using config_model_index or run_name pattern."""
     config_model_index = row.get('config_model_index', None)
@@ -165,10 +176,13 @@ def filter_ignored_models(df: pd.DataFrame, ignored_models: List[int]) -> pd.Dat
     return df
 
 
+=======
+>>>>>>> origin/main:get_wandb_results.py
 def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame:
     """Validate that an input DataFrame has the raw arch score schema this script expects."""
     df = normalize_metric_columns(df)
 
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
     has_param_count = 'arch_param_count' in df.columns
     has_score_column = 'arch_max_val' in df.columns or 'arch_max_test' in df.columns
     if has_param_count and has_score_column:
@@ -178,11 +192,23 @@ def validate_input_dataframe(df: pd.DataFrame, input_label: str) -> pd.DataFrame
         raise ValueError(
             f"Input file '{input_label}' appears to be a by-run pivot CSV, not a raw arch_scores CSV. "
             f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
+=======
+    required_columns = {'arch_param_count', 'arch_max_val'}
+    missing_columns = sorted(required_columns - set(df.columns))
+    if not missing_columns:
+        return df
+
+    if 'Arch Param Count' in df.columns and 'arch_max_val' not in df.columns:
+        raise ValueError(
+            f"Input file '{input_label}' appears to be a by-run pivot CSV, not a raw arch_scores CSV. "
+            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+>>>>>>> origin/main:get_wandb_results.py
         )
 
     if 'param_count' in df.columns and any(col.startswith('dendrite_') for col in df.columns):
         raise ValueError(
             f"Input file '{input_label}' appears to be a by-dendrite output CSV, not a raw arch_scores CSV. "
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
             f"Use the raw download file (for example '*_arch_scores.csv') as --csv."
         )
 
@@ -205,6 +231,18 @@ def get_sweep_results(
     include_final: bool = False,
     max_completed: Optional[int] = None,
 ) -> pd.DataFrame:
+=======
+            f"Use the raw download file (for example '*_arch_scores.csv') as --input-csv."
+        )
+
+    raise ValueError(
+        f"Input file '{input_label}' is missing required columns: {', '.join(missing_columns)}. "
+        f"Expected a raw arch_scores CSV containing columns like arch_param_count and arch_max_val."
+    )
+
+
+def get_sweep_results(entity: str, project: str, sweep_id: str, include_final: bool = False) -> pd.DataFrame:
+>>>>>>> origin/main:get_wandb_results.py
     """
     Fetch all runs from a wandb sweep and extract all raw log entries.
     
@@ -246,6 +284,7 @@ def get_sweep_results(
     # Look for these metric names in history
     arch_param_count_keys = METRIC_COLUMN_ALIASES['arch_param_count']
     arch_max_val_keys = METRIC_COLUMN_ALIASES['arch_max_val']
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
     arch_max_test_keys = METRIC_COLUMN_ALIASES['arch_max_test']
     arch_dendrite_count_keys = METRIC_COLUMN_ALIASES['arch_dendrite_count']
     
@@ -260,6 +299,14 @@ def get_sweep_results(
     failed_or_incomplete_runs = 0
     completed_discarded_runs = 0
     selected_run_ids = []
+=======
+    arch_dendrite_count_keys = METRIC_COLUMN_ALIASES['arch_dendrite_count']
+    
+    if include_final:
+        final_param_count_keys = METRIC_COLUMN_ALIASES['final_param_count']
+        final_max_val_keys = METRIC_COLUMN_ALIASES['final_max_val']
+        final_dendrite_count_keys = METRIC_COLUMN_ALIASES['final_dendrite_count']
+>>>>>>> origin/main:get_wandb_results.py
     
     for i, run in enumerate(runs):
         print(f"  Run {i+1}/{len(runs)}: {run.name} ({run.id})")
@@ -440,6 +487,7 @@ def get_sweep_results(
     
     # Create DataFrame
     df = pd.DataFrame(all_results)
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
     if max_completed is not None and not df.empty and selected_run_ids:
         df = df[df['run_id'].isin(selected_run_ids)].copy()
     df = normalize_metric_columns(df)
@@ -453,6 +501,9 @@ def get_sweep_results(
         print(f"  Requested max completed runs: {max_completed}")
         print(f"  Failed/incomplete runs: {failed_or_incomplete_runs}")
         print(f"  Completed runs discarded by max-completed: {completed_discarded_runs}")
+=======
+    df = normalize_metric_columns(df)
+>>>>>>> origin/main:get_wandb_results.py
     
     print(f"\nTotal raw log entries: {len(df)}")
     
@@ -819,7 +870,11 @@ def main():
 Example:
   %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7
   %(prog)s --url https://wandb.ai/perforated-ai/pets/sweeps/lk4t23x7 --output results.csv
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
     %(prog)s --csv perforated-ai_pets_i00x001o_arch_scores.csv --mode gen-by-run
+=======
+  %(prog)s --input_csv perforated-ai_pets_i00x001o_arch_scores.csv -m gen-by-run
+>>>>>>> origin/main:get_wandb_results.py
         """
     )
 
@@ -831,8 +886,20 @@ Example:
     )
 
     input_group.add_argument(
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
         '--csv',
         help='path to an existing raw CSV file (download mode output) to use as input instead of fetching from wandb'
+=======
+        '--input-csv',
+        help='path to an existing raw CSV file (download mode output) to use as input instead of fetching from wandb'
+    )
+    
+    parser.add_argument(
+        '-m', '--mode',
+        choices=['download', 'gen-by-run', 'by-dendrite'],
+        default='download',
+        help='output mode: "download" for raw data, "gen-by-run" for line graph by run, "by-dendrite" for scatter plot by dendrite count (default: download)'
+>>>>>>> origin/main:get_wandb_results.py
     )
     
     parser.add_argument(
@@ -909,6 +976,7 @@ Example:
     raw_csv_file = None
     output_stem = None
 
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
     if args.csv:
         if args.max_completed is not None:
             print("Warning: --max-completed is ignored when using --csv input")
@@ -926,6 +994,21 @@ Example:
 
         print(f"Loaded {len(df)} raw log entries from CSV")
         output_stem = os.path.splitext(os.path.basename(args.csv))[0]
+=======
+    if args.input_csv:
+        if not os.path.exists(args.input_csv):
+            print(f"Error: Input CSV file not found: {args.input_csv}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Loading data from input CSV: {args.input_csv}")
+        try:
+            df = validate_input_dataframe(pd.read_csv(args.input_csv), args.input_csv)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Loaded {len(df)} raw log entries from CSV")
+        output_stem = os.path.splitext(os.path.basename(args.input_csv))[0]
+>>>>>>> origin/main:get_wandb_results.py
     else:
         # Parse URL to extract entity, project, and sweep_id
         try:
@@ -942,7 +1025,11 @@ Example:
         raw_csv_file = f"{entity}_{project}_{sweep_id}_arch_scores.csv"
         output_stem = f"{entity}_{project}_{sweep_id}"
 
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
         if args.mode != 'download' and os.path.exists(raw_csv_file) and args.max_completed is None:
+=======
+        if args.mode != 'download' and os.path.exists(raw_csv_file):
+>>>>>>> origin/main:get_wandb_results.py
             # Load existing CSV instead of fetching
             print(f"Found existing raw data file: {raw_csv_file}")
             print(f"Loading data from file instead of fetching from wandb...\n")
@@ -954,6 +1041,7 @@ Example:
             print(f"Loaded {len(df)} raw log entries from CSV")
         else:
             # Fetch sweep results from wandb
+<<<<<<< HEAD:Data-Processing/get_wandb_results.py
             df = get_sweep_results(
                 entity,
                 project,
@@ -961,6 +1049,9 @@ Example:
                 include_final=args.include_final,
                 max_completed=args.max_completed,
             )
+=======
+            df = get_sweep_results(entity, project, sweep_id, include_final=args.include_final)
+>>>>>>> origin/main:get_wandb_results.py
 
             if df.empty:
                 print("No results found!")

@@ -20,9 +20,9 @@ Outputs:
      Same summaries, but positioned on the x-axis by metadata param_count.
 
 Example:
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --output my_output_folder
-    python process_csv_output.py --input-csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --output my_output_folder
+    python process_csv_output.py --csv my_sweep_by_dendrite_separate.csv --x-break 13000000,22000000
 """
 
 import argparse
@@ -41,6 +41,27 @@ import pandas as pd
 from matplotlib.lines import Line2D
 
 
+_FONT_SCALE = 1.5
+
+
+def _scale_rc_value(value: Any, fallback: float) -> float:
+    """Scale numeric matplotlib rc values safely."""
+    if isinstance(value, (int, float)):
+        return float(value) * _FONT_SCALE
+    return fallback * _FONT_SCALE
+
+
+plt.rcParams.update({
+    "font.size": _scale_rc_value(plt.rcParams.get("font.size"), 10.0),
+    "axes.titlesize": _scale_rc_value(plt.rcParams.get("axes.titlesize"), 12.0),
+    "axes.labelsize": _scale_rc_value(plt.rcParams.get("axes.labelsize"), 10.0),
+    "xtick.labelsize": _scale_rc_value(plt.rcParams.get("xtick.labelsize"), 10.0),
+    "ytick.labelsize": _scale_rc_value(plt.rcParams.get("ytick.labelsize"), 10.0),
+    "legend.fontsize": _scale_rc_value(plt.rcParams.get("legend.fontsize"), 10.0),
+    "figure.titlesize": _scale_rc_value(plt.rcParams.get("figure.titlesize"), 12.0),
+})
+
+
 def _safe_float(value: str) -> Optional[float]:
     """Parse a float value from string, returning None on empty/invalid input."""
     if value is None:
@@ -54,26 +75,45 @@ def _safe_float(value: str) -> Optional[float]:
         return None
 
 
-def _dendrite_sort_key(column_name: str) -> Tuple[int, int, str, int]:
-    """Sort known model_N_dendrite_M columns first, with val before test."""
-    match = re.match(r"model_(\d+)_dendrite_(\d+)_max_(val|test)$", column_name)
+def _dendrite_sort_key(column_name: str) -> Tuple[int, int, int, str]:
+    """Sort dendrite metric columns by metric then dendrite count.
+
+    Supports both:
+    - model_<n>_dendrite_<d>_max_<val|test>
+    - dendrite_<d>_max_<val|test>
+    """
+    match = re.match(r"(?:model_([^_]+)_)?dendrite_(\d+)_max_(val|test)$", column_name)
     if match:
-        model_idx = int(match.group(1))
+        model_tag = match.group(1) if match.group(1) is not None else "0"
+        try:
+            model_idx = int(model_tag)
+        except Exception:
+            model_idx = 0
         dendrite_idx = int(match.group(2))
         metric = match.group(3)
         metric_order = 0 if metric == "val" else 1
-        return (0, metric_order, "", model_idx * 100000 + dendrite_idx)
-    return (1, 2, column_name, 0)
+        return (0, metric_order, dendrite_idx, f"{model_idx:06d}_{model_tag}")
+    return (1, 2, 999999, column_name)
 
 
 def _display_label(column_name: str, model_name_map: Optional[Dict[str, str]] = None) -> str:
     """Build a compact display label for a dendrite metric column."""
-    match = re.match(r"model_(\d+)_dendrite_(\d+)_max_(?:val|test)$", column_name)
+    generic = re.match(r"dendrite_(\d+)_max_(?:val|test)$", column_name)
+    if generic:
+        return f"d{generic.group(1)}"
+
+    match = re.match(r"model_([^_]+)_dendrite_(\d+)_max_(?:val|test)$", column_name)
     if match:
-        model_id = f"model_{match.group(1)}"
-        model_label = model_name_map.get(model_id, model_id) if model_name_map else model_id
-        return f"{model_label} / dendrite_{match.group(2)}"
+        return f"d{match.group(2)}"
     return column_name.replace("_max_val", "").replace("_max_test", "")
+
+
+def _extract_dendrite_idx(column_name: str) -> Optional[int]:
+    """Extract dendrite index from supported metric column formats."""
+    match = re.match(r"(?:model_[^_]+_)?dendrite_(\d+)_max_(?:val|test)$", str(column_name))
+    if not match:
+        return None
+    return int(match.group(1))
 
 
 def _load_model_info(base_dir: str) -> Tuple[Dict[str, str], Optional[str]]:
@@ -145,6 +185,30 @@ def _parse_hyperparams_from_run_name(run_name: str, known_keys: Sequence[str]) -
                 parsed[key] = value
 
     return parsed
+
+
+def _write_companion_csv_for_png(
+    png_path: str,
+    data: Any,
+    empty_note: str = "No data available for this chart.",
+) -> str:
+    """Write a CSV with the same stem as a PNG containing chart source data."""
+    csv_path = os.path.splitext(png_path)[0] + ".csv"
+
+    if isinstance(data, pd.DataFrame):
+        out_df = data.copy()
+    elif isinstance(data, list):
+        out_df = pd.DataFrame(data)
+    elif isinstance(data, dict):
+        out_df = pd.DataFrame([data])
+    else:
+        out_df = pd.DataFrame([{"note": empty_note}])
+
+    if out_df.empty:
+        out_df = pd.DataFrame([{"note": empty_note}])
+
+    out_df.to_csv(csv_path, index=False)
+    return csv_path
 
 
 def _extract_model_id_from_run_name(run_name: str) -> Optional[str]:
@@ -349,8 +413,11 @@ def _create_base_model_d0_vs_final_histogram(
     base_model_id: str,
     output_path: str,
     model_name_map: Optional[Dict[str, str]] = None,
-) -> None:
-    """Create histogram-only comparison for base model: d0 vs final d>0 per run."""
+) -> Tuple[List[str], pd.DataFrame]:
+    """Create histogram-only comparison for base model: d0 vs final d>0 per run.
+
+    Writes separate images for validation and test metrics.
+    """
     model_pattern = re.compile(rf"{re.escape(base_model_id)}_dendrite_(\d+)_max_(val|test)$")
     generic_pattern = re.compile(r"dendrite_(\d+)_max_(val|test)$")
     metric_to_cols: Dict[str, List[Tuple[int, str]]] = {"val": [], "test": []}
@@ -366,21 +433,24 @@ def _create_base_model_d0_vs_final_histogram(
         metric_to_cols[metric].append((dendrite_idx, col))
 
     if (not metric_to_cols["val"]) and (not metric_to_cols["test"]):
-        # Always write an image so users can see why it is empty.
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.axis("off")
-        ax.text(
-            0.5,
-            0.5,
-            f"No dendrite columns found for base model: {base_model_id}",
-            ha="center",
-            va="center",
-            fontsize=11,
-        )
-        fig.tight_layout()
-        fig.savefig(output_path, dpi=150)
-        plt.close(fig)
-        return
+        created_paths: List[str] = []
+        for metric in ("val", "test"):
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                f"No dendrite columns found for base model: {base_model_id}",
+                ha="center",
+                va="center",
+                fontsize=11,
+            )
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
+        return created_paths, pd.DataFrame([{"note": f"No dendrite columns found for base model: {base_model_id}"}])
 
     base_label = model_name_map.get(base_model_id, base_model_id) if model_name_map else base_model_id
 
@@ -398,16 +468,23 @@ def _create_base_model_d0_vs_final_histogram(
     else:
         run_groups = [(idx, row.to_frame().T) for idx, row in base_rows_df.iterrows()]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=False)
+    hist_rows: List[Dict[str, Any]] = []
     metric_specs = [("val", "Validation"), ("test", "Test")]
+    created_paths: List[str] = []
 
-    for ax, (metric, metric_title) in zip(axes, metric_specs):
+    for metric, metric_title in metric_specs:
+        fig, ax = plt.subplots(figsize=(10, 5), sharey=False)
         cols = sorted(metric_to_cols[metric], key=lambda x: x[0])
         if not cols:
             ax.set_title(f"{metric_title} (not available)")
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         d0_cols = [c for c in cols if c[0] == 0]
@@ -416,6 +493,11 @@ def _create_base_model_d0_vs_final_histogram(
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         d0_col = d0_cols[0][1]
@@ -427,10 +509,22 @@ def _create_base_model_d0_vs_final_histogram(
         gt_zero_cols_sorted = sorted(gt_zero_cols, key=lambda x: x[0])
 
         for _, group_df in run_groups:
+            run_key = str(group_df["run_id"].iloc[0]) if "run_id" in group_df.columns else ""
             # d0 per run
             d0_series = pd.to_numeric(group_df[d0_col], errors="coerce").dropna()
             if not d0_series.empty:
-                d0_values.append(float(d0_series.max()))
+                score = float(d0_series.max())
+                d0_values.append(score)
+                hist_rows.append(
+                    {
+                        "model_id": base_model_id,
+                        "model_name": base_label,
+                        "metric": metric,
+                        "bucket": "d0",
+                        "run_id": run_key,
+                        "score": score,
+                    }
+                )
 
             # final d>0 per run: take highest dendrite index that has a score in this run
             chosen_final: Optional[float] = None
@@ -441,12 +535,27 @@ def _create_base_model_d0_vs_final_histogram(
                     break
             if chosen_final is not None:
                 final_gt_zero_values.append(chosen_final)
+                hist_rows.append(
+                    {
+                        "model_id": base_model_id,
+                        "model_name": base_label,
+                        "metric": metric,
+                        "bucket": "final_d_gt_0",
+                        "run_id": run_key,
+                        "score": chosen_final,
+                    }
+                )
 
         if (not d0_values) and (not final_gt_zero_values):
             ax.set_title(f"{metric_title} (no data)")
             ax.set_xlabel("Score")
             ax.set_ylabel("Count")
             ax.grid(axis="y", alpha=0.25)
+            metric_output_path = output_path.replace(".png", f"_{metric}.png")
+            fig.tight_layout()
+            fig.savefig(metric_output_path, dpi=150)
+            plt.close(fig)
+            created_paths.append(metric_output_path)
             continue
 
         combined: List[float] = d0_values + final_gt_zero_values
@@ -463,7 +572,7 @@ def _create_base_model_d0_vs_final_histogram(
                 alpha=0.45,
                 color="black",
                 edgecolor="black",
-                label=f"d0 (n={len(d0_values)})",
+                label="d0",
             )
         if final_gt_zero_values:
             ax.hist(
@@ -472,22 +581,24 @@ def _create_base_model_d0_vs_final_histogram(
                 alpha=0.45,
                 color="tab:blue",
                 edgecolor="tab:blue",
-                label=f"final d>0 per run (n={len(final_gt_zero_values)})",
+                label="final d>0 per run",
             )
 
         ax.set_title(
-            f"{metric_title}: {base_label} d0 vs final d>0 "
-            f"(runs with d0={len(d0_values)}, runs with final d>0={len(final_gt_zero_values)})"
+            f"{metric_title}: {base_label} d0 vs final d>0"
         )
         ax.set_xlabel("Score")
         ax.set_ylabel("Count")
         ax.grid(axis="y", alpha=0.25)
-        ax.legend(fontsize=8)
+        ax.legend(fontsize=16)
 
-    fig.suptitle("Histogram-Only: Base Model d0 vs Final d>0 Per Run")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(output_path, dpi=150)
-    plt.close(fig)
+        metric_output_path = output_path.replace(".png", f"_{metric}.png")
+        fig.tight_layout()
+        fig.savefig(metric_output_path, dpi=150)
+        plt.close(fig)
+        created_paths.append(metric_output_path)
+
+    return created_paths, pd.DataFrame(hist_rows)
 
 
 def _write_best_run_per_model_csv(
@@ -802,6 +913,12 @@ def _build_box_stats(
         q1 = float(series.quantile(0.25))
         med = float(series.quantile(0.50))
         q3 = float(series.quantile(0.75))
+        top_series = series[series >= med]
+        if top_series.empty:
+            top_series = series
+        top_q1 = float(top_series.quantile(0.25))
+        top_med = float(top_series.quantile(0.50))
+        top_q3 = float(top_series.quantile(0.75))
 
         stats.append({
             "column": col,
@@ -811,12 +928,255 @@ def _build_box_stats(
             "med": med,
             "q3": q3,
             "whishi": float(series.max()),
+            "mean": float(series.mean()),
+            "max": float(series.max()),
+            "top_whislo": med,
+            "top_q1": top_q1,
+            "top_med": top_med,
+            "top_q3": top_q3,
+            "top_whishi": float(top_series.max()),
+            "top_mean": float(top_series.mean()),
+            "top_max": float(top_series.max()),
         })
 
     if not stats:
         raise ValueError("No non-empty dendrite metric data found to plot.")
 
     return stats
+
+
+def _build_box_stats_by_dendrite(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+) -> List[Dict[str, float]]:
+    """Compute box/candlestick statistics grouped by dendrite count only."""
+    dendrite_to_columns: Dict[int, List[str]] = defaultdict(list)
+    for col in dendrite_columns:
+        d_idx = _extract_dendrite_idx(col)
+        if d_idx is None:
+            continue
+        dendrite_to_columns[d_idx].append(col)
+
+    stats: List[Dict[str, float]] = []
+    for d_idx in sorted(dendrite_to_columns.keys()):
+        pooled = pd.to_numeric(df[dendrite_to_columns[d_idx]].stack(), errors="coerce").dropna()
+        if pooled.empty:
+            continue
+
+        q1 = float(pooled.quantile(0.25))
+        med = float(pooled.quantile(0.50))
+        q3 = float(pooled.quantile(0.75))
+        top_series = pooled[pooled >= med]
+        if top_series.empty:
+            top_series = pooled
+        top_q1 = float(top_series.quantile(0.25))
+        top_med = float(top_series.quantile(0.50))
+        top_q3 = float(top_series.quantile(0.75))
+
+        stats.append(
+            {
+                "column": f"dendrite_{d_idx}",
+                "label": f"d{d_idx}",
+                "whislo": float(pooled.min()),
+                "q1": q1,
+                "med": med,
+                "q3": q3,
+                "whishi": float(pooled.max()),
+                "mean": float(pooled.mean()),
+                "max": float(pooled.max()),
+                "top_whislo": med,
+                "top_q1": top_q1,
+                "top_med": top_med,
+                "top_q3": top_q3,
+                "top_whishi": float(top_series.max()),
+                "top_mean": float(top_series.mean()),
+                "top_max": float(top_series.max()),
+            }
+        )
+
+    if not stats:
+        raise ValueError("No non-empty dendrite metric data found to plot after grouping by dendrite count.")
+
+    return stats
+
+
+def _aggregate_param_counts_by_dendrite(
+    dendrite_columns: Sequence[str],
+    param_counts_by_column: Dict[str, float],
+) -> Dict[str, float]:
+    """Aggregate param_count metadata to one value per dendrite count."""
+    grouped: Dict[int, List[float]] = defaultdict(list)
+    for col in dendrite_columns:
+        d_idx = _extract_dendrite_idx(col)
+        if d_idx is None:
+            continue
+        val = param_counts_by_column.get(col)
+        if val is not None:
+            grouped[d_idx].append(float(val))
+
+    out: Dict[str, float] = {}
+    for d_idx, values in grouped.items():
+        if values:
+            out[f"dendrite_{d_idx}"] = float(np.median(values))
+    return out
+
+
+def _extract_group_series(df: pd.DataFrame, group_key: str) -> pd.Series:
+    """Extract grouping values from a column or run_name hyperparameter key."""
+    key = str(group_key).strip()
+    if key == "":
+        raise ValueError("Grouping key cannot be empty.")
+
+    if key in df.columns:
+        return df[key].fillna("").astype(str).str.strip()
+
+    if "run_name" not in df.columns:
+        raise ValueError(
+            f"Cannot group by '{key}': key is not a CSV column and run_name is not present."
+        )
+
+    alias_map: Dict[str, List[str]] = {
+        "data_percent": ["data_percent", "data_pct", "percent", "pct", "samp", "sample_percent"],
+        "sample_percent": ["sample_percent", "data_percent", "samp", "percent", "pct"],
+        "samp": ["samp", "sample", "data_percent", "percent", "pct"],
+    }
+    candidate_keys = [key]
+    candidate_keys.extend(alias_map.get(key.lower(), []))
+
+    key_patterns = [
+        re.compile(rf"(?:^|_){re.escape(k)}_([^_]+)(?:_|$)")
+        for k in candidate_keys
+        if str(k).strip() != ""
+    ]
+
+    def _extract_from_run_name(run_name: str) -> str:
+        text = str(run_name)
+        for pattern in key_patterns:
+            match = pattern.search(text)
+            if match:
+                return match.group(1).strip()
+        return ""
+
+    return df["run_name"].apply(_extract_from_run_name)
+
+
+def _parse_group_values(filter_value: Optional[str]) -> Optional[List[str]]:
+    """Parse comma-separated group values used to limit plotted groups."""
+    if filter_value is None:
+        return None
+    values = [v.strip() for v in str(filter_value).split(",") if v.strip() != ""]
+    return values if values else None
+
+
+def _sort_group_values(values: Sequence[str]) -> List[str]:
+    """Sort group labels numerically when possible, otherwise lexicographically."""
+    unique_vals = sorted(set(str(v).strip() for v in values if str(v).strip() != ""))
+
+    def _try_float(text: str) -> Optional[float]:
+        try:
+            return float(text)
+        except Exception:
+            return None
+
+    if unique_vals and all(_try_float(v) is not None for v in unique_vals):
+        return sorted(unique_vals, key=lambda v: float(v))
+    return unique_vals
+
+
+def _build_grouped_box_stats_by_dendrite(
+    df: pd.DataFrame,
+    dendrite_columns: Sequence[str],
+    group_series: pd.Series,
+    param_counts_by_column: Dict[str, float],
+    include_groups: Optional[Sequence[str]] = None,
+) -> Tuple[List[Dict[str, float]], Dict[str, float]]:
+    """Compute box stats by (group_value, dendrite_count) pairs."""
+    if len(group_series) != len(df):
+        raise ValueError("Internal error: group series length does not match dataframe rows.")
+
+    tmp = df.copy()
+    tmp["__group_value__"] = group_series.fillna("").astype(str).str.strip()
+
+    if include_groups is not None:
+        include_set = {str(v).strip() for v in include_groups if str(v).strip() != ""}
+        if include_set:
+            tmp = tmp[tmp["__group_value__"].isin(include_set)]
+        if tmp.empty:
+            raise ValueError(
+                "No rows matched requested group values. "
+                f"Requested values: {sorted(include_set)}"
+            )
+
+    # Ignore rows where the grouping key did not resolve to a value.
+    tmp = tmp[tmp["__group_value__"] != ""]
+    if tmp.empty:
+        raise ValueError("Grouping key resolved to empty values for all rows.")
+
+    dendrite_to_columns: Dict[int, List[str]] = defaultdict(list)
+    for col in dendrite_columns:
+        d_idx = _extract_dendrite_idx(col)
+        if d_idx is None:
+            continue
+        dendrite_to_columns[d_idx].append(col)
+
+    base_param_counts = _aggregate_param_counts_by_dendrite(dendrite_columns, param_counts_by_column)
+
+    stats: List[Dict[str, float]] = []
+    grouped_param_counts: Dict[str, float] = {}
+
+    for group_value in _sort_group_values(tmp["__group_value__"].tolist()):
+        subset = tmp[tmp["__group_value__"] == group_value]
+        if subset.empty:
+            continue
+
+        for d_idx in sorted(dendrite_to_columns.keys()):
+            cols = dendrite_to_columns[d_idx]
+            pooled = pd.to_numeric(subset[cols].stack(), errors="coerce").dropna()
+            if pooled.empty:
+                continue
+
+            q1 = float(pooled.quantile(0.25))
+            med = float(pooled.quantile(0.50))
+            q3 = float(pooled.quantile(0.75))
+            top_series = pooled[pooled >= med]
+            if top_series.empty:
+                top_series = pooled
+            top_q1 = float(top_series.quantile(0.25))
+            top_med = float(top_series.quantile(0.50))
+            top_q3 = float(top_series.quantile(0.75))
+            virtual_col = f"group_{group_value}_dendrite_{d_idx}"
+
+            stats.append(
+                {
+                    "column": virtual_col,
+                    "label": f"{group_value} / d{d_idx}",
+                    "group_value": group_value,
+                    "dendrite_count": d_idx,
+                    "whislo": float(pooled.min()),
+                    "q1": q1,
+                    "med": med,
+                    "q3": q3,
+                    "whishi": float(pooled.max()),
+                    "mean": float(pooled.mean()),
+                    "max": float(pooled.max()),
+                    "top_whislo": med,
+                    "top_q1": top_q1,
+                    "top_med": top_med,
+                    "top_q3": top_q3,
+                    "top_whishi": float(top_series.max()),
+                    "top_mean": float(top_series.mean()),
+                    "top_max": float(top_series.max()),
+                }
+            )
+
+            base_key = f"dendrite_{d_idx}"
+            if base_key in base_param_counts:
+                grouped_param_counts[virtual_col] = float(base_param_counts[base_key])
+
+    if not stats:
+        raise ValueError("No grouped dendrite data found to plot.")
+
+    return stats, grouped_param_counts
 
 
 def _compute_within_model_stats(
@@ -988,7 +1348,7 @@ def _compute_within_model_stats(
                 "error_reduction_per_param": round(error_reduction / extra_params, 8),
             })
 
-    # --- Metric 4: baseline top-percentile thresholds and beat rates by model/dendrite combo ---
+    # --- Metric 4: baseline top-percentile thresholds and cumulative beat rates by max-allowed dendrites ---
     metric4_rows: List[Dict] = []
 
     if initial_model_id and initial_model_id in model_dendrite_cols:
@@ -1044,11 +1404,16 @@ def _compute_within_model_stats(
                         if model_id == initial_model_id and d_idx == baseline_d:
                             continue
 
-                        combo_scores = [
-                            data["scores"][d_idx]
-                            for data in model_runs.get(model_id, [])
-                            if d_idx in data["scores"]
-                        ]
+                        # Cumulative semantics: for each run, consider the best score achievable
+                        # with at most d_idx dendrites (i.e. max over scores at dendrite<=d_idx).
+                        combo_scores: List[float] = []
+                        for data in model_runs.get(model_id, []):
+                            eligible_scores = [
+                                s for d_cur, s in data["scores"].items() if d_cur <= d_idx
+                            ]
+                            if eligible_scores:
+                                combo_scores.append(float(max(eligible_scores)))
+
                         if not combo_scores:
                             continue
 
@@ -1058,6 +1423,7 @@ def _compute_within_model_stats(
                         metric4_rows.append({
                             "percentile_label": label,
                             "percentile": pct,
+                            "comparison_mode": "cumulative_max_allowed_dendrites",
                             "baseline_model_id": initial_model_id,
                             "baseline_model_name": model_name_map.get(initial_model_id, initial_model_id),
                             "baseline_dendrite_count": baseline_d,
@@ -1072,6 +1438,7 @@ def _compute_within_model_stats(
                             "model_name": model_name_map.get(model_id, model_id),
                             "dendrite_count": d_idx,
                             "combo_column": col,
+                            "combo_label_mode": "best_score_with_max_dendrites_leq_d",
                             "combo_param_count": int(param_counts_by_column.get(col, 0)),
                             "combo_n_runs": len(combo_scores),
                             "combo_n_beating_threshold": beats,
@@ -1096,6 +1463,7 @@ def _compute_within_model_stats(
     csv4_columns = [
         "percentile_label",
         "percentile",
+        "comparison_mode",
         "baseline_model_id",
         "baseline_model_name",
         "baseline_dendrite_count",
@@ -1110,6 +1478,7 @@ def _compute_within_model_stats(
         "model_name",
         "dendrite_count",
         "combo_column",
+        "combo_label_mode",
         "combo_param_count",
         "combo_n_runs",
         "combo_n_beating_threshold",
@@ -1138,6 +1507,7 @@ def _compute_within_model_stats(
         fig.savefig(chart1_path, dpi=150)
         plt.close(fig)
         created.append(chart1_path)
+        created.append(_write_companion_csv_for_png(chart1_path, pd.DataFrame(metric1_rows)))
 
     # --- Chart 2: avg error reduction by model + dendrite ---
     if metric2_rows:
@@ -1168,6 +1538,7 @@ def _compute_within_model_stats(
         fig.savefig(chart2_path, dpi=150)
         plt.close(fig)
         created.append(chart2_path)
+        created.append(_write_companion_csv_for_png(chart2_path, pd.DataFrame(metric2_rows)))
 
     # --- Chart 3: per-model error reduction per parameter vs baseline dendrite ---
     if metric3_rows:
@@ -1200,8 +1571,9 @@ def _compute_within_model_stats(
         fig.savefig(chart3_path, dpi=150)
         plt.close(fig)
         created.append(chart3_path)
+        created.append(_write_companion_csv_for_png(chart3_path, pd.DataFrame(metric3_rows)))
 
-    # --- Chart 4/5: % of scores beating baseline top-1% and top-5% thresholds ---
+    # --- Chart 4/5: % of runs beating baseline thresholds using cumulative max-dendrite scoring ---
     if metric4_rows:
         df4 = pd.DataFrame(metric4_rows)
 
@@ -1293,10 +1665,11 @@ def _compute_within_model_stats(
                 ax.scatter([baseline_x], [baseline_y], s=80, marker="*", color="black")
 
                 ax.set_title(
-                    f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})"
+                    f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})\n"
+                    f"(Cumulative: best score with max allowed dendrites <= d)"
                 )
                 ax.set_xlabel("Parameter Count")
-                ax.set_ylabel("% Scores Above Baseline Threshold")
+                ax.set_ylabel("% Runs Above Baseline Threshold")
                 ax.grid(axis="y", alpha=0.25)
                 ax.set_ylim(0, 100)
                 _add_scatter_legend(ax, rows)
@@ -1359,11 +1732,12 @@ def _compute_within_model_stats(
                 ax_right.scatter([baseline_x], [baseline_y], s=80, marker="*", color="black")
 
             ax_left.set_title(
-                f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})"
+                f"By-Parameter % Above {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f})\n"
+                f"(Cumulative: best score with max allowed dendrites <= d)"
             )
             ax_left.set_xlabel("Parameter Count")
             ax_right.set_xlabel("Parameter Count")
-            ax_left.set_ylabel("% Scores Above Baseline Threshold")
+            ax_left.set_ylabel("% Runs Above Baseline Threshold")
             ax_left.grid(axis="y", alpha=0.25)
             ax_right.grid(axis="y", alpha=0.25)
             ax_left.set_ylim(0, 100)
@@ -1394,7 +1768,7 @@ def _compute_within_model_stats(
 
             subset = subset.copy()
             subset["combo_label"] = subset.apply(
-                lambda r: f"{r['model_name']} / d{int(r['dendrite_count'])}",
+                lambda r: f"{r['model_name']} / max d{int(r['dendrite_count'])}",
                 axis=1,
             )
             subset = subset.sort_values(["model_id", "dendrite_count"])
@@ -1409,10 +1783,11 @@ def _compute_within_model_stats(
             baseline_d = int(subset["baseline_dendrite_count"].iloc[0])
             threshold_score = float(subset["baseline_threshold_score"].iloc[0])
             ax.set_title(
-                f"% Beating {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f}) [{metric_label}]"
+                f"% Beating {baseline_name} d{baseline_d} {title_suffix} Threshold ({threshold_score:.4f}) [{metric_label}]\n"
+                f"(Cumulative: best score with max allowed dendrites <= d)"
             )
-            ax.set_xlabel("Model / Dendrite Combo")
-            ax.set_ylabel("% Scores Above Baseline Threshold")
+            ax.set_xlabel("Model / Max Allowed Dendrites")
+            ax.set_ylabel("% Runs Above Baseline Threshold")
             ax.grid(axis="y", alpha=0.25)
             plt.setp(ax.get_xticklabels(), rotation=35, ha="right")
 
@@ -1431,6 +1806,7 @@ def _compute_within_model_stats(
             fig.savefig(out_path, dpi=150)
             plt.close(fig)
             created.append(out_path)
+            created.append(_write_companion_csv_for_png(out_path, subset))
 
         scatter_top1 = _plot_metric4_param_scatter(
             df4[df4["percentile_label"] == "top_1pct"],
@@ -1440,6 +1816,12 @@ def _compute_within_model_stats(
         )
         if scatter_top1:
             created.append(scatter_top1)
+            created.append(
+                _write_companion_csv_for_png(
+                    scatter_top1,
+                    df4[df4["percentile_label"] == "top_1pct"],
+                )
+            )
 
         scatter_top5 = _plot_metric4_param_scatter(
             df4[df4["percentile_label"] == "top_5pct"],
@@ -1449,6 +1831,12 @@ def _compute_within_model_stats(
         )
         if scatter_top5:
             created.append(scatter_top5)
+            created.append(
+                _write_companion_csv_for_png(
+                    scatter_top5,
+                    df4[df4["percentile_label"] == "top_5pct"],
+                )
+            )
 
     return created
 
@@ -1492,8 +1880,8 @@ def _create_categorical_plot(
         artists["whiskers"][2 * i + 1].set_color(color)
         artists["caps"][2 * i].set_color(color)
         artists["caps"][2 * i + 1].set_color(color)
-    ax.set_title(f"Dendrite {metric_label} Distribution by Model/Dendrite Pair")
-    ax.set_xlabel("Model / Dendrite Pair")
+    ax.set_title(f"Dendrite {metric_label} Distribution by Dendrite Count")
+    ax.set_xlabel("Dendrite Count")
     ax.set_ylabel(f"Max {metric_label}")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     ax.grid(axis="y", alpha=0.25)
@@ -1539,7 +1927,7 @@ def _create_param_count_plot(
             handles.append(Line2D([0], [0], marker="s", linestyle="none", markersize=6, markerfacecolor=color, markeredgecolor=color))
             labels.append(item["label"])
         if handles:
-            ax.legend(handles, labels, loc="lower right", fontsize=7, framealpha=0.85)
+            ax.legend(handles, labels, loc="lower right", fontsize=10.5, framealpha=0.85)
 
     stats_with_counts = [
         item for item in stats
@@ -2018,12 +2406,190 @@ def _create_param_count_scatter_plot(
     plt.close(fig)
 
 
+def _create_categorical_summary_plot(
+    stats: Sequence[Dict[str, float]],
+    output_path: str,
+    value_key: str,
+    value_label: str,
+    column_color_map: Optional[Dict[str, Tuple[float, float, float]]] = None,
+    metric_label: str = "Val",
+) -> None:
+    """Create categorical bar chart for a summary statistic (mean or max)."""
+    if column_color_map is None:
+        column_color_map = {}
+
+    labels = [str(item["label"]) for item in stats]
+    values = [float(item[value_key]) for item in stats]
+    colors = [column_color_map.get(item["column"], (0.2, 0.4, 0.8)) for item in stats]
+
+    fig, ax = plt.subplots(figsize=(max(10, len(stats) * 0.45), 6))
+    ax.bar(labels, values, color=colors, alpha=0.75)
+    ax.set_title(f"Dendrite {metric_label} {value_label} by Dendrite Count")
+    ax.set_xlabel("Dendrite Count")
+    ax.set_ylabel(f"{value_label} {metric_label}")
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def _build_top_half_stats(stats: Sequence[Dict[str, float]]) -> List[Dict[str, float]]:
+    """Build box stats representing only the top half (>= median) distribution."""
+    top_stats: List[Dict[str, float]] = []
+    for item in stats:
+        top_stats.append(
+            {
+                **item,
+                "whislo": float(item.get("top_whislo", item["med"])),
+                "q1": float(item.get("top_q1", item["med"])),
+                "med": float(item.get("top_med", item["med"])),
+                "q3": float(item.get("top_q3", item["q3"])),
+                "whishi": float(item.get("top_whishi", item["whishi"])),
+                "mean": float(item.get("top_mean", item.get("mean", item["med"]))),
+                "max": float(item.get("top_max", item.get("max", item["whishi"]))),
+            }
+        )
+    return top_stats
+
+
+def _create_param_count_summary_plot(
+    stats: Sequence[Dict[str, float]],
+    param_counts_by_column: Dict[str, float],
+    output_path: str,
+    value_key: str,
+    value_label: str,
+    x_break: Optional[Tuple[float, float]] = None,
+    column_color_map: Optional[Dict[str, Tuple[float, float, float]]] = None,
+    metric_label: str = "Val",
+) -> None:
+    """Create summary scatter/line plot by parameter count for mean or max."""
+    stats_with_counts = [item for item in stats if item["column"] in param_counts_by_column]
+    if not stats_with_counts:
+        raise ValueError("No parameter-count metadata found for summary plot.")
+
+    if column_color_map is None:
+        column_color_map = {}
+
+    points = []
+    for item in stats_with_counts:
+        points.append(
+            {
+                "x": float(param_counts_by_column[item["column"]]),
+                "y": float(item[value_key]),
+                "label": str(item["label"]),
+                "column": str(item["column"]),
+            }
+        )
+
+    points = sorted(points, key=lambda p: p["x"])
+    x_values = [p["x"] for p in points]
+    y_values = [p["y"] for p in points]
+    x_min = min(x_values)
+    x_max = max(x_values)
+    x_span = x_max - x_min
+
+    def _draw_points(ax, pts: Sequence[Dict[str, Any]]) -> None:
+        for p in pts:
+            color = column_color_map.get(p["column"], (0.2, 0.4, 0.8))
+            ax.scatter([p["x"]], [p["y"]], color=color, s=30, alpha=0.9)
+        if len(pts) >= 2:
+            ax.plot([p["x"] for p in pts], [p["y"] for p in pts], color="tab:orange", linewidth=1.5, alpha=0.8)
+
+    def _add_legend(ax, pts: Sequence[Dict[str, Any]]) -> None:
+        handles: List[Line2D] = []
+        labels: List[str] = []
+        seen = set()
+        for p in pts:
+            col = p["column"]
+            if col in seen:
+                continue
+            seen.add(col)
+            color = column_color_map.get(col, (0.2, 0.4, 0.8))
+            handles.append(Line2D([0], [0], marker="o", linestyle="none", markersize=5, markerfacecolor=color, markeredgecolor=color))
+            labels.append(str(p["label"]))
+        if handles:
+            ax.legend(handles, labels, loc="lower right", fontsize=9, framealpha=0.85)
+
+    if x_break is None:
+        fig, ax = plt.subplots(figsize=(12, 6))
+        x_pad = max(1.0, x_span * 0.08)
+        ax.set_xlim(x_min - x_pad, x_max + x_pad)
+        _draw_points(ax, points)
+        _add_legend(ax, points)
+        ax.set_title(f"Dendrite {metric_label} {value_label} by Parameter Count")
+        ax.set_xlabel("Parameter Count")
+        ax.set_ylabel(f"{value_label} {metric_label}")
+        ax.grid(axis="y", alpha=0.25)
+        fig.tight_layout()
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+        return
+
+    break_start, break_end = x_break
+    if break_start >= break_end:
+        raise ValueError("x-break must have start < end.")
+
+    left_points = [p for p in points if p["x"] <= break_start]
+    right_points = [p for p in points if p["x"] >= break_end]
+    if not left_points or not right_points:
+        raise ValueError("x-break range removes one side of the summary chart.")
+
+    left_x_vals = [p["x"] for p in left_points]
+    right_x_vals = [p["x"] for p in right_points]
+    shared_pad = break_start - max(left_x_vals)
+    if shared_pad <= 0:
+        shared_pad = max(1.0, x_span * 0.01)
+
+    left_xlim_min = min(left_x_vals) - shared_pad
+    left_xlim_max = break_start
+    right_xlim_min = break_end
+    right_xlim_max = max(right_x_vals) + shared_pad
+
+    left_span = max(1.0, left_xlim_max - left_xlim_min)
+    right_span = max(1.0, right_xlim_max - right_xlim_min)
+
+    fig, (ax_left, ax_right) = plt.subplots(
+        1,
+        2,
+        sharey=True,
+        figsize=(14, 6),
+        gridspec_kw={"width_ratios": [left_span, right_span]},
+    )
+
+    ax_left.set_xlim(left_xlim_min, left_xlim_max)
+    ax_right.set_xlim(right_xlim_min, right_xlim_max)
+    _draw_points(ax_left, left_points)
+    _draw_points(ax_right, right_points)
+    _add_legend(ax_right, points)
+
+    ax_left.set_title(f"Dendrite {metric_label} {value_label} by Parameter Count (Broken X-Axis)")
+    ax_left.set_xlabel("Parameter Count")
+    ax_right.set_xlabel("Parameter Count")
+    ax_left.set_ylabel(f"{value_label} {metric_label}")
+    ax_left.grid(axis="y", alpha=0.25)
+    ax_right.grid(axis="y", alpha=0.25)
+
+    ax_left.spines["right"].set_visible(False)
+    ax_right.spines["left"].set_visible(False)
+    ax_right.yaxis.tick_right()
+    ax_right.tick_params(labelright=False)
+
+    marker_kwargs = dict(marker=[(-1, -1), (1, 1)], markersize=8, linestyle="none", color="k", mec="k", mew=1, clip_on=False)
+    ax_left.plot([1, 1], [0, 1], transform=ax_left.transAxes, **marker_kwargs)
+    ax_right.plot([0, 0], [0, 1], transform=ax_right.transAxes, **marker_kwargs)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Process a by-dendrite-separate CSV and generate candlestick summary graphs.",
     )
     parser.add_argument(
-        "--input-csv",
+        "--csv",
         required=True,
         help="Path to by-dendrite-separate CSV file",
     )
@@ -2034,6 +2600,14 @@ def main() -> None:
     parser.add_argument(
         "--x-break",
         help="Optional x-axis break range for param-count plot, format: START,END (e.g., 13000000,22000000)",
+    )
+    parser.add_argument(
+        "--filter-key",
+        help="Optional split key for grouped plotting. Can be a CSV column or run_name hyperparameter key (for example: data_percent).",
+    )
+    parser.add_argument(
+        "--filter-value",
+        help="Optional group values to include. Comma-separated values are OR (for example: 12,25).",
     )
     args = parser.parse_args()
 
@@ -2054,7 +2628,7 @@ def main() -> None:
             sys.exit(1)
         x_break = (break_start, break_end)
 
-    csv_path = args.input_csv
+    csv_path = args.csv
     if not os.path.exists(csv_path):
         print(f"Error: CSV file not found: {csv_path}", file=sys.stderr)
         sys.exit(1)
@@ -2065,8 +2639,17 @@ def main() -> None:
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        model_name_map, initial_model_id = _load_model_info(base_dir)
         df, dendrite_columns, param_counts_by_column = _read_by_dendrite_separate_csv(csv_path)
+
+        if bool(args.filter_key) != bool(args.filter_value):
+            raise ValueError("--filter-value requires --filter-key.")
+
+        group_key = (args.filter_key or "").strip()
+        include_group_values = _parse_group_values(args.filter_value)
+        group_series: Optional[pd.Series] = None
+        if group_key:
+            group_series = _extract_group_series(df, group_key)
+
         val_columns = [col for col in dendrite_columns if col.endswith("_max_val")]
         test_columns = [col for col in dendrite_columns if col.endswith("_max_test")]
 
@@ -2084,88 +2667,38 @@ def main() -> None:
 
         created_files: List[str] = []
 
-        best_hparams_csv = _write_best_hyperparameter_summary(
-            df,
-            dendrite_columns,
-            output_dir,
-            model_name_map,
-        )
-        created_files.append(best_hparams_csv)
-
-        run_best_scores_df = _collect_per_run_best_scores_by_model(
-            df,
-            dendrite_columns,
-            model_name_map,
-        )
-
-        available_model_ids = sorted(
-            {
-                m.group(1)
-                for col in dendrite_columns
-                for m in [re.match(r"(model_\d+)_dendrite_\d+_max_(?:val|test)$", col)]
-                if m
-            },
-            key=lambda mid: int(mid.split("_")[1]) if re.match(r"model_\d+$", mid) else 9999,
-        )
-
-        if initial_model_id and initial_model_id in available_model_ids:
-            base_model_id_for_hist = initial_model_id
-        elif "model_0" in available_model_ids:
-            base_model_id_for_hist = "model_0"
-        elif available_model_ids:
-            base_model_id_for_hist = available_model_ids[0]
-        else:
-            base_model_id_for_hist = "model_0"
-
-        base_model_zero_scores = _collect_base_model_zero_scores(
-            df,
-            base_model_id_for_hist,
-        )
-        base_model_zero_label = (
-            f"{model_name_map.get(base_model_id_for_hist, base_model_id_for_hist)} / d0"
-        )
-
-        bell_curve_plot_path = os.path.join(output_dir, "bell_curve_best_scores_by_model.png")
-        _create_bell_curve_best_scores_plot(
-            run_best_scores_df,
-            bell_curve_plot_path,
-            base_model_zero_scores=base_model_zero_scores,
-            base_model_zero_label=base_model_zero_label,
-        )
-        created_files.append(bell_curve_plot_path)
-
-        base_d0_vs_final_hist_path = os.path.join(output_dir, "hist_base_d0_vs_final.png")
-        _create_base_model_d0_vs_final_histogram(
-            df,
-            base_model_id_for_hist,
-            base_d0_vs_final_hist_path,
-            model_name_map=model_name_map,
-        )
-        created_files.append(base_d0_vs_final_hist_path)
-
-        best_run_summary_csv_val = _write_best_run_per_model_csv(
-            run_best_scores_df,
-            output_dir,
-            select_metric="val",
-        )
-        created_files.append(best_run_summary_csv_val)
-
-        best_run_summary_csv_test = _write_best_run_per_model_csv(
-            run_best_scores_df,
-            output_dir,
-            select_metric="test",
-        )
-        created_files.append(best_run_summary_csv_test)
-
         for metric_key, metric_label, metric_columns in metric_runs:
             suffix = f"_{metric_key}"
-            column_color_map = _build_column_color_map(metric_columns)
-            stats = _build_box_stats(df, metric_columns, model_name_map=model_name_map)
+            if group_series is not None:
+                stats, grouped_param_counts = _build_grouped_box_stats_by_dendrite(
+                    df,
+                    metric_columns,
+                    group_series,
+                    param_counts_by_column,
+                    include_groups=include_group_values,
+                )
+            else:
+                stats = _build_box_stats_by_dendrite(df, metric_columns)
+                grouped_param_counts = _aggregate_param_counts_by_dendrite(metric_columns, param_counts_by_column)
 
-            categorical_plot_path = os.path.join(output_dir, f"candlestick_by_pair{suffix}.png")
+            # Consistent color per dendrite count after grouping.
+            cmap = plt.get_cmap("viridis")
+            color_denominator = max(1, len(stats) - 1)
+            column_color_map = {
+                s["column"]: cmap(i / color_denominator)[:3]
+                for i, s in enumerate(stats)
+            }
+
+            categorical_plot_path = os.path.join(output_dir, f"candlestick_by_dendrite{suffix}.png")
             param_count_plot_path = os.path.join(output_dir, f"candlestick_by_param_count{suffix}.png")
             param_count_with_lines_plot_path = os.path.join(output_dir, f"candlestick_by_param_count_with_lines{suffix}.png")
-            scatter_by_param_count_plot_path = os.path.join(output_dir, f"scatter_by_param_count{suffix}.png")
+            top_categorical_plot_path = os.path.join(output_dir, f"candlestick_top50_by_dendrite{suffix}.png")
+            top_param_count_plot_path = os.path.join(output_dir, f"candlestick_top50_by_param_count{suffix}.png")
+            top_param_count_with_lines_plot_path = os.path.join(output_dir, f"candlestick_top50_by_param_count_with_lines{suffix}.png")
+            avg_by_dendrite_plot_path = os.path.join(output_dir, f"average_by_dendrite{suffix}.png")
+            avg_by_param_count_plot_path = os.path.join(output_dir, f"average_by_param_count{suffix}.png")
+            max_by_dendrite_plot_path = os.path.join(output_dir, f"max_by_dendrite{suffix}.png")
+            max_by_param_count_plot_path = os.path.join(output_dir, f"max_by_param_count{suffix}.png")
 
             _create_categorical_plot(
                 stats,
@@ -2173,53 +2706,128 @@ def main() -> None:
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            stats_df = pd.DataFrame(stats)
+            stats_df["metric"] = metric_key
+            stats_df["param_count"] = stats_df["column"].map(grouped_param_counts)
+            created_files.append(_write_companion_csv_for_png(categorical_plot_path, stats_df))
             _create_param_count_plot(
                 stats,
-                param_counts_by_column,
+                grouped_param_counts,
                 param_count_plot_path,
                 x_break=x_break,
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
+            created_files.append(_write_companion_csv_for_png(param_count_plot_path, stats_df))
             _create_param_count_plot(
                 stats,
-                param_counts_by_column,
+                grouped_param_counts,
                 param_count_with_lines_plot_path,
                 x_break=x_break,
                 connect_extremes=True,
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
-            _create_param_count_scatter_plot(
-                df,
-                metric_columns,
-                param_counts_by_column,
-                scatter_by_param_count_plot_path,
+            created_files.append(_write_companion_csv_for_png(param_count_with_lines_plot_path, stats_df))
+
+            top_stats = _build_top_half_stats(stats)
+            top_stats_df = pd.DataFrame(top_stats)
+            top_stats_df["metric"] = metric_key
+            top_stats_df["param_count"] = top_stats_df["column"].map(grouped_param_counts)
+
+            _create_categorical_plot(
+                top_stats,
+                top_categorical_plot_path,
+                column_color_map=column_color_map,
+                metric_label=f"{metric_label} (Top 50%)",
+            )
+            created_files.append(_write_companion_csv_for_png(top_categorical_plot_path, top_stats_df))
+
+            _create_param_count_plot(
+                top_stats,
+                grouped_param_counts,
+                top_param_count_plot_path,
                 x_break=x_break,
-                model_name_map=model_name_map,
+                column_color_map=column_color_map,
+                metric_label=f"{metric_label} (Top 50%)",
+            )
+            created_files.append(_write_companion_csv_for_png(top_param_count_plot_path, top_stats_df))
+
+            _create_param_count_plot(
+                top_stats,
+                grouped_param_counts,
+                top_param_count_with_lines_plot_path,
+                x_break=x_break,
+                connect_extremes=True,
+                column_color_map=column_color_map,
+                metric_label=f"{metric_label} (Top 50%)",
+            )
+            created_files.append(_write_companion_csv_for_png(top_param_count_with_lines_plot_path, top_stats_df))
+
+            _create_categorical_summary_plot(
+                stats,
+                avg_by_dendrite_plot_path,
+                value_key="mean",
+                value_label="Average",
                 column_color_map=column_color_map,
                 metric_label=metric_label,
             )
-            stat_files = _compute_within_model_stats(
-                df,
-                metric_columns,
-                param_counts_by_column,
-                model_name_map,
-                initial_model_id,
-                output_dir,
+            created_files.append(_write_companion_csv_for_png(avg_by_dendrite_plot_path, stats_df))
+
+            _create_param_count_summary_plot(
+                stats,
+                grouped_param_counts,
+                avg_by_param_count_plot_path,
+                value_key="mean",
+                value_label="Average",
                 x_break=x_break,
                 column_color_map=column_color_map,
-                output_suffix=suffix,
                 metric_label=metric_label,
             )
+            created_files.append(_write_companion_csv_for_png(avg_by_param_count_plot_path, stats_df))
+
+            _create_categorical_summary_plot(
+                stats,
+                max_by_dendrite_plot_path,
+                value_key="max",
+                value_label="Max",
+                column_color_map=column_color_map,
+                metric_label=metric_label,
+            )
+            created_files.append(_write_companion_csv_for_png(max_by_dendrite_plot_path, stats_df))
+
+            _create_param_count_summary_plot(
+                stats,
+                grouped_param_counts,
+                max_by_param_count_plot_path,
+                value_key="max",
+                value_label="Max",
+                x_break=x_break,
+                column_color_map=column_color_map,
+                metric_label=metric_label,
+            )
+            created_files.append(_write_companion_csv_for_png(max_by_param_count_plot_path, stats_df))
 
             created_files.extend([
                 categorical_plot_path,
                 param_count_plot_path,
                 param_count_with_lines_plot_path,
-                scatter_by_param_count_plot_path,
+                top_categorical_plot_path,
+                top_param_count_plot_path,
+                top_param_count_with_lines_plot_path,
+                avg_by_dendrite_plot_path,
+                avg_by_param_count_plot_path,
+                max_by_dendrite_plot_path,
+                max_by_param_count_plot_path,
             ])
-            created_files.extend(stat_files)
+
+        if args.filter_key and args.filter_value:
+            print(
+                f"Grouped by '{args.filter_key}' with included values: {args.filter_value}"
+            )
+        elif args.filter_key:
+            print(f"Grouped by '{args.filter_key}'")
+        print(f"Rows analyzed: {len(df)}")
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
