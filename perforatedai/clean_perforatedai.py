@@ -15,6 +15,13 @@ doing_threading = False
 # has an option to use python threading
 class PAIModulePyThread(nn.Module):
     def __init__(self, original_module):
+        """Initialize a threaded inference wrapper from an existing PAI module.
+
+        Parameters
+        ----------
+        original_module : nn.Module
+            Existing PAI module that provides layers, processors, and buffers.
+        """
         super(PAIModulePyThread, self).__init__()
         self.layer_array = original_module.layer_array
         self.processor_array = original_module.processor_array
@@ -29,6 +36,21 @@ class PAIModulePyThread(nn.Module):
         self.register_buffer("view_tuple", original_module.view_tuple)
 
     def process_and_forward(self, *args2, **kwargs2):
+        """Run one dendrite layer forward pass and store its output.
+
+        Parameters
+        ----------
+        *args2 : tuple
+            Positional values where the first two entries are layer index and
+            shared output buffer.
+        **kwargs2 : dict
+            Keyword arguments forwarded to the wrapped layer.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         c = args2[0]
         dendrite_outs = args2[1]
         args2 = args2[2:]
@@ -42,6 +64,21 @@ class PAIModulePyThread(nn.Module):
         dendrite_outs[c] = out
 
     def process_and_pre(self, *args, **kwargs):
+        """Run the final layer pre-pass used before skip accumulation.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional values where the first entry is the shared output
+            buffer and the remaining values are layer inputs.
+        **kwargs : dict
+            Keyword arguments forwarded to the wrapped layer.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         dendrite_outs = args[0]
         args = args[1:]
         out = self.layer_array[-1].forward(*args, **kwargs)
@@ -50,6 +87,20 @@ class PAIModulePyThread(nn.Module):
         dendrite_outs[len(self.layer_array) - 1] = out
 
     def forward(self, *args, **kwargs):
+        """Compute module output with optional threaded dendrite evaluation.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments passed into each wrapped layer.
+        **kwargs : dict
+            Keyword arguments passed into each wrapped layer.
+
+        Returns
+        -------
+        Any
+            Final module output after skip connections and post-processing.
+        """
         # this is currently false anyway, just remove the doing multi idea
         doing_multi = doing_threading
         dendrite_outs = [None] * len(self.layer_array)
@@ -96,6 +147,20 @@ class PAIModulePyThread(nn.Module):
 
 
 def get_pretrained_pai_attr(pretrained_dendrite, member):
+    """Safely get an attribute from a possibly missing module.
+
+    Parameters
+    ----------
+    pretrained_dendrite : nn.Module or None
+        Source module that may be ``None``.
+    member : str
+        Attribute name to retrieve.
+
+    Returns
+    -------
+    Any
+        Requested attribute value, or ``None`` if source module is ``None``.
+    """
     if pretrained_dendrite is None:
         return None
     else:
@@ -103,6 +168,20 @@ def get_pretrained_pai_attr(pretrained_dendrite, member):
 
 
 def get_pretrained_pai_var(pretrained_dendrite, submodule_id):
+    """Safely get a named child module from a possibly missing module.
+
+    Parameters
+    ----------
+    pretrained_dendrite : nn.Module or None
+        Source module that may be ``None``.
+    submodule_id : str
+        Submodule identifier passed to ``get_submodule``.
+
+    Returns
+    -------
+    nn.Module or None
+        Retrieved submodule, or ``None`` when source module is ``None``.
+    """
     if pretrained_dendrite is None:
         return None
     else:
@@ -112,10 +191,40 @@ ModuleType = PAIModulePyThread
 doing_threading = False
 
 def make_module(module):
+    """Create the configured wrapper module type for a module.
+
+    Parameters
+    ----------
+    module : nn.Module
+        Module to wrap.
+
+    Returns
+    -------
+    nn.Module
+        Wrapped module instance.
+    """
     return ModuleType(module)
 
 # This Refreshes a PAI network with the PyThread Module
 def refresh_pai(net, depth, name_so_far, converted_list):
+    """Recursively replace PAILayer instances with threaded inference wrappers.
+
+    Parameters
+    ----------
+    net : nn.Module
+        Module tree to update.
+    depth : int
+        Current recursion depth.
+    name_so_far : str
+        Dotted/indexed path to the current module.
+    converted_list : list
+        Mutable list of module names already visited.
+
+    Returns
+    -------
+    nn.Module
+        Updated module tree.
+    """
     if GPA.pc.get_extra_verbose():
         print("CL calling convert on %s depth %d" % (net, depth))
         print(
@@ -198,6 +307,18 @@ def refresh_pai(net, depth, name_so_far, converted_list):
     return net
 
 def refresh_net(pretrained_dendrite):
+    """Refresh a network by converting eligible modules to threaded wrappers.
+
+    Parameters
+    ----------
+    pretrained_dendrite : nn.Module
+        Network or module tree to refresh.
+
+    Returns
+    -------
+    nn.Module
+        Refreshed network.
+    """
 
     net = refresh_pai(pretrained_dendrite, 0, "", [])
     return net

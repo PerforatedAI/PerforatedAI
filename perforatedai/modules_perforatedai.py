@@ -47,7 +47,17 @@ _cached_value_tracker_pb_state = None
 
 
 def get_DENDRITE_TENSOR_VALUES():
-    """Get DENDRITE_TENSOR_VALUES, updating from MPB if perforated_backpropagation is enabled."""
+    """Get DENDRITE_TENSOR_VALUES, updating from MPB if perforated_backpropagation is enabled.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list[str]
+        Names of tensor attributes used for dendrite state handling.
+    """
     global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
 
@@ -67,7 +77,17 @@ def get_DENDRITE_TENSOR_VALUES():
 
 
 def get_DENDRITE_SINGLE_VALUES():
-    """Get DENDRITE_SINGLE_VALUES, updating from MPB if perforated_backpropagation is enabled."""
+    """Get DENDRITE_SINGLE_VALUES, updating from MPB if perforated_backpropagation is enabled.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list[str]
+        Names of scalar attributes used for dendrite state handling.
+    """
     global _cached_dendrite_single_values, _cached_dendrite_single_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
 
@@ -87,7 +107,17 @@ def get_DENDRITE_SINGLE_VALUES():
 
 
 def get_VALUE_TRACKER_ARRAYS():
-    """Get VALUE_TRACKER_ARRAYS, updating from MPB if perforated_backpropagation is enabled."""
+    """Get VALUE_TRACKER_ARRAYS, updating from MPB if perforated_backpropagation is enabled.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list[str]
+        Names of array-valued fields tracked in ``DendriteValueTracker``.
+    """
     global _cached_value_tracker_arrays, _cached_value_tracker_pb_state
     current_pb_state = GPA.pc.get_perforated_backpropagation()
 
@@ -107,12 +137,32 @@ def get_VALUE_TRACKER_ARRAYS():
 
 
 def get_DENDRITE_REINIT_VALUES():
-    """Get DENDRITE_REINIT_VALUES."""
+    """Get DENDRITE_REINIT_VALUES.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list[str]
+        Combined list of attribute names that must be reinitialized.
+    """
     return get_DENDRITE_TENSOR_VALUES() + get_DENDRITE_SINGLE_VALUES()
 
 
 def get_DENDRITE_SAVE_VALUES():
-    """Get DENDRITE_SAVE_VALUES."""
+    """Get DENDRITE_SAVE_VALUES.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list[str]
+        Combined list of attribute names persisted for save/load.
+    """
     return (
         get_DENDRITE_TENSOR_VALUES()
         + get_DENDRITE_SINGLE_VALUES()
@@ -407,11 +457,31 @@ class PAINeuronModule(nn.Module):
         return self.main_module[index]
 
     def apply_pb_grads(self):
-        """Apply perforated backpropagation gradients if enabled."""
+        """Apply perforated backpropagation gradients if enabled.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         self.dendrite_module.apply_pb_grads()
 
     def apply_pb_zero(self):
-        """Clear leftover saved tensors if there are any."""
+        """Clear leftover saved tensors if there are any.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         self.dendrite_module.apply_pb_zero()
 
     def clear_processors(self):
@@ -932,6 +1002,11 @@ def init_params(module, neuron_main_module):
     neuron_main_module : nn.Module
         The main module of the neuron for potential weight scaling.
 
+
+    Returns
+    -------
+    None
+        This function does not return a value.
     """
     for param in module.parameters():
         if param.dtype == torch.uint8:
@@ -1079,7 +1154,19 @@ class PAIDendriteModule(nn.Module):
             self.dendrite_values[j].set_this_output_dimensions(new_output_dimensions)
 
     def create_new_dendrite_module(self, neuron_main_module):
-        """Add a new set of dendrites."""
+        """Add a new set of dendrites.
+
+        Parameters
+        ----------
+        neuron_main_module : Any
+            PyTorch module to be used for dendritic learning.
+                Typically a copy of the original neuron module.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         # Candidate module
         self.candidate_module = nn.ModuleList([])
         # Copy that is unused for open source version
@@ -1154,7 +1241,17 @@ class PAIDendriteModule(nn.Module):
                 )
 
     def clear_processors(self):
-        """Clear processors."""
+        """Clear processors.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for processor in self.processors:
             if not processor:
                 continue
@@ -1415,7 +1512,17 @@ class DendriteValueTracker(nn.Module):
             self.out_channels = -1
 
     def print(self):
-        """Print value tracker information."""
+        """Print value tracker information.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         total_string = "Value Tracker:"
         for val_name in DENDRITE_INIT_VALUES:
             total_string += f"\t{val_name}:\n\t\t"
@@ -1509,7 +1616,17 @@ class DendriteValueTracker(nn.Module):
             )
 
     def reinitialize_for_pai(self):
-        """Reinitialize value tracker to add the next set of dendrites"""
+        """Reinitialize value tracker to add the next set of dendrites
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
 
         if self.out_channels == -1:
             print("You have a perforated module that was never initialized")

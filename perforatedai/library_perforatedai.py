@@ -140,6 +140,15 @@ class PAIProcessor(ABC):
         be called before saving or safe_tensors will run into errors.
         Implementations should safely check for attribute existence before
         deletion to avoid errors.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         pass
 
@@ -227,7 +236,17 @@ class MultiOutputProcessor:
         return out
 
     def clear_processor(self):
-        """Clear stored processor state."""
+        """Clear stored processor state.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
 
         if hasattr(self, "extra_out"):
             delattr(self, "extra_out")
@@ -349,6 +368,15 @@ class LSTMCellProcessor(PAIProcessor):
         Removes dendrite hidden state (h_t_d), dendrite cell state (c_t_d),
         and temporarily stored neuron cell state (c_t_n). Safe to call even
         if attributes don't exist.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         if hasattr(self, "h_t_d"):
             delattr(self, "h_t_d")
@@ -454,6 +482,15 @@ class LSTMProcessor(PAIProcessor):
         """
         Clear all stored LSTM states.
 
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         if hasattr(self, "hidden_n"):
             delattr(self, "hidden_n")
@@ -541,6 +578,21 @@ class LSTMProcessorLastHidden(PAIProcessor):
         return last_hidden
 
     def clear_processor(self):
+        """Clear processor state.
+
+        Notes
+        -----
+        This processor keeps no persistent internal state.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         # Nothing is stored
         pass
 

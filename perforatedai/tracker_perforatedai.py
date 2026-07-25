@@ -30,6 +30,15 @@ except ImportError:
 
 
 def _pai_log(level, message):
+    """Emit a tracker log message to dashboard or stdout.
+
+    Parameters
+    ----------
+    level : str
+        Log level such as ``info``, ``warning``, or ``error``.
+    message : str
+        Message text to emit.
+    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -83,7 +92,17 @@ def update_restructuring_status(old_status, new_status):
 
 
 def update_learning_rate():
-    """Update the learning rate in the tracker."""
+    """Update the learning rate in the tracker.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+        This function does not return a value.
+    """
     for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
         learning_rate = param_group["lr"]
     GPA.pai_tracker.add_learning_rate(learning_rate)
@@ -1198,7 +1217,17 @@ class PAINeuronModuleTracker:
             print(f'Initializing with switch_mode {self.member_vars["switch_mode"]}')
 
     def to_string(self):
-        """Convert tracker values to string for saving with safetensors."""
+        """Convert tracker values to string for saving with safetensors.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        str
+            Serialized tracker state suitable for storage in a safetensors field.
+        """
 
         full_string = ""
         for var in self.member_vars:
@@ -1283,6 +1312,11 @@ class PAINeuronModuleTracker:
         ----------
         string : str
             The string to load from.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         f = io.StringIO(string)
         while True:
@@ -1382,6 +1416,11 @@ class PAINeuronModuleTracker:
         ----------
         string : str
             The string to debug load from.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
         """
         f = io.StringIO(string)
         print("=== DEBUGGING TRACKER VARIABLES ===")
@@ -1857,7 +1896,17 @@ class PAINeuronModuleTracker:
             return optimizer
 
     def clear_optimizer_and_scheduler(self):
-        """Clear the instances for saving."""
+        """Clear the instances for saving.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         self.member_vars["optimizer_instance"] = None
         self.member_vars["scheduler_instance"] = None
 
@@ -2120,7 +2169,17 @@ class PAINeuronModuleTracker:
             self.add_tracked_neuron_module(module, initial_add=load_from_restart)
 
     def reset_vals_for_score_reset(self):
-        """Reset cycle scores for new cycle."""
+        """Reset cycle scores for new cycle.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
 
         if GPA.pc.get_find_best_lr():
             self.member_vars["committed_to_initial_rate"] = False
@@ -2137,7 +2196,17 @@ class PAINeuronModuleTracker:
         self.member_vars["initial_lr_test_epoch_count"] = -1
 
     def set_dendrite_training(self):
-        """Signal all layers to start dendrite training."""
+        """Signal all layers to start dendrite training.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if GPA.pc.get_verbose():
             print("Calling set_dendrite_training")
 
@@ -2173,7 +2242,17 @@ class PAINeuronModuleTracker:
 
 
     def set_neuron_training(self):
-        """Signal all layers to start neuron training."""
+        """Signal all layers to start neuron training.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.set_mode("n")
         for module in self.tracked_neuron_module_vector[:]:
@@ -2347,6 +2426,11 @@ class PAINeuronModuleTracker:
         zooming_graph : bool, optional
             Whether to zoom on graphs, by default True.
 
+
+        Returns
+        -------
+        nn.Module
+            Converted model instance configured for the tracker settings.
         """
         model = UPA.convert_network(model)
         self.member_vars["doing_pai"] = doing_pai
@@ -2757,9 +2841,14 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict
+        dict[str, Any]
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
+
+
+        Parameters
+        ----------
+        None
 
         """
         if not self.member_vars["doing_pai"]:
@@ -2793,6 +2882,20 @@ class PAINeuronModuleTracker:
         """
         Generate dendrite score plots for the tracker.
         Also saves csv files associated with the plots.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axis used for plotting dendrite-learning curves.
+        save_folder : str
+            Directory where plot images and CSV summaries are written.
+        extra_string : str
+            Filename suffix used to distinguish this output set.
+
+        Returns
+        -------
+        None
+            Saves plots and score CSV files to disk.
         """
         if self.member_vars["doing_pai"]:
             pd1 = None
@@ -3537,23 +3640,63 @@ class PAINeuronModuleTracker:
         return net, restructuring_status_value, False
 
     def clear_all_processors(self):
-        """Clear all processors from modules."""
+        """Clear all processors from modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.clear_processors()
 
     def create_new_dendrite_module(self):
-        """Add dendrite module to all neuron modules."""
+        """Add dendrite module to all neuron modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
 
     def apply_pb_grads(self):
-        """Apply perforated backpropagation gradients to all modules."""
+        """Apply perforated backpropagation gradients to all modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if self.member_vars["mode"] == "p":
             for module in self.neuron_module_vector:
                 module.apply_pb_grads()
 
     def apply_pb_zero(self):
-        """Apply perforated backpropagation zero gradients to all modules."""
+        """Apply perforated backpropagation zero gradients to all modules.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
         if self.member_vars["mode"] == "p":
             for module in self.neuron_module_vector:
                 module.apply_pb_zero()
