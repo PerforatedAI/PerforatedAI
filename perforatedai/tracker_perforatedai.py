@@ -2845,11 +2845,6 @@ class PAINeuronModuleTracker:
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
 
-
-        Parameters
-        ----------
-        None
-
         """
         if not self.member_vars["doing_pai"]:
             return {}
