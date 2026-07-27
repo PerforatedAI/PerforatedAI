@@ -996,7 +996,7 @@ class PAINeuronModuleTracker:
         self.member_vars["num_dendrites_added"] = 0
         self.member_var_types["num_dendrites_added"] = "int"
 
-        # How many Dendrites have been successfully integrated (kept)
+        # How many Dendrites have been successfully integrated, does not count currently training dendrites
         self.member_vars["num_dendrites_integrated"] = 0
         self.member_var_types["num_dendrites_integrated"] = "int"
 
