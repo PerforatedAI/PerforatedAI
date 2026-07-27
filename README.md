@@ -127,7 +127,7 @@ This repository is the open-source version of Perforated AI under Apache 2.0 - t
 
 For larger performance gains and a smoother setup experience, we also offer a commercial version that adds:
 - **Perforated Backpropagation™** - our patented training algorithm (replaces standard backprop) that produces our headline accuracy, compression, and data-efficiency results
-- **Perforated Studio** - a GUI for configuring runs and inspecting results, so you can get up and running without hand-rolling the integration in code
+- **[Perforated Studio](./Studio_Install/QUICKSTART.md)** - a GUI for configuring runs and inspecting results, so you can get up and running without hand-rolling the integration in code
 
 [Get in touch][get-started] to learn more about the commercial version.
 
