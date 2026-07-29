@@ -191,8 +191,8 @@ Once they see this, change `set_testing_dendrite_capacity(True)` → `set_testin
 ## Reference Examples
 
 Working examples using this integration:
-- `Examples/libraryExamples/huggingface/BERT/train_bert_pai.py` — BERT/RoBERTa classification
-- `Examples/libraryExamples/huggingface/mnist/mnist_huggingface_perforatedai.py` — Simple CNN with custom Trainer subclass
-- `Examples/libraryExamples/huggingface/ViT Demo Example/` — Step-by-step walkthrough of adding PAI to the official HF image classification script
+- `examples/libraryexamples/huggingface/BERT/train_bert_pai.py` — BERT/RoBERTa classification
+- `examples/libraryexamples/huggingface/mnist/mnist_huggingface_perforatedai.py` — Simple CNN with custom Trainer subclass
+- `examples/libraryexamples/huggingface/ViT Demo Example/` — Step-by-step walkthrough of adding PAI to the official HF image classification script
 
-See `Examples/libraryExamples/huggingface/README.md` for the full integration guide.
+See `examples/libraryexamples/huggingface/README.md` for the full integration guide.
