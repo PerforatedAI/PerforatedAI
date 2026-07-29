@@ -37,7 +37,7 @@ jobs:
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
           set -x
-          cd PAI-CI-Builder
+          cd CIBuilder
           docker build -t paicibuilder .
           docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
           docker push ghcr.io/perforatedai/paicibuilder:latest

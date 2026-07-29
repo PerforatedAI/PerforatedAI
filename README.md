@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo.png" width="800" alt="Perforated AI" />
+<img src="Assets/logo.png" width="800" alt="Perforated AI" />
 
 ### Better accuracy, smaller models, less data - enabled by perforated learning
 
