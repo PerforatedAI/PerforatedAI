@@ -147,8 +147,8 @@ The pai_tracker will tell you when the program should be stopped by returning tr
 
 If you are using a library that manages your training loop (such as HuggingFace Transformers or PyTorch Lightning), some of the steps above are handled differently or automatically. Check the library-specific READMEs in the examples folder before following this guide:
 
-- **HuggingFace Transformers** — [`Examples/libraryExamples/huggingface/README.md`](../Examples/libraryExamples/huggingface/README.md)
-- **PyTorch Lightning** — [`Examples/libraryExamples/pytorch_lightning/mnist/README.md`](../Examples/libraryExamples/pytorch_lightning/mnist/README.md)
+- **HuggingFace Transformers** — [`examples/libraryexamples/huggingface/README.md`](../examples/libraryexamples/huggingface/README.md)
+- **PyTorch Lightning** — [`examples/libraryexamples/pytorch_lightning/mnist/README.md`](../examples/libraryexamples/pytorch_lightning/mnist/README.md)
 
 Note that these integrations only apply when you use the library's built-in trainer (e.g., HuggingFace `Trainer`). If you use a HuggingFace model but write your own training loop, follow this README as normal.
 

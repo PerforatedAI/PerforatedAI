@@ -24,7 +24,7 @@ from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
 try:
-    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
 except ImportError:
     _dashboard_emitter = None
 
@@ -2844,6 +2844,11 @@ class PAINeuronModuleTracker:
         dict[str, Any]
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
+
+
+        Parameters
+        ----------
+        None
 
         """
         if not self.member_vars["doing_pai"]:

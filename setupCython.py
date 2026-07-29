@@ -81,7 +81,6 @@ setup(
         "cryptography",
         "pyyaml",
         "safetensors",
-        "requests",
     ],
     # may need setuptools upgraded
 )

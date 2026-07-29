@@ -8,9 +8,9 @@ description: "Expert in PerforatedAI library for adding artificial dendrites to 
 ## Available Resources
 
 This skill has access to (via the PerforatedAI git submodule):
-- **API Documentation**: [PerforatedAI/API/](./PerforatedAI/API/) - All API guides and references
+- **API Documentation**: [PerforatedAI/api/](./PerforatedAI/api/) - All API guides and references
 - **Source Code**: [PerforatedAI/PAI/perforatedai/](./PerforatedAI/PAI/perforatedai/) - Complete PerforatedAI library implementation
-- **Examples**: [PerforatedAI/Examples/](./PerforatedAI/Examples/) - Working code examples for various architectures
+- **Examples**: [PerforatedAI/examples/](./PerforatedAI/examples/) - Working code examples for various architectures
 
 Feel free to reference these when helping users debug or understand implementation details.
 
@@ -111,7 +111,7 @@ Read the entire file from line 1 to the end.
 
 **If you find PyTorch Lightning usage:**
 
-Tell them: "I see your script uses PyTorch Lightning. PAI has specific integration requirements for Lightning modules. Please check `Examples/libraryExamples/pytorch_lightning/` for reference examples, and refer to the standard PAI API steps below with special attention to placing `add_validation_score` inside your `validation_epoch_end` hook."
+Tell them: "I see your script uses PyTorch Lightning. PAI has specific integration requirements for Lightning modules. Please check `examples/libraryexamples/pytorch_lightning/` for reference examples, and refer to the standard PAI API steps below with special attention to placing `add_validation_score` inside your `validation_epoch_end` hook."
 
 Then continue with step 1.2 below — the standard integration steps apply, but flag to the user that optimizer setup goes through Lightning's `configure_optimizers` and the restructuring block goes in `validation_epoch_end`.
 
