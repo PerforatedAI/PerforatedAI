@@ -37,7 +37,7 @@ jobs:
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
           set -x
-          cd CIBuilder
+          cd .github/docker/CIBuilder
           docker build -t paicibuilder .
           docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
           docker push ghcr.io/perforatedai/paicibuilder:latest
@@ -69,7 +69,7 @@ jobs:
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
           set -x
-          cd manylinux_pai
+          cd .github/docker/manylinux_pai
           docker build -t manylinux_pai .
           docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
           docker push ghcr.io/perforatedai/manylinux_pai:latest
