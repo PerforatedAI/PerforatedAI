@@ -24,7 +24,7 @@ from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
 try:
-    from DashboardUtils.event_emitter import emitter as _dashboard_emitter
+    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
 except ImportError:
     _dashboard_emitter = None
 

@@ -331,7 +331,7 @@ Visit https://wandb.ai to see your sweep dashboard with all runs, metrics, and v
 
 ## Complete Example
 
-See `Examples/imagenet_pretrained/train_from_hf_wandb_sweep.py` for a working implementation that includes:
+See `examples/imagenet_pretrained/train_from_hf_wandb_sweep.py` for a working implementation that includes:
 - Model index mapping for better WandB visualization
 - Sweep configuration with hyperparameter ranges
 - Proper arch logging with `num_dendrites_integrated` tracking

@@ -5,6 +5,7 @@ venv*
 
 # Common Data and Output Files
 data*
+!/data_processing/
 PAI*
 
 # Build Folders
@@ -14,5 +15,5 @@ releases/*
 perforatedai.egg-info
 
 # Working Folders
-Examples/*
+examples/*
 *.pt

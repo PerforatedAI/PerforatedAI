@@ -35,7 +35,7 @@ jobs:
           python -m pip install . pdoc
 
       - name: Generate docs
-        run: pdoc perforatedai -o docs -d numpy -t DocsConfig
+        run: pdoc perforatedai -o docs -d numpy -t docs_config
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
