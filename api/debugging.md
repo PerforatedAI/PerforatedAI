@@ -437,7 +437,7 @@ This means you are trying to perforate a model that has already been perforated.
 
     AssertionError: No inf checks were recorded for this optimizer.
 
-This error can sometimes come up when amp is being used with perforatedbp.  The workaround is to not use AMP during 'p' learning mode such as with the block below.
+This error can sometimes come up when amp is being used with perforatedbp.  The problem is that set_optimizer_instance is doing things during optimizer.step() that scalar.step(optimizer) doesn't activate. The workaround for now is to not use AMP during 'p' learning mode such as with the block below. 
 
     if scaler is not None and GPA.pai_tracker.member_vars['mode'] != 'p':
         scaler.scale(loss).backward()
@@ -446,6 +446,17 @@ This error can sometimes come up when amp is being used with perforatedbp.  The 
     else:
         loss.backward()
         optimizer.step()
+
+Or if you are using a library like pytorch_lightning:
+
+    # Set AMP scaler based on PAI mode before strategy setup
+    if hasattr(self.trainer.strategy, 'precision_plugin') and hasattr(self.trainer.strategy.precision_plugin, 'scaler'):
+        if GPA.pai_tracker.member_vars['mode'] == 'p':
+            # Disable scaler for perforated mode to avoid issues with restructured model
+            self.trainer.strategy.precision_plugin.scaler = torch.cuda.amp.GradScaler(enabled=False)
+        else:  # mode == 'n'
+            # Re-enable scaler for normal mode
+            self.trainer.strategy.precision_plugin.scaler = torch.cuda.amp.GradScaler(enabled=True)
 
 
 ## Errors that are currently not fixable
