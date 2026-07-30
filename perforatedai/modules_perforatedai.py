@@ -583,6 +583,24 @@ class PAINeuronModule(nn.Module):
         )
         self.dendrite_module.set_this_output_dimensions(new_output_dimensions)
 
+    def set_create_dendrite(self, fn):
+        """Set a custom function for creating dendrite modules.
+
+        Override how dendrite copies are created from the parent module.  By default
+        the parent module is deep-copied.  Pass any callable with the signature
+        ``fn(parent_module) -> nn.Module`` to replace that behaviour.
+
+        Parameters
+        ----------
+        fn : callable
+            A function with signature ``fn(parent_module) -> nn.Module``.
+
+        Returns
+        -------
+        None
+        """
+        self.dendrite_module.set_create_dendrite(fn)
+
     def set_mode(self, mode):
         """Switch between neuron training and dendrite training.
 
@@ -1069,6 +1087,7 @@ class PAIDendriteModule(nn.Module):
         self.processors = []
         self.candidate_processors = []
         self.num_dendrites = 0
+        self._create_dendrite_fn = None
         # Number of dendrite cycles performed
         self.register_buffer(
             "num_cycles",
@@ -1077,7 +1096,7 @@ class PAIDendriteModule(nn.Module):
         self.mode = "n"
         self.name = name
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
-        self.parent_module = UPA.deep_copy_pai(initial_module)
+        self.parent_module = self.create_dendrite(initial_module)
         if GPA.pc.get_perforated_backpropagation():
             MPB.set_ignored_parameters(self.parent_module)
         # Setup the input dimensions and node index for combining dendrite outputs
@@ -1120,6 +1139,44 @@ class PAIDendriteModule(nn.Module):
         if GPA.pc.get_perforated_backpropagation():
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
+
+    def create_dendrite(self, parent_module):
+        """Create a dendrite module from the parent module.
+
+        Override this function via set_create_dendrite to control how the dendrite
+        module is created (e.g. to avoid a deep copy).
+
+        Parameters
+        ----------
+        parent_module : nn.Module
+            The module to create a dendrite from.
+
+        Returns
+        -------
+        nn.Module
+            The new dendrite module.
+        """
+        if self._create_dendrite_fn is not None:
+            return self._create_dendrite_fn(parent_module)
+        return UPA.deep_copy_pai(parent_module)
+
+    def set_create_dendrite(self, fn):
+        """Set a custom function for creating dendrite modules.
+
+        Call this on a PAIDendriteModule instance to override how dendrites are
+        created from the parent module. The function receives the parent module
+        and must return a new nn.Module.
+
+        Parameters
+        ----------
+        fn : callable
+            A function with signature ``fn(parent_module) -> nn.Module``.
+
+        Returns
+        -------
+        None
+        """
+        self._create_dendrite_fn = fn
 
     def set_this_output_dimensions(self, new_output_dimensions):
         """Set input dimensions for dendrite module.
@@ -1178,10 +1235,10 @@ class PAIDendriteModule(nn.Module):
         with torch.no_grad():
             for i in range(0, GPA.pc.get_global_candidates()):
 
-                new_module = UPA.deep_copy_pai(self.parent_module)
+                new_module = self.create_dendrite(self.parent_module)
                 init_params(new_module, neuron_main_module)
                 self.candidate_module.append(new_module)
-                self.best_candidate_module.append(UPA.deep_copy_pai(new_module))
+                self.best_candidate_module.append(self.create_dendrite(new_module))
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
                     module_index = GPA.pc.get_modules_with_processing().index(
                         type(self.parent_module)
