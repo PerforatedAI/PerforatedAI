@@ -1096,7 +1096,7 @@ class PAIDendriteModule(nn.Module):
         self.mode = "n"
         self.name = name
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
-        self.parent_module = self.create_dendrite(initial_module)
+        self.parent_module = UPA.deep_copy_pai(initial_module)
         if GPA.pc.get_perforated_backpropagation():
             MPB.set_ignored_parameters(self.parent_module)
         # Setup the input dimensions and node index for combining dendrite outputs
