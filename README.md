@@ -200,6 +200,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [api-docs]: ./api/README.md
 [case-studies]: https://www.perforatedai.com/case-studies
 [claude-skill]: .github/skills/perforatedai/SKILL.md
+[contact-us]: https://www.perforatedai.com/contact
 [customization-guide]: ./api/customization.md
 [discord]: https://discord.gg/Fgw3FG3Hzt
 [edge-impulse-example]: ./examples/hackathonProjects/perforated-impulse-nn-block/
@@ -220,4 +221,5 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [pypi-url]: https://pypi.python.org/pypi/perforatedai
 [pytorch-landscape]: https://landscape.pytorch.org/
 [output-guide]: ./api/output.md
+[resources]: https://www.perforatedai.com/resources
 [td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/main/examples/reinforcementLearning/td3_cheetah
