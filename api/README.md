@@ -2,26 +2,28 @@
 
 ## Quick Start with AI Coding Assistant
 
-**The easiest way to get started** is to use our Claude skill with your AI coding assistant. This gives you instant expert guidance on implementing PerforatedAI in your projects.
+**The easiest way to get started** is to use our [AI agent skills](../skills/README.md) with your coding assistant. They give you instant expert guidance on implementing PerforatedAI, and work across Claude Code, GitHub Copilot, Codex, and Cursor.
 
-### Using the Claude Skill
+### Using the Skills
 
-1. **Install this repo**
-
-   ```bash
-   pip install perforatedai
-   ```
-
-2. **If not working in this folder:** Copy the skill to your project using the install script.  This MUST be to the top level folder of where your editor is open.
+1. **Install the library**
 
    ```bash
-   bash /path/to/PerforatedAI/.github/skills/perforatedai/install-skill.sh /path/to/your/project
+   pip install perforatedai perforatedbp
    ```
 
-3. **Open in VS Code/Claude** and say:
-   - **"Perforate my model using the skill in .github/skills"** - Interactive setup for new integrations
-   - **"Debug my perforated model using the skill in .github/skills"** - Debug or optimize existing integration
-   - **"Analyze my perforated results using the skill in .github/skills"** - Review training outputs and get recommendations
+2. **Install the skills into your project.** From your project's top-level folder (where your editor is open), pick your agent with `-a`:
+
+   ```bash
+   npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'   # or: github-copilot | codex | cursor
+   ```
+
+   No Node? See [skills/README.md](../skills/README.md) for the manual copy-in steps.
+
+3. **Open your agent** and say:
+   - **"Perforate my model"** - Interactive setup for new integrations
+   - **"Debug my perforated model"** - Debug or optimize existing integration
+   - **"Analyze my perforated results"** - Review training outputs and get recommendations
    
 
 ## Manual Integration Guide

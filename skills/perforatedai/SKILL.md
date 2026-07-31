@@ -7,10 +7,10 @@ description: "Expert in PerforatedAI library for adding artificial dendrites to 
 
 ## Available Resources
 
-This skill has access to (via the PerforatedAI git submodule):
-- **API Documentation**: [PerforatedAI/api/](./PerforatedAI/api/) - All API guides and references
-- **Source Code**: [PerforatedAI/PAI/perforatedai/](./PerforatedAI/PAI/perforatedai/) - Complete PerforatedAI library implementation
-- **Examples**: [PerforatedAI/examples/](./PerforatedAI/examples/) - Working code examples for various architectures
+This skill references the following resources in the PerforatedAI repository on GitHub:
+- **API Documentation**: [api/](https://github.com/PerforatedAI/PerforatedAI/tree/main/api) - All API guides and references
+- **Source Code**: [perforatedai/](https://github.com/PerforatedAI/PerforatedAI/tree/main/perforatedai) - Complete PerforatedAI library implementation
+- **Examples**: [examples/](https://github.com/PerforatedAI/PerforatedAI/tree/main/examples) - Working code examples for various architectures
 
 Feel free to reference these when helping users debug or understand implementation details.
 
@@ -100,9 +100,10 @@ Tell them: "I see your script uses the HuggingFace `Trainer`. The PAI integratio
 
 **IMMEDIATELY load and follow the library skill:**
 
+Load the sibling skill **perforatedai-libraries-transformers** (installed alongside this one) and follow it in full. If your agent cannot load it by name, read the entire file from:
+
 ```
-Use read_file to load: .github/skills/perforatedai-libraries/transformers/SKILL.md
-Read the entire file from line 1 to the end.
+https://github.com/PerforatedAI/PerforatedAI/blob/main/skills/perforatedai-libraries-transformers/SKILL.md
 ```
 
 **Follow every step in that skill. Do NOT continue with steps 1.2 onward in this skill.**
@@ -452,10 +453,9 @@ Tell the user: "I searched your script for DataParallel/DDP usage and found: [NO
 
 2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]."
 
-3. **IMMEDIATELY execute this tool call as your NEXT action:**
+3. **IMMEDIATELY load the sibling skill perforatedai-distributed as your NEXT action** (it is installed alongside this one). If your agent cannot load it by name, read the entire file from:
    ```
-   Use read_file tool to load: .github/skills/perforatedai-distributed/SKILL.md
-   Read the entire file from line 1 to line 500.
+   https://github.com/PerforatedAI/PerforatedAI/blob/main/skills/perforatedai-distributed/SKILL.md
    ```
 
 4. **After loading the distributed skill, FOLLOW EVERY INSTRUCTION in that file from start to finish.**
@@ -913,7 +913,7 @@ Switch to debugging mode:
 - Check error messages in the console output
 - Review the configuration (dimensions, module names, input shapes)
 - Reference the [Debugging](#debugging-common-issues) section below for common issues
-- Check the debugging documentation in [api-docs/debugging.md](./api-docs/debugging.md)
+- Check the debugging documentation in [api/debugging.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/debugging.md)
 
 ### Follow-up Support
 
@@ -1001,7 +1001,7 @@ Common scenarios:
   - Wrong module names in `set_module_names_to_perforate()`
   - Device placement issues (model not on correct device after restructuring)
   - Optimizer not reinitialized after restructuring
-- Check [api-docs/debugging.md](./api-docs/debugging.md) for detailed debugging steps
+- Check [api/debugging.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/debugging.md) for detailed debugging steps
 
 **B. "Dendrites not being added"**
 - Verify based on n_epochs_to_switch, improvement_threshold, and save_name_scores.csv that enough epochs have passed such that dendrites should have been added
