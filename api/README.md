@@ -15,7 +15,7 @@
 2. **Install the skills into your project.** From your project's top-level folder (where your editor is open), pick your agent with `-a`:
 
    ```bash
-   npx skills add PerforatedAI/PerforatedAI -a claude-code   # or: github-copilot | codex | cursor
+   npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'   # or: github-copilot | codex | cursor
    ```
 
    No Node? See [skills/README.md](../skills/README.md) for the manual copy-in steps.

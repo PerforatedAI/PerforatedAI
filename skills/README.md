@@ -29,20 +29,20 @@ pip install perforatedai perforatedbp
 
 ### Option A - one-liner (recommended)
 
-The [`skills` CLI](https://github.com/vercel-labs/skills) copies them into the right folder for your agent automatically. Run this from your project root and pick your agent with `-a`:
+The [`skills` CLI](https://github.com/vercel-labs/skills) copies them into the right folder for your agent automatically. Run this from your project root and pick your agent with `-a`. The `-s '*'` installs all skills without prompting (drop it to choose from an interactive picker instead):
 
 ```bash
 # Claude Code
-npx skills add PerforatedAI/PerforatedAI -a claude-code
+npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'
 
 # GitHub Copilot
-npx skills add PerforatedAI/PerforatedAI -a github-copilot
+npx skills add PerforatedAI/PerforatedAI -a github-copilot -s '*'
 
 # OpenAI Codex
-npx skills add PerforatedAI/PerforatedAI -a codex
+npx skills add PerforatedAI/PerforatedAI -a codex -s '*'
 
 # Cursor
-npx skills add PerforatedAI/PerforatedAI -a cursor
+npx skills add PerforatedAI/PerforatedAI -a cursor -s '*'
 ```
 
 Add multiple agents in one call (`-a claude-code -a cursor`). To install just one skill, point at its subdirectory:

@@ -80,8 +80,8 @@ Need help with integration? See the [API documentation][api-docs] for full integ
 Prefer to let your AI coding assistant do the integration? This repo ships a set of [**Agent Skills**][agent-skills] - portable `SKILL.md` workflows that work across **Claude Code, GitHub Copilot, Codex, and Cursor**. Install them into your own project, then just say _"Perforate my model"_:
 
 ```bash
-# from your project root - choose your agent with -a
-npx skills add PerforatedAI/PerforatedAI -a claude-code   # or: github-copilot | codex | cursor
+# from your project root - choose your agent with -a; -s '*' installs all skills
+npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'   # or: github-copilot | codex | cursor
 ```
 
 Your agent then analyzes your model, adds the ~10 lines of integration, and helps you debug and analyze results. See **[skills/README.md][agent-skills]** for the full skill list, manual-install steps, and trigger phrases.
