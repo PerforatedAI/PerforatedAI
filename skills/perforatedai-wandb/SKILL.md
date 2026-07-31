@@ -1,6 +1,6 @@
 ---
 name: perforatedai-wandb
-description: "WandB-specific PerforatedAI integration guardrail skill. Use when users want WandB sweeps/logging with PerforatedAI, or when fixing repeated WandB integration mistakes. Enforces strict adherence to perforatedai/api-docs/wandb.md and includes expandable correction sections."
+description: "WandB-specific PerforatedAI integration guardrail skill. Use when users want WandB sweeps/logging with PerforatedAI, or when fixing repeated WandB integration mistakes. Enforces strict adherence to the canonical PerforatedAI WandB API doc (api/wandb.md) and includes expandable correction sections."
 ---
 
 # PerforatedAI WandB Guardrail Skill
@@ -9,7 +9,7 @@ This skill is a strict add-on for WandB + PerforatedAI workflows.
 
 ## Purpose
 
-- Follow the canonical guidance in `perforatedai/api-docs/wandb.md` exactly.
+- Follow the canonical guidance in [api/wandb.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/wandb.md) exactly.
 - Reduce recurring implementation mistakes by enforcing checkpoints.
 - Provide structured places to add new correction notes over time.
 
@@ -27,7 +27,7 @@ Do not use this as a replacement for base PAI integration steps when WandB is no
 
 Before making any code changes, read the full canonical doc:
 
-- `.github/skills/perforatedai/api-docs/wandb.md`
+- [api/wandb.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/wandb.md)
 
 If any local habit or previous pattern conflicts with `wandb.md`, `wandb.md` wins.
 
@@ -283,7 +283,7 @@ Follow these sections in order. For each section:
 Before returning edits to the user, verify all items:
 
 1. Confirm each Section 1-8 checklist is satisfied.
-2. Confirm edits match guidance from `.github/skills/perforatedai/api-docs/wandb.md`.
+2. Confirm edits match guidance from [api/wandb.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/wandb.md).
 3. Confirm no extra unrelated refactors or formatting changes were introduced.
 4. Summarize exactly which WandB/PAI requirements were implemented.
 

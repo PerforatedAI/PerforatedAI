@@ -73,7 +73,18 @@ while True:
         GPA.pai_tracker.set_optimizer_instance(optimizer)
 ```
 
-Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [Claude skill][claude-skill] or [MCP server][mcp-server] for AI coding assistants to get instant guidance.
+Need help with integration? See the [API documentation][api-docs] for full integration details, including how to use our [AI agent skills][agent-skills] or [MCP server][mcp-server] for AI coding assistants to get instant guidance.
+
+## 🤖 AI Agent Skills
+
+Prefer to let your AI coding assistant do the integration? This repo ships a set of [**Agent Skills**][agent-skills] - portable `SKILL.md` workflows that work across **Claude Code, GitHub Copilot, Codex, and Cursor**. Install them into your own project, then just say _"Perforate my model"_:
+
+```bash
+# from your project root - choose your agent with -a
+npx skills add PerforatedAI/PerforatedAI -a claude-code   # or: github-copilot | codex | cursor
+```
+
+Your agent then analyzes your model, adds the ~10 lines of integration, and helps you debug and analyze results. See **[skills/README.md][agent-skills]** for the full skill list, manual-install steps, and trigger phrases.
 
 ## 💡 Examples
 
@@ -199,7 +210,7 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [arxiv]: https://arxiv.org/pdf/2501.18018
 [api-docs]: ./api/README.md
 [case-studies]: https://www.perforatedai.com/case-studies
-[claude-skill]: .github/skills/perforatedai/SKILL.md
+[agent-skills]: ./skills/README.md
 [contact-us]: https://www.perforatedai.com/contact
 [customization-guide]: ./api/customization.md
 [discord]: https://discord.gg/Fgw3FG3Hzt
