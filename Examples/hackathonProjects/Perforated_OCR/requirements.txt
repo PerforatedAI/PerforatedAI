@@ -1,0 +1,27 @@
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Hugging Face OCR
+transformers>=4.36.0
+tokenizers>=0.15.0
+sentencepiece>=0.1.99
+
+# Image processing
+Pillow>=9.5.0
+
+# Data handling
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Training utilities
+tqdm>=4.64.0
+
+# Evaluation
+jiwer
+
+# Experiment tracking
+wandb>=0.16.0
+
+# Perforated AI (required for dendrites + PAI graph)
+perforatedai>=0.5.0
