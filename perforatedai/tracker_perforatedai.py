@@ -1750,8 +1750,8 @@ class PAINeuronModuleTracker:
         -------
         optimizer : object
             The initialized optimizer instance.
-        scheduler : object, optional
-            The initialized scheduler instance, if a scheduler was set.
+        scheduler : object or None
+            The initialized scheduler instance, or None if no scheduler was set.
 
         """
         if "weight_decay" in opt_args and not GPA.pc.get_weight_decay_accepted():
@@ -1893,7 +1893,7 @@ class PAINeuronModuleTracker:
             self.member_vars["current_step_count"] = current_steps
             return optimizer, self.member_vars["scheduler_instance"]
         else:
-            return optimizer
+            return optimizer, None
 
     def clear_optimizer_and_scheduler(self):
         """Clear the instances for saving.
