@@ -1599,7 +1599,8 @@ class PAINeuronModuleTracker:
         None
 
         """
-
+        # This call must be first before the parameters get filtered.
+        optimizer_instance.zero_grad()
         try:
             for param_group in optimizer_instance.param_groups:
                 if (
@@ -1618,7 +1619,6 @@ class PAINeuronModuleTracker:
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
             for optimizer in additional_optimizers:
                 TPB.filter_params(optimizer)
-        optimizer_instance.zero_grad()
 
     def set_optimizer(self, optimizer):
         """Set optimizer type to be initialized later
