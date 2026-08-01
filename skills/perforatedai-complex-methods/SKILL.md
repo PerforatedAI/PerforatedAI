@@ -1,3 +1,8 @@
+---
+name: perforatedai-complex-methods
+description: "Solutions for non-trivial PerforatedAI integration scenarios. Use when standard integration hits edge cases such as AMP (Automatic Mixed Precision) / GradScaler crashes in p mode, or other advanced setups not covered by the main perforatedai skill."
+---
+
 # PerforatedAI Complex Methods
 
 This skill documents solutions for non-trivial integration scenarios with PerforatedAI.

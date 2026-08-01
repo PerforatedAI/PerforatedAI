@@ -4,7 +4,7 @@ setup(
     name="perforatedai",
     # Remember to also edit setupCython
     version="3.2.4",
-    packages=["perforatedai", "Dashboard_Utils"],
+    packages=["perforatedai", "dashboard_utils"],
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
     description="perforatedai baseline package",
