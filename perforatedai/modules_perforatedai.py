@@ -1137,6 +1137,7 @@ class PAIDendriteModule(nn.Module):
                 )
             )
         if GPA.pc.get_perforated_backpropagation():
+            self.dendrite_loss_fn = MPB.dendrite_loss_fn
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 

@@ -237,8 +237,9 @@ An example of this is ResNetPB in pb_models.  Keep in mind, if you want to repla
     import torchvision
     GPA.pc.append_modules_to_replace([torchvision.models.resnet.ResNet])
     GPA.pc.append_replacement_modules([LPA.ResNetPAI])
-    
-    
+
+Be aware this happens fully before the modules_to_perforate and track gets called. So be sure things are set up such that the internal modules will be properly converted.  Also, do not have the new module fully contain a pointer to the old module.  This can cause recursing problems.  Just like in the ResNet example each submodule should be replicated one at a time.
+
 ## 6 - DataParallel
 
 For DataParallel to work with Perforated Backpropagation<sup>tm</sup> we leverage the same [idea](https://github.com/pytorch/pytorch/blob/main/torch/nn/parallel/data_parallel.py#L79) that allows for other modules with buffers to operate by just using the values from GPU:0.  However, one part under the hood of the way this code is able to function with such few modifications to your original pipelines causes issues on multiple GPUs.  We have created a simple, but necessary, two step process to get around these issues.
