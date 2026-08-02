@@ -2906,22 +2906,16 @@ class PAINeuronModuleTracker:
             pd2 = None
             num_colors = len(self.neuron_module_vector)
 
-            if (
-                len(self.neuron_module_vector) > 0
-                and len(self.member_vars["current_scores"][0]) != 0
-            ):
-                num_colors *= 2
-
             cm = plt.get_cmap("gist_rainbow")
-            ax.set_prop_cycle(
-                "color", [cm(1.0 * i / num_colors) for i in range(num_colors)]
-            )
+            layer_colors = [cm(1.0 * i / max(num_colors, 1)) for i in range(num_colors)]
 
             for layer_id in range(len(self.neuron_module_vector)):
+                color = layer_colors[layer_id]
                 ax.plot(
                     np.arange(len(self.member_vars["best_scores"][layer_id])),
                     self.member_vars["best_scores"][layer_id],
                     label=self.neuron_module_vector[layer_id].name,
+                    color=color,
                 )
 
                 pd2 = pd.DataFrame(
@@ -2947,6 +2941,8 @@ class PAINeuronModuleTracker:
                         np.arange(len(self.member_vars["current_scores"][layer_id])),
                         self.member_vars["current_scores"][layer_id],
                         label=f"Current:{self.neuron_module_vector[layer_id].name}",
+                        color=color,
+                        linestyle="--",
                     )
 
                 pd2 = pd.DataFrame(
