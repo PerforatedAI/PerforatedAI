@@ -67,7 +67,9 @@ class DendriteStatisticsRecord:
     validation_score_improvement: float | None = None
 
 
-def _summarize_layer(neuron_module: Any) -> dict[str, float] | None:
+def _compute_correlation_and_error_summary_for_one_layer(
+    neuron_module: Any,
+) -> dict[str, float] | None:
     """Collapse one layer's per-node correlation buffers to scalar summaries.
 
     Each correlation buffer is one-dimensional, of shape (N,), holding one
@@ -180,7 +182,9 @@ class DendriteStatisticsRecorder:
 
         snapshot: dict[str, dict[str, float]] = {}
         for neuron_module in tracker.neuron_module_vector:
-            summary = _summarize_layer(neuron_module)
+            summary = _compute_correlation_and_error_summary_for_one_layer(
+                neuron_module
+            )
             if summary is not None:
                 snapshot[neuron_module.name] = summary
         if not snapshot:
@@ -202,22 +206,8 @@ class DendriteStatisticsRecorder:
         if not hasattr(tracker, "member_vars"):
             return
 
-        # Classify the score by the mode that was active during the epoch.
-        # Reading the mode now would return the post-switch value, which would
-        # file a dendrite-phase score under the neuron phase at every boundary.
-        if self._mode_during_epoch == "n":
-            self._neuron_phase_scores.append(validation_score)
-
-        # A rise in num_dendrites_integrated means the generation currently held
-        # in _pending_records was kept. The library makes that decision late: it
-        # sets should_increment_integrated at the neuron-to-dendrite switch that
-        # begins the *next* generation, so the signal always arrives while the
-        # previous generation's records are still open.
-        integrated_count: int = tracker.member_vars.get("num_dendrites_integrated", 0)
-        if integrated_count > self._previous_integrated_count:
-            for record in self._pending_records:
-                record.retained = True
-            self._previous_integrated_count = integrated_count
+        self._collect_score_if_neuron_phase(validation_score)
+        self._mark_pending_records_retained_if_newly_integrated(tracker)
 
         current_dendrite_count: int = tracker.member_vars["num_dendrites_added"]
         if current_dendrite_count <= self._previous_dendrite_count:
@@ -225,11 +215,82 @@ class DendriteStatisticsRecorder:
 
         # A dendrite was added this epoch. The snapshot taken moments ago serves
         # two purposes: it is the after-retraining measurement for the previous
-        # dendrite, and the at-add measurement for this one.
+        # dendrite, and the at-add measurement for this one. The close and the
+        # open below both read self._neuron_phase_scores, so the per-phase state
+        # is reset only afterward.
         self._complete_and_store_records_for_most_recent_dendrite_addition(
             another_dendrite_phase_followed=True
         )
+        self._open_pending_records_for_new_dendrite_addition(tracker)
 
+        self._neuron_phase_scores = []
+        self._snapshot_is_fresh = False
+        self._previous_dendrite_count = current_dendrite_count
+
+    def _collect_score_if_neuron_phase(self, validation_score: float) -> None:
+        """Append this epoch's score to the neuron-phase list, if applicable.
+
+        The score is collected only when the epoch that just finished was a
+        neuron phase; a dendrite-phase score is dropped. The mode is read from
+        self._mode_during_epoch, which was captured before add_validation_score
+        ran, because reading tracker.member_vars["mode"] now would return the
+        post-switch value and file a dendrite-phase score under the following
+        neuron phase at every boundary.
+
+        Args:
+            validation_score: The same value passed to add_validation_score this
+                epoch.
+        """
+        if self._mode_during_epoch == "n":
+            self._neuron_phase_scores.append(validation_score)
+
+    def _mark_pending_records_retained_if_newly_integrated(
+        self, tracker: Any
+    ) -> None:
+        """Mark the open records retained on the epoch a generation is kept.
+
+        num_dendrites_integrated is a monotonically increasing library counter
+        of how many dendrite generations have been kept. This method compares it
+        against the last value the recorder observed, held in
+        self._previous_integrated_count. A rise means the generation currently
+        held in self._pending_records was kept, so every pending record is marked
+        retained. The stored value is then advanced to the observed count, which
+        confines the marking to the single epoch on which the count increased:
+        without it the comparison would remain true on every later epoch and
+        re-mark the same records. That advance is the second half of the
+        detection, not separate housekeeping.
+
+        The library makes the decision late: it sets should_increment_integrated
+        at the neuron-to-dendrite switch that begins the next generation, so the
+        signal always arrives while the previous generation's records are still
+        open.
+
+        Args:
+            tracker: The initialized GPA.pai_tracker.
+        """
+        integrated_count: int = tracker.member_vars.get("num_dendrites_integrated", 0)
+        if integrated_count > self._previous_integrated_count:
+            for record in self._pending_records:
+                record.retained = True
+            self._previous_integrated_count = integrated_count
+
+    def _open_pending_records_for_new_dendrite_addition(self, tracker: Any) -> None:
+        """Create the pending records for the dendrite addition just detected.
+
+        One record is opened per layer present in the latest snapshot. Each is
+        tagged with self._previous_dendrite_count as its add_event_index, which
+        is the index of the addition being opened, and seeded with that layer's
+        at-add correlation and error summaries and the best validation score of
+        the neuron phase that just ended. The after-retraining and retention
+        fields are left unset for a later call to complete.
+
+        The caller resets the per-phase state and advances
+        self._previous_dendrite_count after this method returns, because both
+        this method and the preceding close read self._neuron_phase_scores.
+
+        Args:
+            tracker: The initialized GPA.pai_tracker.
+        """
         add_event_index: int = self._previous_dendrite_count
         epoch_added: int = tracker.member_vars["num_epochs_run"]
         for layer_name, summary in self._latest_snapshot.items():
@@ -254,10 +315,6 @@ class DendriteStatisticsRecorder:
                     ),
                 )
             )
-
-        self._neuron_phase_scores = []
-        self._snapshot_is_fresh = False
-        self._previous_dendrite_count = current_dendrite_count
 
     def _select_best_validation_score_of_most_recent_neuron_phase(
         self,

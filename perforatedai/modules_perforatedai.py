@@ -1469,6 +1469,13 @@ class DendriteValueTracker(nn.Module):
         -------
         None
         """
+        # DESIGN ASSUMPTION (spatially resolved covariance): each target layer is
+        # assumed to emit a fixed H x W on every batch. The spatially resolved
+        # covariance buffers (shape N x H x W) are sized once, from the H and W read
+        # off this same shape_values at setup time, and are never resized afterward.
+        # A layer whose spatial size varies across batches would therefore fail to
+        # broadcast against these fixed-size buffers; supporting variable spatial
+        # sizes would require a mismatch policy here and in setup_arrays.
         if type(shape_values) == torch.Size:
             self.out_channels = int(shape_values[self.this_node_index])
         else:
