@@ -1584,7 +1584,11 @@ class PAINeuronModuleTracker:
         for line in f:
             channels[line.split(",")[0]] = int(line.split(",")[1])
         for layer in self.neuron_module_vector:
-            layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
+            dv = layer.dendrite_module.dendrite_values[0]
+            ndim = len(dv.this_output_dimensions)
+            shape = [1] * ndim
+            shape[dv.this_node_index.item()] = channels[layer.name]
+            dv.setup_arrays(shape)
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.

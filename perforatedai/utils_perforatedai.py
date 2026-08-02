@@ -1568,11 +1568,9 @@ def load_net_from_dict(net, state_dict):
         for tracker in module.dendrite_module.dendrite_values:
             try:
                 tracker.setup_arrays(
-                    len(
-                        state_dict[
-                            module_name + ".dendrite_module.dendrite_values.0.shape"
-                        ]
-                    )
+                    state_dict[
+                        module_name + ".dendrite_module.dendrite_values.0.dendrite_storage_shape"
+                    ].tolist()
                 )
             except Exception as e:
                 print(e)

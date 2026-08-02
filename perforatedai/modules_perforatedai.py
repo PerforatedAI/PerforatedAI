@@ -251,7 +251,10 @@ def filter_backward(grad_out, values):
                     print(val.size())
 
                 values[0].set_out_channels(val.size())
-                values[0].setup_arrays(values[0].out_channels)
+                ndim = len(values[0].this_output_dimensions)
+                storage_shape = [1] * ndim
+                storage_shape[values[0].this_node_index.item()] = values[0].out_channels
+                values[0].setup_arrays(storage_shape)
             # Flag that it has been setup
             values[0].current_d_init[0] = 1
         if GPA.pc.get_perforated_backpropagation():
@@ -1565,7 +1568,10 @@ class DendriteValueTracker(nn.Module):
             "this_node_index", (output_dimensions == 0).nonzero(as_tuple=True)[0]
         )
         if out_channels != -1:
-            self.setup_arrays(out_channels)
+            ndim = len(output_dimensions)
+            init_shape = [1] * ndim
+            init_shape[(output_dimensions == 0).nonzero(as_tuple=True)[0].item()] = out_channels
+            self.setup_arrays(init_shape)
         else:
             self.out_channels = -1
 
@@ -1639,24 +1645,33 @@ class DendriteValueTracker(nn.Module):
         else:
             self.out_channels = int(shape_values[self.this_node_index].item())
 
-    def setup_arrays(self, out_channels):
+    def setup_arrays(self, storage_shape):
         """Setup arrays for value tracker.
 
         Parameters
         ----------
-        out_channels : int
-            The number of output channels.
+        storage_shape : list
+            Shape for the tracking tensors: 1 at every dim except the channel
+            dim (this_node_index), which holds out_channels.  E.g. [1, 5] for
+            a linear layer with 5 outputs.
         Returns
         -------
         None
 
         """
-        self.out_channels = out_channels
+        # storage_shape is a list with 1 at every dim except the channel dim.
+        # Passed in directly from filter_backward so it is always derived from
+        # the live gradient — not from out_channels, which is not saved/loaded.
+        self.out_channels = storage_shape[self.this_node_index.item()]
+        self.register_buffer(
+            "dendrite_storage_shape",
+            torch.tensor(storage_shape, dtype=torch.long, device=GPA.pc.get_device()),
+        )
         for val_name in get_DENDRITE_TENSOR_VALUES():
             self.register_buffer(
                 val_name,
                 torch.zeros(
-                    out_channels, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()
+                    storage_shape, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()
                 ),
             )
 
