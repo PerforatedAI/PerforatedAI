@@ -24,7 +24,7 @@ from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
 try:
-    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
 except ImportError:
     _dashboard_emitter = None
 
@@ -996,7 +996,7 @@ class PAINeuronModuleTracker:
         self.member_vars["num_dendrites_added"] = 0
         self.member_var_types["num_dendrites_added"] = "int"
 
-        # How many Dendrites have been successfully integrated (kept)
+        # How many Dendrites have been successfully integrated, does not count currently training dendrites
         self.member_vars["num_dendrites_integrated"] = 0
         self.member_var_types["num_dendrites_integrated"] = "int"
 
@@ -1583,7 +1583,11 @@ class PAINeuronModuleTracker:
         for line in f:
             channels[line.split(",")[0]] = int(line.split(",")[1])
         for layer in self.neuron_module_vector:
-            layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
+            dv = layer.dendrite_module.dendrite_values[0]
+            ndim = len(dv.this_output_dimensions)
+            shape = [1] * ndim
+            shape[dv.this_node_index.item()] = channels[layer.name]
+            dv.setup_arrays(shape)
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
@@ -1598,7 +1602,8 @@ class PAINeuronModuleTracker:
         None
 
         """
-
+        # This call must be first before the parameters get filtered.
+        optimizer_instance.zero_grad()
         try:
             for param_group in optimizer_instance.param_groups:
                 if (
@@ -1749,8 +1754,8 @@ class PAINeuronModuleTracker:
         -------
         optimizer : object
             The initialized optimizer instance.
-        scheduler : object, optional
-            The initialized scheduler instance, if a scheduler was set.
+        scheduler : object or None
+            The initialized scheduler instance, or None if no scheduler was set.
 
         """
         if "weight_decay" in opt_args and not GPA.pc.get_weight_decay_accepted():
@@ -1892,7 +1897,7 @@ class PAINeuronModuleTracker:
             self.member_vars["current_step_count"] = current_steps
             return optimizer, self.member_vars["scheduler_instance"]
         else:
-            return optimizer
+            return optimizer, None
 
     def clear_optimizer_and_scheduler(self):
         """Clear the instances for saving.
@@ -2903,22 +2908,16 @@ class PAINeuronModuleTracker:
             pd2 = None
             num_colors = len(self.neuron_module_vector)
 
-            if (
-                    len(self.neuron_module_vector) > 0
-                    and len(self.member_vars["current_scores"][0]) != 0
-            ):
-                num_colors *= 2
-
             cm = plt.get_cmap("gist_rainbow")
-            ax.set_prop_cycle(
-                "color", [cm(1.0 * i / num_colors) for i in range(num_colors)]
-            )
+            layer_colors = [cm(1.0 * i / max(num_colors, 1)) for i in range(num_colors)]
 
             for layer_id in range(len(self.neuron_module_vector)):
+                color = layer_colors[layer_id]
                 ax.plot(
                     np.arange(len(self.member_vars["best_scores"][layer_id])),
                     self.member_vars["best_scores"][layer_id],
                     label=self.neuron_module_vector[layer_id].name,
+                    color=color,
                 )
 
                 pd2 = pd.DataFrame(
@@ -2944,6 +2943,8 @@ class PAINeuronModuleTracker:
                         np.arange(len(self.member_vars["current_scores"][layer_id])),
                         self.member_vars["current_scores"][layer_id],
                         label=f"Current:{self.neuron_module_vector[layer_id].name}",
+                        color=color,
+                        linestyle="--",
                     )
 
                 pd2 = pd.DataFrame(

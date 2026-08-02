@@ -37,7 +37,7 @@ jobs:
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
           set -x
-          cd PAI-CI-Builder
+          cd .github/docker/ci_builder
           docker build -t paicibuilder .
           docker tag paicibuilder ghcr.io/perforatedai/paicibuilder:latest
           docker push ghcr.io/perforatedai/paicibuilder:latest
@@ -69,7 +69,7 @@ jobs:
         if: env.exists == 'false'  # Only push if the image does not exist
         run: |
           set -x
-          cd manylinux_pai
+          cd .github/docker/manylinux_pai
           docker build -t manylinux_pai .
           docker tag manylinux_pai ghcr.io/perforatedai/manylinux_pai:latest
           docker push ghcr.io/perforatedai/manylinux_pai:latest
@@ -103,8 +103,9 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install cython auditwheel patchelf twine setuptools wheel
         rm -rf pai_module
-        mkdir pai_module && mkdir pai_module/perforatedai
+        mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
         cp perforatedai/* pai_module/perforatedai
+        cp dashboard_utils/*.py pai_module/dashboard_utils
         cp setupCython.py pai_module/setup.py
         cd pai_module
         python setup.py build_ext --inplace
@@ -307,8 +308,9 @@ jobs:
       run: |
         set -x
         rm -rf pai_module
-        mkdir pai_module && mkdir pai_module/perforatedai
+        mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
         cp perforatedai/* pai_module/perforatedai
+        cp dashboard_utils/*.py pai_module/dashboard_utils
         cp setupCython.py pai_module/setup.py
         cd pai_module
         python setup.py build_ext --inplace
@@ -410,6 +412,7 @@ jobs:
         }
         New-Item -ItemType Directory -Path pai_module
         New-Item -ItemType Directory -Path pai_module\perforatedai
+        New-Item -ItemType Directory -Path pai_module\dashboard_utils
         Copy-Item perforatedai\globals_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\modules_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\tracker_perforatedai.py pai_module\perforatedai
@@ -419,6 +422,8 @@ jobs:
         Copy-Item perforatedai\clean_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\blockwise_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
+        Copy-Item dashboard_utils\__init__.py pai_module\dashboard_utils
+        Copy-Item dashboard_utils\event_emitter.py pai_module\dashboard_utils
         Copy-Item setupCython.py pai_module\setup.py
         cd pai_module
         python setup.py build_ext --inplace
@@ -529,8 +534,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cython auditwheel patchelf twine setuptools wheel
           rm -rf pai_module
-          mkdir pai_module && mkdir pai_module/perforatedai
+          mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
           cp perforatedai/* pai_module/perforatedai
+          cp dashboard_utils/*.py pai_module/dashboard_utils
           cp setupCython.py pai_module/setup.py
           cd pai_module
           python setup.py build_ext --inplace

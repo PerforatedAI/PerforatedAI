@@ -1,0 +1,82 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+
+body {
+  font-family: "Roboto", sans-serif;
+}
+
+/* Dark mode colour palette */
+[data-theme="dark"] {
+  --pdoc-background: #1a1a1a;
+}
+[data-theme="dark"] .pdoc {
+  --text: #d4d4d4;
+  --muted: #8f8f8f;
+  --link: #5fa8d3;
+  --link-hover: #89c4e1;
+  --code: #2b2b2b;
+  --active: #00a5a533;
+
+  --accent: #2e2e2e;
+  --accent2: #4a4a4a;
+
+  --nav-hover: rgba(0, 0, 0, 0.25);
+  --name: #56a9e8;
+  --def: #4ec994;
+  --annotation: #4ec994;
+}
+
+/* Wordmark at top of sidebar */
+#nav-wordmark {
+  display: block;
+  padding: 0.75rem 0 2rem;
+}
+#nav-wordmark img {
+  height: 28px;
+  width: auto;
+  max-width: 100%;
+  opacity: 0.85;
+  transition: opacity 150ms;
+}
+#nav-wordmark:hover img {
+  opacity: 1;
+}
+
+/* Dark mode toggle button */
+#theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.25rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms;
+  flex-shrink: 0;
+}
+#theme-toggle:hover {
+  background: #00a5a5;
+  color: #fff;
+}
+#theme-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+/* Show moon in light mode, sun in dark mode */
+#theme-toggle .sun-icon {
+  display: none;
+}
+#theme-toggle .moon-icon {
+  display: block;
+}
+[data-theme="dark"] #theme-toggle .sun-icon {
+  display: block;
+}
+[data-theme="dark"] #theme-toggle .moon-icon {
+  display: none;
+}

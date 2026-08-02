@@ -264,6 +264,7 @@ def main():
 
     # Set up some global parameters for PAI code
     GPA.pc.set_testing_dendrite_capacity(False)
+    GPA.pc.set_neuron_grad_filter(True)
     GPA.pc.set_verbose(False)
     model = Net(num_classes, args.width).to(device)
 

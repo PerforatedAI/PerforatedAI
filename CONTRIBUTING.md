@@ -50,7 +50,7 @@ The best way to reach us with questions is to:
 
 * Comment on the original GitHub issue
 * Open a new issue with your question
-* Check the documentation in the `API/` and `Examples/` directories
+* Check the documentation in the `api/` and `examples/` directories
 
 ## Development Environment Setup
 
