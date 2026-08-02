@@ -222,10 +222,11 @@ def filter_backward(grad_out, values):
             for i in range(len(values[0].this_output_dimensions)):
                 if values[0].this_output_dimensions[i] == 0:
                     continue
-                # Make sure all input dimensions are either -1 (new format) or exact values (old format)
+                # Make sure all input dimensions are either -1 (reduce), 1 (retain), or exact values (old format)
                 if (
                     not (grad_out.shape[i] == values[0].this_output_dimensions[i])
                     and not values[0].this_output_dimensions[i] == -1
+                    and not values[0].this_output_dimensions[i] == 1
                 ):
                     print(
                         "The following module has not properly set this_output_dimensions with this incorrect shape"
@@ -253,6 +254,9 @@ def filter_backward(grad_out, values):
                 values[0].set_out_channels(val.size())
                 ndim = len(values[0].this_output_dimensions)
                 storage_shape = [1] * ndim
+                for _i in range(ndim):
+                    if values[0].this_output_dimensions[_i] == 1:
+                        storage_shape[_i] = val.shape[_i]
                 storage_shape[values[0].this_node_index.item()] = values[0].out_channels
                 values[0].setup_arrays(storage_shape)
             # Flag that it has been setup
