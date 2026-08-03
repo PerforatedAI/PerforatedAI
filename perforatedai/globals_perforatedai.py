@@ -503,6 +503,55 @@ class PAIConfig:
         "pai_forward_function": callable,
     }
 
+    def __getstate__(self):
+        """Tell pickle what to save when this object is serialized (e.g. torch.save).
+
+        The get_*/set_*/append_* methods attached to each PAIConfig instance are
+        locally-defined closures and cannot be pickled.  Only the underlying data
+        values (stored as _<name> in __dict__) need to be saved; __setstate__
+        will recreate the methods by calling __init__ on load.
+        """
+        import types
+
+        # Walk every attribute on this instance and keep only the plain data values.
+        # Bound methods (the get_*/set_*/append_* closures) are skipped because
+        # they cannot be serialized by pickle.
+        pickle_safe_state = {}
+        for attr_name, attr_value in self.__dict__.items():
+            if not isinstance(attr_value, types.MethodType):
+                pickle_safe_state[attr_name] = attr_value
+
+        return pickle_safe_state
+
+    def __setstate__(self, saved_state):
+        """Restore this object from a pickled state (e.g. torch.load).
+
+        Calls __init__ to rebuild all the get_*/set_*/append_* methods, then
+        overlays the saved data values on top so all settings are preserved.
+        """
+        # Grab the identity fields needed to reconstruct the right flavor of config
+        # (global config vs. per-module config).
+        saved_module_name = saved_state.get("_module_name")
+        saved_module_type = saved_state.get("_module_type")
+
+        # Re-run __init__ so all the get_*/set_*/append_* methods exist again.
+        # This also sets default values for every variable, which we overwrite below.
+        self.__init__(module_name=saved_module_name, module_type=saved_module_type)
+
+        # Overwrite the defaults with the actual saved values.
+        # Only restore private data attributes (prefixed with _); skip the identity
+        # fields we already handled above, and skip _config_file for now so that
+        # the setter calls above do not trigger auto-save during the restore.
+        skip_on_first_pass = {"_module_name", "_module_type", "_config_file"}
+        for attr_name, attr_value in saved_state.items():
+            if attr_name.startswith("_") and attr_name not in skip_on_first_pass:
+                self.__dict__[attr_name] = attr_value
+
+        # Restore the config file path last.  Auto-save is driven by _config_file
+        # being set, so we only put it back after all values are already in place.
+        if saved_state.get("_config_file"):
+            self.__dict__["_config_file"] = saved_state["_config_file"]
+
     def __getattr__(self, name):
         """Handle missing attributes gracefully, especially for PB variables.
 
