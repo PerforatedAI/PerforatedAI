@@ -12,6 +12,15 @@ import sys
 import torch
 import torch.nn as nn
 
+# Re-exported so every module that already imports globals_perforatedai as GPA can
+# reference GPA.NODE_AXIS / GPA.REDUCE_AXIS / GPA.NOT_REDUCE_OR_NODE_AXIS without a new
+# import. dendrite_axis_codes is a leaf module (imports nothing), so this cannot cycle.
+from perforatedai.dendrite_axis_codes import (
+    NODE_AXIS,
+    NOT_REDUCE_OR_NODE_AXIS,
+    REDUCE_AXIS,
+)
+
 
 def _validate_module_id(module_id):
     """Validate that a module ID string uses dot notation.
@@ -938,7 +947,7 @@ class PAIConfig:
             # output_dimensions is [-1, 0, -1, -1].
             # if your format is, [batchsize, time index, nodes] output_dimensions is
             # [-1, -1, 0]
-            self.output_dimensions = [-1, 0, -1, -1]
+            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, REDUCE_AXIS, REDUCE_AXIS]
             add_pai_config_var_functions(
                 self, "output_dimensions", self.output_dimensions, list_type=True
             )
