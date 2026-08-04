@@ -1548,9 +1548,9 @@ class PAINeuronModuleTracker:
             os.makedirs(self.save_name)
         f = open(self.save_name + "/array_dims.csv", "w")
         for layer in self.neuron_module_vector:
-            f.write(
-                f"{layer.name},{layer.dendrite_module.dendrite_values[0].out_channels}\n"
-            )
+            dv = layer.dendrite_module.dendrite_values[0]
+            shape_str = ",".join(str(s) for s in dv.dendrite_storage_shape.tolist())
+            f.write(f"{layer.name},{shape_str}\n")
         f.close()
         if not GPA.pc.get_silent():
             print("Tracker settings saved.")
@@ -1582,9 +1582,11 @@ class PAINeuronModuleTracker:
             pdb.set_trace()
         f = open(self.save_name + "/array_dims.csv", "r")
         for line in f:
-            channels[line.split(",")[0]] = int(line.split(",")[1])
+            parts = line.strip().split(",")
+            channels[parts[0]] = [int(s) for s in parts[1:]]
         for layer in self.neuron_module_vector:
-            layer.dendrite_module.dendrite_values[0].setup_arrays(channels[layer.name])
+            dv = layer.dendrite_module.dendrite_values[0]
+            dv.setup_arrays(channels[layer.name])
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
@@ -2902,22 +2904,16 @@ class PAINeuronModuleTracker:
             pd2 = None
             num_colors = len(self.neuron_module_vector)
 
-            if (
-                len(self.neuron_module_vector) > 0
-                and len(self.member_vars["current_scores"][0]) != 0
-            ):
-                num_colors *= 2
-
             cm = plt.get_cmap("gist_rainbow")
-            ax.set_prop_cycle(
-                "color", [cm(1.0 * i / num_colors) for i in range(num_colors)]
-            )
+            layer_colors = [cm(1.0 * i / max(num_colors, 1)) for i in range(num_colors)]
 
             for layer_id in range(len(self.neuron_module_vector)):
+                color = layer_colors[layer_id]
                 ax.plot(
                     np.arange(len(self.member_vars["best_scores"][layer_id])),
                     self.member_vars["best_scores"][layer_id],
                     label=self.neuron_module_vector[layer_id].name,
+                    color=color,
                 )
 
                 pd2 = pd.DataFrame(
@@ -2943,6 +2939,8 @@ class PAINeuronModuleTracker:
                         np.arange(len(self.member_vars["current_scores"][layer_id])),
                         self.member_vars["current_scores"][layer_id],
                         label=f"Current:{self.neuron_module_vector[layer_id].name}",
+                        color=color,
+                        linestyle="--",
                     )
 
                 pd2 = pd.DataFrame(
@@ -3668,6 +3666,16 @@ class PAINeuronModuleTracker:
         """
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
+
+    def set_create_dendrite_global(self, fn):
+        """Call set_create_dendrite(fn) on every tracked PAINeuronModule."""
+        for module in self.neuron_module_vector:
+            module.set_create_dendrite(fn)
+
+    def set_dendrite_loss_fn_global(self, fn):
+        """Set the global dendrite loss function used by all dendrite modules."""
+        from perforatedbp import modules_pbp as MPB
+        MPB.dendrite_loss_fn = fn
 
     def apply_pb_grads(self):
         """Apply perforated backpropagation gradients to all modules.
