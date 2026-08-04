@@ -1473,24 +1473,53 @@ def load_net(net, folder, name):
                 pass
             state_dict = load_file(model_path)
     else:
-        # Different versions of torch require this change
+        # Try three different torch.load call signatures for compatibility across
+        # different PyTorch versions.  All three are attempted before giving up so
+        # the user can see every error at once and decide how to fix the file.
+        error_weights_only_false = None
+        error_no_weights_only    = None
+        error_no_state_dict      = None
+
         try:
             state_dict = torch.load(
                 save_point + name + ".pt",
                 map_location=torch.device("cpu"),
                 weights_only=False,
             ).state_dict()
-        except:
+        except Exception as caught_error:
+            error_weights_only_false = caught_error
+
+        if error_weights_only_false is not None:
             try:
                 state_dict = torch.load(
-                    save_point + name + ".pt", map_location=torch.device("cpu")
+                    save_point + name + ".pt",
+                    map_location=torch.device("cpu"),
                 ).state_dict()
-            except:
-                state_dict = torch.load(
-                    save_point + name + ".pt", map_location=torch.device("cpu")
-                )
-    return load_net_from_dict(net, state_dict)
+            except Exception as caught_error:
+                error_no_weights_only = caught_error
 
+        if error_no_weights_only is not None:
+            try:
+                state_dict = torch.load(
+                    save_point + name + ".pt",
+                    map_location=torch.device("cpu"),
+                )
+            except Exception as caught_error:
+                error_no_state_dict = caught_error
+
+        if error_no_state_dict is not None:
+            separator = "\n" + "=" * 60 + "\n"
+            print(separator.join([
+                "\nAll four load attempts failed for: " + save_point + name + ".pt",
+                "Attempt 1 (weights_only=False, .state_dict()):\n"      + str(error_weights_only_false),
+                "Attempt 2 (default weights_only, .state_dict()):\n"    + str(error_no_weights_only),
+                "Attempt 3 (default weights_only, no .state_dict()):\n" + str(error_no_state_dict),
+                "You must find a way to fix at least one of the above errors to load successfully.\n",
+                "Suggested problems to look into:\n",
+                "1 - Modules which have member variables that are methods, which cant be pickled.  See __setstate__ and __getstate__ functions to append."
+            ]))
+            raise error_no_state_dict
+    return load_net_from_dict(net, state_dict)
 
 def get_module_base_name(module):
     """Normalize a wrapped module name for state-dict key lookup.

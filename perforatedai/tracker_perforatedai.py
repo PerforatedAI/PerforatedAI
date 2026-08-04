@@ -3669,6 +3669,16 @@ class PAINeuronModuleTracker:
         for module in self.neuron_module_vector:
             module.create_new_dendrite_module()
 
+    def set_create_dendrite_global(self, fn):
+        """Call set_create_dendrite(fn) on every tracked PAINeuronModule."""
+        for module in self.neuron_module_vector:
+            module.set_create_dendrite(fn)
+
+    def set_dendrite_loss_fn_global(self, fn):
+        """Set the global dendrite loss function used by all dendrite modules."""
+        from perforatedbp import modules_pbp as MPB
+        MPB.dendrite_loss_fn = fn
+
     def apply_pb_grads(self):
         """Apply perforated backpropagation gradients to all modules.
 

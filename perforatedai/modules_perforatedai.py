@@ -72,6 +72,8 @@ def get_DENDRITE_TENSOR_VALUES():
             )
         else:
             _cached_dendrite_tensor_values = _DENDRITE_TENSOR_VALUES_BASE.copy()
+        if current_pb_state:
+            _cached_dendrite_tensor_values = _cached_dendrite_tensor_values + MPB._variant_tensor_values
 
     return _cached_dendrite_tensor_values
 
@@ -102,6 +104,8 @@ def get_DENDRITE_SINGLE_VALUES():
             )
         else:
             _cached_dendrite_single_values = _DENDRITE_SINGLE_VALUES_BASE.copy()
+        if current_pb_state:
+            _cached_dendrite_single_values = _cached_dendrite_single_values + MPB._variant_single_values
 
     return _cached_dendrite_single_values
 
@@ -607,6 +611,7 @@ class PAINeuronModule(nn.Module):
         None
         """
         self.dendrite_module.set_create_dendrite(fn)
+
 
     def set_mode(self, mode):
         """Switch between neuron training and dendrite training.
@@ -1144,7 +1149,38 @@ class PAIDendriteModule(nn.Module):
                 )
             )
         if GPA.pc.get_perforated_backpropagation():
-            self.dendrite_loss_fn = MPB.dendrite_loss_fn
+            self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
+            self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
+
+    def __getstate__(self):
+        """Tell pickle what to save when this object is serialized (e.g. torch.save).
+
+        apply_pb_grads and apply_pb_zero are bound methods of functions defined
+        in modules_pbp and cannot be pickled.  Strip them out; __setstate__ will
+        re-attach them after loading.
+        """
+        import types
+
+        pickle_safe_state = {}
+        for attr_name, attr_value in self.__dict__.items():
+            if not isinstance(attr_value, types.MethodType):
+                pickle_safe_state[attr_name] = attr_value
+
+        return pickle_safe_state
+
+    def __setstate__(self, saved_state):
+        """Restore this object from a pickled state (e.g. torch.load).
+
+        Restores all normal attributes, then re-attaches apply_pb_grads and
+        apply_pb_zero if perforated backpropagation is enabled.
+        """
+        self.__dict__.update(saved_state)
+
+        # Re-attach the PBP bound methods that were stripped by __getstate__.
+        # dendrite_loss_fn being present on the saved state means PBP was active
+        # when the checkpoint was saved.
+        if "dendrite_loss_fn" in saved_state:
+            import perforatedbp.modules_pbp as MPB
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 
@@ -1185,6 +1221,7 @@ class PAIDendriteModule(nn.Module):
         None
         """
         self._create_dendrite_fn = fn
+
 
     def set_this_output_dimensions(self, new_output_dimensions):
         """Set input dimensions for dendrite module.
