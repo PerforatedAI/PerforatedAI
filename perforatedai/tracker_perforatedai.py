@@ -1548,9 +1548,9 @@ class PAINeuronModuleTracker:
             os.makedirs(self.save_name)
         f = open(self.save_name + "/array_dims.csv", "w")
         for layer in self.neuron_module_vector:
-            f.write(
-                f"{layer.name},{layer.dendrite_module.dendrite_values[0].out_channels}\n"
-            )
+            dv = layer.dendrite_module.dendrite_values[0]
+            shape_str = ",".join(str(s) for s in dv.dendrite_storage_shape.tolist())
+            f.write(f"{layer.name},{shape_str}\n")
         f.close()
         if not GPA.pc.get_silent():
             print("Tracker settings saved.")
@@ -1582,13 +1582,11 @@ class PAINeuronModuleTracker:
             pdb.set_trace()
         f = open(self.save_name + "/array_dims.csv", "r")
         for line in f:
-            channels[line.split(",")[0]] = int(line.split(",")[1])
+            parts = line.strip().split(",")
+            channels[parts[0]] = [int(s) for s in parts[1:]]
         for layer in self.neuron_module_vector:
             dv = layer.dendrite_module.dendrite_values[0]
-            ndim = len(dv.this_output_dimensions)
-            shape = [1] * ndim
-            shape[dv.this_node_index.item()] = channels[layer.name]
-            dv.setup_arrays(shape)
+            dv.setup_arrays(channels[layer.name])
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
