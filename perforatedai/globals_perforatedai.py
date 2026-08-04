@@ -947,7 +947,7 @@ class PAIConfig:
             # output_dimensions is [-1, 0, -1, -1].
             # if your format is, [batchsize, time index, nodes] output_dimensions is
             # [-1, -1, 0]
-            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, REDUCE_AXIS, REDUCE_AXIS]
+            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, REDUCE_AXIS, REDUCE_AXIS]  # TODO consider changing from a single set to a set for each type of module
             add_pai_config_var_functions(
                 self, "output_dimensions", self.output_dimensions, list_type=True
             )
