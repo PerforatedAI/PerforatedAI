@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from dendrite_variants.dendritron import dendritron
+from perforatedai import modules_perforatedai as PA
 
 
 class DendritronVariantTests(unittest.TestCase):
@@ -67,6 +68,18 @@ class DendritronVariantTests(unittest.TestCase):
             dendritron.DendritronLinear(4, 4, branches=2, top_k=3)
         with self.assertRaises(ValueError):
             dendritron.DendritronLinear(4, 4, hidden_features=0)
+
+    def test_checkpoint_reconstruction_preserves_variant_factory(self):
+        tracker = mock.Mock()
+        tracker.member_vars = {"optimizer_instance": None}
+        with mock.patch.object(PA.GPA, "pai_tracker", tracker):
+            wrapped = PA.PAINeuronModule(nn.Linear(4, 4), ".test")
+        wrapped.set_create_dendrite(dendritron.create_dendritron_dendrite)
+
+        wrapped.clear_dendrites()
+        candidate = wrapped.dendrite_module.create_dendrite(wrapped.main_module)
+
+        self.assertIsInstance(candidate, dendritron.DendritronLinear)
 
 
 if __name__ == "__main__":

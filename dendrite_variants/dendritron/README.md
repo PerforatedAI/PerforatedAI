@@ -39,6 +39,17 @@ Package naming is intentionally different in three places:
 Do not commit Perforated Backpropagation credentials. Supply any licensed-package
 credentials through the environment as directed by PerforatedAI.
 
+For licensed Perforated Backpropagation testing, install the current package in
+the same environment:
+
+```bash
+python -m pip install --upgrade perforatedbp
+```
+
+The full N -> P -> N lifecycle was tested with `perforatedbp==3.2.5`. Older
+releases may not contain the dendrite-variant registration API used by the
+current `develop` branch.
+
 ## Add the variant to a training script
 
 Configure linear-only perforation, wrap the model, and then initialize the
