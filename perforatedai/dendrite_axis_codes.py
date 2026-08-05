@@ -18,10 +18,11 @@ machinery treats that axis:
   its own score, so the result carries one covariance value per combination of
   node index and retained-axis position.
 
-These are fixed constants, not per-run configuration. This module intentionally
-imports nothing so it can be imported from anywhere in either the ``perforatedai``
-base package or the optional ``perforatedbp`` plugin without creating an import
-cycle.
+These are constants.
+
+This module intentionally imports nothing so it can be imported from anywhere
+in either the ``perforatedai`` or  ``perforatedbp`` libraries
+ without creating an import cycle.
 """
 
 __all__ = ["REDUCE_AXIS", "NODE_AXIS", "NOT_REDUCE_OR_NODE_AXIS"]
