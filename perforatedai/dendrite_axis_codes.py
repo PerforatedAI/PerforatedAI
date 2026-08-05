@@ -1,4 +1,3 @@
-# Copyright (c) 2025 Perforated AI
 """Semantic codes for the entries of a module's output-dimensions specification.
 
 A module's ``output_dimensions`` (the global default lives in
