@@ -88,3 +88,8 @@ python mnist_perforatedai_variant.py --dataset EMNIST
 ```
 
 The `variant_framework/` directory contains the an example variant implementation which just implements dendrites as a simple linear layer using typical gradient descent as the local loss rule. See `variant_framework/README.md` for details on that specific variant.
+
+The `dendritron/` directory contains a routed specialist architecture that can
+replace linear dendrite candidates while leaving the active PerforatedAI
+training rule unchanged. See `dendritron/README.md` for installation, usage, and
+focused test instructions.
