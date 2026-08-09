@@ -83,11 +83,19 @@ Everything after this — optimizer setup, training loop, `add_extra_score`, `ad
 
 ```bash
 cd dendrite_variants
-python mnist_perforatedai_variant.py
-python mnist_perforatedai_variant.py --dataset EMNIST
+python mnist_perforatedai_variant.py --variant variant_framework
+python mnist_perforatedai_variant.py --variant dendritron
 ```
 
 The `variant_framework/` directory contains the an example variant implementation which just implements dendrites as a simple linear layer using typical gradient descent as the local loss rule. See `variant_framework/README.md` for details on that specific variant.
+
+---
+
+## Contributing Your Variant
+
+**If your variant works on Linear or Conv2d modules**, please add your variant to the MNIST example by creating a new branch in the variant selection logic. This makes it easy for others to test and compare variants.
+
+**If your variant works on any other types of module** as the neuron module, please create a new minimal simple example use case that demonstrates your variant's capabilities. This helps keep the MNIST example focused while showcasing the flexibility of the variant framework.
 
 ## Included Dendritron variant
 
