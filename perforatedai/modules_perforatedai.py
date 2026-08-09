@@ -525,6 +525,10 @@ class PAINeuronModule(nn.Module):
         None
 
         """
+        # Loading a saved state reconstructs PAIDendriteModule before simulating
+        # its saved cycles. Preserve a registered variant factory so candidate
+        # creation does not silently fall back to deep-copying the parent module.
+        create_dendrite_fn = self.dendrite_module._create_dendrite_fn
         self.dendrite_modules_added = 0
         self.dendrites_to_top = nn.ParameterList()
         self.candidate_to_top = nn.ParameterList()
@@ -534,6 +538,8 @@ class PAINeuronModule(nn.Module):
             name=self.name,
             output_dimensions=self.this_output_dimensions,
         )
+        if create_dendrite_fn is not None:
+            self.dendrite_module.set_create_dendrite(create_dendrite_fn)
 
     def __str__(self):
         """String representation of the module.
