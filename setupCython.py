@@ -59,7 +59,7 @@ else:
 
 setup(
     name="perforatedai",
-    version="3.2.5",
+    version="3.2.6",
     packages=find_packages(),
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
