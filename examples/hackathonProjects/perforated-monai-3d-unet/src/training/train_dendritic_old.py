@@ -107,7 +107,7 @@ def main():
     # OPTIMIZER
     # ========================
     GPA.pai_tracker.set_optimizer(torch.optim.AdamW)
-    optimizer = GPA.pai_tracker.setup_optimizer(
+    optimizer, _ = GPA.pai_tracker.setup_optimizer(
         model,
         {"params": model.parameters(), "lr": LR, "weight_decay": 1e-5},
     )

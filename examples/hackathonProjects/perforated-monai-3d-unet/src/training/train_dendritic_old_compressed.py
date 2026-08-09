@@ -93,7 +93,7 @@ def main():
     # OPTIMIZER + SCHEDULER
     # ========================
     GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-    optimizer = GPA.pai_tracker.setup_optimizer(
+    optimizer, _ = GPA.pai_tracker.setup_optimizer(
         model,
         {"params": model.parameters(), "lr": LR},
     )
@@ -195,7 +195,7 @@ def main():
 
         if restructured and not training_complete:
             GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-            optimizer = GPA.pai_tracker.setup_optimizer(
+            optimizer, _ = GPA.pai_tracker.setup_optimizer(
                 model, {"params": model.parameters(), "lr": LR}
             )
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

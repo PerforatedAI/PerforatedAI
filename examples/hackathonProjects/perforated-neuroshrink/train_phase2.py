@@ -30,7 +30,7 @@ model = Net().to(device)
 model = UPA.perforate_model(model)
 
 GPA.pai_tracker.set_optimizer(optim.Adadelta)
-optimizer = GPA.pai_tracker.setup_optimizer(
+optimizer, _ = GPA.pai_tracker.setup_optimizer(
     model, {"params": model.parameters(), "lr": 1.0}, None
 )
 

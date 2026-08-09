@@ -225,6 +225,19 @@ def optimize_module(net, depth, name_so_far, converted_list):
                     submodule_id,
                     convert_to_pai_layer_block(net.get_submodule(submodule_id)),
                 )
+            elif type(net.get_submodule(submodule_id)) is PA.TrackedNeuronModule:
+                if GPA.pc.get_extra_verbose():
+                    print(
+                        "Seq sub is PAITracked so unwrapping: %s" % name_so_far
+                        + "["
+                        + str(submodule_id)
+                        + "]"
+                    )
+                setattr(
+                    net,
+                    submodule_id,
+                    net.get_submodule(submodule_id).main_module,
+                )
             else:
                 if net != net.get_submodule(submodule_id):
                     # this currently just always returns false, not sure what it was for
@@ -270,6 +283,15 @@ def optimize_module(net, depth, name_so_far, converted_list):
                         + member
                     )
                 setattr(net, member, convert_to_pai_layer_block(getattr(net, member)))
+            elif type(getattr(net, member, None)) is PA.TrackedNeuronModule:
+                if GPA.pc.get_extra_verbose():
+                    print(
+                        "Sub is PAITracked so unwrapping: %s"
+                        % name_so_far
+                        + "."
+                        + member
+                    )
+                setattr(net, member, getattr(net, member).main_module)
             elif issubclass(type(getattr(net, member, None)), nn.Module):
                 if net != getattr(net, member):
                     converted_list += [sub_name]

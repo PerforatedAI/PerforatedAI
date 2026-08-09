@@ -2402,6 +2402,13 @@ def _create_sample_split_average_plot(
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
 
+    csv_path = os.path.splitext(output_path)[0] + ".csv"
+    with open(csv_path, "w", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(["sample_split_pct", "baseline_model", "best_dendrite_average"])
+        for x, d0, bd in zip(x_vals, d0_vals, best_d_vals):
+            writer.writerow([x, d0, bd])
+
 
 def _catmull_rom_smooth_series(
     x_vals: Sequence[float],

@@ -78,9 +78,8 @@ def main():
     model = Net().to(device)
     model = UPA.perforate_model(model)
 
-    # 🔴 CRITICAL FIX: NO UNPACKING
     GPA.pai_tracker.set_optimizer(optim.Adam)
-    optimizer = GPA.pai_tracker.setup_optimizer(
+    optimizer, _ = GPA.pai_tracker.setup_optimizer(
         model, {"params": model.parameters(), "lr": 0.001}, None
     )
 
@@ -101,7 +100,7 @@ def main():
 
         if restructured:
             print("🔁 Model restructured → reinitializing optimizer")
-            optimizer = GPA.pai_tracker.setup_optimizer(
+            optimizer, _ = GPA.pai_tracker.setup_optimizer(
                 model, {"params": model.parameters(), "lr": 0.001}, None
             )
 

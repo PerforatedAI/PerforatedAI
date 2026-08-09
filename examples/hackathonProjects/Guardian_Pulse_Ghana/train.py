@@ -75,8 +75,8 @@ class GuardianTrainer:
             'weight_decay': self.config['weight_decay']
         }
         
-        self.optimizer = GPA.pai_tracker.setup_optimizer(
-            self.model, 
+        self.optimizer, _ = GPA.pai_tracker.setup_optimizer(
+            self.model,
             optim_args
         )
         
