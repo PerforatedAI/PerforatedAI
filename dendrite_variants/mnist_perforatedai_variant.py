@@ -121,6 +121,13 @@ def main():
     parser.add_argument("--save-name", type=str, default="PB")
     parser.add_argument("--dataset", type=str, default="MNIST")
     parser.add_argument(
+        "--variant",
+        type=str,
+        default="variant_framework",
+        choices=["variant_framework", "dendritron"],
+        help="dendrite variant to use (default: variant_framework)",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=64,
@@ -263,24 +270,46 @@ def main():
         test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     # Set up some global parameters for PAI code
-    GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.set_neuron_grad_filter(True)
-    GPA.pc.set_verbose(False)
     model = Net(num_classes, args.width).to(device)
 
+    # Configure variant-specific settings
+    if args.variant == "variant_framework":
+        # GPA settings for variant_framework
+        GPA.pc.set_testing_dendrite_capacity(False)
+        GPA.pc.set_neuron_grad_filter(True)
+        GPA.pc.set_verbose(False)
 
-    # For the linear variant only perforate linear layers
-    GPA.pc.set_module_names_to_perforate(["Linear"])
-    GPA.pc.set_module_names_to_track(["Conv2d"])
+        # For the linear variant only perforate linear layers
+        GPA.pc.set_module_names_to_perforate(["Linear"])
+        GPA.pc.set_module_names_to_track(["Conv2d"])
 
-    # Perforate the model after setting up settings
-    model = UPA.perforate_model(model)
+        # Perforate the model after setting up settings
+        model = UPA.perforate_model(model)
 
-    print(GPA.pc.get_perforated_backpropagation()  )
+        print(GPA.pc.get_perforated_backpropagation())
 
-    # initialize_variant_dendrite must be called after perforate_model
-    import variant_framework.gradient_descent_linears as GDL
-    GDL.initialize_variant_dendrite()
+        # initialize_variant_dendrite must be called after perforate_model
+        import variant_framework.gradient_descent_linears as GDL
+        GDL.initialize_variant_dendrite()
+
+    elif args.variant == "dendritron":
+        # GPA settings for dendritron
+        GPA.pc.set_testing_dendrite_capacity(False)
+        GPA.pc.set_neuron_grad_filter(True)
+        GPA.pc.set_verbose(False)
+
+        # For the dendritron variant only perforate linear layers
+        GPA.pc.set_module_names_to_perforate(["Linear"])
+        GPA.pc.set_module_names_to_track(["Conv2d"])
+
+        # Perforate the model after setting up settings
+        model = UPA.perforate_model(model)
+
+        print(GPA.pc.get_perforated_backpropagation())
+
+        # initialize_variant_dendrite must be called after perforate_model
+        import dendritron.dendritron as dendritron
+        dendritron.initialize_variant_dendrite(branches=4, top_k=2, hidden_features=None)
 
     # Setup the optimizer and scheduler
     GPA.pai_tracker.set_optimizer(optim.Adadelta)
