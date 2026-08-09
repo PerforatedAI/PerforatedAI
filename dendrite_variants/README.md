@@ -1,6 +1,6 @@
 # Dendrite Variants
 
-Dendrite variants let you customize how PerforatedAI creates and trains dendrite candidates. Instead of using the default Cascade Correlation algorithm with deep-copied parent modules, you can plug in any architecture and any local learning rule.
+Dendrite variants let you customize how PerforatedAI creates and trains dendrite candidates. Instead of using the default Cascade Correlation algorithm or gradient descent with deep-copied parent modules, you can plug in any architecture and any local learning rule.
 
 ---
 
@@ -8,7 +8,7 @@ Dendrite variants let you customize how PerforatedAI creates and trains dendrite
 
 By default, when PerforatedAI adds a dendrite to a layer it deep-copies the parent module and trains it using gradient descent. By default when Perforated Backpropagation is also engaged with the perforatedbp library dendrites are trained with the Cascade Correlation learning rule.  A variant replaces one or both of those defaults:
 
-- **Custom architecture** — return any `nn.Module` you want as the candidate instead of a deep copy
+- **Custom architecture** — return any `nn.Module` you want as the candidate dendrite instead of a deep copy
 - **Custom loss** — replace the per-batch CC loss with your own function (requires Perforated Backpropagation)
 
 ---
@@ -45,7 +45,7 @@ def initialize_variant_dendrite():
         TPB.best_pai_score_improved_this_epoch_fn = my_score_fn
 ```
 
-**`my_loss_fn(values)`** — called every batch during P mode. `values` is a `DendriteValueTracker` where all dendrite values are tracked over batches and epochs. This function will receive the local loss that the neuron has calculated, use it to compute a local loss, and call `.backward()`. Any custom tensors you registered via `register_dendrite_variant_values` are available as attributes within `values`.
+**`my_loss_fn(values)`** — called every batch during P mode. `values` is a `DendriteValueTracker` where all dendrite values are tracked over batches and epochs. This function will receive the local loss that the neuron has calculated, use it to compute a dendrite loss, and call `.backward()` through the dendrite module. Any custom tensors you registered via `register_dendrite_variant_values` are available as attributes within `values`.
 
 **`my_score_fn(tracker, first_call=True)`** — called once per epoch. Loop over `tracker.neuron_module_vector`, read state from all DendriteValueTracker in the network, and return `True` if any layer improved. This controls the patience counter and when best weights are saved. Use `GPA.pc.get_pai_improvement_threshold()` and `GPA.pc.get_pai_improvement_threshold_raw()` to set thresholds for your score improvements.
 

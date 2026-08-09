@@ -103,12 +103,12 @@ def get_pai_modules(net, depth, seen_ids=None):
 
 
 def load_pai_model_from_dict(net, state_dict):
-    """Load PAI-specific module state from a state dictionary.
+    """Load a PAI or plain model from a state dictionary into an unconverted network.
 
     Parameters
     ----------
     net : nn.Module
-        Converted network containing perforated modules.
+        Base network architecture (not yet converted to PerforatedModules).
     state_dict : dict
         Serialized model state.
 
@@ -117,11 +117,45 @@ def load_pai_model_from_dict(net, state_dict):
     nn.Module
         Network with loaded state and reconstructed runtime buffers.
     """
+    # Find which module paths need PAI wrapping from the state dict
+    pai_module_names = set(
+        key[: -len(".num_cycles")]
+        for key in state_dict.keys()
+        if key.endswith(".num_cycles")
+    )
+
+    # Clean up tracked-module scaffolding: for any key containing .main_module.
+    # where the prefix is not a PAI module, strip .main_module. out so the
+    # weights load directly into the plain module. Also drop any module_id keys.
+    cleaned = {}
+    for key, value in state_dict.items():
+        if ".main_module." in key:
+            prefix = key[: key.index(".main_module.")]
+            if prefix not in pai_module_names:
+                key = key.replace(".main_module.", ".", 1)
+        if "module_id" in key.split("."):
+            continue
+        cleaned[key] = value
+    state_dict = cleaned
+
+    if not pai_module_names:
+        net.load_state_dict(state_dict)
+        return net
+
+    # Wrap each identified module as a PerforatedModule in-place
+    for module_name in pai_module_names:
+        parts = module_name.split(".")
+        if len(parts) == 1:
+            parent = net
+            attr = parts[0]
+        else:
+            parent = net.get_submodule(".".join(parts[:-1]))
+            attr = parts[-1]
+        original_module = getattr(parent, attr)
+        setattr(parent, attr, PerforatedModule(original_module, "." + module_name))
+
     pai_modules = get_pai_modules(net, 0)
-    if pai_modules == []:
-        print("No PAI modules were found something went wrong with convert network")
-        pdb.set_trace()
-        sys.exit()
+
     for module in pai_modules:
         # Set up name to be what will be saved in the state dict
         module_name = UPA.get_module_base_name(module)
@@ -150,7 +184,6 @@ def load_pai_model_from_dict(net, state_dict):
                 skip_weights_list.append(param)
         module.skip_weights = skip_weights_list
 
-        # module.register_buffer('skip_weights', torch.zeros(state_dict[module_name + '.skip_weights'].shape))
         module.register_buffer("view_tuple", state_dict[module_name + ".view_tuple"])
 
     net.load_state_dict(state_dict)
@@ -161,13 +194,10 @@ def load_pai_model_from_dict(net, state_dict):
         module.view_tuple = temp
 
     return net
-    # figure out if doing this 'thread' stuff is actually helping at all.
-    # If its not just get rid of it to simplify things.
-    # to test this will have to first get load_pai_model actually set up and working then run a test with and #without threading.
 
 
 def load_pai_model(net, filename):
-    """Load a saved PAI model file into a converted network.
+    """Load a saved PAI model file into a network.
 
     Parameters
     ----------
@@ -179,9 +209,8 @@ def load_pai_model(net, filename):
     Returns
     -------
     nn.Module
-        Loaded PAI network.
+        Loaded network.
     """
-    net = convert_network(net)
     state_dict = load_file(filename)
     return load_pai_model_from_dict(net, state_dict)
 
@@ -339,7 +368,7 @@ class PerforatedModule(nn.Module):
         for out_index in range(0, len(self.layer_array)):
             current_out = dendrite_outs[out_index]
 
-            if len(self.layer_array) > 1 and hasattr(self, "skip_weights"):
+            if len(self.layer_array) > 1 and hasattr(self, "skip_weights") and len(self.skip_weights) > 0:
                 for in_index in range(0, out_index):
                     # Use out_index - 1 because skip_weights[0] is never used
                     current_out = (

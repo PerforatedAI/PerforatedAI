@@ -3,7 +3,6 @@
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
-from perforatedai.network_perforatedai import PAITrackedModule
 import torch.nn as nn
 import torch
 import pdb
@@ -226,7 +225,7 @@ def optimize_module(net, depth, name_so_far, converted_list):
                     submodule_id,
                     convert_to_pai_layer_block(net.get_submodule(submodule_id)),
                 )
-            elif type(net.get_submodule(submodule_id)) is PAITrackedModule:
+            elif type(net.get_submodule(submodule_id)) is PA.TrackedNeuronModule:
                 if GPA.pc.get_extra_verbose():
                     print(
                         "Seq sub is PAITracked so unwrapping: %s" % name_so_far
@@ -284,7 +283,7 @@ def optimize_module(net, depth, name_so_far, converted_list):
                         + member
                     )
                 setattr(net, member, convert_to_pai_layer_block(getattr(net, member)))
-            elif type(getattr(net, member, None)) is PAITrackedModule:
+            elif type(getattr(net, member, None)) is PA.TrackedNeuronModule:
                 if GPA.pc.get_extra_verbose():
                     print(
                         "Sub is PAITracked so unwrapping: %s"

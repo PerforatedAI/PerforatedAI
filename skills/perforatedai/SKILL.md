@@ -1,6 +1,6 @@
 ---
 name: perforatedai
-description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule. For analyzing completed training results, use the perforatedai-analyze skill."
+description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration), 'load my perforated model for inference' (deploy trained models). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule. For analyzing completed training results, use the perforatedai-analyze skill."
 ---
 
 # PerforatedAI Dendrite Network Skill
@@ -1052,6 +1052,159 @@ Tell them: "For analyzing your training results, please use the perforatedai-ana
 
 ---
 
+### 4. "Load my perforated model for inference" - Deploy Trained Models
+
+When the user wants to load a trained perforated model for **inference** or **deployment** (not continued training), use this workflow.
+
+**Important: This is for loading models WITHOUT the PAI tracker for inference/deployment. For resuming training or transfer learning, see [api/customization.md Section 7](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/customization.md#7-loading).**
+
+---
+
+**Step 1: Confirm the use case**
+
+Ask: "Are you loading this model for:
+1. **Inference/deployment** (make predictions, no training)
+2. **Fine-tuning** (standard PyTorch training with frozen dendrites)
+3. **Continued dendrite training** (resume PAI training with more dendrite additions)
+4. **Transfer learning** (retrain for new task with dendrite additions)
+
+Options 3 and 4 require different loading functions - see [api/customization.md Section 7](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/customization.md#7-loading)."
+
+**If they choose option 1 or 2** (inference or fine-tuning without dendrite additions), proceed with steps below.
+
+**If they choose option 3 or 4**, tell them:
+> "For continued dendrite training or transfer learning, you need `UPA.load_system()` or `UPA.load_pretrained_model()` instead. See the Loading section in [api/customization.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/customization.md#7-loading) for details. I can help you implement that if needed."
+
+---
+
+**Step 2: Verify _pai checkpoint exists**
+
+**First, check if they enabled _pai saves during training:**
+
+Ask: "During training, did you set `GPA.pc.set_pai_saves(True)` in your configuration?"
+
+**If YES or they're not sure:**
+- Tell them: "If you set `set_pai_saves(True)`, PAI automatically created optimized `_pai` checkpoints. Let me check for them."
+- Ask: "What was your `save_name` during training? (default is 'PAI')"
+- Check if files like `{save_name}/best_model_pai.pt` or `{save_name}/latest_pai.pt` exist
+
+**If they have _pai checkpoints:**
+- Proceed to Step 3 with `load_pai_model()`
+
+**If NO _pai checkpoints found:**
+- Tell them: "I don't see any `_pai` checkpoints. You can still load regular checkpoints, but they include training scaffolding which increases memory usage. For production deployment, I recommend re-running a short training session with `GPA.pc.set_pai_saves(True)` to generate optimized checkpoints."
+- Ask: "Would you like to:
+  1. Load the regular checkpoint anyway (works but less efficient)
+  2. Re-run training briefly with `set_pai_saves(True)` to generate optimized checkpoints"
+
+**If they choose option 1**, proceed to Step 3 but note the limitation in your explanation.
+
+---
+
+**Step 3: Create inference script**
+
+Create a new Python script (or ask where they want the code added) with the following pattern:
+
+```python
+from perforatedai import network_perforatedai as NPA
+import torch
+
+# Step 1: Create the base model architecture (same as during training)
+model = YourModelClass()  # Use same architecture as training
+
+# Step 2: Load the _pai checkpoint
+# This automatically:
+# - Calls convert_network() to wrap modules
+# - Reconstructs dendrite structure
+# - Loads all weights (neurons + dendrites)
+model = NPA.load_pai_model(model, 'PAI/best_model_pai.pt')
+
+# Step 3: Set to eval mode and move to device
+model.eval()
+model = model.to('cuda')  # or 'cpu'
+
+# Step 4: Run inference
+with torch.no_grad():
+    output = model(input_data)
+    # Process output as needed
+```
+
+**Key points to explain:**
+
+1. **No PAI tracker needed**: `load_pai_model()` handles everything - no `perforate_model()`, no `GPA.pc` configuration, no tracker initialization
+2. **Model architecture must match**: They need to instantiate the same base model class used during training
+3. **Dendrites are frozen**: The loaded model has dendrites integrated but frozen - perfect for inference
+4. **No training scaffolding**: `_pai` checkpoints have minimal memory footprint
+
+---
+
+**Step 4: Fine-tuning (optional)**
+
+If they chose fine-tuning in Step 1, add this after loading:
+
+```python
+# Load the model (same as above)
+model = NPA.load_pai_model(model, 'PAI/best_model_pai.pt')
+model = model.to('cuda')
+
+# Standard PyTorch fine-tuning (dendrites stay frozen)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+for epoch in range(num_epochs):
+    model.train()
+    for batch in train_loader:
+        optimizer.zero_grad()
+        output = model(batch)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+    
+    # Save fine-tuned model
+    torch.save(model.state_dict(), 'finetuned_model.pt')
+```
+
+Explain: "This fine-tunes the entire model (neurons + frozen dendrites) using standard PyTorch. The dendrite structure remains fixed - no new dendrites are added."
+
+---
+
+**Step 5: Sharing/Deployment**
+
+If they're deploying or sharing the model, provide additional guidance:
+
+**For sharing with others:**
+```python
+# Recipients need perforatedai installed but NOT perforatedbp
+# pip install perforatedai
+
+# Then they can load with the same code:
+model = YourModelClass()
+model = NPA.load_pai_model(model, 'best_model_pai.pt')
+```
+
+**For production deployment:**
+- `_pai` models are self-contained - just ship the `.pt` file and model architecture definition
+- No PAI tracker or configuration needed
+- Dendrites are baked into the model structure
+
+---
+
+**Common questions:**
+
+**Q: Can I convert a regular checkpoint to _pai format?**
+A: No, you need to enable `GPA.pc.set_pai_saves(True)` during training. If you only have regular checkpoints, you can:
+1. Load with `UPA.load_system()` (requires full PAI setup)
+2. Run a few training epochs with `set_pai_saves(True)` to generate `_pai` versions
+
+**Q: What's the difference between `load_pai_model()` and `load_system()`?**
+A: 
+- `load_pai_model()`: Inference/deployment, no tracker, dendrites frozen, minimal memory
+- `load_system()`: Resume training, requires tracker, can add more dendrites, keeps all training state
+
+**Q: Can I add more dendrites after loading with `load_pai_model()`?**
+A: No. For continued dendrite training, use `UPA.load_system()` or `UPA.load_pretrained_model()` instead. See [api/customization.md Section 7](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/customization.md#7-loading).
+
+---
+
 ## Core Concepts
 
 ### What are Artificial Dendrites?
@@ -1074,3 +1227,4 @@ In biological neurons, dendrites perform computation before signals reach the ce
 - Say **"Perforate my model"** to start the interactive setup process
 - Say **"Debug my perforated model"** to debug or optimize an existing integration  
 - Say **"Analyze my perforated results"** to review your training outputs and get optimization recommendations (uses perforatedai-analyze skill)
+- Say **"Load my perforated model for inference"** to deploy a trained model for inference or fine-tuning without dendrite additions
