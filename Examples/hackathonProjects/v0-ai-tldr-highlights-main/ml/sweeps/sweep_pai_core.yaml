@@ -1,0 +1,58 @@
+# Core PAI hyperparameter sweep
+# Tests key PAI knobs: switch timing, compression, dropout
+
+program: ml/train.py
+method: bayes
+metric:
+  name: eval/score
+  goal: maximize
+
+parameters:
+  experiment_type:
+    values: ["compressed_pai", "compressed_control"]
+  
+  compression_ratio:
+    values: [1.0, 0.9, 0.75, 0.6]
+  
+  n_epochs_to_switch:
+    values: [2, 3, 5, 8, 12]
+  
+  p_epochs_to_switch:
+    values: [1, 2, 3, 4]
+  
+  learning_rate:
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 5e-4
+  
+  batch_size:
+    values: [8, 16, 32]
+  
+  seed:
+    values: [42, 123, 999]
+
+early_terminate:
+  type: hyperband
+  min_iter: 3
+  s: 2
+
+command:
+  - ${env}
+  - python
+  - ${program}
+  - --experiment-type
+  - ${experiment_type}
+  - --compression-ratio
+  - ${compression_ratio}
+  - --n-epochs-to-switch
+  - ${n_epochs_to_switch}
+  - --p-epochs-to-switch
+  - ${p_epochs_to_switch}
+  - --learning-rate
+  - ${learning_rate}
+  - --batch-size
+  - ${batch_size}
+  - --seed
+  - ${seed}
+  - --wandb
+  - enabled

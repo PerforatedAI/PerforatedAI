@@ -1,0 +1,65 @@
+# Bayesian Sweep for Dendritic Optimization + Dropout
+# Explores continuous parameters like LR, dropout with PAI knobs
+
+program: ml/train.py
+method: bayes
+metric:
+  name: val/highlight_precision@3
+  goal: maximize
+
+parameters:
+  # PAI toggle
+  use_pai:
+    values: [true, false]
+  
+  # Compression
+  compression_ratio:
+    values: [0.6, 0.75, 0.9, 1.0]
+  
+  # Regularization
+  dropout_rate:
+    distribution: uniform
+    min: 0.0
+    max: 0.25
+  
+  # Learning rate (log scale)
+  lr:
+    distribution: log_uniform_values
+    min: 1e-6
+    max: 5e-4
+  
+  # Batch size
+  batch_size:
+    values: [8, 16, 32]
+  
+  # PAI switching knobs
+  n_epochs_to_switch:
+    values: [2, 3, 5]
+  
+  p_epochs_to_switch:
+    values: [1, 2, 3]
+  
+  # Seeds for reproducibility
+  seed:
+    values: [42, 123, 999]
+  
+  # Distillation (optional)
+  use_distillation:
+    values: [true, false]
+  
+  distill_temp:
+    values: [1.0, 2.0]
+  
+  distill_alpha:
+    distribution: uniform
+    min: 0.3
+    max: 0.7
+
+# Early stopping with Hyperband
+early_terminate:
+  type: hyperband
+  min_iter: 1
+  s: 2
+
+# Run configuration
+run_cap: 100

@@ -1,0 +1,38 @@
+# Core ML dependencies
+torch>=2.0
+pytorch-lightning>=2.0
+transformers>=4.30
+datasets>=2.0
+tokenizers>=0.13
+
+# Sentence embeddings
+sentence-transformers>=2.2.2
+
+# Experiment tracking
+wandb>=0.15
+
+# HuggingFace Hub
+huggingface-hub>=0.19
+
+# Evaluation metrics
+rouge-score>=0.1
+bert-score>=0.3
+nltk>=3.8
+
+# Utilities
+safetensors>=0.3
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+tqdm>=4.65
+python-dotenv>=1.0
+
+# Vector search (optional)
+faiss-cpu>=1.7
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+
+# PerforatedAI (install separately if needed)
+# pip install perforatedai
