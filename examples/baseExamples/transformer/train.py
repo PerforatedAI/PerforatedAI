@@ -205,6 +205,9 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
         GPA.pc.set_candidate_weight_initialization_multiplier(0.1)
         # Final projection doesn't need dendrites
         GPA.pc.append_module_ids_to_track([".output_projection"])
+        GPA.pc.append_module_names_to_track(['Embedding', 'PositionalEncoding', 'LayerNorm'])
+        
+
         # Initialize model with dendrites
         model = UPA.perforate_model(
             model,
@@ -213,7 +216,13 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
             making_graphs=True,
             maximizing_score=False,
         )
-
+        for i in range(2):
+            model.layers[i].ffn.linear1.set_this_output_dimensions([-1, -1, 0])
+            model.layers[i].ffn.linear2.set_this_output_dimensions([-1, -1, 0])
+            model.layers[i].self_attn.out_proj.set_this_output_dimensions([-1, -1, 0])
+            model.layers[i].self_attn.value_proj.set_this_output_dimensions([-1, -1, 0])
+            model.layers[i].self_attn.key_proj.set_this_output_dimensions([-1, -1, 0])
+            model.layers[i].self_attn.query_proj.set_this_output_dimensions([-1, -1, 0])
         model = model.to(device)
 
         # Set up optimizer tracking

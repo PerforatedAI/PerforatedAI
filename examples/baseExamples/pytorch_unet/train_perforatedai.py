@@ -229,6 +229,7 @@ if __name__ == '__main__':
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_max_dendrites(2)
+    GPA.pc.append_module_names_to_track(['ConvTranspose2d'])
 
     # Change here to adapt to your data
     # n_channels=3 for RGB images

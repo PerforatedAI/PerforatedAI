@@ -15,5 +15,4 @@ releases/*
 perforatedai.egg-info
 
 # Working Folders
-examples/*
 *.pt

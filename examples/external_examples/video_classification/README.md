@@ -23,4 +23,4 @@ For the final project models were to be run on ARM devices and tested for full v
 | Baseline Model | 2.261 | 94.490% |
 | Perforated Model | 2.265 | 95.058% |
 
-![clean_graph.png](clean_graph.png)
+![clean graph](clean_graph.png)

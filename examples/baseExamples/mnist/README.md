@@ -1,6 +1,9 @@
 # MNIST and Contributing Example
 
-This folder serves as the template for contributing to examples to this repo.  If you would like to add additional files that is welcome, but be sure to have each of these as a minimum.  As examples appropriate extra files would be:
+This folder serves as the template for contributing examples to this repo.  For any contributions please include your output perforated graph as pai_graph.png and your final best_arch_scores file as best_arch_scores.csv.  These should just be included but do not need to be linked in the README.  Please only include a clean graph as below in the README as clean_graph.png.
+To generate this graph please use [this template](https://docs.google.com/spreadsheets/d/1oaOg88EQYm40N0HRJKBOu2u8rKoL85CNb1mjb37SHXc/edit?usp=sharing) and fill in the values.
+
+If you would like to add additional files that is welcome, but be sure to have each of these as a minimum.  As examples, appropriate extra files could be:
 
  - DetailedReport.md
      - An optional detailed writeup with additional content about your example
@@ -9,9 +12,8 @@ This folder serves as the template for contributing to examples to this repo.  I
      - folder with any extra images or graphs you'd like to include
  - ___.ipynb
      - A jupyter notebook showing a run of your example.
-     - If you create this you should also have it display the final PAI/PAI.png graph that is produced
+     - If you create this you should also have it display the final PAI/PAI.png graph that is produced as pai_graph.png
 
-Below shows the format an example should take.  To generate the output graph please use [this template](https://docs.google.com/spreadsheets/d/1SuCrKkS7uzGQSlKniL3OtjIZEcyeW93isHkl6FIgL-0/edit?usp=sharing) and fill in the values depending on if your example is for accuracy gains of parameter reduction.
 
 # MNIST With Dendrites
 
@@ -37,10 +39,5 @@ Run dendritic model with:
 
 Validation scores of original and dendrite optimized networks:
 
-!["Output Graph](outputGraph.png "outputGraph")
-
-
-Exact graph that gets generated within the output folder:
-
-!["Example Output](exampleOutput.png "Example Output")
+![clean graph](clean_graph.png)
 
