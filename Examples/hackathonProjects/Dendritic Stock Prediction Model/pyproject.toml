@@ -1,0 +1,19 @@
+[project]
+name = "dendritic-stock-prediction-model"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "kagglehub>=0.4.0",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "perforatedai>=3.0.7",
+    "perforatedbp>=3.0.7",
+    "polars>=1.37.1",
+    "python-dotenv>=1.2.1",
+    "scikit-learn>=1.8.0",
+    "torch>=2.9.1",
+    "tqdm>=4.67.1",
+    "yfinance>=1.0",
+]
