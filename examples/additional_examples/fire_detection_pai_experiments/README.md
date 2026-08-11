@@ -5,8 +5,6 @@ This example demonstrates wildfire prediction using satellite-derived vegetation
 - Baseline Neural Network (PyTorch)
 - Neural Network with PerforatedAI dendrite restructuring
 
-The goal is to evaluate whether dynamic dendrite growth improves classification performance under extreme class imbalance.
-
 ---
 
 ## Dataset
@@ -23,34 +21,6 @@ Final processed dataset:
 - ~0.08% fire pixels (extremely imbalanced)  
 - Train / Val / Test split: 70 / 15 / 15  
 
-For neural network experiments:
-
-- Training uses a subsampled and balanced subset: all positives and a limited number of negatives, for stability and speed.
-- Validation and test sets are also balanced, so precision, recall, and F1 metrics are meaningful.
-- Full dataset imbalance is not used in this experiment — the model is trained on a balanced subset, but dendrite growth is still tested for its ability to improve classification.
-
----
-
-## Model Architecture
-
-```
-Input (4 features)
-->  Linear(4 -> 64)
-->  ReLU
-->  Linear(64 -> 64)
-->  ReLU
-->  Linear(64 -> 1)
-```
-
-- Output uses logits, with BCEWithLogitsLoss.
-- pos_weight is dynamically set to balance classes during training, emphasizing positive fire pixels.
-- Threshold for predictions: logits > 0 -> positive class.
-
-The same architecture is used for:
-
-- Baseline model
-- Dendrite-enhanced model (PerforatedAI)
-
 ---
 
 ## Experiment
@@ -59,13 +29,6 @@ The script automatically runs two versions:
 
 - `is_dendrite = False` ->  Standard MLP  
 - `is_dendrite = True` ->  MLP with dynamic dendrite growth  
-
-PerforatedAI uses fixed switching mode:
-
-DOING_FIXED_SWITCH
-fixed_switch_num = 4
-
-This means dendrite restructuring is evaluated every 4 validation cycles, allowing the model to train sufficiently before architecture changes occur.
 
 ---
 
@@ -95,6 +58,11 @@ If a new dendrite does not improve validation performance, the previous architec
 
 ### Example Results
 
+Graph of raw validation score during training:
+
+![clean graph](clean_graph.png)
+
+
 | Model       | Test Accuracy | Precision | Recall | F1         |
 | ----------- | ------------- | --------- | ------ | ---------- |
 | Baseline    | 61.03%        | 0.6115    | 0.6053 | 0.6084     |
@@ -106,7 +74,6 @@ Dendrites improve overall F1 and recall, dynamically increasing model capacity t
 
 ### Interpretation
 
-Although overall accuracy decreased slightly, dendrite restructuring significantly improved recall and F1 score.
 
 Key changes:
 
@@ -120,18 +87,6 @@ Recall improved substantially, meaning the model detects many more true fire eve
 This is important because wildfire detection is a rare event problem. Missing a true fire pixel is typically far more costly than generating a few additional false positives.
 
 Dendrites increase model capacity dynamically, allowing the network to capture patterns associated with rare fire events that the baseline architecture could not model effectively.
-
----
-
-## Class Imbalance
-
-Fire pixels represent <0.01% of total data.
-
-Because of this:
-
-- Balanced subsampling for training, validation, and test sets.
-- BCEWithLogitsLoss with pos_weight to give more importance to positive samples.
-- Recall is prioritized in evaluation metrics to ensure rare events are detected.
 
 ---
 
@@ -174,42 +129,3 @@ notebooks/fire_dendrite_vs_baseline.ipynb
 ```
 
 Run all cells.
-
----
-
-## Key Observations
-
-- Baseline MLP achieves moderate performance under balanced training.
-- PerforatedAI dynamically expands the network through dendrite growth.
-- Three dendrites were added during training, increasing model capacity.
-- This resulted in substantially improved recall and F1 score.
-- Dynamic architecture growth allows the model to better capture rare wildfire patterns.
-
----
-
-## Future Work
-
-- Add meteorological features (wind, humidity, drought index)
-- Explore spatio-temporal models (CNN / RNN / Transformers)
-- Improve precision-recall tradeoff via threshold tuning
-- Evaluate full imbalanced dataset without balancing
-- Investigate dendrite growth behavior on larger architectures
-
----
-
-## Folder Structure
-
-```
-fire_detection_pai_experiments/
-│
-├── README.md
-├── data/
-│   └── processed/
-│       └── modis_firms_train_val_test_dataset.npz
-│
-└── notebooks/
-    └── fire_dendrite_vs_baseline.ipynb
-```
-
----
-
