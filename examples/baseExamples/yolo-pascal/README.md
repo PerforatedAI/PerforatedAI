@@ -112,27 +112,7 @@ This project demonstrates that **Dendritic Optimization significantly improves o
 
 *PAI GRAPH FOR 100% DATA*
 
-![Raw Results Graph](dendrite_100.png)
-
----
-*PAI GRAPH FOR 50% DATA*
-
-![Raw Results Graph](dendrite_50.png)
-
----
-
-## Clean Results Graph
-
-*COMPARISON GRAPH FOR 100% DATA*
-
-![Raw Results Graph](Full.jpeg)
-
----
-*COMPARISON GRAPH FOR 50% DATA*
-
-![Raw Results Graph](Half.jpeg)
-
----
+![Raw Results Graph](clean_graph.png)
 
 
 ### Key Implementation Details
