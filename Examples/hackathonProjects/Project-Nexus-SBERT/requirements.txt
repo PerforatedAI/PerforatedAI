@@ -1,0 +1,12 @@
+torch>=2.0.0
+sentence-transformers>=2.2.0
+transformers>=4.30.0
+datasets>=2.14.0
+perforatedai
+wandb
+scipy
+numpy
+matplotlib
+seaborn
+pandas
+scikit-learn

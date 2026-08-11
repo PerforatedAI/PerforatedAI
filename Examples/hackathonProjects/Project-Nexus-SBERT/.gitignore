@@ -1,0 +1,12 @@
+experiments/
+wandb/
+PAI_*/
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.bin
+*.safetensors
+.env
+.vscode/
+.DS_Store
