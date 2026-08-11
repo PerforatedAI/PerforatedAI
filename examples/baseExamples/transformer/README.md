@@ -35,39 +35,16 @@ python test_setup.py
 wandb login
 ```
 
-### 2. Hardware Configuration
-
-This project is designed for Apple Silicon (M-series) Macs with MPS backend support. The code automatically detects and uses the best available device (MPS > CUDA > CPU).
-
 ## Running Experiments
-
-### Option 1: Use the automated script 
-
-**Quick experiment (3 epochs):**
-```bash
-./run_experiment.sh quick
-```
-
-**Full experiment (10 epochs):**
-```bash
-./run_experiment.sh full
-```
-
-This will automatically:
-1. Train the vanilla model
-2. Train the dendritic model
-3. Log results to W&B
-
-### Option 2: Manual training
 
 **Train vanilla model:**
 ```bash
-python train.py --model_type vanilla 
+python train.py --model_type vanilla --dropout 0.25
 ```
 
 **Train dendritic model:**
 ```bash
-python train.py --model_type dendritic 
+python train.py --model_type dendritic --dropout 0.25
 ```
 
 ### Key Arguments
@@ -88,14 +65,4 @@ We use **WikiText-2**, a word-level language modeling dataset with ~2 million to
 ## Example Output
 This shows an example output of an experiment with 128 width, 2 layers, and dropout of 0.25
 
-![ExampleOutput](dendritic_128d_2l_dropout25.png "Example Output")
-
-Perplexity metrics as dendrites are added:
-
-| Initial Val Perplexity | Final Val Perplexity |
-|-------------|--------------------|
-| 0.941487    |  0.841401          |
-
-Take note on this graph, it does seem like the training scores would be going down anyway without dendrites.  However, at each dendritic addition you can see the extended blue lines showing the validation scores that were calculated before loading the previously best model and adding dendrites to that one.  It is clear that the dendritic addition is in fact what is enabling the increased training scores too actually improve validation error, and not just overfit the data.  From the starting point reducing perplexity from .941 to .841 is an **11%** improvement in perplexity.
-
-
+![Clean Graph](clean_graph.png)
