@@ -960,6 +960,14 @@ class PAIConfig:
         self.silent = False
         add_pai_config_var_functions(self, "silent", self.silent)
 
+        # Epoch-boundary callback lists.  Each holds callables invoked with the tracker as
+        # their sole argument at the corresponding boundary (see start_epoch / stop_epoch).
+        # Declared inline (no redundant plain attribute) so only the private
+        # _epoch_*_callbacks storage exists; save_config skips those two names so the lists
+        # never round-trip through JSON.
+        add_pai_config_var_functions(self, "epoch_start_callbacks", [], list_type=True)
+        add_pai_config_var_functions(self, "epoch_stop_callbacks", [], list_type=True)
+
         # In place for future implementation options of adding multiple candidate
         # dendrites together
         self.global_candidates = 1
@@ -1036,7 +1044,13 @@ class PAIConfig:
             if not (key.startswith("_") and not key.startswith("__")):
                 continue
             # Skip internal bookkeeping keys that must not round-trip through JSON
-            if key in ("_config_file", "_module_name", "_module_type"):
+            if key in (
+                "_config_file",
+                "_module_name",
+                "_module_type",
+                "_epoch_start_callbacks",
+                "_epoch_stop_callbacks",
+            ):
                 continue
             if callable(val):  # skip bound method refs
                 continue

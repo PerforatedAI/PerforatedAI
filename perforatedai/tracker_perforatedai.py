@@ -2360,6 +2360,11 @@ class PAINeuronModuleTracker:
         )
         self.saved_time = end
 
+        # Decoupled epoch-start hook.  Registered callbacks apply their own dendrite-mode
+        # filter, so no mode check is placed here; the default list is empty (a no-op).
+        for epoch_callback in GPA.pc.get_epoch_start_callbacks():
+            epoch_callback(self)
+
     def stop_epoch(self, internal_call=False):
         """Perform steps when a training epoch has completed.
 
@@ -2393,6 +2398,11 @@ class PAINeuronModuleTracker:
                 self.member_vars["n_epoch_times"].append(end - self.saved_time)
 
         self.saved_time = end
+
+        # Decoupled epoch-stop hook.  Registered callbacks apply their own dendrite-mode
+        # filter, so no mode check is placed here; the default list is empty (a no-op).
+        for epoch_callback in GPA.pc.get_epoch_stop_callbacks():
+            epoch_callback(self)
 
     def initialize(
             self,
