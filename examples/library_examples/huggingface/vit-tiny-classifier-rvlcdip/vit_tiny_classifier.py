@@ -10,6 +10,7 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import Dataset, DataLoader
 from torch.amp import autocast, GradScaler
 import torch
+import PIL.Image
 import argparse
 import random
 import numpy as np
@@ -237,42 +238,43 @@ def preprocess_and_cache(dataset_name, split, processor, cache_dir, max_samples=
 
     print(f"Streaming and caching {split} split (max_samples={max_samples})...")
 
-    # Use streaming to avoid downloading full dataset
-    dataset = load_dataset(dataset_name, split=split, streaming=True, trust_remote_code=True)
-    batched_dataset = dataset.batch(batch_size=batch_size)
+    # Load only the needed samples via split slicing (avoids HfFileSystem URI issues with streaming).
+    # Disable automatic image decoding so corrupt images don't crash entire batches.
+    import datasets as hf_datasets
+    split_spec = f"{split}[:{max_samples}]" if max_samples else split
+    dataset = load_dataset(dataset_name, split=split_spec, trust_remote_code=True)
+    dataset = dataset.cast_column("image", hf_datasets.Image(decode=False))
+    batched_dataset = dataset.iter(batch_size=batch_size)
 
     all_pixels = []
     all_labels = []
     samples_seen = 0
     failed = 0
 
-    # Stream and process batches - use manual iteration to catch decoding errors
+    # Process batches
     batch_iter = iter(batched_dataset)
     with tqdm(desc=f"Caching {split}") as pbar:
         while True:
             if max_samples and samples_seen >= max_samples:
                 break
-            
-            # Catch HuggingFace decoding errors at iteration level
+
             try:
                 batch = next(batch_iter)
             except StopIteration:
                 break
-            except Exception as e:
-                print(f"\nSkipping corrupt batch: {type(e).__name__}")
-                failed += 1
-                pbar.update(1)
-                continue
 
             images = batch["image"]
             labels = batch["label"]
 
             rgb_images = []
             valid_labels = []
-            for idx, (img, label) in enumerate(zip(images, labels)):
+            for idx, (img_data, label) in enumerate(zip(images, labels)):
                 if max_samples and samples_seen + len(valid_labels) >= max_samples:
                     break
                 try:
+                    from io import BytesIO
+                    raw = img_data.get("bytes") if isinstance(img_data, dict) else img_data
+                    img = PIL.Image.open(BytesIO(raw))
                     rgb_images.append(img.convert("RGB"))
                     valid_labels.append(label)
                 except Exception as e:
@@ -317,8 +319,10 @@ def create_optimizer_and_scheduler(model, lr, weight_decay, warmup_ratio, steps_
         else:
             decay_params.append(param)
 
-    # Use fused AdamW for CUDA (faster)
-    use_fused = device.type == "cuda"
+    # Use fused AdamW for CUDA (faster), but not when using dendrites
+    # because the PAI tracker wrapper is incompatible with the fused kernel's
+    # tensor-typed found_inf argument (it receives an int instead).
+    use_fused = device.type == "cuda" and not use_dendrites
     optimizer = AdamW(
         [
             {"params": decay_params, "weight_decay": weight_decay},
@@ -430,7 +434,10 @@ def train(
 ):
     """Train the model using cached data or HuggingFace streaming."""
     criterion = CrossEntropyLoss()
-    scaler = GradScaler("cuda") if device.type == "cuda" else None
+    # Disable GradScaler when using PAI dendrites: the PAI tracker wrapper is
+    # incompatible with GradScaler's gradient-inf accounting, causing
+    # "No inf checks were recorded" assertions after model restructuring.
+    scaler = GradScaler("cuda") if (device.type == "cuda" and not use_dendrites) else None
 
     if scaler:
         print("Using mixed precision (fp16) training")
@@ -560,7 +567,6 @@ def train(
             accuracy = evaluate(model, val_iter, device)
 
         if use_dendrites and GPA is not None:
-            GPA.pai_tracker.set_optimizer_instance(optimizer)
             model, restructured, training_complete = GPA.pai_tracker.add_validation_score(accuracy, model)
             model.to(device)
 
@@ -648,8 +654,9 @@ def main():
     if args.use_dendrites:
         print("Initializing PerforatedAI...")
         init_pai(max_dendrites=args.max_dendrites)
-        #GPA.pc.set_output_dimensions([-1, -1, 0])
+        GPA.pc.set_output_dimensions([-1, -1, 0])
         GPA.pc.set_testing_dendrite_capacity(False)
+        GPA.pc.append_module_names_to_track(['ViTEmbeddings', 'LayerNorm'])
         model = UPA.perforate_model(
             model,
             doing_pai=True,
@@ -657,7 +664,12 @@ def main():
             making_graphs=True,
             maximizing_score=True,
         )
+        for _, module in model.named_modules():
+            if hasattr(module, 'set_this_output_dimensions'):
+                module.set_this_output_dimensions([-1, -1, 0])
+        model.classifier.set_this_output_dimensions([-1, 0])
         configure_pai_dimensions(model)
+
 
     model.to(device)
     num_params = sum(p.numel() for p in model.parameters())
