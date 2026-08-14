@@ -718,7 +718,7 @@ def convert_module(
                     )
                     print(
                         "Set GPA.pc.set_unwrapped_modules_confirmed(True) to skip "
-                        "this next time"
+                        "this next time only if you are unable to debug"
                     )
                     print(
                         "inspect your network to "
