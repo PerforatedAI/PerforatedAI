@@ -400,8 +400,6 @@ class PAINeuronModule(nn.Module):
             name=self.name,
             output_dimensions=self.this_output_dimensions,
         )
-        print(self.this_output_dimensions[2:])
-        print(type(start_module))
         # If it is linear and default has convolutional dimensions, automatically set to just be batch size and neuron indexes
         if (
             issubclass(type(start_module), nn.Linear)
