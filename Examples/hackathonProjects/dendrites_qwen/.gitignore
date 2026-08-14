@@ -1,0 +1,101 @@
+# Model Checkpoints (VERY LARGE - 6-9GB each)
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Virtual Environments (7.6GB)
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build / Distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyTorch / ML - Large binary files
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.npz
+*.npy
+checkpoints/
+models/
+weights/
+runs/
+wandb/
+.wandb/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.out
+
+# Large data files
+datasets/
+*.parquet
+*.arrow
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Large output directories
+results/
+outputs/
+experiments/
