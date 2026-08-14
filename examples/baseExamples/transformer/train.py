@@ -183,54 +183,58 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
     print("TRAINING DENDRITIC MODEL")
     print(f"{'='*60}\n")
 
-    try:
-        from perforatedai import globals_perforatedai as GPA
-        from perforatedai import utils_perforatedai as UPA
+    from perforatedai import globals_perforatedai as GPA
+    from perforatedai import utils_perforatedai as UPA
 
-        # Store base parameters before adding dendrites
-        base_params = model.count_parameters()
+    # Store base parameters before adding dendrites
+    base_params = model.count_parameters()
 
-        # Save the original output projection to restore it after PerforatedAI initialization
-        # (We don't want dendrites on the final projection layer)
-        import copy
+    # Save the original output projection to restore it after PerforatedAI initialization
+    # (We don't want dendrites on the final projection layer)
+    import copy
 
-        original_output_proj = copy.deepcopy(model.output_projection)
+    original_output_proj = copy.deepcopy(model.output_projection)
 
-        # Configure PerforatedAI for Transformers (3D tensors: [batch, sequence, features])
-        GPA.pc.set_testing_dendrite_capacity(False)  # False for real experiments, True for testing
-        GPA.pc.set_unwrapped_modules_confirmed(True)
-        GPA.pc.set_input_dimensions([-1, -1, 0])  # Critical for 3D tensor support
-        GPA.pc.set_module_names_to_perforate(["Linear"])
-        GPA.pc.set_improvement_threshold([0.01, 0.001, 0])  # 1% improvement threshold
-        GPA.pc.set_candidate_weight_initialization_multiplier(0.1)
-        # Final projection doesn't need dendrites
-        GPA.pc.append_module_ids_to_track([".output_projection"])
-        # Initialize model with dendrites
-        model = UPA.perforate_model(
-            model,
-            doing_pai=True,
-            save_name=f"dendritic_{args.embed_dim}d_{args.num_layers}l",
-            making_graphs=True,
-            maximizing_score=False,
+    # Configure PerforatedAI for Transformers (3D tensors: [batch, sequence, features])
+    GPA.pc.set_testing_dendrite_capacity(False)  # False for real experiments, True for testing
+    GPA.pc.set_unwrapped_modules_confirmed(True)
+    GPA.pc.set_input_dimensions([-1, -1, 0])  # Critical for 3D tensor support
+    GPA.pc.set_module_names_to_perforate(["Linear"])
+    GPA.pc.set_improvement_threshold([0.01, 0.001, 0])  # 1% improvement threshold
+    GPA.pc.set_candidate_weight_initialization_multiplier(0.1)
+    # Final projection doesn't need dendrites
+    GPA.pc.append_module_ids_to_track([".output_projection"])
+    GPA.pc.append_module_names_to_track(['Embedding', 'PositionalEncoding', 'LayerNorm'])
+    GPA.pc.set_perforated_backpropagation(False)
+    
+
+    # Initialize model with dendrites
+    model = UPA.perforate_model(
+        model,
+        doing_pai=True,
+        save_name=f"dendritic_{args.embed_dim}d_{args.num_layers}l",
+        making_graphs=True,
+        maximizing_score=False,
+    )
+    for i in range(2):
+        model.layers[i].ffn.linear1.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].ffn.linear2.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].self_attn.out_proj.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].self_attn.value_proj.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].self_attn.key_proj.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].self_attn.query_proj.set_this_output_dimensions([-1, -1, 0])
+    model = model.to(device)
+
+    # Set up optimizer tracking
+    GPA.pai_tracker.set_optimizer(torch.optim.Adam)
+    GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
+
+    optim_args = {"params": model.parameters(), "lr": args.learning_rate}
+    sched_args = {"mode": "min", "patience": 2, "factor": 0.5}
+
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
+        model, optim_args, sched_args
         )
-
-        model = model.to(device)
-
-        # Set up optimizer tracking
-        GPA.pai_tracker.set_optimizer(torch.optim.Adam)
-        GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.ReduceLROnPlateau)
-
-        optim_args = {"params": model.parameters(), "lr": args.learning_rate}
-        sched_args = {"mode": "min", "patience": 2, "factor": 0.5}
-
-        optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
-            model, optim_args, sched_args
-        )
-
-    except ImportError as e:
-        print(f"\n⚠ WARNING: PerforatedAI library not available: {e}")
-        print("Falling back to vanilla training mode...\n")
-        return train_vanilla(args, model, train_loader, val_loader, device, vocab)
 
     # Initialize wandb
     wandb.init(
@@ -338,6 +342,9 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
 
             # Re-initialize model on device and optimizer
             model = model.to(device)
+            optim_args = {"params": model.parameters(), "lr": args.learning_rate}
+            sched_args = {"mode": "min", "patience": 2, "factor": 0.5}
+
             optimizer, scheduler = GPA.pai_tracker.setup_optimizer(
                 model, optim_args, sched_args
             )
@@ -374,7 +381,7 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
             break
         
         # Check if we've reached the epoch limit
-        if epoch + 1 >= args.epochs:
+        if epoch + 1 >= args.epochs and args.model_type != "dendritic":
             print(f"\n  ⚠ Reached epoch limit ({args.epochs}). Stopping.")
             break
 

@@ -314,7 +314,6 @@ Add this configuration:
 GPA.pc.set_testing_dendrite_capacity(True)  # Debugging flag - start with True
 GPA.pc.set_module_names_to_perforate(["Linear"])
 GPA.pc.set_output_dimensions([-1, -1, 0])  # [batch, sequence, features]
-GPA.pc.set_module_ids_to_track([".output_projection"])  # Skip final layer
 ```
 
 #### For ResNet Models

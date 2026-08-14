@@ -14,9 +14,11 @@ The following results were reported from these Food-101 runs (Top-1 accuracy):
 | Experiment | Parameter Count | Top-1 Accuracy |
 | --- | ---: | ---: |
 | Baseline ResNet18 | 11,490,981 | 74.9228 |
-| Perforated ResNet18 (3 dendrites) | 12,278,949 | 77.3782 |
+| Perforated ResNet18 (3 dendrites) | 12,016,293 | 77.3782 |
 | KD ResNet18 | 11,490,981 | 77.3545 |
 | KD + Perforated ResNet18 (2 dendrites) | 12,016,293 | 78.5980 |
+
+![Clean Graph](clean_graph.png)
 
 Notes:
 
@@ -42,6 +44,8 @@ At a high level, `train_perforated_resnet_KD.py` does the following:
 Run commands from this directory.
 
 ### 1) Train student without KD
+
+Perforated training image and best_arch_scores from this run.
 
 ```bash
 CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet_KD.py \
