@@ -16,3 +16,6 @@ perforatedai.egg-info
 # Working Folders
 Examples/*
 *.pt
+*.pth
+*.wandb
+**/wandb/
