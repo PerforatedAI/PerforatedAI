@@ -711,14 +711,15 @@ By default PAI uses history-based switching — it adds a dendrite when validati
 
 Ask: "Would you like to use fixed switch mode, where PAI switches between main and dendrite training on a fixed epoch schedule rather than waiting for plateau detection? This makes total training time more predictable."
 
-If yes, add these two lines to the PAI configuration block (before `perforate_model`):
+If yes, add these lines to the PAI configuration block (before `perforate_model`):
 
 ```python
-GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
 GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
 GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
 ```
 
+- `set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)` — enable fixed-interval switching mode
 - `set_fixed_switch_num` — how many epochs between each switch after the first
 - `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
 
