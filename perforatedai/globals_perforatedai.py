@@ -12,6 +12,15 @@ import sys
 import torch
 import torch.nn as nn
 
+# Re-exported so every module that already imports globals_perforatedai as GPA can
+# reference GPA.NODE_AXIS / GPA.REDUCE_AXIS / GPA.NOT_REDUCE_OR_NODE_AXIS without a new
+# import. dendrite_axis_codes is a leaf module (imports nothing), so this cannot cycle.
+from perforatedai.dendrite_axis_codes import (
+    NODE_AXIS,
+    NOT_REDUCE_OR_NODE_AXIS,
+    REDUCE_AXIS,
+)
+
 
 def _validate_module_id(module_id):
     """Validate that a module ID string uses dot notation.
@@ -987,7 +996,7 @@ class PAIConfig:
             # output_dimensions is [-1, 0, -1, -1].
             # if your format is, [batchsize, time index, nodes] output_dimensions is
             # [-1, -1, 0]
-            self.output_dimensions = [-1, 0, -1, -1]
+            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, REDUCE_AXIS, REDUCE_AXIS]  # TODO consider changing from a single set here to a set for each type of module
             add_pai_config_var_functions(
                 self, "output_dimensions", self.output_dimensions, list_type=True
             )
@@ -999,6 +1008,14 @@ class PAIConfig:
         # Suppress all PAI prints
         self.silent = False
         add_pai_config_var_functions(self, "silent", self.silent)
+
+        # Epoch-boundary callback lists.  Each holds callables invoked with the tracker as
+        # their sole argument at the corresponding boundary (see start_epoch / stop_epoch).
+        # Declared inline (no redundant plain attribute) so only the private
+        # _epoch_*_callbacks storage exists; save_config skips those two names so the lists
+        # never round-trip through JSON.
+        add_pai_config_var_functions(self, "epoch_start_callbacks", [], list_type=True)
+        add_pai_config_var_functions(self, "epoch_stop_callbacks", [], list_type=True)
 
         # In place for future implementation options of adding multiple candidate
         # dendrites together
@@ -1076,7 +1093,13 @@ class PAIConfig:
             if not (key.startswith("_") and not key.startswith("__")):
                 continue
             # Skip internal bookkeeping keys that must not round-trip through JSON
-            if key in ("_config_file", "_module_name", "_module_type"):
+            if key in (
+                "_config_file",
+                "_module_name",
+                "_module_type",
+                "_epoch_start_callbacks",
+                "_epoch_stop_callbacks",
+            ):
                 continue
             if callable(val):  # skip bound method refs
                 continue

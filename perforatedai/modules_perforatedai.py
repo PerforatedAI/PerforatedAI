@@ -231,13 +231,14 @@ def filter_backward(grad_out, values, module=None):
                     return
             # Make sure that the input dimensions are correct
             for i in range(len(values[0].this_output_dimensions)):
-                if values[0].this_output_dimensions[i] == 0:
+                if values[0].this_output_dimensions[i] == GPA.NODE_AXIS:
                     continue
-                # Make sure all input dimensions are either -1 (reduce), 1 (retain), or exact values (old format)
+                # Make sure all input dimensions are either REDUCE_AXIS (reduce),
+                # NOT_REDUCE_OR_NODE_AXIS (retain), or exact values (old format)
                 if (
                     not (grad_out.shape[i] == values[0].this_output_dimensions[i])
-                    and not values[0].this_output_dimensions[i] == -1
-                    and not values[0].this_output_dimensions[i] == 1
+                    and not values[0].this_output_dimensions[i] == GPA.REDUCE_AXIS
+                    and not values[0].this_output_dimensions[i] == GPA.NOT_REDUCE_OR_NODE_AXIS
                 ):
                     print(
                         "The following module has not properly set this_output_dimensions with this incorrect shape"
@@ -266,7 +267,7 @@ def filter_backward(grad_out, values, module=None):
                 ndim = len(values[0].this_output_dimensions)
                 storage_shape = [1] * ndim
                 for _i in range(ndim):
-                    if values[0].this_output_dimensions[_i] == 1:
+                    if values[0].this_output_dimensions[_i] == GPA.NOT_REDUCE_OR_NODE_AXIS:
                         storage_shape[_i] = val.shape[_i]
                 storage_shape[values[0].this_node_index.item()] = values[0].out_channels
                 values[0].setup_arrays(storage_shape)
@@ -410,13 +411,13 @@ class PAINeuronModule(nn.Module):
             "this_output_dimensions",
             (torch.tensor(self.module_config.get_output_dimensions())),
         )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"5 Need exactly one 0 in the input dimensions: {self.name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
             "this_node_index",
-            torch.tensor(self.module_config.get_output_dimensions().index(0)),
+            torch.tensor(self.module_config.get_output_dimensions().index(GPA.NODE_AXIS)),
         )
         self.dendrite_modules_added = 0
 
@@ -440,8 +441,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Linear)
             )
         ) and (
-            np.array(self.this_output_dimensions)[2:] == -1
-        ).all():  # Everything past 2 is a negative 1
+            np.array(self.this_output_dimensions)[2:] == GPA.REDUCE_AXIS
+        ).all():  # Everything past 2 is a REDUCE_AXIS
             self.set_this_output_dimensions(self.this_output_dimensions[0:2])
         if (
             issubclass(type(start_module), nn.Conv1d)
@@ -450,8 +451,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Conv1d)
             )
         ) and (
-            np.array(self.this_output_dimensions)[3:] == -1
-        ).all():  # Everything past 2 is a negative 1
+            np.array(self.this_output_dimensions)[3:] == GPA.REDUCE_AXIS
+        ).all():  # Everything past 3 is a REDUCE_AXIS
             self.set_this_output_dimensions(self.this_output_dimensions[0:3])
         # Apply per-module output_dimensions override from config if present
         _custom_dims = self.module_config.__dict__.get("_output_dimensions")
@@ -629,11 +630,11 @@ class PAINeuronModule(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"6 need exactly one 0 in the input dimensions: {self.name}")
             print(new_output_dimensions)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
         self.dendrite_module.set_this_output_dimensions(new_output_dimensions)
 
@@ -1179,12 +1180,13 @@ class PAIDendriteModule(nn.Module):
             self.register_buffer(
                 "this_output_dimensions", output_dimensions.detach().clone()
             )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"1 need exactly one 0 in the input dimensions: {self.name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
+            "this_node_index",
+            torch.tensor(GPA.pc.get_output_dimensions().index(GPA.NODE_AXIS)),
         )
 
         # Initialize dendrite to dendrite connections
@@ -1206,6 +1208,7 @@ class PAIDendriteModule(nn.Module):
                 )
             )
         if GPA.pc.get_perforated_backpropagation():
+            self.dendrite_loss = MPB.dendrite_loss_class()
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
 
@@ -1234,9 +1237,9 @@ class PAIDendriteModule(nn.Module):
         self.__dict__.update(saved_state)
 
         # Re-attach the PBP bound methods that were stripped by __getstate__.
-        # dendrite_loss_fn being present on the saved state means PBP was active
+        # dendrite_loss being present on the saved state means PBP was active
         # when the checkpoint was saved.
-        if "dendrite_loss_fn" in saved_state:
+        if "dendrite_loss" in saved_state:
             import perforatedbp.modules_pbp as MPB
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
@@ -1302,12 +1305,12 @@ class PAIDendriteModule(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"2 Need exactly one 0 in the input dimensions: {self.name}")
             print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
         for j in range(0, GPA.pc.get_global_candidates()):
             self.dendrite_values[j].set_this_output_dimensions(new_output_dimensions)
@@ -1658,17 +1661,18 @@ class DendriteValueTracker(nn.Module):
         self.register_buffer(
             "this_output_dimensions", output_dimensions.clone().detach()
         )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"3 need exactly one 0 in the input dimensions: {self.layer_name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", (output_dimensions == 0).nonzero(as_tuple=True)[0]
+            "this_node_index",
+            (output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0],
         )
         if out_channels != -1:
             ndim = len(output_dimensions)
             init_shape = [1] * ndim
-            init_shape[(output_dimensions == 0).nonzero(as_tuple=True)[0].item()] = out_channels
+            init_shape[(output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0].item()] = out_channels
             self.setup_arrays(init_shape)
         else:
             self.out_channels = -1
@@ -1718,12 +1722,12 @@ class DendriteValueTracker(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"4 need exactly one 0 in the input dimensions: {self.layer_name}")
             print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
 
     def set_out_channels(self, shape_values):
@@ -1738,6 +1742,13 @@ class DendriteValueTracker(nn.Module):
         -------
         None
         """
+        # DESIGN ASSUMPTION (spatially resolved covariance): each target layer is
+        # assumed to emit a fixed H x W on every batch. The spatially resolved
+        # covariance buffers (shape N x H x W) are sized once, from the H and W read
+        # off this same shape_values at setup time, and are never resized afterward.
+        # A layer whose spatial size varies across batches would therefore fail to
+        # broadcast against these fixed-size buffers; supporting variable spatial
+        # sizes would require a mismatch policy here and in setup_arrays.
         if type(shape_values) == torch.Size:
             self.out_channels = int(shape_values[self.this_node_index])
         else:
