@@ -174,7 +174,7 @@ def get_DENDRITE_SAVE_VALUES():
     )
 
 
-def filter_backward(grad_out, values):
+def filter_backward(grad_out, values, module=None):
     """Filter backward pass for gradient processing.
 
     This function processes gradients during the backward pass,
@@ -186,6 +186,10 @@ def filter_backward(grad_out, values):
         The gradient output tensor from the backward pass.
     values : DendriteValueTracker
         A DendriteValueTracker instance containing values associated with the module being processed.
+    module : PAINeuronModule, optional
+        The owning PAINeuronModule instance. When provided and PBP is disabled,
+        the hook deregisters itself after the one-time initialization completes,
+        eliminating per-batch Python overhead on all subsequent backward passes.
 
     Returns
     -------
@@ -196,8 +200,11 @@ def filter_backward(grad_out, values):
 
     with torch.no_grad():
         val = grad_out.detach()
-        # If the input dimensions are not initialized
-        if not values[0].current_d_init.item():
+        # If the input dimensions are not initialized — use the fast Python bool
+        # on the module instance instead of a GPU .item() sync.
+        already_init = (module is not None and module._fb_init_done) or \
+                       (module is None and values[0].current_d_init.item())
+        if not already_init:
             # If input dimensions and gradient don't have same shape trigger error and quit
             if len(values[0].this_output_dimensions) != len(grad_out.shape):
                 print(
@@ -263,8 +270,33 @@ def filter_backward(grad_out, values):
                         storage_shape[_i] = val.shape[_i]
                 storage_shape[values[0].this_node_index.item()] = values[0].out_channels
                 values[0].setup_arrays(storage_shape)
-            # Flag that it has been setup
+            # Flag that it has been setup (both the GPU tensor and the fast Python bool)
             values[0].current_d_init[0] = 1
+            # If fixed_input_sizes is enabled, populate the tuple caches now
+            # that val.shape is known. get_tuples_and_mult will read these on
+            # every subsequent call instead of recomputing.
+            if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
+                from perforatedbp import modules_pbp as _MPB
+                math_tuple, view_tuple, full_mult = _MPB.get_tuples_and_mult(val, values[0])
+                ndim = len(val.shape)
+                # math_tuple can be shorter than ndim (excludes this_node_index and
+                # retained dims). Pad with -1 sentinel to fill the ndim-length buffer.
+                padded_math = math_tuple + [-1] * (ndim - len(math_tuple))
+                values[0].math_tuple_cache.copy_(
+                    torch.tensor(padded_math, dtype=torch.long, device=val.device)
+                )
+                values[0].view_tuple_cache.copy_(
+                    torch.tensor(view_tuple, dtype=torch.long, device=val.device)
+                )
+                values[0].full_mult_cache[0] = full_mult
+            if module is not None:
+                module._fb_init_done = True
+                # When PBP is disabled this hook has no further work to do.
+                # Deregister it so it never fires again, eliminating per-batch
+                # Python overhead on all subsequent backward passes.
+                if not GPA.pc.get_perforated_backpropagation() and module._fb_hook_handle is not None:
+                    module._fb_hook_handle.remove()
+                    module._fb_hook_handle = None
         if GPA.pc.get_perforated_backpropagation():
             MPB.filter_backward_pb(val, values)
 
@@ -428,6 +460,13 @@ class PAINeuronModule(nn.Module):
         GPA.pai_tracker.add_pai_neuron_module(self)
         if self.module_config.get_perforated_backpropagation():
             MPB.set_neuron_parameters(self.main_module)
+
+        # Track filter_backward initialization state as a
+        # plain Python bool (avoids a GPU .item() sync on every backward pass).
+        # _fb_hook_handle stores the registered hook handle so it can be
+        # removed after initialization completes when PBP is disabled.
+        self._fb_init_done = False
+        self._fb_hook_handle = None
 
     def __getattr__(self, name):
         """Get member variables from the main module.
@@ -672,6 +711,11 @@ class PAINeuronModule(nn.Module):
                         ),
                         0,
                     )
+                # Freeze the previous dendrites_to_top entry
+                # so the optimizer no longer updates stale entries. Only the
+                # most recently appended entry is ever used in the forward pass.
+                if len(self.dendrites_to_top) > 0:
+                    self.dendrites_to_top[-1].requires_grad_(False)
                 self.dendrites_to_top.append(
                     nn.Parameter(
                         values.detach()
@@ -685,6 +729,9 @@ class PAINeuronModule(nn.Module):
                 )
             else:
                 if self.module_config.get_learn_dendrites_live():
+                    # Freeze previous entry before appending new one.
+                    if len(self.dendrites_to_top) > 0:
+                        self.dendrites_to_top[-1].requires_grad_(False)
                     self.dendrites_to_top.append(
                         nn.Parameter(
                             self.candidate_to_top.detach()
@@ -694,6 +741,9 @@ class PAINeuronModule(nn.Module):
                         )
                     )
                 else:
+                    # Freeze previous entry before appending new one.
+                    if len(self.dendrites_to_top) > 0:
+                        self.dendrites_to_top[-1].requires_grad_(False)
                     self.dendrites_to_top.append(
                         nn.Parameter(
                             torch.zeros(
@@ -852,10 +902,13 @@ class PAINeuronModule(nn.Module):
             )
             pdb.set_trace()
 
-        # Call filter backward to ensure the neuron index is setup correctly
-        if out.requires_grad:
-            out.register_hook(
-                lambda grad: filter_backward(grad, self.dendrite_module.dendrite_values)
+        # Call filter backward to ensure the neuron index is setup correctly.
+        # Register only when not yet initialized (PBP=False) or always when PBP
+        # is enabled. Store the handle so the hook can deregister itself after
+        # the one-time initialization completes (PBP=False path).
+        if out.requires_grad and (not self._fb_init_done or GPA.pc.get_perforated_backpropagation()):
+            self._fb_hook_handle = out.register_hook(
+                lambda grad: filter_backward(grad, self.dendrite_module.dendrite_values, self)
             )
 
         # If there is a processor apply the second neuron stage
@@ -1731,6 +1784,26 @@ class DendriteValueTracker(nn.Module):
             self.register_buffer(
                 val_name,
                 torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
+            )
+
+        # If fixed_input_sizes is enabled, register cache buffers now that the
+        # final ndim is known (output_dimensions may have been corrected after
+        # __init__ for Linear layers). Mirrors the pattern of this_output_dimensions
+        # — registered as buffers so they are saved and loaded automatically.
+        if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
+            ndim = len(storage_shape)
+            if not hasattr(self, 'math_tuple_cache'):
+                self.register_buffer(
+                    "math_tuple_cache",
+                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
+                )
+                self.register_buffer(
+                    "view_tuple_cache",
+                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
+                )
+                self.register_buffer(
+                    "full_mult_cache",
+                    torch.zeros(1, dtype=torch.long, device=GPA.pc.get_device()),
             )
 
     def reinitialize_for_pai(self):
