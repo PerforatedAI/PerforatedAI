@@ -11,6 +11,22 @@ ECR_REPO="concourse-release-0461d3b"
 ECR_TAG="latest"
 IMAGE_REF="${ECR_ACCOUNT}.dkr.ecr.${ECR_REGION}.amazonaws.com/${ECR_REPO}:${ECR_TAG}"
 
+# ----------------------------- AWS CREDENTIALS ------------------------------
+echo "Checking AWS credentials..."
+if ! aws sts get-caller-identity >/dev/null 2>&1; then
+  echo "No AWS credentials found. Let's set them up now."
+  echo "(You'll need your Access Key ID and Secret Access Key. Region should be: ${ECR_REGION})"
+  aws configure
+  # Re-check to make sure the entered credentials work
+  aws sts get-caller-identity >/dev/null 2>&1
+fi
+# Make sure a region is set even if creds came from an instance role
+if [ -z "$(aws configure get region 2>/dev/null || true)" ]; then
+  echo "No default region set — setting to ${ECR_REGION}"
+  aws configure set region "$ECR_REGION"
+fi
+echo "AWS credentials OK: account $(aws sts get-caller-identity --query Account --output text)"
+
 # ----------------------------- PULL DOCKER IMAGE ----------------------------
 echo "Logging into ECR..."
 aws ecr get-login-password --region "$ECR_REGION" \
