@@ -55,7 +55,9 @@ Proceed with Step 1 below.
 
 ### Prerequisites: Install PerforatedAI Packages
 
-Before doing anything else, instruct the user to install the two required pip packages. These are not bundled with the server — the user must install them in their Python environment:
+Before doing anything else, the user must install the two required pip packages. These are not bundled with the skill — the user must install them in their Python environment.
+
+**Instruct the user to run this command in their terminal:**
 
 ```bash
 pip install perforatedai perforatedbp
@@ -711,14 +713,15 @@ By default PAI uses history-based switching — it adds a dendrite when validati
 
 Ask: "Would you like to use fixed switch mode, where PAI switches between main and dendrite training on a fixed epoch schedule rather than waiting for plateau detection? This makes total training time more predictable."
 
-If yes, add these two lines to the PAI configuration block (before `perforate_model`):
+If yes, add these lines to the PAI configuration block (before `perforate_model`):
 
 ```python
-GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
 GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
 GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
 ```
 
+- `set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)` — enable fixed-interval switching mode
 - `set_fixed_switch_num` — how many epochs between each switch after the first
 - `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
 
@@ -933,7 +936,7 @@ When the user says **"Debug my perforated model"**, help them debug or optimize 
 **🚨 CRITICAL RULE: DO NOT RUN THE USER'S TRAINING SCRIPT 🚨**
 
 **You are FORBIDDEN from:**
-- Running their training script with `run_in_terminal`
+- Executing their training script (do not use run_in_terminal on training scripts)
 - Running any Python scripts that train models
 - Executing their code to "test" or "check for errors"
 
@@ -941,9 +944,10 @@ When the user says **"Debug my perforated model"**, help them debug or optimize 
 - Read their code files
 - Analyze their code
 - Make edits to their code
+- Instruct the user to run commands in their terminal
 - Ask them to run the script and provide output/errors
 
-**If you need to see errors:** ASK THE USER TO RUN THE SCRIPT and copy-paste the error to you.
+**If you need to see errors:** INSTRUCT THE USER TO RUN THE SCRIPT and ask them to copy-paste the error to you.
 
 ---
 
