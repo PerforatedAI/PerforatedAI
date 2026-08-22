@@ -13,7 +13,7 @@ This skill handles PAI integration when the user is using the **HuggingFace `Tra
 
 The stock `pip install transformers` does **not** work with PAI. A patched fork is required. It internally handles the epoch lifecycle hooks that PAI needs.
 
-Tell the user:
+**Instruct the user to run these commands in their terminal:**
 
 ```bash
 git clone https://github.com/PerforatedAI/transformers-perforated.git
