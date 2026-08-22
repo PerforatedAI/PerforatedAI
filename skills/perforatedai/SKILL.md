@@ -98,7 +98,7 @@ Look for these patterns in their script:
 
 **If you find HuggingFace Trainer usage:**
 
-Tell them: "I see your script uses the HuggingFace `Trainer`. The PAI integration is slightly different when using Trainer — the fork handles several things automatically that you'd otherwise do manually."
+Tell them: "I see your script uses the HuggingFace `Trainer`. The PAI integration is slightly different when using Trainer — PAI's transformers library handles several things automatically that you'd otherwise do manually."
 
 **IMMEDIATELY load and follow the library skill:**
 
