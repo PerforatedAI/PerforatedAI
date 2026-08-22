@@ -200,10 +200,11 @@ def filter_backward(grad_out, values, module=None):
 
     with torch.no_grad():
         val = grad_out.detach()
-        # If the input dimensions are not initialized — use the fast Python bool
-        # on the module instance instead of a GPU .item() sync.
+        # Fast path: Python bool set after first backward in this process.
+        # Fallback: current_d_init is a saved buffer — survives checkpoint reload
+        # even when _fb_init_done resets to False in a fresh process.
         already_init = (module is not None and module._fb_init_done) or \
-                       (module is None and values[0].current_d_init.item())
+                       values[0].current_d_init.item()
         if not already_init:
             # If input dimensions and gradient don't have same shape trigger error and quit
             if len(values[0].this_output_dimensions) != len(grad_out.shape):
