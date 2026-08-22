@@ -9,15 +9,13 @@ This skill handles PAI integration when the user is using the **HuggingFace `Tra
 
 ---
 
-## Step T-1: Install Required Transformers Library
+## Step T-1: Verify Transformers Compatibility
 
-The standard transformers package does **not** include the hooks that PAI requires. PerforatedAI provides a compatible transformers library called **transformers-perforated** that includes these necessary hooks.
+The standard transformers package does **not** include the hooks that PAI requires. Using PAI with HuggingFace Trainer requires the **transformers-perforated** library.
 
-**Instruct the user:** To use PAI with HuggingFace Trainer, they need to install the transformers-perforated library from the PerforatedAI GitHub organization (PerforatedAI/transformers-perforated repository). This library is a drop-in replacement for the standard transformers — existing code that imports `transformers` will continue to work.
+**Check if already installed:** Ask the user if they have transformers-perforated in their environment. If yes, skip this step.
 
-> **Important**: Ensure they install transformers-perforated instead of the standard transformers package when running PAI-enabled scripts with Trainer.
-
-If they already have transformers-perforated installed, skip this step.
+**If not installed:** Tell them: "PAI integration with Trainer requires transformers-perforated. See the PerforatedAI documentation for installation details."
 
 ---
 
