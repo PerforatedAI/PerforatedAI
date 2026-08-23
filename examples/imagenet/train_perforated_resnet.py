@@ -37,7 +37,7 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
 # Import custom ResNet models
-import resnet_double as custom_resnet
+import resnet_prefc as custom_resnet
 
 import wandb
 from types import SimpleNamespace

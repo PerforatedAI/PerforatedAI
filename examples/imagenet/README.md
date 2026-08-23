@@ -14,8 +14,12 @@ Results of retained drendrites for the model shown here:
 
 ## Additional Files
 
- - resnet_double.py
+ - resnet_prefc.py
    - This file enables a pre_fc layer to be added to a ResNet model so that when perforating during pretraining transfer learning can still be done since replacing the final FC layer would also replace the dendrites if only the FC layer is perforated.
+ - efficientnet_prefc.py
+   - Wrapper class that adds a perforable pre-FC layer before the classifier in EfficientNet models, enabling transfer learning while preserving dendrite connections.
+ - mobilenetv3_prefc.py
+   - Wrapper class that adds a perforable pre-FC layer before the classifier in MobileNetV3 models, enabling transfer learning while preserving dendrite connections.
  - train_fast_perforatedai_sweep.py
    - A lightweight training script to sweep hyperparameters without the full dataset before training on the full dataset.  
  - train_perforated_resnet.py
