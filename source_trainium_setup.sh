@@ -56,6 +56,11 @@ pip install nki_wheels/nki-*.whl               # actual wheel is nki-0.4.0b4*, u
 pip install neuronx_cc_wheels/neuronx_cc-*.whl
 cd torch_neuron_eager && pip install -e . && cd ..
 pip uninstall -y torch
-pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.12.1 --index-url https://download.pytorch.org/whl/cpu
 python -c "import torch, torch_neuronx; print(torch.randn(4,4, device='neuron'))"
 pip install transformers
+
+export NEURON_LAUNCH_BLOCKING=1
+export TORCH_NEURONX_LOG_LEVEL=3
+export TORCH_NEURONX_ENABLE_STACK_TRACE=1
+export NEURON_CC_FLAGS="--verbose=INFO"
