@@ -9,23 +9,13 @@ This skill handles PAI integration when the user is using the **HuggingFace `Tra
 
 ---
 
-## Step T-1: Install the Patched Fork
+## Step T-1: Verify Transformers Compatibility
 
-The stock `pip install transformers` does **not** work with PAI. A patched fork is required. It internally handles the epoch lifecycle hooks that PAI needs.
+The standard transformers package does **not** include the hooks that PAI requires. Using PAI with HuggingFace Trainer requires the **transformers-perforated** library.
 
-Tell the user:
+**Check if already installed:** Ask the user if they have transformers-perforated in their environment. If yes, skip this step.
 
-```bash
-git clone https://github.com/PerforatedAI/transformers-perforated.git
-cd transformers-perforated
-pip install -e .
-cd ..
-pip install perforatedai
-```
-
-> **Do not** use the stock transformers when running PAI-enabled scripts. The patched fork is a drop-in replacement — existing code that imports `transformers` will continue to work.
-
-If they already have the fork installed, skip this step.
+**If not installed:** Tell them: "PAI integration with Trainer requires transformers-perforated. See the PerforatedAI documentation for installation details."
 
 ---
 
@@ -89,12 +79,12 @@ PAI needs a validation score after every epoch. Set `eval_strategy="epoch"`:
 training_args = TrainingArguments(
     output_dir="./output",
     eval_strategy="epoch",   # Required — PAI reads per-epoch scores
-    # num_train_epochs — do NOT set this to a huge number; the fork manages training termination internally
+    # num_train_epochs — do NOT set this to a huge number; PAI manages training termination internally
     ...
 )
 ```
 
-**Do NOT set `num_train_epochs=1000000`** — the fork handles training termination automatically.
+**Do NOT set `num_train_epochs=1000000`** — PAI handles training termination automatically.
 
 ---
 
@@ -118,9 +108,9 @@ Without this flag the Trainer runs normally and PAI never activates.
 
 ---
 
-## What the Fork Handles Automatically
+## What PAI Handles Automatically with Trainer
 
-When `using_perforatedai=True` is set, the patched fork handles these internally — **do not add them manually**:
+When `using_perforatedai=True` is set, the transformers-perforated library handles these internally — **do not add them manually**:
 
 - Calling `GPA.pai_tracker.add_validation_score()` after each epoch
 - Detecting when training is complete and stopping the loop
@@ -132,7 +122,7 @@ This means you do **not** write a manual restructuring loop, set a huge epoch co
 
 ## Custom Loop with a HuggingFace Model (Not Using Trainer)
 
-If the user is using a HuggingFace model (e.g., `AutoModelForImageClassification`) but **writing their own training loop** (no `Trainer`), the fork's automatic handling does **not** apply. In that case, go back to the standard perforatedai skill and follow the normal steps (optimizer setup, `add_validation_score`, restructuring loop, `model.to(device)` after restructuring, etc.).
+If the user is using a HuggingFace model (e.g., `AutoModelForImageClassification`) but **writing their own training loop** (no `Trainer`), the transformers-perforated library's automatic handling does **not** apply. In that case, go back to the standard perforatedai skill and follow the normal steps (optimizer setup, `add_validation_score`, restructuring loop, `model.to(device)` after restructuring, etc.).
 
 ---
 

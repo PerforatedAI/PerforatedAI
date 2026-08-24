@@ -526,16 +526,16 @@ Fill in the actual values:
 - Replace `[their_num_gpus]` with the number they specified
 - Replace `[their_gpu_ids]` if they specified specific IDs (e.g., "0,1")
 
-Make it executable:
+**Instruct the user to make it executable:**
 ```bash
 chmod +x train_distributed.sh
 ```
 
 Tell them:
-> "I've set up your script for DistributedDataParallel and created `train_distributed.sh` with your configuration ([NUM_GPUS] GPUs). To train:
-> 1. Run `./train_distributed.sh` - this handles everything automatically
-> 2. The script will initialize DDP settings (single GPU), then continuously train with [NUM_GPUS] GPUs
-> 3. When dendrites are added (model restructured), the script automatically restarts and resumes
+> "I've set up your script for DistributedDataParallel and created `train_distributed.sh` with your configuration ([NUM_GPUS] GPUs). To run it, execute `./train_distributed.sh` in your terminal. The script will:
+> 1. Initialize DDP settings (single GPU)
+> 2. Start continuous training with [NUM_GPUS] GPUs
+> 3. Automatically restart and resume when dendrites are added (model restructured)
 > 4. Press Ctrl+C to stop training"
 
 Replace [NUM_GPUS] with the actual number they specified.
