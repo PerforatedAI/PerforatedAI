@@ -1603,75 +1603,56 @@ def load_net_from_dict(net, state_dict):
                 )
             except Exception as e:
                 print(e)
-                print(
-                    "This value is missing from the state dict\n"
-                    "When missing this value it typically means you\n"
-                    "converted a module but didn't actually use it in\n"
-                    "your forward and backward pass."
-                )
-                print("module was: %s" % module.name)
-                print("There are many reasons this can happen:")
-                print(
-                    "\n1 - check your model definition and forward function and "
-                    "ensure this module is being used properly"
-                )
-                print(
-                    "with GPA.pc.set_verbose(True) you can confirm this is the case if\n"
-                    'you do not see a "setting d shape for" this module at the first training batch.'
-                )
-                print(
-                    "If this is the case, and it is correct to not be passing data through it\n"
-                    "Set it to be a tracked module with:\n"
-                    'GPA.pc.append_module_ids_to_track(["%s"]) to leave it out '
-                    % module.name
-                )
-                print(
-                    "\n2 - This can happen if you adjusted your model "
-                    "definition after calling perforate_model"
-                )
-                print(
-                    "for example with torch.compile. If the module name "
-                    "printed above does not contain all modules leading "
-                    "to the main definition"
-                )
-                print(
-                    "this is likely the case for your problem. Fix by "
-                    "calling perforate_model after all other model "
-                    "initialization steps"
-                )
                 first_key = next(iter(state_dict.keys()))
-                print(
-                    "\n3 - This can happen is if the model where you called perforate_model\n"
-                    "and the model within add_validation_score are not the same. \n"
-                    "Check if the module above and .%s have the same prefix\n"
-                    % first_key
-                )
-                print(
-                    "if one starts with .model or .base etc and the other does not, this is the problem."
-                )
+                error_msg = f"""
+This value is missing from the state dict.
+When missing this value it typically means you converted a module but didn't
+actually use it in your forward and backward pass.
 
-                print(
-                    "\n4 - If you are using this module but then not actually including\n"
-                    "the correct output tensor in the forward.  For example\n"
-                    "if you are using an LSTM and forwarding hidden instead of otput\n"
-                    "but your processors are set up to work with output"
-                )
-                print(
-                    "\n5 - if you are not properly calling backward at all."
-                    " If this is the first module in your network it is more"
-                    "likely this is the problem."
-                    "One check in these cases is to make sure you do not call an initial validation score"
-                    "before the first backward call.\nIf you do this, while testing_dendrite_capacity is True"
-                    "this error will be triggered."
-                )
-                print(
-                    "\n6 - You have converted a module that is in a frozen"
-                    " part of the network and thus no gradients are flowing"
-                )
-                print(
-                    "\n7 - You are running multiple experiments at once with the same save_name."
-                    " When running concurrent trials be sure to add save_name=<unique_name> to perforate_model."
-                )
+Module was: {module.name}
+
+There are many reasons this can happen:
+
+1 - Check your model definition and forward function and ensure this module is 
+    being used properly.
+    
+    With GPA.pc.set_verbose(True) you can confirm this is the case if you do not 
+    see a "setting d shape for" this module at the first training batch.
+    
+    If this is the case, and it is correct to not be passing data through it,
+    set it to be a tracked module with:
+    GPA.pc.append_module_ids_to_track(["{module.name}"]) to leave it out
+
+2 - This can happen if you adjusted your model definition after calling 
+    perforate_model (for example with torch.compile). If the module name printed 
+    above does not contain all modules leading to the main definition, this is 
+    likely the case for your problem. Fix by calling perforate_model after all 
+    other model initialization steps.
+
+3 - This can happen if the model where you called perforate_model and the model 
+    within add_validation_score are not the same. Check if the module above and 
+    .{first_key} have the same prefix. If one starts with .model or .base etc 
+    and the other does not, this is the problem.
+
+4 - If you are using this module but then not actually including the correct 
+    output tensor in the forward. For example if you are using an LSTM and 
+    forwarding hidden instead of output but your processors are set up to work 
+    with output.
+
+5 - If you are not properly calling backward at all. If this is the first module 
+    in your network it is more likely this is the problem. One check in these 
+    cases is to make sure you do not call an initial validation score before the 
+    first backward call. If you do this, while testing_dendrite_capacity is True, 
+    this error will be triggered.
+
+6 - You have converted a module that is in a frozen part of the network and thus 
+    no gradients are flowing.
+
+7 - You are running multiple experiments at once with the same save_name. When 
+    running concurrent trials be sure to add save_name=<unique_name> to 
+    perforate_model.
+"""
+                print(error_msg)
                 import pdb # This needs to be here for cython for some reason.
                 pdb.set_trace()
 

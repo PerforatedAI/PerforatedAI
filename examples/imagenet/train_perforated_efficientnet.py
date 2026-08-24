@@ -1,23 +1,27 @@
 """
-Replicating our results on a one GPU machine:
+Training EfficientNet-V2 Small with PerforatedAI on ImageNet.
 
-Resnet18:
-python train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
+Based on PyTorch official training recipe for EfficientNet-V2.
 
-current resnet50 experiment:
-CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
-  --model resnet50 --batch-size 32 --lr 0.0125 \
-  --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 \
+Single GPU command (scaled from 8 GPU setup):
+python train_perforated_efficientnet.py \
+  --model efficientnet_v2_s --batch-size 32 --lr 0.016 \
+  --lr-scheduler cosineannealinglr --lr-warmup-epochs 5 --lr-warmup-method linear \
+  --auto-augment ta_wide --epochs 600 --random-erase 0.1 \
+  --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
+  --weight-decay 0.00002 --norm-weight-decay 0.0 \
+  --train-crop-size 300 --val-crop-size 384 --val-resize-size 384 \
+  --model-ema --ra-sampler --ra-reps 4 \
   --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
-  --candidate-weight-init-mult 0.1 --pai-forward-function relu \
-  --wd 0.001 --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
-  --random-erase 0.1
+  --candidate-weight-init-mult 0.1 --pai-forward-function relu
+
+Note: For EfficientNet-V2 Medium, use:
+  --model efficientnet_v2_m --train-crop-size 384 --val-crop-size 480 --val-resize-size 480
 """
 
 import datetime
 import os
-import random
 import time
 import warnings
 import argparse
@@ -37,8 +41,8 @@ from transforms import get_mixup_cutmix
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
-# Import custom ResNet models
-import resnet_prefc as custom_resnet
+# Import EfficientNet pre-FC wrapper
+import efficientnet_prefc
 
 import wandb
 from types import SimpleNamespace
@@ -155,52 +159,6 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, log_suffix="
     )
 
     return model, metric_logger.acc1.global_avg, restructured, trainingComplete
-
-
-def test(model, criterion, data_loader, device, print_freq=100, log_suffix=""):
-    model.eval()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    header = f"TestHoldout: {log_suffix}"
-
-    num_processed_samples = 0
-
-    with torch.inference_mode():
-        for image, target in metric_logger.log_every(data_loader, print_freq, header):
-            image = image.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
-            output = model(image)
-            loss = criterion(output, target)
-
-            acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
-            batch_size = image.shape[0]
-            metric_logger.update(loss=loss.item())
-            metric_logger.meters["acc1"].update(acc1.item(), n=batch_size)
-            metric_logger.meters["acc5"].update(acc5.item(), n=batch_size)
-            num_processed_samples += batch_size
-
-    num_processed_samples = utils.reduce_across_processes(num_processed_samples)
-    if (
-        hasattr(data_loader.dataset, "__len__")
-        and len(data_loader.dataset) != num_processed_samples
-        and torch.distributed.get_rank() == 0
-    ):
-        warnings.warn(
-            f"It looks like the dataset has {len(data_loader.dataset)} samples, but {num_processed_samples} "
-            "samples were used for testing, which might bias the results. "
-            "Try adjusting the batch size and / or the world size. "
-            "Setting the world size to 1 is always a safe bet."
-        )
-
-    metric_logger.synchronize_between_processes()
-
-    print(
-        f"{header} Acc@1 {metric_logger.acc1.global_avg:.3f} Acc@5 {metric_logger.acc5.global_avg:.3f}"
-    )
-
-    GPA.pai_tracker.add_extra_score(metric_logger.acc1.global_avg, "Test Acc 1")
-    GPA.pai_tracker.add_extra_score(metric_logger.acc5.global_avg, "Test Acc 5")
-
-    return metric_logger.acc1.global_avg
 
 
 def _get_cache_path(filepath):
@@ -347,73 +305,6 @@ def filter_imagenet100(dataset):
         f"Filtered dataset to {len(valid_classes)} classes with {len(filtered_samples)} samples"
     )
     return dataset
-
-
-def stratified_subsample_dataset(dataset, fraction, seed):
-    """Subsample training data per class with random stratified sampling."""
-    if fraction >= 1.0:
-        return dataset
-    if fraction <= 0.0:
-        raise ValueError("train_data_fraction must be in (0, 1].")
-
-    rng = random.Random(seed)
-    class_to_indices = {}
-    for sample_idx, (_, class_idx) in enumerate(dataset.samples):
-        class_to_indices.setdefault(class_idx, []).append(sample_idx)
-
-    selected_indices = []
-    for class_idx in sorted(class_to_indices.keys()):
-        indices = class_to_indices[class_idx]
-        shuffled = indices[:]
-        rng.shuffle(shuffled)
-
-        keep_count = int(round(len(indices) * fraction))
-        keep_count = max(1, min(len(indices), keep_count))
-        selected_indices.extend(shuffled[:keep_count])
-
-    rng.shuffle(selected_indices)
-    subsampled_samples = [dataset.samples[i] for i in selected_indices]
-
-    dataset.samples = subsampled_samples
-    dataset.targets = [s[1] for s in subsampled_samples]
-    if hasattr(dataset, "imgs"):
-        dataset.imgs = subsampled_samples
-
-    print(
-        f"Applied stratified train subsampling: fraction={fraction}, seed={seed}, "
-        f"samples={len(dataset.samples)}"
-    )
-    return dataset
-
-
-def split_val_test_stratified(dataset, seed):
-    """Split an eval dataset into stratified val/test halves per class."""
-    rng = random.Random(seed)
-    class_to_indices = {}
-    for sample_idx, (_, class_idx) in enumerate(dataset.samples):
-        class_to_indices.setdefault(class_idx, []).append(sample_idx)
-
-    val_indices = []
-    test_indices = []
-
-    for class_idx in sorted(class_to_indices.keys()):
-        indices = class_to_indices[class_idx]
-        shuffled = indices[:]
-        rng.shuffle(shuffled)
-        split_point = len(shuffled) // 2
-        val_indices.extend(shuffled[:split_point])
-        test_indices.extend(shuffled[split_point:])
-
-    rng.shuffle(val_indices)
-    rng.shuffle(test_indices)
-
-    print(
-        f"Split eval set stratified by class: val={len(val_indices)}, test={len(test_indices)}, seed={seed}"
-    )
-    return (
-        torch.utils.data.Subset(dataset, val_indices),
-        torch.utils.data.Subset(dataset, test_indices),
-    )
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
@@ -579,13 +470,7 @@ def load_data(traindir, valdir, args):
 
     print("Loading training data")
     st = time.time()
-    if args.train_data_fraction < 1.0:
-        train_cache_key = (
-            f"{traindir}|frac={args.train_data_fraction}|seed={args.train_data_fraction_seed}"
-        )
-    else:
-        train_cache_key = traindir
-    cache_path = _get_cache_path(train_cache_key)
+    cache_path = _get_cache_path(traindir)
     if args.cache_dataset and os.path.exists(cache_path):
         # Attention, as the transforms are also cached!
         print(f"Loading dataset_train from {cache_path}")
@@ -614,10 +499,6 @@ def load_data(traindir, valdir, args):
         # Filter to ImageNet-100 unless full dataset is requested
         if not args.full_dataset:
             dataset = filter_imagenet100(dataset)
-
-        dataset = stratified_subsample_dataset(
-            dataset, args.train_data_fraction, args.train_data_fraction_seed
-        )
 
         if args.cache_dataset:
             print(f"Saving dataset_train to {cache_path}")
@@ -663,28 +544,20 @@ def load_data(traindir, valdir, args):
             utils.mkdir(os.path.dirname(cache_path))
             utils.save_on_master((dataset_test, valdir), cache_path)
 
-    dataset_val, dataset_test = split_val_test_stratified(
-        dataset_test, args.val_test_split_seed
-    )
-
     print("Creating data loaders")
     if args.distributed:
         if hasattr(args, "ra_sampler") and args.ra_sampler:
             train_sampler = RASampler(dataset, shuffle=True, repetitions=args.ra_reps)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-        val_sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset_val, shuffle=False
-        )
         test_sampler = torch.utils.data.distributed.DistributedSampler(
             dataset_test, shuffle=False
         )
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
-        val_sampler = torch.utils.data.SequentialSampler(dataset_val)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
-    return dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler
+    return dataset, dataset_test, train_sampler, test_sampler
 
 
 def main(args):
@@ -692,7 +565,7 @@ def main(args):
     run = None
     if args.use_wandb:
         run = wandb.init(
-            project="ImageNet-100 PerforatedAI",
+            project="ImageNet EfficientNetV2 PerforatedAI",
             name=f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}",
             config=vars(args),
         )
@@ -740,7 +613,7 @@ def main(args):
 
     train_dir = os.path.join(args.data_path, "train")
     val_dir = os.path.join(args.data_path, "val")
-    dataset, dataset_val, dataset_test, train_sampler, val_sampler, test_sampler = load_data(
+    dataset, dataset_test, train_sampler, test_sampler = load_data(
         train_dir, val_dir, args
     )
 
@@ -757,7 +630,8 @@ def main(args):
     GPA.pc.set_initial_history_after_switches(2)
     GPA.pc.set_test_saves(True)
     GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.append_module_names_to_perforate(["BasicBlock", "Bottleneck"])
+    # EfficientNet uses FusedMBConv and MBConv blocks instead of ResNet blocks
+    GPA.pc.append_module_names_to_perforate(["FusedMBConv", "MBConv"])
     GPA.pc.set_verbose(False)
     # GPA.pc.set_max_dendrites(3)
 
@@ -817,13 +691,6 @@ def main(args):
         pin_memory=True,
         collate_fn=collate_fn,
     )
-    data_loader_val = torch.utils.data.DataLoader(
-        dataset_val,
-        batch_size=args.batch_size,
-        sampler=val_sampler,
-        num_workers=args.workers,
-        pin_memory=True,
-    )
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
         batch_size=args.batch_size,
@@ -833,20 +700,23 @@ def main(args):
     )
 
     print("Creating model")
-    # Check if it's one of our custom models
-    if args.model in ["resnet18_thin", "resnet10_shallow", "resnet12_balanced"]:
-        model_fn = getattr(custom_resnet, args.model)
-        model = model_fn(num_classes=num_classes)
-        print(f"Created custom model: {args.model}")
-    else:
-        model = torchvision.models.get_model(
-            args.model, weights=args.weights, num_classes=num_classes
-        )
+    # Load model from torchvision
+    model = torchvision.models.get_model(
+        args.model, weights=args.weights, num_classes=num_classes
+    )
 
     # Apply dropout if specified (add dropout after global average pooling, before final classifier)
     if args.dropout > 0.0:
+        # For models with classifier attribute (like EfficientNet)
+        if hasattr(model, "classifier"):
+            # EfficientNet has a classifier Sequential with Dropout and Linear
+            # We can adjust the dropout rate
+            for module in model.classifier:
+                if isinstance(module, nn.Dropout):
+                    module.p = args.dropout
+            print(f"Applied dropout rate: {args.dropout}")
         # For ResNet models, insert dropout before the final fc layer
-        if hasattr(model, "fc"):
+        elif hasattr(model, "fc"):
             in_features = model.fc.in_features
             model.fc = nn.Sequential(
                 nn.Dropout(p=args.dropout), nn.Linear(in_features, num_classes)
@@ -858,9 +728,6 @@ def main(args):
         print(
             f"Note: Stochastic depth rate {args.stochastic_depth_prob} specified, but requires model recreation with stochastic_depth parameter"
         )
-        print(
-            f"Consider using: torchvision.models.resnet18(weights=None, num_classes={num_classes}, stochastic_depth_prob={args.stochastic_depth_prob})"
-        )
 
     # Note on width/depth multipliers
     if args.width_multiplier != 1.0 or args.depth_multiplier != 1.0:
@@ -868,18 +735,19 @@ def main(args):
             f"Note: Width multiplier {args.width_multiplier} and/or depth multiplier {args.depth_multiplier} specified"
         )
         print(
-            f"These require custom model creation. Consider using smaller models like resnet18 or using torchvision.models.efficientnet with different variants"
+            f"These require custom model creation. Consider using different model variants."
         )
 
-    skip_layers = 4 - args.convert_count
-
-    for i in range(skip_layers):
-        GPA.pc.append_module_ids_to_track([".layer" + str(i + 1)])
-    GPA.pc.append_module_ids_to_track([".conv1", ".bn1"])
-    # Wrap model with PerforatedAI
-    model = custom_resnet.ResNetPAI(model)
+    # For EfficientNet with pre-FC layer:
+    # Track all original model components (features, avgpool, classifier)
+    # Only the pre_fc layer will be perforated
+    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier"])
+    
+    # Wrap model with PerforatedAI - adds perforable pre-FC layer
+    model = efficientnet_prefc.EfficientNetPAI(model)
+    
     # Build save name
-    save_name = f"{args.model}_c{args.convert_count}_wd{args.train_data_fraction}_dmode{args.dendrite_mode}"
+    save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
 
@@ -958,12 +826,10 @@ def main(args):
         torch.backends.cudnn.deterministic = True
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
+                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
             )
-            test(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")
         else:
-            evaluate(model, criterion, data_loader_val, device=device)
-            test(model, criterion, data_loader_test, device=device)
+            evaluate(model, criterion, data_loader_test, device=device)
         return
 
     print("Start training")
@@ -997,9 +863,8 @@ def main(args):
         # lr_scheduler.step()
 
         model, acc1, restructured, trainingComplete = evaluate(
-            model, criterion, data_loader_val, device=device
+            model, criterion, data_loader_test, device=device
         )
-        test_acc1 = test(model, criterion, data_loader_test, device=device)
 
         # Get training accuracy from PAI tracker extra scores
         train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get(
@@ -1017,7 +882,6 @@ def main(args):
             run.log(
                 {
                     "ValAcc": acc1,
-                    "TestAcc": test_acc1,
                     "TrainAcc": train_acc1,
                     "Param Count": UPA.count_params(model),
                     "Dendrite Count": GPA.pai_tracker.member_vars.get(
@@ -1054,14 +918,7 @@ def main(args):
 
         if model_ema:
             evaluate(
-                model_ema, criterion, data_loader_val, device=device, log_suffix="EMA"
-            )
-            test(
-                model_ema,
-                criterion,
-                data_loader_test,
-                device=device,
-                log_suffix="EMA",
+                model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
             )
 
         if args.output_dir:
@@ -1110,7 +967,7 @@ def get_args_parser(add_help=True):
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="PyTorch Classification Training with PerforatedAI (Fast - ImageNet-100, Half Resolution)",
+        description="PyTorch EfficientNet-V2 Training with PerforatedAI on ImageNet",
         add_help=add_help,
     )
 
@@ -1120,7 +977,7 @@ def get_args_parser(add_help=True):
         type=str,
         help="dataset path",
     )
-    parser.add_argument("--model", default="resnet18", type=str, help="model name")
+    parser.add_argument("--model", default="efficientnet_v2_s", type=str, help="model name")
     parser.add_argument(
         "--device",
         default="cuda",
@@ -1142,7 +999,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--epochs",
-        default=90,
+        default=600,
         type=int,
         metavar="N",
         help="number of total epochs to run",
@@ -1157,7 +1014,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument(
-        "--lr", default=0.0125, type=float, help="initial learning rate"
+        "--lr", default=0.016, type=float, help="initial learning rate (scaled from 0.5 for 32 GPUs)"
     )
     parser.add_argument(
         "--momentum", default=0.9, type=float, metavar="M", help="momentum"
@@ -1165,17 +1022,17 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--wd",
         "--weight-decay",
-        default=1e-4,
+        default=2e-5,
         type=float,
         metavar="W",
-        help="weight decay (default: 1e-4)",
+        help="weight decay (default: 2e-5 for EfficientNet-V2)",
         dest="weight_decay",
     )
     parser.add_argument(
         "--norm-weight-decay",
-        default=None,
+        default=0.0,
         type=float,
-        help="weight decay for Normalization layers (default: None, same value as --wd)",
+        help="weight decay for Normalization layers (default: 0.0 for EfficientNet-V2)",
     )
     parser.add_argument(
         "--bias-weight-decay",
@@ -1191,34 +1048,34 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--label-smoothing",
-        default=0.0,
+        default=0.1,
         type=float,
-        help="label smoothing (default: 0.0)",
+        help="label smoothing (default: 0.1 for EfficientNet-V2)",
         dest="label_smoothing",
     )
     parser.add_argument(
-        "--mixup-alpha", default=0.0, type=float, help="mixup alpha (default: 0.0)"
+        "--mixup-alpha", default=0.2, type=float, help="mixup alpha (default: 0.2 for EfficientNet-V2)"
     )
     parser.add_argument(
-        "--cutmix-alpha", default=0.0, type=float, help="cutmix alpha (default: 0.0)"
+        "--cutmix-alpha", default=1.0, type=float, help="cutmix alpha (default: 1.0 for EfficientNet-V2)"
     )
     parser.add_argument(
         "--lr-scheduler",
-        default="steplr",
+        default="cosineannealinglr",
         type=str,
-        help="the lr scheduler (default: steplr)",
+        help="the lr scheduler (default: cosineannealinglr for EfficientNet-V2)",
     )
     parser.add_argument(
         "--lr-warmup-epochs",
-        default=0,
+        default=5,
         type=int,
-        help="the number of epochs to warmup (default: 0)",
+        help="the number of epochs to warmup (default: 5 for EfficientNet-V2)",
     )
     parser.add_argument(
         "--lr-warmup-method",
-        default="constant",
+        default="linear",
         type=str,
-        help="the warmup method (default: constant)",
+        help="the warmup method (default: linear for EfficientNet-V2)",
     )
     parser.add_argument(
         "--lr-warmup-decay", default=0.01, type=float, help="the decay for lr"
@@ -1269,9 +1126,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--auto-augment",
-        default=None,
+        default="ta_wide",
         type=lambda x: None if x == "None" else x,
-        help="auto augment policy (default: None)",
+        help="auto augment policy (default: ta_wide for EfficientNet-V2)",
     )
     parser.add_argument(
         "--ra-magnitude", default=9, type=int, help="magnitude of auto augment policy"
@@ -1281,9 +1138,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--random-erase",
-        default=0.0,
+        default=0.1,
         type=float,
-        help="random erasing probability (default: 0.0)",
+        help="random erasing probability (default: 0.1 for EfficientNet-V2)",
     )
 
     # Regularization parameters to reduce overfitting (train-val gap)
@@ -1357,24 +1214,24 @@ def get_args_parser(add_help=True):
         type=str,
         help="the interpolation method (default: bilinear)",
     )
-    # Half resolution defaults (128 instead of 256, 112 instead of 224)
+    # EfficientNet-V2 Small image sizes
     parser.add_argument(
         "--val-resize-size",
-        default=256,
+        default=384,
         type=int,
-        help="the resize size used for validation (default: 256)",
+        help="the resize size used for validation (default: 384 for EfficientNet-V2 Small)",
     )
     parser.add_argument(
         "--val-crop-size",
-        default=224,
+        default=384,
         type=int,
-        help="the central crop size used for validation (default: 224)",
+        help="the central crop size used for validation (default: 384 for EfficientNet-V2 Small)",
     )
     parser.add_argument(
         "--train-crop-size",
-        default=224,
+        default=300,
         type=int,
-        help="the random crop size used for training (default: 224)",
+        help="the random crop size used for training (default: 300 for EfficientNet-V2 Small)",
     )
     parser.add_argument(
         "--convert-count", default=0, type=int, help="total number of layers to convert"
@@ -1388,13 +1245,13 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--ra-sampler",
         action="store_true",
-        help="whether to use Repeated Augmentation in training",
+        help="whether to use Repeated Augmentation in training (recommended for EfficientNet-V2)",
     )
     parser.add_argument(
         "--ra-reps",
-        default=3,
+        default=4,
         type=int,
-        help="number of repetitions for Repeated Augmentation (default: 3)",
+        help="number of repetitions for Repeated Augmentation (default: 4 for EfficientNet-V2)",
     )
     parser.add_argument(
         "--weights", default=None, type=str, help="the weights enum name to load"
@@ -1411,25 +1268,6 @@ def get_args_parser(add_help=True):
         default=True,
         action=argparse.BooleanOptionalAction,
         help="Use full ImageNet-1000 instead of ImageNet-100 subset (default: True)",
-    )
-    parser.add_argument(
-        "--train-data-fraction",
-        default=1.0,
-        type=float,
-        choices=[1.0, 0.9, 0.75, 0.5, 0.25],
-        help="Fraction of training data to keep with per-class random stratified subsampling",
-    )
-    parser.add_argument(
-        "--train-data-fraction-seed",
-        default=42,
-        type=int,
-        help="Random seed for train-data stratified subsampling",
-    )
-    parser.add_argument(
-        "--val-test-split-seed",
-        default=42,
-        type=int,
-        help="Random seed for class-balanced validation/test split",
     )
 
     # PerforatedAI parameters
