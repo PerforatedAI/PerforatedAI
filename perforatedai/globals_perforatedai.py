@@ -393,8 +393,6 @@ class PAIConfig:
         Module names to exclude from saving.
     perforated_backpropagation : bool
         Whether Perforated Backpropagation is enabled.
-    fixed_input_sizes : bool
-        Cache tuple computations when input sizes are fixed (PB optimization).
     """
 
     # Explicit type map for every config variable — used by load_config to coerce JSON values.
@@ -426,7 +424,6 @@ class PAIConfig:
                 "dont_give_up_unless_learning_rate_lowered",
                 "candidate_weight_init_by_main",
                 "perforated_backpropagation",
-                "fixed_input_sizes",
                 "weight_tying_experimental",
                 "dashboard_events_enabled",
                 "dashboard_debug",
@@ -939,11 +936,6 @@ class PAIConfig:
             self.perforated_backpropagation = False
             add_pai_config_var_functions(
                 self, "perforated_backpropagation", self.perforated_backpropagation
-            )
-            # Cache tuple computations when input shapes are fixed (PB optimization)
-            self.fixed_input_sizes = False
-            add_pai_config_var_functions(
-                self, "fixed_input_sizes", self.fixed_input_sizes
             )
 
             # This is specifically a workaround for weight tying
