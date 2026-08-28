@@ -21,7 +21,7 @@ from perforatedai import blockwise_perforatedai as BPA
 from perforatedai import network_perforatedai as NPA
 
 try:
-    from Dashboard_Utils.event_emitter import emitter as _dashboard_emitter
+    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
 except ImportError:
     _dashboard_emitter = None
 
