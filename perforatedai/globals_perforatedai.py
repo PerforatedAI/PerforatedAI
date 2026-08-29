@@ -937,7 +937,7 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "perforated_backpropagation", self.perforated_backpropagation
             )
-            
+
             # This is specifically a workaround for weight tying
             # Not to be used for a duplicate pointer that isn't actually run twice
             self.weight_tying_experimental = False

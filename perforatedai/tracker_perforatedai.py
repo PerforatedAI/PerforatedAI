@@ -25,20 +25,12 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from dashboard_utils.event_emitter import emitter as _dashboard_emitter
-except ImportError:
+except ImportError as e:
+    print(f"[ERROR] Failed to import dashboard_utils.event_emitter: {e}")
     _dashboard_emitter = None
 
 
 def _pai_log(level, message):
-    """Emit a tracker log message to dashboard or stdout.
-
-    Parameters
-    ----------
-    level : str
-        Log level such as ``info``, ``warning``, or ``error``.
-    message : str
-        Message text to emit.
-    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -63,6 +55,47 @@ TRAINING_COMPLETE = 2
 # Status constant for each batch
 STEP_CLEARED = 0
 STEP_CALLED = 1
+
+# Shared palette for save_graphs PNGs so the local graphs read as the same
+# product as the dashboard charts. White background is kept intentionally -
+# these PNGs get embedded in docs and papers.
+_PAI_PALETTE = {
+    "dendrite": "#00E0B5",  # Dendrite / PAI
+    "normal": "#FD4D00",  # Normal
+    "validation": "#59CD6C",  # Validation score
+    "train": "#E072A4",  # Train score
+    "test": "#9781E6",  # Test / next extra score
+    "learning_rate": "#1A659E",  # Learning rate
+    "grid": "#004145",  # Grid lines (use at low alpha)
+    "marker_best": "#1A1A1A",  # Global-best marker (not a data colour)
+    "marker_improved": "#7A7A7A",  # Epoch-last-improved marker
+}
+
+# Cycle for extra_scores beyond train/test, and for dendrite layer curves.
+_PAI_EXTRA_CYCLE = ["#9781E6", "#1A659E", "#00A5A5", "#F2B807"]
+_PAI_DENDRITE_CYCLE = [
+    "#00E0B5",
+    "#00A5A5",
+    "#1A659E",
+    "#9781E6",
+    "#E072A4",
+    "#F2B807",
+]
+
+
+def _pai_grid(ax):
+    """Apply the shared PAI grid styling to an axis."""
+    ax.grid(True, color=_PAI_PALETTE["grid"], alpha=0.25)
+
+
+def _pai_extra_score_color(extra_name, extra_index):
+    """Colour for an ``extra_scores`` series by name, then by cycle position."""
+    lowered = str(extra_name).lower()
+    if lowered == "train":
+        return _PAI_PALETTE["train"]
+    if lowered == "test":
+        return _PAI_PALETTE["test"]
+    return _PAI_EXTRA_CYCLE[extra_index % len(_PAI_EXTRA_CYCLE)]
 
 
 def update_restructuring_status(old_status, new_status):
@@ -450,6 +483,7 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
+
         old_silent = GPA.pc.get_silent()
         GPA.pc.set_silent(True)
         UPA.load_system(net, GPA.pc.get_save_name(), "best_model", switch_call=True)
@@ -2489,12 +2523,14 @@ class PAINeuronModuleTracker:
                         len(self.member_vars["overwritten_extras"][list_id][extra_id])
                     ),
                     self.member_vars["overwritten_extras"][list_id][extra_id],
-                    "r",
+                    color=_PAI_PALETTE["train"],
+                    alpha=0.35,
                 )
             ax.plot(
                 np.arange(len(self.member_vars["overwritten_vals"][list_id])),
                 self.member_vars["overwritten_vals"][list_id],
-                "b",
+                color=_PAI_PALETTE["validation"],
+                alpha=0.35,
             )
 
         # Determine which accuracy vector to use
@@ -2507,19 +2543,27 @@ class PAINeuronModuleTracker:
         extra_scores = self.member_vars["extra_scores"]
 
         # Plot the main accuracy scores
-        ax.plot(np.arange(len(accuracies)), accuracies, label="Validation Scores")
+        ax.plot(
+            np.arange(len(accuracies)),
+            accuracies,
+            label="Validation Scores",
+            color=_PAI_PALETTE["validation"],
+        )
         ax.plot(
             np.arange(len(self.member_vars["running_accuracies"])),
             self.member_vars["running_accuracies"],
             label="Validation Running Scores",
+            color=_PAI_PALETTE["validation"],
+            alpha=0.4,
         )
 
         # Plot additional scores
-        for extra_score in extra_scores:
+        for extra_index, extra_score in enumerate(extra_scores):
             ax.plot(
                 np.arange(len(extra_scores[extra_score])),
                 extra_scores[extra_score],
                 label=extra_score,
+                color=_pai_extra_score_color(extra_score, extra_index),
             )
 
         plt.title(save_folder + "/" + self.save_name + "Scores")
@@ -2531,13 +2575,15 @@ class PAINeuronModuleTracker:
             ax.plot(
                 self.member_vars["epoch_last_improved"],
                 self.member_vars["global_best_validation_score"],
-                "bo",
+                "o",
+                color=_PAI_PALETTE["marker_best"],
                 label="Global best (y)",
             )
             ax.plot(
                 self.member_vars["epoch_last_improved"],
                 accuracies[self.member_vars["epoch_last_improved"]],
-                "go",
+                "o",
+                color=_PAI_PALETTE["marker_improved"],
                 label="Epoch Last Improved",
             )
         else:
@@ -2549,7 +2595,8 @@ class PAINeuronModuleTracker:
                 ax.plot(
                     (len(self.member_vars["n_accuracies"]) - 1) - missed_time,
                     self.member_vars["n_accuracies"][-(missed_time + 1)],
-                    "go",
+                    "o",
+                    color=_PAI_PALETTE["marker_improved"],
                     label="Epoch Last Improved",
                 )
 
@@ -2625,19 +2672,32 @@ class PAINeuronModuleTracker:
                 ax.set_ylim(ymax=max_val)
 
         ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        _pai_grid(ax)
 
-        # Draw vertical lines for epochs where a dendrite switch occurred
+        # Draw vertical lines for epochs where a dendrite switch occurred.
+        # Colour by the phase being entered: dendrite/PAI phase -> teal,
+        # normal phase -> orange (not an alternating r/b).
         if GPA.pc.get_drawing_pai() and self.member_vars["doing_pai"]:
-            color = "r"
-            for switcher in self.member_vars["switch_epochs"]:
-                plt.axvline(x=switcher, ymin=0, ymax=1, color=color)
-                if color == "r":
-                    color = "b"
+            p_switches = set(self.member_vars["p_switch_epochs"])
+            for i, switcher in enumerate(self.member_vars["switch_epochs"]):
+                if p_switches:
+                    entering_p = switcher in p_switches
                 else:
-                    color = "r"
+                    # First switch enters the dendrite phase, then alternate.
+                    entering_p = (i % 2) == 0
+                plt.axvline(
+                    x=switcher,
+                    ymin=0,
+                    ymax=1,
+                    color=_PAI_PALETTE["dendrite"]
+                    if entering_p
+                    else _PAI_PALETTE["normal"],
+                )
         else:
             for switcher in self.member_vars["n_switch_epochs"]:
-                plt.axvline(x=switcher, ymin=0, ymax=1, color="b")
+                plt.axvline(
+                    x=switcher, ymin=0, ymax=1, color=_PAI_PALETTE["normal"]
+                )
 
     def generate_time_plots(self, ax, save_folder, extra_string):
         """
@@ -2662,21 +2722,27 @@ class PAINeuronModuleTracker:
                 np.arange(len(self.member_vars["n_train_times"])),
                 self.member_vars["n_train_times"],
                 label="Normal Epoch Train Times",
+                color=_PAI_PALETTE["normal"],
             )
             ax.plot(
                 np.arange(len(self.member_vars["p_train_times"])),
                 self.member_vars["p_train_times"],
                 label="PAI Epoch Train Times",
+                color=_PAI_PALETTE["dendrite"],
             )
             ax.plot(
                 np.arange(len(self.member_vars["n_val_times"])),
                 self.member_vars["n_val_times"],
                 label="Normal Epoch Val Times",
+                color=_PAI_PALETTE["normal"],
+                alpha=0.45,
             )
             ax.plot(
                 np.arange(len(self.member_vars["p_val_times"])),
                 self.member_vars["p_val_times"],
                 label="PAI Epoch Val Times",
+                color=_PAI_PALETTE["dendrite"],
+                alpha=0.45,
             )
 
             plt.title(
@@ -2686,6 +2752,7 @@ class PAINeuronModuleTracker:
             plt.ylabel("Epoch Time in Seconds ")
             ax.set_ylim(ymin=0)
             ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+            _pai_grid(ax)
 
             pd1 = pd.DataFrame(
                 {
@@ -2727,11 +2794,13 @@ class PAINeuronModuleTracker:
                 np.arange(len(self.member_vars["n_epoch_times"])),
                 self.member_vars["n_epoch_times"],
                 label="Normal Epoch Times",
+                color=_PAI_PALETTE["normal"],
             )
             ax.plot(
                 np.arange(len(self.member_vars["p_epoch_times"])),
                 self.member_vars["p_epoch_times"],
                 label="PAI Epoch Times",
+                color=_PAI_PALETTE["dendrite"],
             )
 
             plt.title(
@@ -2741,6 +2810,7 @@ class PAINeuronModuleTracker:
             plt.ylabel("Epoch Time in Seconds ")
             ax.set_ylim(ymin=0)
             ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+            _pai_grid(ax)
 
             pd1 = pd.DataFrame(
                 {
@@ -2772,6 +2842,7 @@ class PAINeuronModuleTracker:
                 / self.values_per_train_epoch,
                 linestyle="dashed",
                 label="Normal Train Item Times",
+                color=_PAI_PALETTE["normal"],
             )
             ax2.plot(
                 np.arange(len(self.member_vars["p_train_times"])),
@@ -2779,18 +2850,23 @@ class PAINeuronModuleTracker:
                 / self.values_per_train_epoch,
                 linestyle="dashed",
                 label="PAI Train Item Times",
+                color=_PAI_PALETTE["dendrite"],
             )
             ax2.plot(
                 np.arange(len(self.member_vars["n_val_times"])),
                 np.array(self.member_vars["n_val_times"]) / self.values_per_val_epoch,
                 linestyle="dashed",
                 label="Normal Val Item Times",
+                color=_PAI_PALETTE["normal"],
+                alpha=0.45,
             )
             ax2.plot(
                 np.arange(len(self.member_vars["p_val_times"])),
                 np.array(self.member_vars["p_val_times"]) / self.values_per_val_epoch,
                 linestyle="dashed",
                 label="PAI Val Item Times",
+                color=_PAI_PALETTE["dendrite"],
+                alpha=0.45,
             )
             ax2.tick_params(axis="y")
             ax2.set_ylim(ymin=0)
@@ -2818,11 +2894,13 @@ class PAINeuronModuleTracker:
             np.arange(len(self.member_vars["training_learning_rates"])),
             self.member_vars["training_learning_rates"],
             label="learning_rate",
+            color=_PAI_PALETTE["learning_rate"],
         )
         plt.title(save_folder + "/" + self.save_name + "learning_rate")
         plt.xlabel("Epochs")
         plt.ylabel("learning_rate")
         ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        _pai_grid(ax)
 
         pd1 = pd.DataFrame(
             {
@@ -2843,14 +2921,9 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict[str, Any]
+        dict
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
-
-
-        Parameters
-        ----------
-        None
 
         """
         if not self.member_vars["doing_pai"]:
@@ -2869,6 +2942,43 @@ class PAINeuronModuleTracker:
             if layer_id >= len(self.member_vars["best_scores"]):
                 continue
             layer_scores = self.member_vars["best_scores"][layer_id]
+            if len(layer_scores) == 0:
+                continue
+            score = layer_scores[-1]
+            if hasattr(score, "item"):
+                score = score.item()
+            score = float(score)
+            if math.isnan(score) or math.isinf(score):
+                continue
+            scores[self.neuron_module_vector[layer_id].name] = score
+        return scores
+
+    def get_current_pb_scores_current(self):
+        """
+        Like :meth:`get_current_pb_scores` but returns the *current* (not best)
+        PBScore of each dendrite layer - ``current_scores[layer][-1]`` - the
+        dashed series in ``generate_dendrite_learning_plots``.
+
+        Returns
+        -------
+        dict
+            Layer name to score.  Empty outside of dendrite scoring phases.
+        """
+        if not self.member_vars["doing_pai"]:
+            return {}
+        if not GPA.pc.get_perforated_backpropagation():
+            return {}
+        if (
+            self.member_vars["mode"] != "p"
+            and not GPA.pc.get_learn_dendrites_live()
+        ):
+            return {}
+
+        scores = {}
+        for layer_id in range(len(self.neuron_module_vector)):
+            if layer_id >= len(self.member_vars["current_scores"]):
+                continue
+            layer_scores = self.member_vars["current_scores"][layer_id]
             if len(layer_scores) == 0:
                 continue
             score = layer_scores[-1]
@@ -2904,8 +3014,10 @@ class PAINeuronModuleTracker:
             pd2 = None
             num_colors = len(self.neuron_module_vector)
 
-            cm = plt.get_cmap("gist_rainbow")
-            layer_colors = [cm(1.0 * i / max(num_colors, 1)) for i in range(num_colors)]
+            layer_colors = [
+                _PAI_DENDRITE_CYCLE[i % len(_PAI_DENDRITE_CYCLE)]
+                for i in range(num_colors)
+            ]
 
             for layer_id in range(len(self.neuron_module_vector)):
                 color = layer_colors[layer_id]
@@ -2965,8 +3077,11 @@ class PAINeuronModuleTracker:
                 loc="upper left",
                 ncol=max(1, math.ceil(len(self.neuron_module_vector) / 30)),
             )
+            _pai_grid(ax)
             for switcher in self.member_vars["p_switch_epochs"]:
-                plt.axvline(x=switcher, ymin=0, ymax=1, color="r")
+                plt.axvline(
+                    x=switcher, ymin=0, ymax=1, color=_PAI_PALETTE["dendrite"]
+                )
 
             if self.member_vars["mode"] == "p":
                 missed_time = (
@@ -2977,7 +3092,7 @@ class PAINeuronModuleTracker:
                     x=(len(self.member_vars["best_scores"][0]) - (missed_time + 1)),
                     ymin=0,
                     ymax=1,
-                    color="g",
+                    color=_PAI_PALETTE["normal"],
                 )
 
             # pd1 here will be none if no PB layers are created
@@ -3400,8 +3515,12 @@ class PAINeuronModuleTracker:
         if GPA.pc.get_perforated_backpropagation():
             TPB.update_pb_scores(self)
 
-        # Captured before any switch below flips the mode and reloads scores
+        # Captured before any switch below flips the mode and reloads scores.
+        # epoch_phase is sampled here too so the emitted epoch event's phase and
+        # its pb_scores always describe the same side of a switch boundary.
+        epoch_phase = GPA.pai_tracker.member_vars["mode"]
         epoch_pb_scores = self.get_current_pb_scores()
+        epoch_pb_scores_current = self.get_current_pb_scores_current()
 
         GPA.pai_tracker.stop_epoch(internal_call=True)
 
@@ -3446,7 +3565,15 @@ class PAINeuronModuleTracker:
                 # if this was the final try return that training is complete
                 if new_restructuring_status_value == TRAINING_COMPLETE:
                     if _dashboard_emitter is not None:
-                        _dashboard_emitter.emit_run_end(GPA.pc)
+                        _dashboard_emitter.emit_run_end(
+                            GPA.pc,
+                            epoch_last_improved=GPA.pai_tracker.member_vars[
+                                "epoch_last_improved"
+                            ],
+                            global_best_score=GPA.pai_tracker.member_vars[
+                                "global_best_validation_score"
+                            ],
+                        )
                     return net, True, True
                 else:
                     restructuring_status_value = update_restructuring_status(
@@ -3487,13 +3614,24 @@ class PAINeuronModuleTracker:
                         if _dashboard_emitter is not None:
                             _dashboard_emitter.emit_dendrite_added(
                                 GPA.pc,
-                                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
+                                epoch_index=len(
+                                    GPA.pai_tracker.member_vars["accuracies"]
+                                ) - 1,
                                 num_dendrites_integrated=GPA.pai_tracker.member_vars[
                                     "num_dendrites_integrated"
                                 ],
+                                param_count=UPA.count_params(net),
                             )
                     if _dashboard_emitter is not None:
-                        _dashboard_emitter.emit_run_end(GPA.pc)
+                        _dashboard_emitter.emit_run_end(
+                            GPA.pc,
+                            epoch_last_improved=GPA.pai_tracker.member_vars[
+                                "epoch_last_improved"
+                            ],
+                            global_best_score=GPA.pai_tracker.member_vars[
+                                "global_best_validation_score"
+                            ],
+                        )
                     return net, True, True
 
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
@@ -3528,6 +3666,13 @@ class PAINeuronModuleTracker:
                             f'{GPA.pc.get_save_name()}/best_model_beforeSwitch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}.pt',
                         )
 
+                if GPA.pc.get_dashboard_debug():
+                    _pai_log(
+                        "debug",
+                        "[emitter/finding4] before change_learning_modes: "
+                        f'len(accuracies)={len(GPA.pai_tracker.member_vars["accuracies"])} '
+                        f'num_epochs_run={GPA.pai_tracker.member_vars["num_epochs_run"]}',
+                    )
                 net = UPA.change_learning_modes(
                     net,
                     GPA.pc.get_save_name(),
@@ -3535,6 +3680,13 @@ class PAINeuronModuleTracker:
                     GPA.pai_tracker.member_vars["doing_pai"],
                 )
                 restructuring_status_value = NETWORK_RESTRUCTURED
+                if GPA.pc.get_dashboard_debug():
+                    _pai_log(
+                        "debug",
+                        "[emitter/finding4] after change_learning_modes: "
+                        f'len(accuracies)={len(GPA.pai_tracker.member_vars["accuracies"])} '
+                        f'num_epochs_run={GPA.pai_tracker.member_vars["num_epochs_run"]}',
+                    )
                 
                 # Now increment after change_learning_modes has loaded the best model
                 # This ensures the increment persists and doesn't get overwritten
@@ -3544,10 +3696,13 @@ class PAINeuronModuleTracker:
                     if _dashboard_emitter is not None:
                         _dashboard_emitter.emit_dendrite_added(
                             GPA.pc,
-                            epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
+                            epoch_index=len(
+                                GPA.pai_tracker.member_vars["accuracies"]
+                            ) - 1,
                             num_dendrites_integrated=GPA.pai_tracker.member_vars[
                                 "num_dendrites_integrated"
                             ],
+                            param_count=UPA.count_params(net),
                         )
 
             # If restructured is true, clear scheduler/optimizer before saving
@@ -3580,18 +3735,43 @@ class PAINeuronModuleTracker:
         if _dashboard_emitter is not None:
             _mv = GPA.pai_tracker.member_vars
             _lr = _mv["training_learning_rates"][-1] if _mv["training_learning_rates"] else None
-            _train_score = _mv["extra_scores"].get("train", [None])[-1]
+            # epoch_index is the committed coordinate: len(accuracies) - 1,
+            # captured after update_running_accuracy appends and after any reload
+            # truncation in switch handling. Independent of num_epochs_run.
+            _epoch_index = len(_mv["accuracies"]) - 1
+            if GPA.pc.get_dashboard_debug():
+                _pai_log(
+                    "debug",
+                    "[emitter/finding4] emit_epoch: "
+                    f"epoch_index={_epoch_index} "
+                    f'true_epoch={_mv["num_epochs_run"]} '
+                    f'restructured={restructuring_status_value == NETWORK_RESTRUCTURED} '
+                    f'tail_accuracies={_mv["accuracies"][-4:]}',
+                )
+            # Phase captured at the top of the method (pre-switch), matching the
+            # point pb_scores were sampled - see Finding 2, ticket 06.
+            _phase = epoch_phase
+            # scores: validation (reported), running (checkpointed member var),
+            # then every add_extra_score name verbatim.
+            _scores = {
+                "validation": accuracy,
+                "running": _mv["running_accuracies"][-1] if _mv["running_accuracies"] else None,
+            }
+            for _name, _vals in _mv["extra_scores"].items():
+                if _vals:
+                    _scores[_name] = _vals[-1]
             _n_times = _mv["n_epoch_times"] or [(_mv["n_train_times"][-1] + _mv["n_val_times"][-1]) if (_mv["n_train_times"] and _mv["n_val_times"]) else None]
             _p_times = _mv["p_epoch_times"] or [(_mv["p_train_times"][-1] + _mv["p_val_times"][-1]) if (_mv["p_train_times"] and _mv["p_val_times"]) else None]
             _dashboard_emitter.emit_epoch(
                 GPA.pc,
-                epoch=_mv["num_epochs_run"],
-                validation_score=accuracy,
+                epoch_index=_epoch_index,
+                phase=_phase,
+                scores=_scores,
                 learning_rate=_lr,
-                train_score=_train_score,
-                normal_time=_n_times[-1],
-                pai_time=_p_times[-1],
+                normal_time=_n_times[-1] if _phase == "n" else None,
+                pai_time=_p_times[-1] if _phase == "p" else None,
                 pb_scores=epoch_pb_scores,
+                pb_scores_current=epoch_pb_scores_current,
             )
         GPA.pai_tracker.save_graphs()
 
@@ -3628,8 +3808,11 @@ class PAINeuronModuleTracker:
             _param_count = UPA.count_params(net)
             _dashboard_emitter.emit_switch(
                 GPA.pc,
-                switch_number=GPA.pai_tracker.member_vars["num_dendrites_added"],
-                epoch=GPA.pai_tracker.member_vars["num_epochs_run"],
+                # switch_epochs was already appended in change_learning_modes,
+                # so subtract 1 for a 0-based ordinal (matches matplotlib's
+                # np.arange(len(switch_epochs)) labelling) - Finding 1, ticket 06.
+                switch_ordinal=len(GPA.pai_tracker.member_vars["switch_epochs"]) - 1,
+                epoch_index=len(GPA.pai_tracker.member_vars["accuracies"]) - 1,
                 param_count=_param_count,
                 switch_type=GPA.pai_tracker.member_vars["mode"],
             )
