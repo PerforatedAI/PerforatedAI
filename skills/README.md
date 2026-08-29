@@ -8,7 +8,7 @@ They teach your AI coding agent how to integrate [PerforatedAI](https://github.c
 
 | Skill                                                                                   | Say / when it triggers                                                                                         |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **[perforatedai](perforatedai/SKILL.md)**                                               | `"Perforate my model"` to start setup, or `"Debug my perforated model"`. The main entry point - start here.    |
+| **[perforatedai](perforatedai/SKILL.md)**                                               | `"Perforate my model"` to start setup, `"Debug my perforated model"` to debug, `"Load my perforated model for inference"` to deploy, or `"Export my perforated model"` for ONNX/TFLite/TorchScript. The main entry point - start here. |
 | **[perforatedai-analyze](perforatedai-analyze/SKILL.md)**                               | `"Analyze my perforated results"` after training completes. Reviews CSV outputs and recommends config changes. |
 | **[perforatedai-distributed](perforatedai-distributed/SKILL.md)**                       | Auto-loaded by the main skill when DataParallel / DDP multi-GPU training is detected.                          |
 | **[perforatedai-libraries-transformers](perforatedai-libraries-transformers/SKILL.md)** | Auto-loaded when your script uses the HuggingFace `Trainer`.                                                   |

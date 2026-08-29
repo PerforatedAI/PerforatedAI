@@ -48,9 +48,6 @@ from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 from perforatedai import network_perforatedai as NPA
 
-# Import MobileNetV3 pre-FC wrapper
-import mobilenetv3_prefc
-
 import wandb
 from types import SimpleNamespace
 
@@ -94,7 +91,7 @@ class Top3CheckpointTracker:
             
             # Clean up old checkpoint files
             for _, old_epoch in removed:
-                checkpoint_file = f"{self.save_name}/top3_epoch_{epoch}_pai.pt"
+                checkpoint_file = f"{self.save_name}/top3_epoch_{old_epoch}_pai.pt"
                 if os.path.exists(checkpoint_file):
                     os.remove(checkpoint_file)
                     print(f"Removed checkpoint file: top3_epoch_{old_epoch}_pai.pt")
@@ -882,14 +879,9 @@ def main(args):
             )
             print(f"Applied dropout rate: {args.dropout}")
 
-    # For MobileNetV3 with pre-FC layer:
-    # Track all original model components (features, avgpool, classifier)
-    # Only the pre_fc layer will be perforated
+    # Track backbone/pooling for checkpointing; Linear layers in classifier get perforated
     GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier"])
-    
-    # Wrap model with PerforatedAI - adds perforable pre-FC layer
-    model = mobilenetv3_prefc.MobileNetV3PAI(model)
-    
+
     # Build save name
     save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
@@ -927,9 +919,15 @@ def main(args):
     optimizer, lr_scheduler = create_optimizer_and_scheduler(
         model, args, custom_keys_weight_decay
     )
-    args.lr = (
-        args.lr * 10
-    )  # Increase LR after restructuring to help adapt to new architecture
+
+    # Diagnostic: verify optimizer has all model parameters
+    total_model_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_opt_params = sum(p.numel() for g in optimizer.param_groups for p in g["params"])
+    print(f"[DIAG] Model trainable params: {total_model_params:,}")
+    print(f"[DIAG] Optimizer params:       {total_opt_params:,}")
+    if total_opt_params < total_model_params * 0.9:
+        print(f"[DIAG] WARNING: optimizer is missing {total_model_params - total_opt_params:,} params!")
+
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
     model_without_ddp = model
