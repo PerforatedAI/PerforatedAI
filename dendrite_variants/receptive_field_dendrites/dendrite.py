@@ -11,9 +11,72 @@ from typing import Optional, Tuple
 import numpy as np
 import torch
 
+from torch    import Tensor, nn
+from torch.nn import functional as F
+
 from perforatedai import globals_perforatedai as GPA
 
-from .model import MaskedLinear
+
+#
+"""
+MaskedLinear
+"""
+class MaskedLinear(nn.Module):
+    '''
+    Linear block whose connectivity is pinned by a boolean mask
+
+    Notes:
+        - The mask multiplies the weight inside forward instead of being
+          baked into the weight values
+            -> PAI builds every dendrite by deep copying its parent module
+               and then overwriting all of its parameters with fresh noise,
+               so a connectivity carried in the parameter values would not
+               survive dendrite creation
+            -> Buffers are left alone by that, so we implement that way
+        - W <- W (*) M
+            -> Evaluated every forward instead of after every gradient step
+            -> The multiply is in the graph, so masked entries get a zero
+               gradient already
+
+    Signature:
+        in_features (int):
+            - Number of input features
+        out_features (int):
+            - Number of output features
+        mask (Tensor):
+            - Boolean connectivity, 1 wherever a synapse exists
+                Shape -> [out_features, in_features]
+    '''
+
+    def __init__(
+        self,
+        in_features : int,
+        out_features: int,
+        mask        : Tensor,
+    ) -> None:
+        super().__init__()
+        self.in_features  = in_features
+        self.out_features = out_features
+
+        self.weight = nn.Parameter(torch.empty(out_features, in_features))
+        self.bias   = nn.Parameter(torch.empty(out_features))
+        self.register_buffer('rf', mask.detach().clone().float())
+
+        nn.init.xavier_uniform_(self.weight)
+        nn.init.zeros_(self.bias)
+
+    def synapse_count(self) -> int:
+        return int(self.rf.sum().item())
+
+    def extra_repr(self) -> str:
+        return (
+            f'in_features={self.in_features}, '
+            f'out_features={self.out_features}, '
+            f'synapses={self.synapse_count()}'
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return F.linear(x, self.weight * self.rf, self.bias)
 
 
 #
