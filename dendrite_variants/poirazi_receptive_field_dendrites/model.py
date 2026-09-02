@@ -10,7 +10,7 @@ import torch
 
 from torch    import Tensor, nn
 from torch.nn import functional as F
-from typing   import List, Optional
+from typing   import List
 
 
 #
@@ -88,16 +88,9 @@ class PerforatedDendriticANN(nn.Module):
     Dendritic ANN whose dendrites come from PAI, not from a layer
 
     Notes:
-        - Each soma is a single MaskedLinear reading the input directly,
-          and PAI wraps it so that the paper's dendrites become dendrite slots
-            -> soma_j = f2(sum_k c_jk f1(W_jk x + b_jk) + b_j)
-            -> W_jk   = dendrite_module.layers[k]
-            -> f1     = LeakyReLU
-            -> c_jk   = dendrites_to_top
-            -> b_j    = MaskedLinear bias
-            -> Original paper has no input to soma path
-                - Soma masks is usually all zero
-                - Only contributes bias
+        - Each soma module is provided externally (e.g. CleanSomas) and PAI
+          grows dendrites on top of it:
+            soma_j output + sum_k(dendrite_jk output) → LeakyReLU → next layer
 
     Signature:
         input_size (int):
@@ -105,18 +98,13 @@ class PerforatedDendriticANN(nn.Module):
         num_layers (int):
             - Number of somatic layers
         soma (List[int]):
-            - Somata for each layer
+            - Output width of each somatic layer
+        soma_modules (List[nn.Module]):
+            - Pre-built soma module for each layer
         num_classes (int):
             - Number of output classes
         name (str):
             - Model name used when building output paths
-        soma_masks (List[Tensor]):
-            - Input mask of each soma block, in layer order; only used when
-              soma_modules is None
-                num_layers masks, each Shape -> [soma[j], in_features]
-        soma_modules (List[nn.Module]):
-            - Pre-built soma modules, one per layer; when provided, soma_masks
-              is ignored and these are registered directly
         relu_slope (float):
             - Negative slope of the leaky relu activations
         dropout (bool):
@@ -129,10 +117,9 @@ class PerforatedDendriticANN(nn.Module):
         input_size  : int,
         num_layers  : int,
         soma        : List[int],
+        soma_modules: List[nn.Module],
         num_classes : int,
         name        : str,
-        soma_masks  : Optional[List[Tensor]] = None,
-        soma_modules: Optional[List['nn.Module']] = None,
         relu_slope  : float = 0.1,
         dropout     : bool  = False,
         rate        : float = 0.0,
@@ -141,26 +128,12 @@ class PerforatedDendriticANN(nn.Module):
         self.name        = name
         self.num_classes = num_classes
 
-        if soma_modules is None and (soma_masks is None or len(soma_masks) != num_layers):
-            raise ValueError(
-                f'Provide either soma_modules or soma_masks with {num_layers} entries.'
-            )
-
-        self.input  = nn.Identity()
-        layer_names = ['input']
+        layer_names = []
 
         in_features = input_size
         for j in range(num_layers):
             soma_name = f'soma_{j + 1}'
-
-            if soma_modules is not None:
-                setattr(self, soma_name, soma_modules[j])
-            else:
-                setattr(
-                    self,
-                    soma_name,
-                    MaskedLinear(in_features, soma[j], soma_masks[j]),
-                )
+            setattr(self, soma_name, soma_modules[j])
             layer_names.append(soma_name)
 
             setattr(

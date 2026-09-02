@@ -51,7 +51,6 @@ from perforatedai import utils_perforatedai   as UPA
 
 from poirazi_receptive_field_dendrites import (
     initialize_variant_dendrite,
-    MaskedLinear,
     PerforatedDendriticANN,
 )
 from clean_somas import CleanSomas
@@ -61,33 +60,12 @@ from clean_somas import CleanSomas
 """
 Data
 """
-torchvision_sets = {
+datasets_dir = pathlib.Path(__file__).resolve().parent / 'DATASETS'
+
+_dataset_cls = {
     'mnist' : torchvision.datasets.MNIST,
     'fmnist': torchvision.datasets.FashionMNIST,
 }
-
-datasets_dir = pathlib.Path(__file__).resolve().parent / 'DATASETS'
-
-
-def as_numpy_arrays(
-    dataset: torchvision.datasets.VisionDataset,
-) -> Tuple[np.ndarray, np.ndarray]:
-    images = dataset.data
-    labels = dataset.targets
-    if isinstance(images, torch.Tensor):
-        images = images.numpy()
-    if isinstance(labels, torch.Tensor):
-        labels = labels.numpy()
-    return np.asarray(images), np.asarray(labels).squeeze()
-
-
-def perturb_array(
-    arr         : np.ndarray,
-    perturbation: np.ndarray,
-    amin        : float = 0,
-    amax        : float = 1,
-) -> np.ndarray:
-    return np.clip(arr + perturbation, amin, amax)
 
 
 def check_common_member(a: Any, b: Any) -> bool:
@@ -144,99 +122,61 @@ def sequential_preprocess(
     }
 
 
-def get_data(
-    validation_split: float,
-    dtype           : str             = 'mnist',
-    normalize       : bool            = True,
-    add_noise       : bool            = False,
-    sigma           : Optional[float] = None,
-    sequential      : bool            = False,
-    batch_size      : Optional[int]   = None,
-    seed            : Optional[int]   = None,
-) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], int, int, int]:
+def load_data(
+    dtype           : str,
+    sigma           : float,
+    seed            : int,
+    validation_split: float = 0.1,
+    sequential      : bool  = False,
+    batch_size      : int   = 128,
+) -> Tuple[np.ndarray, ...]:
+    if dtype not in _dataset_cls:
+        raise ValueError(f'Unknown dataset {dtype!r}, expected one of {sorted(_dataset_cls)}.')
+
     rng = np.random.default_rng(seed)
 
-    if dtype not in torchvision_sets:
-        raise ValueError(
-            f'Unknown dataset {dtype}, expected one of '
-            f'{sorted(torchvision_sets)}.'
-        )
+    raw_train = _dataset_cls[dtype](root = datasets_dir, train = True,  download = True)
+    raw_test  = _dataset_cls[dtype](root = datasets_dir, train = False, download = True)
 
-    dataset_cls = torchvision_sets[dtype]
-    x_train, y_train = as_numpy_arrays(
-        dataset_cls(root = datasets_dir, train = True,  download = True)
-    )
-    x_test, y_test   = as_numpy_arrays(
-        dataset_cls(root = datasets_dir, train = False, download = True)
-    )
+    x_train = raw_train.data.numpy().astype('float32') / 255.
+    y_train = raw_train.targets.numpy()
+    x_test  = raw_test.data.numpy().astype('float32') / 255.
+    y_test  = raw_test.targets.numpy()
 
-    if len(x_train.shape) == 3:
-        img_height, img_width = x_train.shape[1:]
-        channels = 1
-    elif len(x_train.shape) > 3:
-        img_height, img_width, channels = x_train.shape[1:]
+    if x_train.ndim == 3:
+        _, H, W = x_train.shape
+        C = 1
+    else:
+        _, H, W, C = x_train.shape
 
-    x_train = x_train.astype('float32') / 255.
-    x_test  = x_test.astype('float32') / 255.
-
-    x_train = np.reshape(x_train, (-1, channels * img_width * img_height))
-    x_test  = np.reshape(x_test,  (-1, channels * img_width * img_height))
+    x_train = x_train.reshape(-1, H * W * C)
+    x_test  = x_test.reshape(-1,  H * W * C)
 
     if sequential:
-        dataset = sequential_preprocess(
-            x_train, y_train,
-            batch_size       = batch_size,
-            validation_split = validation_split,
-            rng              = rng,
-        )
-        x_train = dataset['xtrain']
-        y_train = dataset['ytrain']
-        x_val   = dataset['xval']
-        y_val   = dataset['yval']
+        split   = sequential_preprocess(x_train, y_train, batch_size, validation_split, rng)
+        x_train = split['xtrain']
+        y_train = split['ytrain']
+        x_val   = split['xval']
+        y_val   = split['yval']
     else:
-        indices = np.arange(x_train.shape[0])
-        rng.shuffle(indices)
-        x_train = x_train[indices]
-        y_train = y_train[indices]
+        idx     = np.arange(len(x_train))
+        rng.shuffle(idx)
+        x_train = x_train[idx]
+        y_train = y_train[idx]
+        val_n   = int(validation_split * len(x_train))
+        x_val   = x_train[-val_n:].copy()
+        y_val   = y_train[-val_n:].copy()
+        x_train = x_train[:-val_n]
+        y_train = y_train[:-val_n]
 
-        valsize = int(validation_split * x_train.shape[0])
-        x_val   = x_train[-valsize:]
-        y_val   = y_train[-valsize:]
-        x_train = x_train[:-valsize]
-        y_train = y_train[:-valsize]
+    def _add_noise(x):
+        return np.clip(x + rng.normal(0.0, sigma, x.shape), 0.0, 1.0).astype('float32')
 
-    data   = {'train': x_train, 'val': x_val, 'test': x_test}
-    labels = {'train': y_train, 'val': y_val, 'test': y_test}
+    x_train = _add_noise(x_train)
+    x_val   = _add_noise(x_val)
+    x_test  = _add_noise(x_test)
 
-    if add_noise:
-        for key in data.keys():
-            perturbation = rng.normal(
-                loc   = 0.0,
-                scale = sigma,
-                size  = data[key].shape,
-            )
-            data[key] = perturb_array(data[key], perturbation)
-
-    return data, labels, img_height, img_width, channels
-
-
-def make_loader(
-    x         : np.ndarray,
-    y         : np.ndarray,
-    batch_size: int,
-    shuffle   : bool,
-    generator : Optional[torch.Generator] = None,
-) -> DataLoader:
-    dataset = TensorDataset(
-        torch.as_tensor(np.asarray(x), dtype = torch.float32),
-        torch.as_tensor(np.asarray(y), dtype = torch.long),
-    )
-    return DataLoader(
-        dataset,
-        batch_size = batch_size,
-        shuffle    = shuffle,
-        generator  = generator,
-    )
+    return x_train, y_train, x_val, y_val, x_test, y_test, H, W, C
 
 
 def count_correct(logits: Tensor, targets: Tensor) -> int:
@@ -423,7 +363,6 @@ converge_eps  = int(sys.argv[19]) if argc > 19 else 0
 
 # Run settings that no shell script varies
 save             = True
-noise            = True
 batch_size       = 128
 validation_split = 0.1
 
@@ -519,34 +458,45 @@ pai_save_name = f'pai_{variant_postfix}'
 """
 Data
 """
-data, labels, img_height, img_width, channels = get_data(
-    validation_split = validation_split,
+x_train, y_train, x_val, y_val, x_test, y_test, img_height, img_width, channels = load_data(
     dtype            = datatype,
-    normalize        = True,
-    add_noise        = noise,
     sigma            = sigma,
+    seed             = trial,
+    validation_split = validation_split,
     sequential       = sequential,
     batch_size       = batch_size,
-    seed             = trial,
 )
-
-x_train, x_val, x_test = data['train'], data['val'], data['test']
-y_train, y_val, y_test = labels['train'], labels['val'], labels['test']
 
 num_classes = len(set(y_train))
 dends       = num_layers * [num_dends]
 soma        = num_layers * [num_soma]
 input_shape = (img_width * img_height * channels, )
 
-train_loader = make_loader(
-    x_train,
-    y_train,
-    batch_size,
-    shuffle   = not sequential,
-    generator = torch.Generator().manual_seed(trial),
+train_loader = DataLoader(
+    TensorDataset(
+        torch.as_tensor(np.asarray(x_train), dtype = torch.float32),
+        torch.as_tensor(np.asarray(y_train), dtype = torch.long),
+    ),
+    batch_size = batch_size,
+    shuffle    = not sequential,
+    generator  = torch.Generator().manual_seed(trial),
 )
-val_loader  = make_loader(x_val, y_val, batch_size, shuffle = False)
-test_loader = make_loader(x_test, y_test, batch_size, shuffle = False)
+val_loader = DataLoader(
+    TensorDataset(
+        torch.as_tensor(np.asarray(x_val), dtype = torch.float32),
+        torch.as_tensor(np.asarray(y_val), dtype = torch.long),
+    ),
+    batch_size = batch_size,
+    shuffle    = False,
+)
+test_loader = DataLoader(
+    TensorDataset(
+        torch.as_tensor(np.asarray(x_test), dtype = torch.float32),
+        torch.as_tensor(np.asarray(y_test), dtype = torch.long),
+    ),
+    batch_size = batch_size,
+    shuffle    = False,
+)
 
 
 #
