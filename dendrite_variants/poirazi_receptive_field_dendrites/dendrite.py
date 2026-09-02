@@ -20,17 +20,17 @@ from .model import MaskedLinear
 """
 State
 """
-_rf_mode     : str                    = 'random'
-_synapses    : int                    = 0
-_img_shape   : Optional[Tuple]        = None
-_soma_centers: dict                   = {}
+_rf_mode     : str             = 'random'
+_synapses    : int             = 0
+_img_shape   : Optional[Tuple] = None
+_soma_centers: dict            = {}
 
 
 #
 """
 Receptive Field Helpers
 """
-def _nb_vals(
+def nb_vals(
     matrix   : np.ndarray,
     indices,
     size     : int  = 1,
@@ -54,31 +54,44 @@ def _nb_vals(
     return np.column_stack((rr.flatten(), cc.flatten()))
 
 
-def _allocate_synapses(
+def allocate_synapses(
     nb          : tuple,
     matrix      : np.ndarray,
     num_synapses: int,
-    num_channels: int = 1,
+    num_channels: int                           = 1,
+    rng         : Optional[np.random.Generator] = None,
 ) -> np.ndarray:
+    def _choice(n, size):
+        if rng is None:
+            return np.random.choice(n, size = size, replace = False)
+        return rng.choice(n, size = size, replace = False)
+
     M, N        = matrix.shape
     mask        = np.zeros((M, N))
-    syn_indices = _nb_vals(matrix, list(nb))
+    syn_indices = nb_vals(matrix, list(nb))
 
     if len(syn_indices) < num_synapses:
         radius = 2
         while len(syn_indices) < num_synapses:
-            extra = _nb_vals(matrix, list(nb), size = radius, perimeter = True)
+            extra = nb_vals(matrix, list(nb), size = radius, perimeter = True)
             if len(extra) == 0:
                 break
             diff = num_synapses - len(syn_indices)
             if len(extra) > diff:
-                extra = extra[np.random.choice(len(extra), diff, replace = False)]
-            syn_indices = np.concatenate((syn_indices, extra))
+                syn_indices = np.concatenate(
+                    (syn_indices, extra[_choice(len(extra), diff)])
+                )
+            else:
+                syn_indices = np.concatenate((syn_indices, extra))
             radius += 1
     elif len(syn_indices) > num_synapses:
-        syn_indices = syn_indices[
-            np.random.choice(len(syn_indices), num_synapses, replace = False)
-        ]
+        syn_indices = syn_indices[_choice(len(syn_indices), num_synapses)]
+
+    if len(syn_indices) != num_synapses:
+        raise ValueError(
+            f'Could not find {num_synapses} pixels. '
+            f'Image might be too small!'
+        )
 
     mask[syn_indices[:, 0], syn_indices[:, 1]] = 1
     if num_channels > 1:
@@ -106,7 +119,11 @@ def create_poirazi_dendrite(parent_module: MaskedLinear) -> MaskedLinear:
         parent_module (MaskedLinear):
             - The soma block PAI is growing a dendrite candidate for
     '''
-    out_f, in_f = parent_module.weight.shape
+    if hasattr(parent_module, 'weight'):
+        out_f, in_f = parent_module.weight.shape
+    else:
+        out_f = parent_module.config['out_features']
+        in_f  = parent_module.config['in_features']
     synapses    = _synapses
 
     if _rf_mode == 'all_to_all':
@@ -131,12 +148,12 @@ def create_poirazi_dendrite(parent_module: MaskedLinear) -> MaskedLinear:
                 )
             center = _soma_centers[soma_id]
             for j in range(out_f):
-                rf_np[j] = _allocate_synapses(center, matrix, synapses, C)
+                rf_np[j] = allocate_synapses(center, matrix, synapses, C)
 
         else:
             for j in range(out_f):
                 center   = (int(np.random.randint(0, W)), int(np.random.randint(0, H)))
-                rf_np[j] = _allocate_synapses(center, matrix, synapses, C)
+                rf_np[j] = allocate_synapses(center, matrix, synapses, C)
 
         rf = torch.as_tensor(rf_np, dtype = torch.float32)
 

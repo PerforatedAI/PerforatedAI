@@ -37,10 +37,8 @@ import pathlib
 import numpy as np
 import torchvision
 
-from dataclasses      import dataclass
 from datetime         import datetime, timezone
 from torch            import Tensor, nn
-from torch.nn         import functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from typing           import Any, Dict, List, Optional, Tuple
 
@@ -56,334 +54,7 @@ from poirazi_receptive_field_dendrites import (
     MaskedLinear,
     PerforatedDendriticANN,
 )
-
-
-#
-"""
-Receptive Fields
-"""
-def nb_vals(
-    matrix   : np.ndarray,
-    indices  : List[int],
-    size     : int  = 1,
-    perimeter: bool = False,
-) -> np.ndarray:
-    M, N = matrix.shape
-    r = int(np.atleast_1d(indices)[0])
-    c = int(np.atleast_1d(indices)[1])
-
-    r_min = max(0, r - size)
-    r_max = min(M - 1, r + size)
-    c_min = max(0, c - size)
-    c_max = min(N - 1, c + size)
-
-    rr, cc = np.meshgrid(
-        np.arange(r_min, r_max + 1),
-        np.arange(c_min, c_max + 1),
-        indexing = 'ij',
-    )
-
-    if perimeter:
-        dist = np.maximum(np.abs(rr - r), np.abs(cc - c))
-        mask = (dist == size)
-        return np.column_stack((rr[mask], cc[mask]))
-
-    return np.column_stack((rr.flatten(), cc.flatten()))
-
-
-def random_connectivity(
-    inputs : int,
-    outputs: int,
-    opt    : str           = 'random',
-    conns  : Optional[int] = None,
-    rng    : Optional[np.random.Generator] = None,
-) -> np.ndarray:
-    if rng is None:
-        rng = np.random.default_rng()
-
-    mask = np.zeros(shape = (inputs, outputs))
-    if opt == 'one_to_one':
-        idxs = rng.integers(
-            low  = 0,
-            high = mask.shape[0],
-            size = mask.shape[1],
-        )
-        for i in range(mask.shape[1]):
-            mask[idxs[i], i] = 1
-
-    elif opt == 'random':
-        if conns is None or conns <= 0 or not isinstance(conns, int):
-            raise ValueError('Specify `conns` as positive integer.')
-        elif conns > mask.size:
-            raise ValueError(
-                'Specify `conns` as positive integer lower than `inputs*outputs`'
-            )
-        indices = rng.choice(inputs * outputs, conns, replace = False)
-        mask.flat[indices] = 1
-
-    elif opt == 'constant':
-        if conns is None or conns <= 0 or not isinstance(conns, int):
-            raise ValueError('Specify `conns` as positive integer.')
-        if conns > mask.shape[0]:
-            raise ValueError('`conns` cannot be more than input nodes.')
-        for i in range(mask.shape[1]):
-            idx = rng.choice(mask.shape[0], conns, replace = False)
-            mask[idx, i] = 1
-    else:
-        raise ValueError(
-            'Not a valid option. `opt` should be `one_to_one`, `random` or `constant`'
-        )
-
-    return mask.T.astype('int')
-
-
-def connectivity(inputs: int, outputs: int) -> np.ndarray:
-    if outputs <= 0:
-        raise ValueError('Number of outputs must be greater than zero.')
-    if inputs <= 0:
-        raise ValueError('Number of inputs must be greater than zero.')
-    if inputs % outputs != 0:
-        raise ValueError(
-            'Inputs must be divisible by outputs without a remainder.'
-        )
-
-    connectivity_matrix = np.zeros((inputs, outputs), dtype = int)
-    in_per_out          = inputs // outputs
-    for j in range(outputs):
-        start_index = in_per_out * j
-        end_index   = start_index + in_per_out
-        connectivity_matrix[start_index:end_index, j] = 1
-
-    return connectivity_matrix.T
-
-
-def allocate_synapses(
-    nb             : List[int],
-    matrix         : np.ndarray,
-    num_of_synapses: int,
-    num_channels   : int = 1,
-    rng            : Optional[np.random.Generator] = None,
-) -> np.ndarray:
-    if rng is None:
-        rng = np.random.default_rng()
-
-    M, N = matrix.shape
-    mask = np.zeros((M, N))
-
-    syn_indices = nb_vals(matrix, list(nb))
-
-    if len(syn_indices) < num_of_synapses:
-        current_radius = 2
-        while len(syn_indices) < num_of_synapses:
-            extra_syns = nb_vals(
-                matrix, list(nb), size = current_radius, perimeter = True
-            )
-            if len(extra_syns) == 0:
-                break
-            diff = num_of_synapses - len(syn_indices)
-            if len(extra_syns) > diff:
-                chosen_idx  = rng.choice(
-                    len(extra_syns), size = diff, replace = False
-                )
-                syn_indices = np.concatenate(
-                    (syn_indices, extra_syns[chosen_idx])
-                )
-            else:
-                syn_indices = np.concatenate((syn_indices, extra_syns))
-            current_radius += 1
-
-    elif len(syn_indices) > num_of_synapses:
-        idx         = rng.choice(
-            len(syn_indices), size = num_of_synapses, replace = False
-        )
-        syn_indices = syn_indices[idx]
-
-    if len(syn_indices) != num_of_synapses:
-        raise ValueError(
-            f'Could not find {num_of_synapses} pixels. '
-            f'Image might be too small!'
-        )
-
-    row_indices = syn_indices[:, 0]
-    col_indices = syn_indices[:, 1]
-    mask[row_indices, col_indices] = 1
-
-    if num_channels > 1:
-        mask = np.expand_dims(mask, axis = 2)
-        mask = np.tile(mask, (1, 1, num_channels))
-
-    return mask.reshape(M * N * num_channels)
-
-
-def make_mask_matrix(
-    centers_ids    : List[Tuple[int, int]],
-    matrix         : np.ndarray,
-    dendrites      : int,
-    somata         : int,
-    num_of_synapses: int,
-    num_channels   : int = 1,
-    rfs_type       : str = 'somatic',
-    rng            : Optional[np.random.Generator] = None,
-) -> np.ndarray:
-    if rng is None:
-        rng = np.random.default_rng()
-
-    M, N       = matrix.shape
-    mask_final = np.zeros((dendrites * somata, matrix.size * num_channels))
-    counter    = 0
-
-    if rfs_type == 'somatic':
-        for center in centers_ids:
-            nb_indices = nb_vals(matrix, list(center), size = 1)
-
-            if len(nb_indices) < dendrites:
-                current_radius = 2
-                while len(nb_indices) < dendrites:
-                    extra_centers = nb_vals(
-                        matrix, list(center),
-                        size      = current_radius,
-                        perimeter = True,
-                    )
-                    if len(extra_centers) == 0:
-                        break
-                    diff = dendrites - len(nb_indices)
-                    if len(extra_centers) > diff:
-                        chosen_idx = rng.choice(
-                            len(extra_centers), size = diff, replace = False
-                        )
-                        nb_indices = np.concatenate(
-                            (nb_indices, extra_centers[chosen_idx])
-                        )
-                    else:
-                        nb_indices = np.concatenate(
-                            (nb_indices, extra_centers)
-                        )
-                    current_radius += 1
-
-            if len(nb_indices) > dendrites:
-                chosen_idx = rng.choice(
-                    len(nb_indices), size = dendrites, replace = False
-                )
-                nb_indices = nb_indices[chosen_idx]
-
-            for nb in nb_indices:
-                mask_final[counter, :] = allocate_synapses(
-                    nb, matrix, num_of_synapses,
-                    num_channels = num_channels, rng = rng,
-                )
-                counter += 1
-
-    elif rfs_type == 'dendritic':
-        for center in centers_ids:
-            mask_final[counter, :] = allocate_synapses(
-                center, matrix, num_of_synapses,
-                num_channels = num_channels, rng = rng,
-            )
-            counter += 1
-
-    return mask_final
-
-
-def receptive_fields(
-    matrix         : np.ndarray,
-    somata         : int,
-    dendrites      : int,
-    num_of_synapses: int,
-    opt            : str = 'random',
-    rfs_type       : str = 'somatic',
-    step           : Optional[int]   = None,
-    prob           : Optional[float] = None,
-    num_channels   : int             = 1,
-    num_rfs        : Optional[int]   = None,
-    centers_ids    : Optional[List[Tuple[int, int]]] = None,
-    rng            : Optional[np.random.Generator]   = None,
-) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
-    if rng is None:
-        rng = np.random.default_rng()
-    M, N = matrix.shape
-
-    if rfs_type == 'somatic':
-        nodes = somata
-    elif rfs_type == 'dendritic':
-        nodes = dendrites * somata
-
-    if not centers_ids:
-        if opt == 'random':
-            flat_indices = rng.choice(M * N, size = nodes, replace = True)
-            centers_w, centers_h = np.unravel_index(flat_indices, (M, N))
-            centers_ids = list(zip(centers_w, centers_h))
-
-        elif opt == 'random_limited':
-            if num_rfs is None:
-                raise ValueError(
-                    '`num_rfs` should be a positive integer under '
-                    '`random_limited`. Found `None`'
-                )
-            limited_w = rng.integers(0, M, size = num_rfs)
-            limited_h = rng.integers(0, N, size = num_rfs)
-            chosen_indices = rng.choice(num_rfs, size = nodes, replace = True)
-            centers_w   = limited_w[chosen_indices]
-            centers_h   = limited_h[chosen_indices]
-            centers_ids = list(zip(centers_w, centers_h))
-
-        elif opt == 'semirandom':
-            if prob is None:
-                raise ValueError(
-                    '`prob` should be a float in [0,1] under `semirandom`. '
-                    'Found `None`'
-                )
-            p       = rng.random(nodes)
-            somata1 = int(np.sum(p > prob))
-            somata2 = int(np.sum(p < prob))
-
-            w1, w2 = M // 4, 3 * M // 4
-            h1, h2 = N // 4, 3 * N // 4
-
-            centers_ids2 = []
-            if somata2 > 0:
-                in_w = rng.integers(w1, w2, size = somata2)
-                in_h = rng.integers(h1, h2, size = somata2)
-                centers_ids2 = list(zip(in_w, in_h))
-
-            centers_ids1 = []
-            if somata1 > 0:
-                w_coords, h_coords = np.meshgrid(
-                    np.arange(M), np.arange(N), indexing = 'ij'
-                )
-                center_mask    = (
-                    (w_coords >= w1) & (w_coords < w2)
-                    & (h_coords >= h1) & (h_coords < h2)
-                )
-                valid_periphery      = np.argwhere(~center_mask)
-                chosen_periphery_idx = rng.choice(
-                    len(valid_periphery), size = somata1, replace = True
-                )
-                out_coords   = valid_periphery[chosen_periphery_idx]
-                centers_ids1 = list(
-                    zip(out_coords[:, 0], out_coords[:, 1])
-                )
-
-            centers_ids = centers_ids1 + centers_ids2
-
-        elif opt == 'serial':
-            if step is None:
-                raise ValueError(
-                    '`step` should be a positive integer under `serial`. '
-                    'Found `None`'
-                )
-            xv, yv = np.meshgrid(
-                range(M), range(N), sparse = False, indexing = 'ij'
-            )
-            centers_ids = list(
-                zip(xv.flatten()[::step], yv.flatten()[::step])
-            )
-
-    mask_final = make_mask_matrix(
-        centers_ids, matrix, dendrites, somata,
-        num_of_synapses, num_channels, rfs_type, rng,
-    )
-
-    return (mask_final.astype('int'), centers_ids)
+from clean_somas import CleanSomas
 
 
 #
@@ -597,166 +268,44 @@ def evaluate(
 
 #
 """
-Masks
+Model types
 """
-@dataclass(frozen = True)
-class ModelSetup:
-    name        : str
-    rfs         : bool          = False
-    rfs_type    : str           = 'somatic'
-    input_sample: Optional[str] = None
+model_names = {
+    0 : 'dend_ann_random',
+    1 : 'dend_ann_global_rfs',
+    2 : 'dend_ann_local_rfs',
+    10: 'dend_ann_all_to_all',
+}
 
-model_setups = {
-    0 : ModelSetup('dend_ann_random'),
-    1 : ModelSetup('dend_ann_global_rfs', rfs = True),
-    2 : ModelSetup('dend_ann_local_rfs',  rfs = True, rfs_type = 'dendritic'),
-    10: ModelSetup('dend_ann_all_to_all', input_sample = 'all_to_all'),
+rf_modes = {
+    0 : 'random',
+    1 : 'somatic',
+    2 : 'dendritic',
+    10: 'all_to_all',
 }
 
 
-def make_masks(
-    dends       : List[int],
-    soma        : List[int],
-    synapses    : int,
-    num_layers  : int,
-    img_width   : int,
-    img_height  : int,
-    num_classes : int  = 10,
-    channels    : int  = 1,
-    rfs         : bool = True,
-    rfs_type    : str  = 'somatic',
-    rfs_mode    : str  = 'random',
-    input_sample: Optional[str] = None,
-    seed        : Optional[int] = None,
-) -> List[np.ndarray]:
-    rng   = np.random.default_rng(seed)
-    masks = []
-
-    for i in range(num_layers):
-        if i == 0:
-            matrix = np.zeros((img_width, img_height))
-        else:
-            divisors = [
-                j for j in range(1, soma[i - 1] + 1) if soma[i - 1] % j == 0
-            ]
-            ix = len(divisors) // 2
-            if len(divisors) % 2 == 0:
-                matrix = np.zeros((divisors[ix], divisors[ix - 1]))
-            else:
-                matrix = np.zeros((divisors[ix], divisors[ix]))
-
-        if rfs:
-            mask_s_d, centers = receptive_fields(
-                matrix,
-                somata          = soma[i],
-                dendrites       = dends[i],
-                num_of_synapses = synapses,
-                opt             = rfs_mode,
-                rfs_type        = rfs_type,
-                prob            = 0.7,
-                num_channels    = channels if i == 0 else 1,
-                rng             = rng,
-            )
-        else:
-            inputs_size = matrix.size
-            factor      = channels if i == 0 else 1
-            mask_s_d = random_connectivity(
-                inputs  = inputs_size * factor,
-                outputs = soma[i] * dends[i],
-                conns   = synapses * soma[i] * dends[i],
-                rng     = rng,
-            )
-        masks.append(mask_s_d)
-        masks.append(np.ones((mask_s_d.shape[0], )).astype('int'))
-
-        mask_d_s = connectivity(
-            inputs  = dends[i] * soma[i],
-            outputs = soma[i],
-        )
-        masks.append(mask_d_s)
-        masks.append(np.ones((mask_d_s.shape[0], )).astype('int'))
-
-    if input_sample == 'all_to_all':
-        for i, m in enumerate(masks):
-            if i % 4 == 0:
-                masks[i] = np.ones_like(m)
-
-    masks.append(np.ones((num_classes, masks[-2].shape[0])).astype('int'))
-    masks.append(np.ones((num_classes, )).astype('int'))
-
-    return masks
-
-
-def split_dendrite_masks(
-    masks       : List[np.ndarray],
-    dends       : List[int],
-    soma        : List[int],
-    num_layers  : int,
-    direct_input: str = 'none',
-) -> Tuple[List[Tensor], List[List[Tensor]]]:
-    if direct_input not in ('none', 'union'):
-        raise ValueError(
-            f"direct_input must be none or union, got {direct_input!r}."
-        )
-
-    soma_masks : List[Tensor]       = []
-    slot_masks : List[List[Tensor]] = []
-
-    for i in range(num_layers):
-        dend_mask = np.asarray(masks[4 * i])
-        expected  = dends[i] * soma[i]
-        if dend_mask.shape[0] != expected:
-            raise ValueError(
-                f'Layer {i} dendrite mask has {dend_mask.shape[0]} rows, '
-                f'expected {expected}.'
-            )
-
-        layer_slots = [
-            torch.as_tensor(
-                dend_mask[k::dends[i], :].copy(),
-                dtype = torch.float32,
-            )
-            for k in range(dends[i])
-        ]
-        slot_masks.append(layer_slots)
-
-        if direct_input == 'union':
-            union = np.stack([
-                dend_mask[j * dends[i]:(j + 1) * dends[i], :].max(axis = 0)
-                for j in range(soma[i])
-            ])
-            soma_masks.append(
-                torch.as_tensor(union, dtype = torch.float32)
-            )
-        else:
-            soma_masks.append(
-                torch.zeros(soma[i], dend_mask.shape[1])
-            )
-
-    return soma_masks, slot_masks
-
-
 def get_perforated_model(
-    input_shape: Tuple[int, ...],
-    num_layers : int,
-    soma       : List[int],
-    soma_masks : List[Tensor],
-    num_classes: int,
-    fname_model: str,
-    relu_slope : float = 0.1,
-    dropout    : bool  = False,
-    rate       : float = 0.0,
+    input_shape  : Tuple[int, ...],
+    num_layers   : int,
+    soma         : List[int],
+    soma_modules : List[nn.Module],
+    num_classes  : int,
+    fname_model  : str,
+    relu_slope   : float = 0.1,
+    dropout      : bool  = False,
+    rate         : float = 0.0,
 ) -> PerforatedDendriticANN:
     return PerforatedDendriticANN(
-        input_size  = input_shape[0],
-        num_layers  = num_layers,
-        soma        = soma,
-        soma_masks  = soma_masks,
-        num_classes = num_classes,
-        name        = fname_model,
-        relu_slope  = relu_slope,
-        dropout     = dropout,
-        rate        = rate,
+        input_size   = input_shape[0],
+        num_layers   = num_layers,
+        soma         = soma,
+        num_classes  = num_classes,
+        name         = fname_model,
+        soma_modules = soma_modules,
+        relu_slope   = relu_slope,
+        dropout      = dropout,
+        rate         = rate,
     )
 
 
@@ -853,7 +402,7 @@ gpu_id       = int(sys.argv[1])     # cuda device index
 seq_flag     = int(sys.argv[2])     # 1 to present classes sequentially
 estop_flag   = int(sys.argv[3])     # 1 to enable early stopping
 trial        = int(sys.argv[4])     # seeds every generator the run touches
-model_type   = int(sys.argv[5])     # row of model_setups to build
+model_type   = int(sys.argv[5])     # selects entry in model_names / rf_modes
 sigma        = float(sys.argv[6])   # standard deviation of input noise
 datatype     = sys.argv[7]          # mnist or fmnist
 num_dends    = int(sys.argv[8])     # dendrites per soma, PAI slots
@@ -941,8 +490,7 @@ dropout    = bool(drop_flag)
 
 seed_info = seed_everything(trial)
 
-setup       = model_setups[model_type]
-fname_model = f'pai_{setup.name}'
+fname_model = f'pai_{model_names[model_type]}'
 
 file_tag = '_sequential' if sequential else ''
 if dropout:
@@ -1005,35 +553,23 @@ test_loader = make_loader(x_test, y_test, batch_size, shuffle = False)
 """
 Model
 """
-masks = make_masks(
-    dends,
-    soma,
-    synapses,
-    num_layers,
-    img_width,
-    img_height,
-    num_classes,
-    channels,
-    rfs          = setup.rfs,
-    rfs_type     = setup.rfs_type,
-    rfs_mode     = 'random',
-    input_sample = setup.input_sample,
-    seed         = trial,
-)
-
-soma_masks, slot_masks = split_dendrite_masks(
-    masks,
-    dends,
-    soma,
-    num_layers,
-    direct_input = direct_input,
-)
+in_f         = input_shape[0]
+soma_modules = []
+for j in range(num_layers):
+    soma_modules.append(CleanSomas(
+        soma[j],
+        config = {
+            'in_features' : in_f,
+            'out_features': soma[j],
+        },
+    ))
+    in_f = soma[j]
 
 model = get_perforated_model(
     input_shape,
     num_layers,
     soma,
-    soma_masks,
+    soma_modules,
     num_classes,
     fname_model = fname_model,
     dropout     = dropout,
@@ -1060,7 +596,7 @@ model.to(device)
 # Register the factory and wire in rf-mask pinning via the variant framework
 initialize_variant_dendrite(
     synapses  = synapses,
-    rf_mode   = 'random',  # all_to_all | random | somatic | dendritic
+    rf_mode   = 'random',
     img_shape = (img_width, img_height, channels),
 )
 
@@ -1192,7 +728,6 @@ out = {
     'trainable_params': trainable_parameter_count(model),
     'growth_end'      : growth_end,
     'converge_epochs' : converge_eps,
-    'Masks'           : masks,
 }
 
 print(f'\ntest_loss: {test_loss:.4f} - test_acc: {test_acc:.4f}')

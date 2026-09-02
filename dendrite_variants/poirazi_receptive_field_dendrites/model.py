@@ -10,7 +10,7 @@ import torch
 
 from torch    import Tensor, nn
 from torch.nn import functional as F
-from typing   import List
+from typing   import List, Optional
 
 
 #
@@ -106,13 +106,17 @@ class PerforatedDendriticANN(nn.Module):
             - Number of somatic layers
         soma (List[int]):
             - Somata for each layer
-        soma_masks (List[Tensor]):
-            - Input mask of each soma block, in layer order
-                num_layers masks, each Shape -> [soma[j], in_features]
         num_classes (int):
             - Number of output classes
         name (str):
             - Model name used when building output paths
+        soma_masks (List[Tensor]):
+            - Input mask of each soma block, in layer order; only used when
+              soma_modules is None
+                num_layers masks, each Shape -> [soma[j], in_features]
+        soma_modules (List[nn.Module]):
+            - Pre-built soma modules, one per layer; when provided, soma_masks
+              is ignored and these are registered directly
         relu_slope (float):
             - Negative slope of the leaky relu activations
         dropout (bool):
@@ -122,23 +126,24 @@ class PerforatedDendriticANN(nn.Module):
     '''
     def __init__(
         self,
-        input_size : int,
-        num_layers : int,
-        soma       : List[int],
-        soma_masks : List[Tensor],
-        num_classes: int,
-        name       : str,
-        relu_slope : float = 0.1,
-        dropout    : bool  = False,
-        rate       : float = 0.0,
+        input_size  : int,
+        num_layers  : int,
+        soma        : List[int],
+        num_classes : int,
+        name        : str,
+        soma_masks  : Optional[List[Tensor]] = None,
+        soma_modules: Optional[List['nn.Module']] = None,
+        relu_slope  : float = 0.1,
+        dropout     : bool  = False,
+        rate        : float = 0.0,
     ) -> None:
         super().__init__()
         self.name        = name
         self.num_classes = num_classes
 
-        if len(soma_masks) != num_layers:
+        if soma_modules is None and (soma_masks is None or len(soma_masks) != num_layers):
             raise ValueError(
-                f'Got {len(soma_masks)} soma masks for {num_layers} layers.'
+                f'Provide either soma_modules or soma_masks with {num_layers} entries.'
             )
 
         self.input  = nn.Identity()
@@ -148,11 +153,14 @@ class PerforatedDendriticANN(nn.Module):
         for j in range(num_layers):
             soma_name = f'soma_{j + 1}'
 
-            setattr(
-                self,
-                soma_name,
-                MaskedLinear(in_features, soma[j], soma_masks[j]),
-            )
+            if soma_modules is not None:
+                setattr(self, soma_name, soma_modules[j])
+            else:
+                setattr(
+                    self,
+                    soma_name,
+                    MaskedLinear(in_features, soma[j], soma_masks[j]),
+                )
             layer_names.append(soma_name)
 
             setattr(
