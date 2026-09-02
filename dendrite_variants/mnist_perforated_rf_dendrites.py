@@ -33,7 +33,7 @@ import torchvision
 from torch            import nn
 from collections      import OrderedDict
 from torch.utils.data import DataLoader, TensorDataset
-from typing           import List, Optional, Tuple
+from typing           import Any, Dict, List, Optional, Tuple
 
 # Only this script's directory needs to be on the path, for the local
 # receptive_field_dendrites package
@@ -58,11 +58,67 @@ _dataset_cls = {
 }
 
 
+def check_common_member(a: Any, b: Any) -> bool:
+    return len(set(a).intersection(set(b))) > 0
+
+
+def sequential_preprocess(
+    input_train     : np.ndarray,
+    target_train    : np.ndarray,
+    batch_size      : int,
+    validation_split: float,
+    rng             : Optional[np.random.Generator] = None,
+) -> Dict[str, np.ndarray]:
+    if rng is None:
+        rng = np.random.default_rng()
+
+    target_train = target_train.squeeze()
+    a, b = np.unique(target_train, return_counts = True)
+
+    val_size = int(
+        validation_split * input_train.shape[0] / (batch_size * len(a))
+    )
+
+    k1     = b // batch_size
+    ktrain = (k1 - val_size) * batch_size
+    kval   = b - ktrain
+
+    val_set = []
+    for i in range(len(a)):
+        idx = np.argwhere(target_train == i).squeeze()
+        val_set += list(rng.choice(idx, size = kval[i], replace = False))
+
+    train_set = list(
+        set(list(range(target_train.shape[0]))) - set(val_set)
+    )
+
+    if check_common_member(train_set, val_set):
+        raise ValueError('Error in indices.')
+
+    x_val   = input_train[val_set]
+    y_val   = target_train[val_set]
+    x_train = input_train[train_set]
+    y_train = target_train[train_set]
+
+    idx     = np.argsort(y_train)
+    x_train = x_train[idx]
+    y_train = y_train[idx]
+
+    return {
+        'xtrain': x_train,
+        'ytrain': y_train,
+        'xval'  : x_val,
+        'yval'  : y_val,
+    }
+
+
 def load_data(
     dtype           : str,
     sigma           : float,
     seed            : int,
     validation_split: float = 0.1,
+    sequential      : bool  = False,
+    batch_size      : int   = 128,
 ) -> Tuple[np.ndarray, ...]:
     if dtype not in _dataset_cls:
         raise ValueError(f'Unknown dataset {dtype!r}, expected one of {sorted(_dataset_cls)}.')
@@ -86,15 +142,28 @@ def load_data(
     x_train = x_train.reshape(-1, H * W * C)
     x_test  = x_test.reshape(-1,  H * W * C)
 
-    idx     = np.arange(len(x_train))
-    rng.shuffle(idx)
-    x_train = x_train[idx]
-    y_train = y_train[idx]
-    val_n   = int(validation_split * len(x_train))
-    x_val   = x_train[-val_n:].copy()
-    y_val   = y_train[-val_n:].copy()
-    x_train = x_train[:-val_n]
-    y_train = y_train[:-val_n]
+    if sequential:
+        splits  = sequential_preprocess(
+            input_train      = x_train,
+            target_train     = y_train,
+            batch_size       = batch_size,
+            validation_split = validation_split,
+            rng              = rng,
+        )
+        x_train = splits['xtrain']
+        y_train = splits['ytrain']
+        x_val   = splits['xval']
+        y_val   = splits['yval']
+    else:
+        idx     = np.arange(len(x_train))
+        rng.shuffle(idx)
+        x_train = x_train[idx]
+        y_train = y_train[idx]
+        val_n   = int(validation_split * len(x_train))
+        x_val   = x_train[-val_n:].copy()
+        y_val   = y_train[-val_n:].copy()
+        x_train = x_train[:-val_n]
+        y_train = y_train[:-val_n]
 
     def _add_noise(x):
         return np.clip(x + rng.normal(0.0, sigma, x.shape), 0.0, 1.0).astype('float32')
@@ -298,8 +367,9 @@ def trainable_parameter_count(model: nn.Module) -> int:
 """
 Config
 """
-# Positional CLI arguments (argv[2] and argv[3] are unused legacy slots)
+# Positional CLI arguments (argv[3] is an unused legacy slot)
 gpu_id       = int(sys.argv[1])     # cuda device index
+seq_flag     = int(sys.argv[2])     # 1 to use sequential (sorted) training
 trial        = int(sys.argv[4])     # seeds every generator the run touches
 model_type   = int(sys.argv[5])     # selects entry in model_names / rf_modes
 sigma        = float(sys.argv[6])   # standard deviation of input noise
@@ -323,8 +393,8 @@ converge_eps  = int(sys.argv[19]) if argc > 19 else 0
 batch_size       = 128
 validation_split = 0.1
 
-base_epochs = {'mnist': 15, 'fmnist': 25}[datatype]
-epoch_slack = 4
+_base, _base_seq = {'mnist': (15, 30), 'fmnist': (25, 50)}[datatype]
+epoch_slack      = 4
 
 
 #
@@ -334,7 +404,8 @@ Setup
 device = torch.device(
     f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu'
 )
-dropout = bool(drop_flag)
+dropout    = bool(drop_flag)
+sequential = bool(seq_flag)
 
 np.random.seed(trial)
 torch.manual_seed(trial)
@@ -345,7 +416,8 @@ if dropout:
     fname_model += f'_dropout_{rate_of_drop}'
 
 lr_tag     = f'_lr_{lr}' if lr != 0.001 else ''
-max_epochs = base_epochs + (num_dends + epoch_slack) * switch_epochs * 2
+base_epochs = _base_seq if sequential else _base
+max_epochs  = base_epochs + (num_dends + epoch_slack) * switch_epochs * 2
 dirname    = pathlib.Path(output_dir).resolve() / f'results_{datatype}_{num_layers}_layer{lr_tag}'
 outdir_name = dirname / fname_model
 postfix     = (
@@ -368,6 +440,8 @@ x_train, y_train, x_val, y_val, x_test, y_test, img_height, img_width, channels 
     sigma            = sigma,
     seed             = trial,
     validation_split = validation_split,
+    sequential       = sequential,
+    batch_size       = batch_size,
 )
 
 num_classes = len(set(y_train))
@@ -380,7 +454,7 @@ train_loader = DataLoader(
         torch.as_tensor(np.asarray(y_train), dtype = torch.long),
     ),
     batch_size = batch_size,
-    shuffle    = True,
+    shuffle    = not sequential,
 )
 val_loader = DataLoader(
     TensorDataset(
