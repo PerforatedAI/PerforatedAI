@@ -27,7 +27,6 @@ Imports
 import os
 import sys
 import copy
-import math
 import time
 import csv
 import json
@@ -42,9 +41,8 @@ from dataclasses      import dataclass
 from datetime         import datetime, timezone
 from torch            import Tensor, nn
 from torch.nn         import functional as F
-from torch.optim      import Optimizer
 from torch.utils.data import DataLoader, TensorDataset
-from typing           import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing           import Any, Dict, List, Optional, Tuple
 
 # Only this script's directory needs to be on the path, for the local
 # poirazi_receptive_field_dendrites package
@@ -53,290 +51,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai   as UPA
 
-from poirazi_receptive_field_dendrites import initialize_variant_dendrite
-
-
-#
-"""
-Optimizer
-"""
-class KerasCompatAdam(Optimizer):
-    '''
-    Adam with the bias correction folded into the step size
-
-    Signature:
-        params (Iterable):
-            - Parameters to optimize
-        lr (float):
-            - Learning rate
-        betas (Tuple[float, float]):
-            - Exponential decay rates for the moment estimates
-        eps (float):
-            - Term added to the denominator, matching the Keras default
-        weight_decay (float):
-            - L2 penalty added to the gradient, as Keras applies it
-    '''
-
-    def __init__(
-        self,
-        params      : Iterable,
-        lr          : float = 1e-3,
-        betas       : Tuple[float, float] = (0.9, 0.999),
-        eps         : float = 1e-7,
-        weight_decay: float = 0.0,
-    ) -> None:
-        if lr < 0.0:
-            raise ValueError(f'Invalid learning rate: {lr}')
-        if eps < 0.0:
-            raise ValueError(f'Invalid epsilon: {eps}')
-        if not 0.0 <= betas[0] < 1.0:
-            raise ValueError(f'Invalid beta_1: {betas[0]}')
-        if not 0.0 <= betas[1] < 1.0:
-            raise ValueError(f'Invalid beta_2: {betas[1]}')
-
-        defaults = dict(
-            lr           = lr,
-            betas        = betas,
-            eps          = eps,
-            weight_decay = weight_decay,
-        )
-        super().__init__(params, defaults)
-
-    @torch.no_grad()
-    def step(
-        self,
-        closure: Optional[Callable[[], Any]] = None,
-    ) -> Any:
-        '''
-        Apply one update to every parameter that carries a gradient
-
-        Signature:
-            closure (Optional[Callable[[], Any]]):
-                - Re-evaluates the model and returns the loss
-        '''
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-
-        for group in self.param_groups:
-            beta1, beta2 = group['betas']
-            lr           = group['lr']
-            eps          = group['eps']
-            decay        = group['weight_decay']
-
-            for p in group['params']:
-                if p.grad is None:
-                    continue
-
-                grad = p.grad
-                if grad.is_sparse:
-                    raise RuntimeError(
-                        'KerasCompatAdam does not support sparse gradients.'
-                    )
-
-                state = self.state[p]
-                if len(state) == 0:
-                    state['step'] = 0
-                    state['exp_avg'] = torch.zeros_like(
-                        p, memory_format = torch.preserve_format
-                    )
-                    state['exp_avg_sq'] = torch.zeros_like(
-                        p, memory_format = torch.preserve_format
-                    )
-
-                exp_avg    = state['exp_avg']
-                exp_avg_sq = state['exp_avg_sq']
-                state['step'] += 1
-                t = state['step']
-
-                if decay != 0.0:
-                    grad = grad.add(p, alpha = decay)
-
-                exp_avg.mul_(beta1).add_(grad, alpha = 1.0 - beta1)
-                exp_avg_sq.mul_(beta2).addcmul_(
-                    grad, grad, value = 1.0 - beta2
-                )
-
-                alpha_t = (
-                    lr * math.sqrt(1.0 - beta2 ** t) / (1.0 - beta1 ** t)
-                )
-                denom = exp_avg_sq.sqrt().add_(eps)
-                p.addcdiv_(exp_avg, denom, value = -alpha_t)
-
-        return loss
-
-
-#
-"""
-Model
-"""
-class MaskedLinear(nn.Module):
-    '''
-    Linear block whose connectivity is pinned by a boolean mask
-
-    Notes:
-        - The mask multiplies the weight inside forward instead of being
-          baked into the weight values
-            -> PAI builds every dendrite by deep copying its parent module
-               and then overwriting all of its parameters with fresh noise,
-               so a connectivity carried in the parameter values would not
-               survive dendrite creation
-            -> Buffers are left alone by that, so we implement that way
-        - W <- W (*) M
-            -> Evaluated every forward instead of after every gradient step
-            -> The multiply is in the graph, so masked entries get a zero
-               gradient already
-
-    Signature:
-        in_features (int):
-            - Number of input features
-        out_features (int):
-            - Number of output features
-        mask (Tensor):
-            - Boolean connectivity, 1 wherever a synapse exists
-                Shape -> [out_features, in_features]
-    '''
-
-    def __init__(
-        self,
-        in_features : int,
-        out_features: int,
-        mask        : Tensor,
-    ) -> None:
-        super().__init__()
-        self.in_features  = in_features
-        self.out_features = out_features
-
-        self.weight = nn.Parameter(torch.empty(out_features, in_features))
-        self.bias   = nn.Parameter(torch.empty(out_features))
-        self.register_buffer('rf', mask.detach().clone().float())
-
-        self.reset_parameters()
-
-    def reset_parameters(self) -> None:
-        nn.init.xavier_uniform_(self.weight)
-        nn.init.zeros_(self.bias)
-
-    def synapse_count(self) -> int:
-        return int(self.rf.sum().item())
-
-    def extra_repr(self) -> str:
-        return (
-            f'in_features={self.in_features}, '
-            f'out_features={self.out_features}, '
-            f'synapses={self.synapse_count()}'
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        return F.linear(x, self.weight * self.rf, self.bias)
-
-
-class PerforatedDendriticANN(nn.Module):
-    '''
-    Dendritic ANN whose dendrites come from PAI, not from a layer
-
-    Notes:
-        - Each soma is a single MaskedLinear reading the input directly,
-          and PAI wraps it so that the paper's dendrites become dendrite slots
-            -> soma_j = f2(sum_k c_jk f1(W_jk x + b_jk) + b_j)
-            -> W_jk   = dendrite_module.layers[k]
-            -> f1     = LeakyReLU
-            -> c_jk   = dendrites_to_top
-            -> b_j    = MaskedLinear bias
-            -> Original paper has no input to soma path
-                - Soma masks is usually all zero
-                - Only contributes bias
-
-    Signature:
-        input_size (int):
-            - Number of flattened input features per sample
-        num_layers (int):
-            - Number of somatic layers
-        soma (List[int]):
-            - Somata for each layer
-        soma_masks (List[Tensor]):
-            - Input mask of each soma block, in layer order
-                num_layers masks, each Shape -> [soma[j], in_features]
-        num_classes (int):
-            - Number of output classes
-        name (str):
-            - Model name used when building output paths
-        relu_slope (float):
-            - Negative slope of the leaky relu activations
-        dropout (bool):
-            - Whether a dropout op follows each activation
-        rate (float):
-            - Dropout probability, ignored when dropout is False
-    '''
-    def __init__(
-        self,
-        input_size : int,
-        num_layers : int,
-        soma       : List[int],
-        soma_masks : List[Tensor],
-        num_classes: int,
-        name       : str,
-        relu_slope : float = 0.1,
-        dropout    : bool  = False,
-        rate       : float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.name        = name
-        self.num_classes = num_classes
-
-        if len(soma_masks) != num_layers:
-            raise ValueError(
-                f'Got {len(soma_masks)} soma masks for {num_layers} layers.'
-            )
-
-        self.input  = nn.Identity()
-        layer_names = ['input']
-
-        in_features = input_size
-        for j in range(num_layers):
-            soma_name = f'soma_{j + 1}'
-
-            setattr(
-                self,
-                soma_name,
-                MaskedLinear(in_features, soma[j], soma_masks[j]),
-            )
-            layer_names.append(soma_name)
-
-            setattr(
-                self,
-                f'{soma_name}_relu',
-                nn.LeakyReLU(negative_slope = relu_slope),
-            )
-            layer_names.append(f'{soma_name}_relu')
-
-            if dropout:
-                setattr(self, f'{soma_name}_dropout', nn.Dropout(p = rate))
-                layer_names.append(f'{soma_name}_dropout')
-
-            in_features = soma[j]
-
-        self.output = nn.Linear(in_features, num_classes)
-        layer_names.append('output')
-
-        self.layer_names = layer_names
-        self.soma_names  = [f'soma_{j + 1}' for j in range(num_layers)]
-
-        nn.init.xavier_uniform_(self.output.weight)
-        nn.init.zeros_(self.output.bias)
-
-    @property
-    def layers(self) -> List[nn.Module]:
-        return [getattr(self, n) for n in self.layer_names]
-
-    def soma_modules(self) -> List[nn.Module]:
-        return [getattr(self, n) for n in self.soma_names]
-
-    def forward(self, x: Tensor) -> Tensor:
-        for layer in self.layers:
-            x = layer(x)
-        return x
+from poirazi_receptive_field_dendrites import (
+    initialize_variant_dendrite,
+    MaskedLinear,
+    PerforatedDendriticANN,
+)
 
 
 #
@@ -1077,34 +796,6 @@ def configure_pai(
     GPA.pc.set_testing_dendrite_capacity(test_capacity)
 
 
-def pin_dendrite_masks(
-    model     : PerforatedDendriticANN,
-    slot_masks: List[List[Tensor]],
-) -> None:
-    with torch.no_grad():
-        for index, soma in enumerate(model.soma_modules()):
-            dendrites = getattr(soma, 'dendrite_module', None)
-            if dendrites is None:
-                continue
-
-            layer_slots = slot_masks[index]
-            total       = len(layer_slots)
-            pending     = int(dendrites.num_dendrites) % total
-
-            for slot, layer in enumerate(dendrites.layers):
-                layer.rf.copy_(layer_slots[slot % total])
-
-            dendrites.parent_module.rf.copy_(layer_slots[pending])
-
-            for group in ('candidate_module', 'best_candidate_module'):
-                for candidate in getattr(dendrites, group, None) or []:
-                    candidate.rf.copy_(layer_slots[pending])
-
-            for cascade in dendrites.dendrites_to_dendrites:
-                cascade.zero_()
-                cascade.requires_grad_(False)
-
-
 def dendrite_report(model: PerforatedDendriticANN) -> str:
     parts = []
     for name, soma in zip(model.soma_names, model.soma_modules()):
@@ -1366,15 +1057,17 @@ model = UPA.perforate_model(
 )
 model.to(device)
 
-# Register the Poirazi receptive-field factory via the variant framework
-initialize_variant_dendrite()
+# Register the factory and wire in rf-mask pinning via the variant framework
+initialize_variant_dendrite(
+    synapses  = synapses,
+    rf_mode   = 'random',  # all_to_all | random | somatic | dendritic
+    img_shape = (img_width, img_height, channels),
+)
 
-pin_dendrite_masks(model, slot_masks)
-
-GPA.pai_tracker.set_optimizer(KerasCompatAdam)
+GPA.pai_tracker.set_optimizer(torch.optim.Adam)
 optimizer, _ = GPA.pai_tracker.setup_optimizer(
     model,
-    {'params': model.parameters(), 'lr': lr},
+    {'params': model.parameters(), 'lr': lr, 'eps': 1e-7},
     {},
 )
 loss_fn = torch.nn.CrossEntropyLoss()
@@ -1461,7 +1154,6 @@ while True:
     )
     model.to(device)
 
-    pin_dendrite_masks(model, slot_masks)
     dendrite_counts.append(dendrite_report(model))
 
     if training_complete:
@@ -1472,7 +1164,7 @@ while True:
             break
 
         converging = True
-        optimizer  = KerasCompatAdam(model.parameters(), lr = lr)
+        optimizer  = torch.optim.Adam(model.parameters(), lr = lr, eps = 1e-7)
         print(f'Converging the grown network for {converge_eps} epochs.\n')
         continue
 
