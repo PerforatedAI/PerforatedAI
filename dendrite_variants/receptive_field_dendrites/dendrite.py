@@ -166,7 +166,7 @@ def allocate_synapses(
 """
 Factory
 """
-def create_poirazi_dendrite(parent_module: MaskedLinear) -> MaskedLinear:
+def create_rf_dendrite(parent_module: MaskedLinear) -> MaskedLinear:
     '''
     Create one dendrite for a PAI slot
 
@@ -252,4 +252,4 @@ def initialize_variant_dendrite(
     _synapses     = synapses
     _img_shape    = img_shape
     _soma_centers = {}
-    GPA.pai_tracker.set_create_dendrite_global(create_poirazi_dendrite)
+    GPA.pai_tracker.set_create_dendrite_global(create_rf_dendrite)
