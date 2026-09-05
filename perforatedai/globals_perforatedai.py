@@ -406,6 +406,7 @@ class PAIConfig:
                 "unwrapped_modules_confirmed",
                 "weight_decay_accepted",
                 "checked_skipped_modules",
+                "configuration_confirmed",
                 "verbose",
                 "extra_verbose",
                 "silent",
@@ -638,13 +639,19 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "unwrapped_modules_confirmed", self.unwrapped_modules_confirmed
             )
-            self.weight_decay_accepted = False
+            # We used to be worried this caused problems, but it is now accepted.
+            # Leaving code in case future changes require revisiting this decision.
+            self.weight_decay_accepted = True
             add_pai_config_var_functions(
                 self, "weight_decay_accepted", self.weight_decay_accepted
             )
             self.checked_skipped_modules = False
             add_pai_config_var_functions(
                 self, "checked_skipped_modules", self.checked_skipped_modules
+            )
+            self.configuration_confirmed = False
+            add_pai_config_var_functions(
+                self, "configuration_confirmed", self.configuration_confirmed
             )
             # Analysis settings
             self.save_old_graph_scores = True
