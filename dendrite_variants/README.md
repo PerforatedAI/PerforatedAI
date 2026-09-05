@@ -116,3 +116,25 @@ The Dendritron guide explains:
 
 See [`dendritron/README.md`](dendritron/README.md) before integrating the variant
 into a training pipeline.
+
+## Included receptive-field variant
+
+The `receptive_field_dendrites/` directory implements a sparse dendrite factory
+that keeps the parent soma fully disconnected from raw inputs and routes all
+signal through a masked linear dendrite. The variant is useful when you want each
+candidate dendrite to mirror a localized or stochastic receptive field rather than
+using a dense or fully connected candidate module. This follows the architecture
+introduced in the Poirazi et al. paper on dendrite-based learning.
+
+This implementation exposes four connectivity modes:
+
+- `all_to_all`: every input pixel or feature is available to every output unit;
+- `random`: each output unit keeps exactly `synapses` random input connections;
+- `somatic`: all dendrites from the same soma share one spatial patch center;
+- `dendritic`: each dendrite samples its own independent spatial patch center.
+
+The factory is registered through `initialize_variant_dendrite(...)` and is meant
+to be called after `perforate_model` so the PerforatedAI growth loop can generate
+new RF-based dendrite candidates during training. See
+[`receptive_field_dendrites/README.md`](receptive_field_dendrites/README.md) for the
+full mode definitions and a concrete usage example.
