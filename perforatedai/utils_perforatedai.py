@@ -54,6 +54,7 @@ def perforate_model(
     values_per_train_epoch=-1,
     values_per_val_epoch=-1,
     zooming_graph=True,
+    config_file=None,
 ):
     """Main function to initialize the network to add dendrites
 
@@ -83,6 +84,8 @@ def perforate_model(
         during validation, by default -1 (all values).
     zooming_graph : bool, optional
         Whether to enable zooming on the graphs, by default True
+    config_file : str or None, optional
+        Optional local JSON config file path to load, by default None.
 
     Returns
     -------
@@ -90,9 +93,6 @@ def perforate_model(
         The modified model with dendrite scaffolding added if doing_pai is True
 
     """
-
-    if not GPA.pc.get_configuration_confirmed():
-        CPA.set_perforation_targets(model)
 
     if save_name == "":
         if GPA.pc.get_save_name() == "":
@@ -120,11 +120,19 @@ def perforate_model(
         print("Warning: save_name became empty after sanitization. Using 'PAI'.")
         save_name = "PAI"
 
+    if config_file is not None:
+        GPA.pc.set_config_file(config_file)
+
+    GPA.pc.set_save_name(save_name)
+    GPA.pc.sync_config_sources()
+
+    if not GPA.pc.get_configuration_confirmed():
+        CPA.set_perforation_targets(model)
+
     
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
-    GPA.pc.set_save_name(save_name)
     if _dashboard_emitter is not None:
         _dashboard_emitter.emit_run_start(GPA.pc, save_name)
     model = GPA.pai_tracker.initialize(
@@ -139,10 +147,9 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
     
-    # Save config after perforation
+    # Save run config after perforation
     if not GPA.pc.get_testing_dendrite_capacity():
-        import os
-        GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
+        GPA.pc.persist_config_outputs(overwrite_config_file=False)
     
     return model
 
