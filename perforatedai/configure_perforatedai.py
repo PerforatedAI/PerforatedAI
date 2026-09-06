@@ -922,6 +922,196 @@ def build_settings_items(expanded_buckets):
     return items
 
 
+def get_global_setting_value(setting_name):
+    """Read one setting value from the global config object."""
+    getter = getattr(GPA.pc, f"get_{setting_name}", None)
+    if getter is not None:
+        try:
+            return getter()
+        except Exception:
+            return "<unavailable>"
+    if hasattr(GPA.pc, setting_name) and not callable(getattr(GPA.pc, setting_name)):
+        return getattr(GPA.pc, setting_name)
+    return "<unavailable>"
+
+
+def load_existing_module_settings():
+    """Load existing module_settings from local config sources."""
+    merged = {}
+
+    source_paths = []
+    config_file = GPA.pc.get_config_file()
+    run_config = GPA.pc.get_run_config_path()
+    if config_file:
+        source_paths.append(config_file)
+    if run_config:
+        source_paths.append(run_config)
+
+    for source_path in source_paths:
+        if not source_path or not os.path.exists(source_path):
+            continue
+        try:
+            with open(source_path, "r") as file_handle:
+                payload = json.load(file_handle)
+            module_settings = payload.get("module_settings", {})
+            for scope_key, values in module_settings.items():
+                if isinstance(values, dict):
+                    merged[scope_key] = dict(values)
+        except Exception:
+            continue
+
+    return merged
+
+
+def get_scope_values(scope_key, module_settings_overrides, existing_module_settings):
+    """Get merged module-scope values from existing data plus in-session edits."""
+    values = {}
+    if scope_key in existing_module_settings:
+        values.update(existing_module_settings[scope_key])
+    if scope_key in module_settings_overrides:
+        values.update(module_settings_overrides[scope_key])
+    return values
+
+
+def build_module_settings_items(
+    expanded_buckets,
+    module_scope,
+    module_settings_overrides,
+    existing_module_settings,
+):
+    """Build bucketed items for module-customizable settings only."""
+    if module_scope is None:
+        return []
+
+    scope_key = module_scope["scope_key"]
+    scoped_values = get_scope_values(
+        scope_key, module_settings_overrides, existing_module_settings
+    )
+
+    grouped = {bucket_name: [] for bucket_name in BUCKET_ORDER}
+    for setting_name in sorted(GPA.PAIConfig._CUSTOMIZABLE.keys()):
+        bucket_name = classify_setting_bucket(setting_name)
+        grouped.setdefault(bucket_name, []).append(setting_name)
+
+    items = []
+    for bucket_name in BUCKET_ORDER:
+        settings_in_bucket = grouped.get(bucket_name, [])
+        if len(settings_in_bucket) == 0:
+            continue
+
+        is_expanded = expanded_buckets.get(bucket_name, False)
+        marker = "[-]" if is_expanded else "[+]"
+        items.append(
+            {
+                "type": "bucket",
+                "bucket": bucket_name,
+                "is_expanded": is_expanded,
+                "count": len(settings_in_bucket),
+                "text": f"{marker} {bucket_name} ({len(settings_in_bucket)})",
+            }
+        )
+
+        if is_expanded:
+            for setting_name in settings_in_bucket:
+                if setting_name in scoped_values:
+                    value = scoped_values[setting_name]
+                    source = "scope"
+                else:
+                    value = get_global_setting_value(setting_name)
+                    source = "global-default"
+                items.append(
+                    {
+                        "type": "setting",
+                        "bucket": bucket_name,
+                        "name": setting_name,
+                        "value": value,
+                        "scope_key": scope_key,
+                        "source": source,
+                        "text": (
+                            f"  {setting_name} = {format_setting_value(value)} "
+                            f"({source})"
+                        ),
+                    }
+                )
+
+    return items
+
+
+def set_module_scoped_value(module_settings_overrides, scope_key, setting_name, value):
+    """Write one module-scoped value into in-session overrides."""
+    module_settings_overrides.setdefault(scope_key, {})[setting_name] = value
+
+
+def get_space_scope_for_entry(entry, recursive_modes):
+    """Determine module customization scope or return a warning reason."""
+    parent_id = get_parent_module_id(entry["id"])
+    if parent_id is not None and recursive_modes.get(parent_id) is not None:
+        return None, "Cannot customize this module: it is a submodule inheriting parent mode settings."
+
+    if entry["id"] in GPA.pc.get_module_ids_to_perforate():
+        return {
+            "scope_kind": "id",
+            "scope_key": entry["id"],
+            "module_id": entry["id"],
+            "module_type": entry["type_name"],
+            "scope_text": f"Applying to module id {entry['id']}",
+        }, None
+
+    if entry["type_name"] in GPA.pc.get_module_names_to_perforate():
+        return {
+            "scope_kind": "name",
+            "scope_key": entry["type_name"],
+            "module_id": entry["id"],
+            "module_type": entry["type_name"],
+            "scope_text": f"Applying to all modules of type {entry['type_name']}",
+        }, None
+
+    return None, "Cannot customize this module: it is not explicitly perforated by id or by name."
+
+
+def persist_module_settings_updates(module_settings_overrides, overwrite_config_file=False):
+    """Persist in-session module_settings updates to local config JSON files."""
+    if not module_settings_overrides:
+        return
+
+    destinations = []
+    run_config = GPA.pc.get_run_config_path()
+    if run_config:
+        destinations.append(run_config)
+    if overwrite_config_file:
+        config_file = GPA.pc.get_config_file()
+        if config_file and config_file not in destinations:
+            destinations.append(config_file)
+
+    for destination in destinations:
+        payload = {}
+        if os.path.exists(destination):
+            try:
+                with open(destination, "r") as file_handle:
+                    payload = json.load(file_handle)
+            except Exception:
+                payload = {}
+
+        module_settings = payload.get("module_settings", {})
+        if not isinstance(module_settings, dict):
+            module_settings = {}
+
+        for scope_key, values in module_settings_overrides.items():
+            existing = module_settings.get(scope_key, {})
+            if not isinstance(existing, dict):
+                existing = {}
+            existing.update(values)
+            module_settings[scope_key] = existing
+
+        payload["module_settings"] = module_settings
+
+        directory = os.path.dirname(destination)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(destination, "w") as file_handle:
+            json.dump(payload, file_handle, indent=2)
+
+
 def get_item_description(item):
     """Return help text for a highlighted bucket or setting item."""
     description_data = load_description_data()
@@ -1051,11 +1241,19 @@ def get_screen_header_line(active_screen):
         return (
             "Screen: "
             f"{make_inverted_text('Perforation targets')}  "
-            "Configuration settings"
+            "Global settings  "
+            "Module settings"
+        )
+    if active_screen == 1:
+        return (
+            "Screen: Perforation targets  "
+            f"{make_inverted_text('Global settings')}  "
+            "Module settings"
         )
     return (
         "Screen: Perforation targets  "
-        f"{make_inverted_text('Configuration settings')}"
+        "Global settings  "
+        f"{make_inverted_text('Module settings')}"
     )
 
 
@@ -1067,6 +1265,7 @@ def get_preview_header_lines(
     confirm_choice_index=0,
     help_text="",
     edit_text="",
+    module_scope=None,
 ):
     """Build fixed header lines for the interactive preview screen.
 
@@ -1105,21 +1304,34 @@ def get_preview_header_lines(
             )
     elif active_screen == 0:
         lines.append(
-            "Use Up/Down to select. PageUp/PageDown scroll page-1. Left/Right switches screens. lowercase p/t set by id. uppercase P/T set by name. Enter opens save dialog"
+            "Use Up/Down to select. PageUp/PageDown scroll page-1. Left/Right switches to global settings. lowercase p/t set by id. uppercase P/T set by name. Space opens module settings for selected module (if explicitly perforated). Enter opens save dialog"
         )
+    elif active_screen == 1:
+        lines.append(
+            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space edits. h shows description. Enter opens save dialog"
+        )
+        if not help_text and not edit_text:
+            lines.append("")
     else:
         lines.append(
             "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space edits. h shows description. Enter opens save dialog"
         )
-    lines.append("")
+        if not help_text and not edit_text:
+            lines.append("")
+        if module_scope is not None:
+            lines.append(module_scope["scope_text"])
+        else:
+            lines.append("Scope: none")
+        if not help_text and not edit_text:
+            lines.append("")
+
     if help_text:
         lines.append(help_text)
     elif edit_text:
         lines.append(edit_text)
-    else:
-        lines.append("")
 
     if active_screen == 0:
+        lines.append("")
         lines.append(
             "Legend: "
             f"perforated={make_color_square('00A5A5')} "
@@ -1130,7 +1342,6 @@ def get_preview_header_lines(
             f"neither-with-params={make_color_square('FD4D00')} "
             "(For best results all parameters should be either tracked or perforated)"
         )
-        lines.append("")
     if entries is None:
         entries = []
     if recursive_modes is None:
@@ -1153,6 +1364,7 @@ def get_list_window_size(
     help_text="",
     edit_text="",
     extra_footer_lines=0,
+    module_scope=None,
 ):
     """Compute how many module rows can be shown in the terminal viewport.
 
@@ -1178,6 +1390,7 @@ def get_list_window_size(
             confirm_choice_index,
             help_text,
             edit_text,
+            module_scope,
         ),
         terminal_columns,
     )
@@ -1240,6 +1453,7 @@ def render_preview_screen_window(
     help_text,
     edit_text,
     list_editor_state,
+    module_scope=None,
 ):
     """Render preview with a fixed header and scrolling module rows.
 
@@ -1268,6 +1482,7 @@ def render_preview_screen_window(
         confirm_choice_index,
         help_text,
         edit_text,
+        module_scope,
     )
 
     if active_screen == 0:
@@ -1279,8 +1494,6 @@ def render_preview_screen_window(
 
     if window_start > 0:
         lines.append("^^^^ more above ^^^^")
-    else:
-        lines.append("")
 
     if active_screen == 0:
         for i in range(window_start, window_end):
@@ -1293,8 +1506,6 @@ def render_preview_screen_window(
 
     if window_end < total_lines:
         lines.append("vvvv more below vvvv")
-    else:
-        lines.append("")
 
     if list_editor_state is not None:
         lines.append("")
@@ -1433,20 +1644,30 @@ def set_perforation_targets(model):
 
         selected_index = 0
         window_start = 0
-        settings_selected_index = 0
-        settings_window_start = 0
+        global_settings_selected_index = 0
+        global_settings_window_start = 0
+        module_settings_selected_index = 0
+        module_settings_window_start = 0
         active_screen = 0
         confirm_dialog_active = False
         confirm_choice_index = 0
         help_text = ""
         help_overlay_active = False
         edit_text = ""
-        expanded_buckets = {}
+        global_expanded_buckets = {}
+        module_expanded_buckets = {}
         list_editor_state = None
+        module_scope = None
+        module_settings_overrides = {}
+        existing_module_settings = load_existing_module_settings()
 
         def finalize_save(choice_index):
             if choice_index == 0:
                 GPA.pc.persist_config_outputs(overwrite_config_file=False)
+                persist_module_settings_updates(
+                    module_settings_overrides,
+                    overwrite_config_file=False,
+                )
                 return
 
             config_file = GPA.pc.get_config_file()
@@ -1467,24 +1688,46 @@ def set_perforation_targets(model):
                     print("Filename is required for overwrite mode.")
 
             GPA.pc.persist_config_outputs(overwrite_config_file=True)
+            persist_module_settings_updates(
+                module_settings_overrides,
+                overwrite_config_file=True,
+            )
 
         while True:
             normalize_selection_conflicts()
-            settings_items = build_settings_items(expanded_buckets)
+            if active_screen == 1:
+                settings_items = build_settings_items(global_expanded_buckets)
+            elif active_screen == 2:
+                settings_items = build_module_settings_items(
+                    module_expanded_buckets,
+                    module_scope,
+                    module_settings_overrides,
+                    existing_module_settings,
+                )
+            else:
+                settings_items = []
 
             if selected_index >= len(entries):
                 selected_index = len(entries) - 1
-            if settings_selected_index >= len(settings_items):
-                settings_selected_index = max(0, len(settings_items) - 1)
+            if active_screen == 1:
+                if global_settings_selected_index >= len(settings_items):
+                    global_settings_selected_index = max(0, len(settings_items) - 1)
+            elif active_screen == 2:
+                if module_settings_selected_index >= len(settings_items):
+                    module_settings_selected_index = max(0, len(settings_items) - 1)
 
             if active_screen == 0:
                 current_total = len(entries)
                 current_selected = selected_index
                 current_window_start = window_start
+            elif active_screen == 1:
+                current_total = len(settings_items)
+                current_selected = global_settings_selected_index
+                current_window_start = global_settings_window_start
             else:
                 current_total = len(settings_items)
-                current_selected = settings_selected_index
-                current_window_start = settings_window_start
+                current_selected = module_settings_selected_index
+                current_window_start = module_settings_window_start
 
             recursive_modes = build_recursive_modes(entries)
             window_size = get_list_window_size(
@@ -1497,6 +1740,7 @@ def set_perforation_targets(model):
                 help_text,
                 edit_text,
                 3 if list_editor_state is not None else 0,
+                module_scope,
             )
             current_window_start = clamp_window_start(
                 current_window_start, current_selected, window_size, current_total
@@ -1504,8 +1748,10 @@ def set_perforation_targets(model):
 
             if active_screen == 0:
                 window_start = current_window_start
+            elif active_screen == 1:
+                global_settings_window_start = current_window_start
             else:
-                settings_window_start = current_window_start
+                module_settings_window_start = current_window_start
 
             # Clear terminal and draw the updated preview.
             print("\x1b[2J\x1b[H", end="")
@@ -1522,6 +1768,7 @@ def set_perforation_targets(model):
                     help_text,
                     edit_text,
                     list_editor_state,
+                    module_scope,
                 )
             )
 
@@ -1658,9 +1905,21 @@ def set_perforation_targets(model):
                     list_editor_state["cursor_index"] = len(initial_text)
                     continue
                 if key == "\r" or key == "\n":
-                    ok, message = apply_setting_value(
-                        list_editor_state["setting_name"], values
-                    )
+                    if list_editor_state.get("apply_to_module_scope", False):
+                        if module_scope is None:
+                            ok, message = False, "No module scope selected."
+                        else:
+                            set_module_scoped_value(
+                                module_settings_overrides,
+                                module_scope["scope_key"],
+                                list_editor_state["setting_name"],
+                                values,
+                            )
+                            ok, message = True, ""
+                    else:
+                        ok, message = apply_setting_value(
+                            list_editor_state["setting_name"], values
+                        )
                     list_editor_state = None
                     edit_text = message if not ok else ""
                     continue
@@ -1671,17 +1930,27 @@ def set_perforation_targets(model):
                 edit_text = ""
                 if active_screen == 0:
                     selected_index = max(0, selected_index - 1)
+                elif active_screen == 1:
+                    global_settings_selected_index = max(
+                        0, global_settings_selected_index - 1
+                    )
                 else:
-                    settings_selected_index = max(0, settings_selected_index - 1)
+                    module_settings_selected_index = max(
+                        0, module_settings_selected_index - 1
+                    )
                 continue
             if is_down_key(key):
                 help_text = ""
                 edit_text = ""
                 if active_screen == 0:
                     selected_index = min(len(entries) - 1, selected_index + 1)
+                elif active_screen == 1:
+                    global_settings_selected_index = min(
+                        len(settings_items) - 1, global_settings_selected_index + 1
+                    )
                 else:
-                    settings_selected_index = min(
-                        len(settings_items) - 1, settings_selected_index + 1
+                    module_settings_selected_index = min(
+                        len(settings_items) - 1, module_settings_selected_index + 1
                     )
                 continue
             if is_page_up_key(key):
@@ -1691,9 +1960,20 @@ def set_perforation_targets(model):
                 if active_screen == 0:
                     selected_index = max(0, selected_index - page_step)
                     window_start = max(0, window_start - page_step)
+                elif active_screen == 1:
+                    global_settings_selected_index = max(
+                        0, global_settings_selected_index - page_step
+                    )
+                    global_settings_window_start = max(
+                        0, global_settings_window_start - page_step
+                    )
                 else:
-                    settings_selected_index = max(0, settings_selected_index - page_step)
-                    settings_window_start = max(0, settings_window_start - page_step)
+                    module_settings_selected_index = max(
+                        0, module_settings_selected_index - page_step
+                    )
+                    module_settings_window_start = max(
+                        0, module_settings_window_start - page_step
+                    )
                 continue
             if is_page_down_key(key):
                 help_text = ""
@@ -1702,23 +1982,52 @@ def set_perforation_targets(model):
                 if active_screen == 0:
                     selected_index = min(len(entries) - 1, selected_index + page_step)
                     window_start = min(len(entries) - 1, window_start + page_step)
-                else:
-                    settings_selected_index = min(
-                        len(settings_items) - 1, settings_selected_index + page_step
+                elif active_screen == 1:
+                    global_settings_selected_index = min(
+                        len(settings_items) - 1,
+                        global_settings_selected_index + page_step,
                     )
-                    settings_window_start = min(
-                        len(settings_items) - 1, settings_window_start + page_step
+                    global_settings_window_start = min(
+                        len(settings_items) - 1,
+                        global_settings_window_start + page_step,
+                    )
+                else:
+                    module_settings_selected_index = min(
+                        len(settings_items) - 1,
+                        module_settings_selected_index + page_step,
+                    )
+                    module_settings_window_start = min(
+                        len(settings_items) - 1,
+                        module_settings_window_start + page_step,
                     )
                 continue
             if is_left_key(key):
                 help_text = ""
                 edit_text = ""
-                active_screen = max(0, active_screen - 1)
+                if active_screen == 0:
+                    active_screen = 1
+                elif active_screen == 1:
+                    active_screen = 0
+                else:
+                    active_screen = 0
+                    module_scope = None
+                    module_expanded_buckets = {}
+                    module_settings_selected_index = 0
+                    module_settings_window_start = 0
                 continue
             if is_right_key(key):
                 help_text = ""
                 edit_text = ""
-                active_screen = min(1, active_screen + 1)
+                if active_screen == 0:
+                    active_screen = 1
+                elif active_screen == 1:
+                    active_screen = 0
+                else:
+                    active_screen = 0
+                    module_scope = None
+                    module_expanded_buckets = {}
+                    module_settings_selected_index = 0
+                    module_settings_window_start = 0
                 continue
 
             if active_screen == 0:
@@ -1736,14 +2045,30 @@ def set_perforation_targets(model):
                 if key == "T":
                     set_module_name_mode(selected_entry["type_name"], "tracked")
                     continue
-            else:
+                if key == " ":
+                    recursive_modes = build_recursive_modes(entries)
+                    scope, warning = get_space_scope_for_entry(
+                        selected_entry, recursive_modes
+                    )
+                    if scope is None:
+                        edit_text = warning
+                        continue
+                    module_scope = scope
+                    active_screen = 2
+                    module_expanded_buckets = {}
+                    module_settings_selected_index = 0
+                    module_settings_window_start = 0
+                    help_text = ""
+                    edit_text = ""
+                    continue
+            elif active_screen == 1:
                 if key == "e" and len(settings_items) > 0:
-                    item = settings_items[settings_selected_index]
+                    item = settings_items[global_settings_selected_index]
                     if item["type"] == "bucket":
-                        expanded_buckets[item["bucket"]] = not item["is_expanded"]
+                        global_expanded_buckets[item["bucket"]] = not item["is_expanded"]
                     continue
                 if key == "h" and len(settings_items) > 0:
-                    item = settings_items[settings_selected_index]
+                    item = settings_items[global_settings_selected_index]
                     help_text = (
                         f"HELP - {get_item_display_name(item)} - "
                         f"{get_item_description(item)}"
@@ -1752,9 +2077,9 @@ def set_perforation_targets(model):
                     edit_text = ""
                     continue
                 if key == " " and len(settings_items) > 0:
-                    item = settings_items[settings_selected_index]
+                    item = settings_items[global_settings_selected_index]
                     if item["type"] == "bucket":
-                        expanded_buckets[item["bucket"]] = not item["is_expanded"]
+                        global_expanded_buckets[item["bucket"]] = not item["is_expanded"]
                         edit_text = ""
                         continue
                     if item["type"] != "setting":
@@ -1793,6 +2118,7 @@ def set_perforation_targets(model):
                             "edit_index": None,
                             "input_buffer": "",
                             "cursor_index": 0,
+                            "apply_to_module_scope": False,
                         }
                         edit_text = (
                             f"EDIT - {setting_name} - list mode active"
@@ -1814,6 +2140,105 @@ def set_perforation_targets(model):
                             edit_text = f"Invalid value for {setting_name}: {exc}"
                             continue
                         ok, message = apply_setting_value(setting_name, parsed)
+                        edit_text = message if not ok else ""
+                        continue
+
+                    edit_text = f"Setting {setting_name} edit is not supported."
+                    continue
+            else:
+                if module_scope is None:
+                    if key in ("h", " ", "e"):
+                        edit_text = "Select a perforation target on screen 1 and press Space to choose scope."
+                    continue
+
+                if key == "e" and len(settings_items) > 0:
+                    item = settings_items[module_settings_selected_index]
+                    if item["type"] == "bucket":
+                        module_expanded_buckets[item["bucket"]] = not item["is_expanded"]
+                    continue
+                if key == "h" and len(settings_items) > 0:
+                    item = settings_items[module_settings_selected_index]
+                    help_text = (
+                        f"HELP - {get_item_display_name(item)} - "
+                        f"{get_item_description(item)}"
+                    )
+                    help_overlay_active = True
+                    edit_text = ""
+                    continue
+                if key == " " and len(settings_items) > 0:
+                    item = settings_items[module_settings_selected_index]
+                    if item["type"] == "bucket":
+                        module_expanded_buckets[item["bucket"]] = not item["is_expanded"]
+                        edit_text = ""
+                        continue
+                    if item["type"] != "setting":
+                        edit_text = ""
+                        continue
+
+                    setting_name = item["name"]
+                    setting_value = item["value"]
+                    enum_options = get_enum_options(setting_name)
+                    scope_key = module_scope["scope_key"]
+
+                    def apply_module_setting(new_value):
+                        set_module_scoped_value(
+                            module_settings_overrides,
+                            scope_key,
+                            setting_name,
+                            new_value,
+                        )
+                        return True, ""
+
+                    if isinstance(setting_value, bool):
+                        ok, message = apply_module_setting(not setting_value)
+                        edit_text = message if not ok else ""
+                        continue
+
+                    if enum_options is not None and len(enum_options) > 1:
+                        try:
+                            index = enum_options.index(setting_value)
+                        except ValueError:
+                            index = -1
+                        next_value = enum_options[(index + 1) % len(enum_options)]
+                        ok, message = apply_module_setting(next_value)
+                        edit_text = message if not ok else ""
+                        continue
+
+                    if isinstance(setting_value, list):
+                        sample_type = None
+                        if len(setting_value) > 0:
+                            sample_type = setting_value[0]
+                        list_editor_state = {
+                            "setting_name": setting_name,
+                            "values": list(setting_value),
+                            "selected_index": 0,
+                            "sample_type": sample_type,
+                            "typing_active": False,
+                            "edit_index": None,
+                            "input_buffer": "",
+                            "cursor_index": 0,
+                            "apply_to_module_scope": True,
+                        }
+                        edit_text = (
+                            f"EDIT - {setting_name} - list mode active"
+                        )
+                        continue
+
+                    if isinstance(setting_value, (int, float)):
+                        prompt = (
+                            f"EDIT - {setting_name} - enter new value "
+                            f"(current={setting_value}): "
+                        )
+                        text = input(prompt).strip()
+                        if not text:
+                            edit_text = ""
+                            continue
+                        try:
+                            parsed = parse_value_from_text(text, setting_value)
+                        except Exception as exc:
+                            edit_text = f"Invalid value for {setting_name}: {exc}"
+                            continue
+                        ok, message = apply_module_setting(parsed)
                         edit_text = message if not ok else ""
                         continue
 
