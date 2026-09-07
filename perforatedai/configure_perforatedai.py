@@ -705,36 +705,209 @@ INTERNAL_CONFIG_KEYS = {
     "auto_persist_config",
 }
 
+RUNTIME_ONLY_CONFIG_KEYS = {"config_file"}
+
 BUCKET_ORDER = [
-    "Run And Persistence",
-    "Target Selection",
+    "Main Run Settings",
     "Switch Strategy",
     "Optimization And Search",
-    "Model Math",
     "Visualization And Logging",
+    "PerforatedBP Settings",
     "Dashboard",
     "Experimental",
     "Other",
+    "Target Selection",
+    "Run And Persistence",
 ]
 
 FALLBACK_BUCKET_DESCRIPTIONS = {
+    "Main Run Settings": "Primary run identity, output shape, device selection, and core execution flags.",
     "Run And Persistence": "Run identity, config file location, safety toggles, and save/load behavior.",
-    "Target Selection": "Which modules and parameters are perforated, tracked, replaced, or custom-processed.",
+    "Target Selection": "Target Selection (Recommended to use Perforation Targets Menu). Which modules and parameters are perforated, tracked, replaced, or custom-processed.",
     "Switch Strategy": "When and how dendrite expansion or switching is triggered during training.",
     "Optimization And Search": "Thresholds and retry/search controls for candidate evaluation.",
-    "Model Math": "Device, dtype, activation, and tensor-shape related core math settings.",
-    "Visualization And Logging": "Console verbosity, graph generation, and save behavior.",
+    "Visualization And Logging": "Console verbosity, graph generation, save behavior, and debugging visibility.",
+    "PerforatedBP Settings": "Perforated Backpropagation-specific settings loaded from the optional perforatedbp package.",
     "Dashboard": "Live dashboard event stream and endpoint configuration.",
     "Experimental": "Flags for optional or advanced behavior not used in common flows.",
     "Other": "Global settings that do not fit another category.",
 }
 
+SETTING_COLOR_IMPACTFUL = "00A5A5"
+SETTING_COLOR_SUPPORTING = "004145"
+SETTING_COLOR_SUPPORTING_CONFIGURATION = "001424"
+SETTING_COLOR_CONSTANT = "DEECED"
+SETTING_COLOR_EXPERIMENTAL = "FD4D00"
+SETTING_COLOR_PB = "00F9C9"
+SETTING_COLOR_CONFIGURATION = "FFFFFF"
+
+NATIVE_PAI_SETTING_NAMES = {
+    "use_cuda",
+    "device",
+    "save_name",
+    "config_file",
+    "debugging_output_dimensions",
+    "confirm_correct_sizes",
+    "unwrapped_modules_confirmed",
+    "weight_decay_accepted",
+    "checked_skipped_modules",
+    "configuration_confirmed",
+    "save_old_graph_scores",
+    "testing_dendrite_capacity",
+    "using_safe_tensors",
+    "strict_loading",
+    "drawing_pai",
+    "drawing_extra_graphs",
+    "test_saves",
+    "pai_saves",
+    "improvement_threshold",
+    "improvement_threshold_raw",
+    "DOING_SWITCH_EVERY_TIME",
+    "DOING_HISTORY",
+    "n_epochs_to_switch",
+    "history_lookback",
+    "initial_history_after_switches",
+    "DOING_FIXED_SWITCH",
+    "fixed_switch_num",
+    "first_fixed_switch_num",
+    "DOING_NO_SWITCH",
+    "switch_mode",
+    "reset_best_score_on_switch",
+    "learn_dendrites_live",
+    "no_extra_n_modes",
+    "d_type",
+    "find_best_lr",
+    "dont_give_up_unless_learning_rate_lowered",
+    "maximizing_score",
+    "max_dendrite_tries",
+    "PARAM_VALS_BY_TOTAL_EPOCH",
+    "PARAM_VALS_BY_UPDATE_EPOCH",
+    "PARAM_VALS_BY_NEURON_EPOCH_START",
+    "param_vals_setting",
+    "modules_to_perforate",
+    "module_names_to_perforate",
+    "module_ids_to_perforate",
+    "modules_to_track",
+    "module_names_to_track",
+    "module_ids_to_track",
+    "parameter_ids_to_track",
+    "modules_to_replace",
+    "replacement_modules",
+    "modules_with_processing",
+    "modules_processing_classes",
+    "module_names_with_processing",
+    "module_by_name_processing_classes",
+    "module_names_to_not_save",
+    "perforated_backpropagation",
+    "weight_tying_experimental",
+    "dashboard_events_enabled",
+    "dashboard_url",
+    "dashboard_debug",
+    "library_validation_score",
+    "library_extra_scores",
+    "library_extra_scores_without_graphing",
+    "output_dimensions",
+    "verbose",
+    "extra_verbose",
+    "silent",
+    "global_candidates",
+    "candidate_weight_initialization_multiplier",
+    "candidate_weight_init_by_main",
+    "retain_all_dendrites",
+    "max_dendrites",
+    "pai_forward_function",
+}
+
+EXPERIMENTAL_SETTING_NAMES = {
+    "learn_dendrites_live",
+    "no_extra_n_modes",
+    "weight_tying_experimental",
+}
+
+CONSTANT_SETTING_PREFIXES = ("DOING_", "PARAM_VALS_BY_")
+CONSTANT_SETTING_NAMES = {"use_cuda", "device", "d_type"}
+
+IMPACTFUL_SETTING_NAMES = {
+    "module_names_to_perforate",
+    "module_ids_to_perforate",
+    "module_names_to_track",
+    "module_ids_to_track",
+    "parameter_ids_to_track",
+    "switch_mode",
+    "n_epochs_to_switch",
+    "history_lookback",
+    "initial_history_after_switches",
+    "fixed_switch_num",
+    "first_fixed_switch_num",
+    "improvement_threshold",
+    "improvement_threshold_raw",
+    "find_best_lr",
+    "dont_give_up_unless_learning_rate_lowered",
+    "maximizing_score",
+    "max_dendrite_tries",
+    "max_dendrites",
+    "global_candidates",
+    "candidate_weight_initialization_multiplier",
+    "candidate_weight_init_by_main",
+    "retain_all_dendrites",
+    "pai_forward_function",
+}
+
 DESCRIPTION_FILE_NAME = "configuration_descriptions.json"
 DESCRIPTION_CACHE = None
 
+LABEL_IMPACTFUL = "Impactful hyperparameters"
+LABEL_SUPPORTING = "Supporting hyperparameters"
+LABEL_SUPPORTING_CONFIGURATION = "Supporting configuration parameters"
+LABEL_CONSTANTS = "Constants"
+LABEL_EXPERIMENTAL = "Experimental hyperparameters"
+LABEL_PB = "PerforatedBP hyperparameters"
+LABEL_CONFIGURATION = "Configuration Parameters"
+
+SETTING_LABEL_PRIORITY = {
+    LABEL_CONFIGURATION: 1,
+    LABEL_IMPACTFUL: 2,
+    LABEL_SUPPORTING: 3,
+    LABEL_SUPPORTING_CONFIGURATION: 4,
+    LABEL_PB: 5,
+    LABEL_CONSTANTS: 6,
+    LABEL_EXPERIMENTAL: 7,
+}
+
+
+def _normalize_label(label_text):
+    """Normalize label text for stable ordering/lookups."""
+    if not isinstance(label_text, str):
+        return LABEL_SUPPORTING
+
+    compact = " ".join(label_text.strip().split()).lower()
+    if compact in ("impactful", "impactful hyperparameters"):
+        return LABEL_IMPACTFUL
+    if compact in ("supporting", "supporting hyperparameters"):
+        return LABEL_SUPPORTING
+    if compact in (
+        "supporting configuration",
+        "supporting configuration parameters",
+    ):
+        return LABEL_SUPPORTING_CONFIGURATION
+    if compact in ("configuration", "configuration parameters"):
+        return LABEL_CONFIGURATION
+    if compact in ("constants", "constant"):
+        return LABEL_CONSTANTS
+    if compact in ("experimental", "experimental hyperparameters"):
+        return LABEL_EXPERIMENTAL
+    if compact in (
+        "perforatedbp",
+        "perforatedbp hyperparameters",
+        "perforatedbp settings",
+    ):
+        return LABEL_PB
+
+    return LABEL_SUPPORTING
+
 
 def load_description_data():
-    """Load bucket and setting descriptions from local JSON."""
+    """Load bucket and setting metadata from local JSON."""
     global DESCRIPTION_CACHE
     if DESCRIPTION_CACHE is not None:
         return DESCRIPTION_CACHE
@@ -747,11 +920,64 @@ def load_description_data():
     except Exception:
         payload = {}
 
-    bucket_descriptions = payload.get("buckets", {})
-    setting_descriptions = payload.get("settings", {})
+    bucket_entries = payload.get("buckets", {})
+    bucket_descriptions = {}
+    setting_descriptions = {}
+    setting_labels = {}
+    settings_by_bucket = {}
+
+    # New nested schema:
+    # {
+    #   "buckets": {
+    #      "Bucket Name": {
+    #          "description": "...",
+    #          "settings": {
+    #              "setting_name": {"description": "...", "label": "..."}
+    #          }
+    #      }
+    #   }
+    # }
+    if isinstance(bucket_entries, dict):
+        for bucket_name, bucket_payload in bucket_entries.items():
+            if isinstance(bucket_payload, dict):
+                bucket_descriptions[bucket_name] = bucket_payload.get("description", "")
+
+                bucket_settings = bucket_payload.get("settings", {})
+                ordered_setting_names = []
+                if isinstance(bucket_settings, dict):
+                    for setting_name, setting_payload in bucket_settings.items():
+                        ordered_setting_names.append(setting_name)
+                        if isinstance(setting_payload, dict):
+                            setting_descriptions[setting_name] = setting_payload.get("description", "")
+                            setting_labels[setting_name] = _normalize_label(
+                                setting_payload.get("label")
+                            )
+                        elif isinstance(setting_payload, str):
+                            setting_descriptions[setting_name] = setting_payload
+                            setting_labels[setting_name] = LABEL_SUPPORTING
+                settings_by_bucket[bucket_name] = ordered_setting_names
+            elif isinstance(bucket_payload, str):
+                # Backward compatibility: old flat schema bucket description
+                bucket_descriptions[bucket_name] = bucket_payload
+
+    # Backward compatibility: old top-level flat settings object
+    top_level_settings = payload.get("settings", {})
+    if isinstance(top_level_settings, dict):
+        for setting_name, setting_payload in top_level_settings.items():
+            if setting_name in setting_descriptions:
+                continue
+            if isinstance(setting_payload, dict):
+                setting_descriptions[setting_name] = setting_payload.get("description", "")
+                setting_labels[setting_name] = _normalize_label(setting_payload.get("label"))
+            elif isinstance(setting_payload, str):
+                setting_descriptions[setting_name] = setting_payload
+                setting_labels[setting_name] = LABEL_SUPPORTING
+
     DESCRIPTION_CACHE = {
         "buckets": bucket_descriptions,
         "settings": setting_descriptions,
+        "setting_labels": setting_labels,
+        "settings_by_bucket": settings_by_bucket,
     }
     return DESCRIPTION_CACHE
 
@@ -770,23 +996,137 @@ def get_setting_options_hint(setting_name):
     """Return optional inline options text for known settings."""
     if setting_name == "pai_forward_function":
         return " [options: sigmoid, relu, tanh]"
+    if setting_name == "global_candidates":
+        return " (leave at 1)"
     return ""
+
+
+def is_perforatedbp_setting(setting_name):
+    """Return True when a setting appears to come from perforatedbp globals."""
+    if setting_name in INTERNAL_CONFIG_KEYS:
+        return False
+    if setting_name in RUNTIME_ONLY_CONFIG_KEYS:
+        return False
+    return setting_name not in NATIVE_PAI_SETTING_NAMES
+
+
+def get_setting_color_hex(setting_name):
+    """Choose a legend color for one setting name."""
+    description_data = load_description_data()
+    setting_labels = description_data.get("setting_labels", {})
+    label_name = setting_labels.get(setting_name)
+    if label_name is not None:
+        normalized_label = _normalize_label(label_name)
+        if normalized_label == LABEL_CONFIGURATION:
+            return SETTING_COLOR_CONFIGURATION
+        if normalized_label == LABEL_IMPACTFUL:
+            return SETTING_COLOR_IMPACTFUL
+        if normalized_label == LABEL_SUPPORTING:
+            return SETTING_COLOR_SUPPORTING
+        if normalized_label == LABEL_SUPPORTING_CONFIGURATION:
+            return SETTING_COLOR_SUPPORTING_CONFIGURATION
+        if normalized_label == LABEL_PB:
+            return SETTING_COLOR_PB
+        if normalized_label == LABEL_CONSTANTS:
+            return SETTING_COLOR_CONSTANT
+        if normalized_label == LABEL_EXPERIMENTAL:
+            return SETTING_COLOR_EXPERIMENTAL
+
+    if is_perforatedbp_setting(setting_name):
+        return SETTING_COLOR_PB
+    if setting_name in EXPERIMENTAL_SETTING_NAMES:
+        return SETTING_COLOR_EXPERIMENTAL
+    if setting_name in CONSTANT_SETTING_NAMES:
+        return SETTING_COLOR_CONSTANT
+    for prefix in CONSTANT_SETTING_PREFIXES:
+        if setting_name.startswith(prefix):
+            return SETTING_COLOR_CONSTANT
+    if setting_name in IMPACTFUL_SETTING_NAMES:
+        return SETTING_COLOR_IMPACTFUL
+    return SETTING_COLOR_SUPPORTING
+
+
+def get_setting_label(setting_name):
+    """Get label text for one setting, preferring description metadata."""
+    description_data = load_description_data()
+    setting_labels = description_data.get("setting_labels", {})
+    if setting_name in setting_labels:
+        return _normalize_label(setting_labels[setting_name])
+
+    color_hex = get_setting_color_hex(setting_name)
+    if color_hex == SETTING_COLOR_CONFIGURATION:
+        return LABEL_CONFIGURATION
+    if color_hex == SETTING_COLOR_IMPACTFUL:
+        return LABEL_IMPACTFUL
+    if color_hex == SETTING_COLOR_CONSTANT:
+        return LABEL_CONSTANTS
+    if color_hex == SETTING_COLOR_EXPERIMENTAL:
+        return LABEL_EXPERIMENTAL
+    if color_hex == SETTING_COLOR_PB:
+        return LABEL_PB
+    if color_hex == SETTING_COLOR_SUPPORTING_CONFIGURATION:
+        return LABEL_SUPPORTING_CONFIGURATION
+    return LABEL_SUPPORTING
+
+
+def sort_settings_for_bucket(bucket_name, setting_names):
+    """Sort settings by appearance order in configuration_descriptions JSON."""
+    description_data = load_description_data()
+    configured_order = description_data.get("settings_by_bucket", {}).get(
+        bucket_name, []
+    )
+    configured_index = {name: i for i, name in enumerate(configured_order)}
+    fallback_base = len(configured_order) + 100000
+
+    def _sort_key(setting_name):
+        if setting_name in configured_index:
+            return (0, configured_index[setting_name], setting_name)
+        return (1, fallback_base, setting_name)
+
+    return sorted(setting_names, key=_sort_key)
+
+
+def get_bucket_color_hex(setting_names):
+    """Pick bucket marker color from highest-priority setting label."""
+    if not setting_names:
+        return SETTING_COLOR_SUPPORTING
+
+    best_setting = None
+    best_priority = 10**9
+    for setting_name in setting_names:
+        label_name = get_setting_label(setting_name)
+        priority = SETTING_LABEL_PRIORITY.get(label_name, 99)
+        if priority < best_priority:
+            best_priority = priority
+            best_setting = setting_name
+
+    if best_setting is None:
+        return SETTING_COLOR_SUPPORTING
+    return get_setting_color_hex(best_setting)
 
 
 def classify_setting_bucket(setting_name):
     """Classify one setting into a configuration bucket."""
+    if is_perforatedbp_setting(setting_name):
+        return "PerforatedBP Settings"
+
     if setting_name in {
         "save_name",
         "config_file",
         "configuration_confirmed",
         "testing_dendrite_capacity",
+        "output_dimensions",
+        "device",
+        "use_cuda",
+        "d_type",
+        "perforated_backpropagation",
         "using_safe_tensors",
         "strict_loading",
         "checked_skipped_modules",
         "unwrapped_modules_confirmed",
         "weight_decay_accepted",
     }:
-        return "Run And Persistence"
+        return "Main Run Settings"
 
     if (
         setting_name.startswith("module_")
@@ -820,6 +1160,7 @@ def classify_setting_bucket(setting_name):
         "improvement_threshold_raw",
         "find_best_lr",
         "dont_give_up_unless_learning_rate_lowered",
+        "maximizing_score",
         "max_dendrite_tries",
         "max_dendrites",
         "retain_all_dendrites",
@@ -828,16 +1169,6 @@ def classify_setting_bucket(setting_name):
         "candidate_weight_init_by_main",
     }:
         return "Optimization And Search"
-
-    if setting_name in {
-        "device",
-        "use_cuda",
-        "d_type",
-        "pai_forward_function",
-        "confirm_correct_sizes",
-        "debugging_output_dimensions",
-    }:
-        return "Model Math"
 
     if setting_name in {
         "verbose",
@@ -851,6 +1182,9 @@ def classify_setting_bucket(setting_name):
         "library_validation_score",
         "library_extra_scores",
         "library_extra_scores_without_graphing",
+        "pai_forward_function",
+        "confirm_correct_sizes",
+        "debugging_output_dimensions",
     }:
         return "Visualization And Logging"
 
@@ -878,12 +1212,14 @@ def get_all_global_parameters():
         if not (key.startswith("_") and not key.startswith("__")):
             continue
         clean_name = key[1:]
-        if clean_name in INTERNAL_CONFIG_KEYS:
+        if clean_name in INTERNAL_CONFIG_KEYS or clean_name in RUNTIME_ONLY_CONFIG_KEYS:
             continue
         values[clean_name] = value
 
     for key, value in GPA.pc.__dict__.items():
         if key.startswith("_") or callable(value):
+            continue
+        if key in RUNTIME_ONLY_CONFIG_KEYS:
             continue
         if key in values:
             continue
@@ -903,19 +1239,27 @@ def build_settings_items(expanded_buckets):
 
     items = []
     for bucket_name in BUCKET_ORDER:
-        settings_in_bucket = grouped.get(bucket_name, [])
+        settings_in_bucket = sort_settings_for_bucket(
+            bucket_name, grouped.get(bucket_name, [])
+        )
         if len(settings_in_bucket) == 0:
             continue
 
         is_expanded = expanded_buckets.get(bucket_name, False)
         marker = "[-]" if is_expanded else "[+]"
+        bucket_color = make_color_square(get_bucket_color_hex(settings_in_bucket))
+        display_bucket_name = bucket_name
+        if bucket_name == "Target Selection":
+            display_bucket_name = (
+                "Target Selection (Recommended to use Perforation Targets Menu)"
+            )
         items.append(
             {
                 "type": "bucket",
                 "bucket": bucket_name,
                 "is_expanded": is_expanded,
                 "count": len(settings_in_bucket),
-                "text": f"{marker} {bucket_name} ({len(settings_in_bucket)})",
+                "text": f"{marker} {bucket_color} {display_bucket_name} ({len(settings_in_bucket)})",
             }
         )
 
@@ -1011,19 +1355,22 @@ def build_module_settings_items(
 
     items = []
     for bucket_name in BUCKET_ORDER:
-        settings_in_bucket = grouped.get(bucket_name, [])
+        settings_in_bucket = sort_settings_for_bucket(
+            bucket_name, grouped.get(bucket_name, [])
+        )
         if len(settings_in_bucket) == 0:
             continue
 
         is_expanded = expanded_buckets.get(bucket_name, False)
         marker = "[-]" if is_expanded else "[+]"
+        bucket_color = make_color_square(get_bucket_color_hex(settings_in_bucket))
         items.append(
             {
                 "type": "bucket",
                 "bucket": bucket_name,
                 "is_expanded": is_expanded,
                 "count": len(settings_in_bucket),
-                "text": f"{marker} {bucket_name} ({len(settings_in_bucket)})",
+                "text": f"{marker} {bucket_color} {bucket_name} ({len(settings_in_bucket)})",
             }
         )
 
@@ -1249,6 +1596,9 @@ def format_list_editor_line(list_editor_state):
 def render_configuration_line(item, selected):
     """Render one interactive line for the configuration settings screen."""
     selector = ">" if selected else " "
+    if item["type"] == "setting":
+        color_marker = make_color_square(get_setting_color_hex(item["name"]))
+        return f"{selector} {color_marker} {item['text']}"
     return f"{selector} {item['text']}"
 
 
@@ -1327,11 +1677,31 @@ def get_preview_header_lines(
         lines.append(
             "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
         )
+        lines.append(
+            "Legend: "
+            f"{LABEL_CONFIGURATION}={make_color_square(SETTING_COLOR_CONFIGURATION)} "
+            f"{LABEL_IMPACTFUL}={make_color_square(SETTING_COLOR_IMPACTFUL)} "
+            f"{LABEL_SUPPORTING}={make_color_square(SETTING_COLOR_SUPPORTING)} "
+            f"{LABEL_SUPPORTING_CONFIGURATION}={make_color_square(SETTING_COLOR_SUPPORTING_CONFIGURATION)} "
+            f"{LABEL_PB}={make_color_square(SETTING_COLOR_PB)} "
+            f"{LABEL_CONSTANTS}={make_color_square(SETTING_COLOR_CONSTANT)} "
+            f"{LABEL_EXPERIMENTAL}={make_color_square(SETTING_COLOR_EXPERIMENTAL)}"
+        )
         if not help_text and not edit_text:
             lines.append("")
     else:
         lines.append(
             "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
+        )
+        lines.append(
+            "Legend: "
+            f"{LABEL_CONFIGURATION}={make_color_square(SETTING_COLOR_CONFIGURATION)} "
+            f"{LABEL_IMPACTFUL}={make_color_square(SETTING_COLOR_IMPACTFUL)} "
+            f"{LABEL_SUPPORTING}={make_color_square(SETTING_COLOR_SUPPORTING)} "
+            f"{LABEL_SUPPORTING_CONFIGURATION}={make_color_square(SETTING_COLOR_SUPPORTING_CONFIGURATION)} "
+            f"{LABEL_PB}={make_color_square(SETTING_COLOR_PB)} "
+            f"{LABEL_CONSTANTS}={make_color_square(SETTING_COLOR_CONSTANT)} "
+            f"{LABEL_EXPERIMENTAL}={make_color_square(SETTING_COLOR_EXPERIMENTAL)}"
         )
         if not help_text and not edit_text:
             lines.append("")

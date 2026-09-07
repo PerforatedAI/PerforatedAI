@@ -423,6 +423,7 @@ class PAIConfig:
                 "retain_all_dendrites",
                 "find_best_lr",
                 "dont_give_up_unless_learning_rate_lowered",
+                "maximizing_score",
                 "candidate_weight_init_by_main",
                 "perforated_backpropagation",
                 "weight_tying_experimental",
@@ -457,7 +458,6 @@ class PAIConfig:
             k: str
             for k in (
                 "save_name",
-                "config_file",
                 "library_validation_score",
                 "dashboard_url",
             )
@@ -812,6 +812,11 @@ class PAIConfig:
                 "dont_give_up_unless_learning_rate_lowered",
                 self.dont_give_up_unless_learning_rate_lowered,
             )
+            # Whether a higher validation score is better (True) or lower is better (False).
+            self.maximizing_score = True
+            add_pai_config_var_functions(
+                self, "maximizing_score", self.maximizing_score
+            )
 
             # Dendrite attempt settings
             # Set to 1 if you want to quit as soon as one dendrite fails
@@ -1145,7 +1150,9 @@ class PAIConfig:
             if key.startswith("_") or callable(val):
                 continue
             if key not in config_dict:
-                if key == "config_file" and val is None:
+                # Keep config_file runtime-only: do not persist pointer paths in
+                # saved JSON snapshots.
+                if key == "config_file":
                     continue
                 try:
                     config_dict[key] = _serialize_pai_value(val)

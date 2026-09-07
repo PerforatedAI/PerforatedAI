@@ -49,7 +49,7 @@ def perforate_model(
     doing_pai=True,
     save_name="",
     making_graphs=True,
-    maximizing_score=True,
+    maximizing_score=None,
     num_classes=10000000000,
     values_per_train_epoch=-1,
     values_per_val_epoch=-1,
@@ -71,9 +71,11 @@ def perforate_model(
         The name to save the model under, by default "PAI"
     making_graphs : bool, optional
         Whether to create graphs during training, by default True
-    maximizing_score : bool, optional
-        Whether to maximize the score during training, by default True
-        setting to false is for when the score is a loss to be minimized
+    maximizing_score : bool or None, optional
+        Whether to maximize the score during training.
+        - None: use config value (defaults to True)
+        - bool: override config value for this run
+        Setting False is for when the score is a loss to be minimized.
     num_classes : int, optional
         The number of output classes, unused in current version
     values_per_train_epoch : int, optional
@@ -125,6 +127,12 @@ def perforate_model(
 
     GPA.pc.set_save_name(save_name)
     GPA.pc.sync_config_sources()
+
+    if maximizing_score is None:
+        maximizing_score = GPA.pc.get_maximizing_score()
+    else:
+        # Programmatic perforate_model input must win over config-file values.
+        GPA.pc.set_maximizing_score(maximizing_score)
 
     if not GPA.pc.get_configuration_confirmed():
         CPA.set_perforation_targets(model)
