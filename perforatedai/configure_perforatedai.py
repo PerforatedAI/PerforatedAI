@@ -517,6 +517,11 @@ def is_delete_key(key):
     return key == "\x1b[3~" or (key.startswith("\x1b[") and "[3" in key and key.endswith("~"))
 
 
+def is_select_key(key):
+    """Return True when key token should trigger selection/edit actions."""
+    return key == " " or key == "\r" or key == "\n"
+
+
 def make_mode_prefix(entry, recursive_modes):
     """Build the color-square prefix for one module line.
 
@@ -761,6 +766,13 @@ def format_setting_value(value):
     return text
 
 
+def get_setting_options_hint(setting_name):
+    """Return optional inline options text for known settings."""
+    if setting_name == "pai_forward_function":
+        return " [options: sigmoid, relu, tanh]"
+    return ""
+
+
 def classify_setting_bucket(setting_name):
     """Classify one setting into a configuration bucket."""
     if setting_name in {
@@ -915,7 +927,11 @@ def build_settings_items(expanded_buckets):
                         "bucket": bucket_name,
                         "name": setting_name,
                         "value": values[setting_name],
-                        "text": f"  {setting_name} = {format_setting_value(values[setting_name])}",
+                        "text": (
+                            f"  {setting_name} = "
+                            f"{format_setting_value(values[setting_name])}"
+                            f"{get_setting_options_hint(setting_name)}"
+                        ),
                     }
                 )
 
@@ -1030,6 +1046,7 @@ def build_module_settings_items(
                         "text": (
                             f"  {setting_name} = {format_setting_value(value)} "
                             f"({source})"
+                            f"{get_setting_options_hint(setting_name)}"
                         ),
                     }
                 )
@@ -1304,17 +1321,17 @@ def get_preview_header_lines(
             )
     elif active_screen == 0:
         lines.append(
-            "Use Up/Down to select. PageUp/PageDown scroll page-1. Left/Right switches to global settings. lowercase p/t set by id. uppercase P/T set by name. Space opens module settings for selected module (if explicitly perforated). Enter opens save dialog"
+            "Use Up/Down to select. PageUp/PageDown scroll page-1. Left/Right switches to global settings. lowercase p/t set by id. uppercase P/T set by name. Space/Enter opens module settings for selected module (if explicitly perforated). s opens save dialog"
         )
     elif active_screen == 1:
         lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space edits. h shows description. Enter opens save dialog"
+            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
         )
         if not help_text and not edit_text:
             lines.append("")
     else:
         lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space edits. h shows description. Enter opens save dialog"
+            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
         )
         if not help_text and not edit_text:
             lines.append("")
@@ -1606,6 +1623,16 @@ def read_single_key():
         termios.tcsetattr(file_descriptor, termios.TCSADRAIN, old_settings)
 
 
+def enter_alternate_screen():
+    """Switch terminal to alternate screen buffer for interactive UI."""
+    print("\x1b[?1049h\x1b[2J\x1b[H", end="", flush=True)
+
+
+def exit_alternate_screen():
+    """Return terminal to normal screen buffer."""
+    print("\x1b[?1049l", end="", flush=True)
+
+
 def set_perforation_targets(model):
     """Interactive configuration prompt for perforation target selection.
 
@@ -1618,7 +1645,9 @@ def set_perforation_targets(model):
     - t: track selected module by id
     - Shift+P: perforate selected module type by name
     - Shift+T: track selected module type by name
-    - Enter: confirm and continue
+    - Space/Enter: select or edit current item
+    - s: open save dialog
+    - Esc: go back/cancel current inline edit
 
     Parameters
     ----------
@@ -1632,7 +1661,10 @@ def set_perforation_targets(model):
     """
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
+    entered_alt_screen = False
     try:
+        enter_alternate_screen()
+        entered_alt_screen = True
         normalize_selection_conflicts()
 
         entries = get_module_entries(model)
@@ -1657,6 +1689,7 @@ def set_perforation_targets(model):
         global_expanded_buckets = {}
         module_expanded_buckets = {}
         list_editor_state = None
+        scalar_editor_state = None
         module_scope = None
         module_settings_overrides = {}
         existing_module_settings = load_existing_module_settings()
@@ -1672,13 +1705,26 @@ def set_perforation_targets(model):
 
             config_file = GPA.pc.get_config_file()
             if not config_file:
+                import os
+
+                current_save_name = GPA.pc.get_save_name() or "PAI"
+                run_config_path = GPA.pc.get_run_config_path()
+                relative_config_name = (
+                    os.path.relpath(run_config_path, os.getcwd())
+                    if run_config_path
+                    else f"{current_save_name}/{current_save_name}_config.json"
+                )
                 print("\x1b[2J\x1b[H", end="")
                 print("No config_file is set.")
                 print(
                     "Enter a local JSON filename/path to create a reusable configuration file."
                 )
                 print(
-                    "After this run, update your training code to call perforate_model(..., config_file='your_path.json')."
+                    f"You currently have save_name='{current_save_name}'. "
+                    f"Choose the filename '{relative_config_name}' to skip this menu next time without changing your perforate_model call."
+                )
+                print(
+                    "Alternative: set config_file in perforate_model(..., config_file='your_path.json')."
                 )
                 while True:
                     filename = input("Config filename/path: ").strip()
@@ -1780,6 +1826,10 @@ def set_perforation_targets(model):
                 continue
 
             if confirm_dialog_active:
+                if key == "\x1b":
+                    confirm_dialog_active = False
+                    edit_text = ""
+                    continue
                 if is_left_key(key):
                     confirm_choice_index = max(0, confirm_choice_index - 1)
                     continue
@@ -1791,9 +1841,84 @@ def set_perforation_targets(model):
                         confirm_dialog_active = False
                         edit_text = ""
                         continue
-                    finalize_save(confirm_choice_index)
-                    GPA.pc.set_configuration_confirmed(True)
+
+                    # Only persist configuration_confirmed=True for overwrite mode.
+                    # For "save for current run", keep confirmation in-memory for this
+                    # run but do not bake it into saved config JSON.
+                    if confirm_choice_index == 1:
+                        GPA.pc.set_configuration_confirmed(True)
+                        finalize_save(confirm_choice_index)
+                    else:
+                        finalize_save(confirm_choice_index)
+                        GPA.pc.set_configuration_confirmed(True)
                     break
+                continue
+
+            if scalar_editor_state is not None:
+                input_buffer = scalar_editor_state.get("input_buffer", "")
+                cursor_index = scalar_editor_state.get("cursor_index", 0)
+
+                if key == "\x1b":
+                    scalar_editor_state = None
+                    edit_text = ""
+                    continue
+                if is_left_key(key):
+                    scalar_editor_state["cursor_index"] = max(0, cursor_index - 1)
+                elif is_right_key(key):
+                    scalar_editor_state["cursor_index"] = min(
+                        len(input_buffer), cursor_index + 1
+                    )
+                elif key == "\x7f":
+                    if cursor_index > 0:
+                        scalar_editor_state["input_buffer"] = (
+                            input_buffer[: cursor_index - 1] + input_buffer[cursor_index:]
+                        )
+                        scalar_editor_state["cursor_index"] = cursor_index - 1
+                elif is_delete_key(key):
+                    if cursor_index < len(input_buffer):
+                        scalar_editor_state["input_buffer"] = (
+                            input_buffer[:cursor_index] + input_buffer[cursor_index + 1 :]
+                        )
+                elif key == "\r" or key == "\n":
+                    setting_name = scalar_editor_state["setting_name"]
+                    sample_value = scalar_editor_state["sample_value"]
+                    try:
+                        parsed = parse_value_from_text(
+                            scalar_editor_state.get("input_buffer", ""), sample_value
+                        )
+                    except Exception as exc:
+                        edit_text = f"Invalid value for {setting_name}: {exc}"
+                        scalar_editor_state = None
+                        continue
+
+                    if scalar_editor_state.get("apply_to_module_scope", False):
+                        set_module_scoped_value(
+                            module_settings_overrides,
+                            scalar_editor_state["scope_key"],
+                            setting_name,
+                            parsed,
+                        )
+                        ok, message = True, ""
+                    else:
+                        ok, message = apply_setting_value(setting_name, parsed)
+
+                    scalar_editor_state = None
+                    edit_text = message if not ok else ""
+                    continue
+                elif len(key) == 1 and key >= " ":
+                    scalar_editor_state["input_buffer"] = (
+                        input_buffer[:cursor_index] + key + input_buffer[cursor_index:]
+                    )
+                    scalar_editor_state["cursor_index"] = cursor_index + 1
+
+                if scalar_editor_state is not None:
+                    name = scalar_editor_state["setting_name"]
+                    buffer_text = scalar_editor_state.get("input_buffer", "")
+                    cursor = scalar_editor_state.get("cursor_index", len(buffer_text))
+                    edit_text = (
+                        f"EDIT - {name} - {render_text_with_cursor(buffer_text, cursor)} "
+                        "(Enter save, Esc cancel)"
+                    )
                 continue
 
             if list_editor_state is not None:
@@ -2030,6 +2155,19 @@ def set_perforation_targets(model):
                     module_settings_window_start = 0
                 continue
 
+            if key == "\x1b":
+                help_text = ""
+                edit_text = ""
+                if active_screen == 2:
+                    active_screen = 0
+                    module_scope = None
+                    module_expanded_buckets = {}
+                    module_settings_selected_index = 0
+                    module_settings_window_start = 0
+                elif active_screen == 1:
+                    active_screen = 0
+                continue
+
             if active_screen == 0:
                 selected_entry = entries[selected_index]
 
@@ -2045,7 +2183,7 @@ def set_perforation_targets(model):
                 if key == "T":
                     set_module_name_mode(selected_entry["type_name"], "tracked")
                     continue
-                if key == " ":
+                if is_select_key(key):
                     recursive_modes = build_recursive_modes(entries)
                     scope, warning = get_space_scope_for_entry(
                         selected_entry, recursive_modes
@@ -2076,7 +2214,7 @@ def set_perforation_targets(model):
                     help_overlay_active = True
                     edit_text = ""
                     continue
-                if key == " " and len(settings_items) > 0:
+                if is_select_key(key) and len(settings_items) > 0:
                     item = settings_items[global_settings_selected_index]
                     if item["type"] == "bucket":
                         global_expanded_buckets[item["bucket"]] = not item["is_expanded"]
@@ -2126,21 +2264,20 @@ def set_perforation_targets(model):
                         continue
 
                     if isinstance(setting_value, (int, float)):
-                        prompt = (
-                            f"EDIT - {setting_name} - enter new value "
-                            f"(current={setting_value}): "
+                        initial_text = str(setting_value)
+                        scalar_editor_state = {
+                            "setting_name": setting_name,
+                            "sample_value": setting_value,
+                            "input_buffer": initial_text,
+                            "cursor_index": len(initial_text),
+                            "apply_to_module_scope": False,
+                            "scope_key": None,
+                        }
+                        edit_text = (
+                            f"EDIT - {setting_name} - "
+                            f"{render_text_with_cursor(initial_text, len(initial_text))} "
+                            "(Enter save, Esc cancel)"
                         )
-                        text = input(prompt).strip()
-                        if not text:
-                            edit_text = ""
-                            continue
-                        try:
-                            parsed = parse_value_from_text(text, setting_value)
-                        except Exception as exc:
-                            edit_text = f"Invalid value for {setting_name}: {exc}"
-                            continue
-                        ok, message = apply_setting_value(setting_name, parsed)
-                        edit_text = message if not ok else ""
                         continue
 
                     edit_text = f"Setting {setting_name} edit is not supported."
@@ -2165,7 +2302,7 @@ def set_perforation_targets(model):
                     help_overlay_active = True
                     edit_text = ""
                     continue
-                if key == " " and len(settings_items) > 0:
+                if is_select_key(key) and len(settings_items) > 0:
                     item = settings_items[module_settings_selected_index]
                     if item["type"] == "bucket":
                         module_expanded_buckets[item["bucket"]] = not item["is_expanded"]
@@ -2225,30 +2362,31 @@ def set_perforation_targets(model):
                         continue
 
                     if isinstance(setting_value, (int, float)):
-                        prompt = (
-                            f"EDIT - {setting_name} - enter new value "
-                            f"(current={setting_value}): "
+                        initial_text = str(setting_value)
+                        scalar_editor_state = {
+                            "setting_name": setting_name,
+                            "sample_value": setting_value,
+                            "input_buffer": initial_text,
+                            "cursor_index": len(initial_text),
+                            "apply_to_module_scope": True,
+                            "scope_key": scope_key,
+                        }
+                        edit_text = (
+                            f"EDIT - {setting_name} - "
+                            f"{render_text_with_cursor(initial_text, len(initial_text))} "
+                            "(Enter save, Esc cancel)"
                         )
-                        text = input(prompt).strip()
-                        if not text:
-                            edit_text = ""
-                            continue
-                        try:
-                            parsed = parse_value_from_text(text, setting_value)
-                        except Exception as exc:
-                            edit_text = f"Invalid value for {setting_name}: {exc}"
-                            continue
-                        ok, message = apply_module_setting(parsed)
-                        edit_text = message if not ok else ""
                         continue
 
                     edit_text = f"Setting {setting_name} edit is not supported."
                     continue
 
-            if key == "\r" or key == "\n":
+            if key.lower() == "s":
                 edit_text = ""
                 confirm_dialog_active = True
                 confirm_choice_index = 0
                 continue
     finally:
+        if entered_alt_screen:
+            exit_alternate_screen()
         GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist

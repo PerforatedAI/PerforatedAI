@@ -144,11 +144,6 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             if var_name == "config_file":
                 self.sync_config_sources()
-            if (
-                not self.__dict__.get("_testing_dendrite_capacity", False)
-                and self.__dict__.get("_auto_persist_config", True)
-            ):
-                self.persist_config_outputs(overwrite_config_file=True)
 
     def appender(self, value):
         """Append a value to the property if it is a list.
@@ -203,6 +198,14 @@ def _resolve_dotted_name(dotted_name):
     Returns None if the name cannot be resolved.
     """
     import importlib
+
+    # Common shorthand names accepted in user-facing config files.
+    if dotted_name == "sigmoid":
+        return torch.sigmoid
+    if dotted_name == "relu":
+        return torch.relu
+    if dotted_name == "tanh":
+        return torch.tanh
 
     parts = dotted_name.rsplit(".", 1)
     if len(parts) == 2:
@@ -1057,6 +1060,30 @@ class PAIConfig:
             self, "pai_forward_function", self.pai_forward_function
         )
 
+        # Apply per-module overrides after defaults are defined so loaded values
+        # win over initializer defaults.
+        if module_name is not None:
+            import os
+
+            global_pc = globals().get("pc")
+            source_paths = []
+            if global_pc is not None:
+                config_file = getattr(global_pc, "__dict__", {}).get("_config_file")
+                run_config = global_pc.get_run_config_path()
+                if config_file:
+                    source_paths.append(config_file)
+                if run_config:
+                    source_paths.append(run_config)
+
+            for source_path in source_paths:
+                if source_path and os.path.exists(source_path):
+                    self.load_config(
+                        source_path,
+                        module_name=module_name,
+                        module_type=module_type,
+                    )
+                    break
+
         # ------------------------------------------------------------------
         # Config file will be set when save_name is assigned (in perforate_model)
         # ------------------------------------------------------------------
@@ -1103,9 +1130,11 @@ class PAIConfig:
                 "_auto_persist_config",
             ):
                 continue
-            if callable(val):  # skip bound method refs
-                continue
             clean_key = key[1:]
+            # Keep callable config fields (e.g. pai_forward_function) but skip
+            # any other private callable values that are not typed as callable.
+            if callable(val) and PAIConfig._TYPES.get(clean_key) is not callable:
+                continue
             try:
                 config_dict[clean_key] = _serialize_pai_value(val)
             except Exception:
@@ -1116,6 +1145,8 @@ class PAIConfig:
             if key.startswith("_") or callable(val):
                 continue
             if key not in config_dict:
+                if key == "config_file" and val is None:
+                    continue
                 try:
                     config_dict[key] = _serialize_pai_value(val)
                 except Exception:

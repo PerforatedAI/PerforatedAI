@@ -147,10 +147,6 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
     
-    # Save run config after perforation
-    if not GPA.pc.get_testing_dendrite_capacity():
-        GPA.pc.persist_config_outputs(overwrite_config_file=False)
-    
     return model
 
 
