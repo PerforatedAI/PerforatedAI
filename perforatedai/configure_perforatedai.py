@@ -448,6 +448,72 @@ def get_visual_line_count(lines, terminal_columns):
     return total
 
 
+def wrap_ansi_line_on_words(line, terminal_columns):
+    """Wrap one ANSI-colored line on word boundaries for terminal display.
+
+    Falls back to a hard split only when one contiguous token is wider than
+    the available width.
+    """
+    if terminal_columns < 1:
+        return [line]
+
+    plain = strip_ansi(line)
+    if len(plain) <= terminal_columns:
+        return [line]
+
+    # Map each visible-character index to the corresponding raw-string index,
+    # skipping ANSI escape sequences which have zero visual width.
+    visible_to_raw = []
+    raw_index = 0
+    while raw_index < len(line):
+        if line[raw_index] == "\x1b":
+            match = ANSI_ESCAPE_RE.match(line, raw_index)
+            if match is not None:
+                raw_index = match.end()
+                continue
+        visible_to_raw.append(raw_index)
+        raw_index += 1
+
+    if len(visible_to_raw) == 0:
+        return [line]
+
+    wrapped = []
+    start = 0
+    visible_len = len(plain)
+    while start < visible_len:
+        while start < visible_len and plain[start] == " ":
+            start += 1
+        if start >= visible_len:
+            break
+
+        max_end = min(visible_len, start + terminal_columns)
+        if max_end == visible_len:
+            end = visible_len
+        else:
+            split_at = plain.rfind(" ", start, max_end)
+            end = split_at if split_at > start else max_end
+
+        raw_start = visible_to_raw[start]
+        raw_end = len(line) if end >= visible_len else visible_to_raw[end]
+        wrapped.append(line[raw_start:raw_end].rstrip())
+
+        if end < visible_len and plain[end] == " ":
+            start = end + 1
+        else:
+            start = end
+
+    return wrapped if wrapped else [line]
+
+
+def wrap_screen_text_for_terminal(screen_text):
+    """Wrap full screen text to terminal width without mid-word breaks."""
+    terminal_columns = shutil.get_terminal_size(fallback=(120, 40)).columns
+    wrapped_lines = []
+    for raw_line in screen_text.split("\n"):
+        wrapped_lines.extend(wrap_ansi_line_on_words(raw_line, terminal_columns))
+    return "\n".join(wrapped_lines)
+
+
 def render_text_with_cursor(text, cursor_index):
     """Render text with CLI-style inverted-character cursor."""
     if cursor_index < 0:
@@ -528,7 +594,7 @@ def make_mode_prefix(entry, recursive_modes):
     Rules:
     - Submodule inherited mode draws in the first marker column (S).
     - Id mode draws in the second marker column (I).
-    - Name mode draws in the third marker column (A).
+    - Name mode draws in the third marker column (N).
     - Vertical dividers are always present between columns.
     - If neither applies, show one neutral marker in the I column.
 
@@ -543,7 +609,7 @@ def make_mode_prefix(entry, recursive_modes):
     Returns
     -------
     str
-        Prefix string in S|I|A layout.
+        Prefix string in S|I|N layout.
     """
     id_mode = get_id_mode(entry["id"])
     name_mode = get_name_mode(entry["type_name"])
@@ -707,151 +773,13 @@ INTERNAL_CONFIG_KEYS = {
 
 RUNTIME_ONLY_CONFIG_KEYS = {"config_file"}
 
-BUCKET_ORDER = [
-    "Main Run Settings",
-    "Switch Strategy",
-    "Optimization And Search",
-    "Visualization And Logging",
-    "PerforatedBP Settings",
-    "Dashboard",
-    "Experimental",
-    "Other",
-    "Target Selection",
-    "Run And Persistence",
-]
-
-FALLBACK_BUCKET_DESCRIPTIONS = {
-    "Main Run Settings": "Primary run identity, output shape, device selection, and core execution flags.",
-    "Run And Persistence": "Run identity, config file location, safety toggles, and save/load behavior.",
-    "Target Selection": "Target Selection (Recommended to use Perforation Targets Menu). Which modules and parameters are perforated, tracked, replaced, or custom-processed.",
-    "Switch Strategy": "When and how dendrite expansion or switching is triggered during training.",
-    "Optimization And Search": "Thresholds and retry/search controls for candidate evaluation.",
-    "Visualization And Logging": "Console verbosity, graph generation, save behavior, and debugging visibility.",
-    "PerforatedBP Settings": "Perforated Backpropagation-specific settings loaded from the optional perforatedbp package.",
-    "Dashboard": "Live dashboard event stream and endpoint configuration.",
-    "Experimental": "Flags for optional or advanced behavior not used in common flows.",
-    "Other": "Global settings that do not fit another category.",
-}
-
 SETTING_COLOR_IMPACTFUL = "00A5A5"
 SETTING_COLOR_SUPPORTING = "004145"
 SETTING_COLOR_SUPPORTING_CONFIGURATION = "001424"
-SETTING_COLOR_CONSTANT = "DEECED"
+SETTING_COLOR_CONSTANT = "9892A0"
 SETTING_COLOR_EXPERIMENTAL = "FD4D00"
 SETTING_COLOR_PB = "00F9C9"
 SETTING_COLOR_CONFIGURATION = "FFFFFF"
-
-NATIVE_PAI_SETTING_NAMES = {
-    "use_cuda",
-    "device",
-    "save_name",
-    "config_file",
-    "debugging_output_dimensions",
-    "confirm_correct_sizes",
-    "unwrapped_modules_confirmed",
-    "weight_decay_accepted",
-    "checked_skipped_modules",
-    "configuration_confirmed",
-    "save_old_graph_scores",
-    "testing_dendrite_capacity",
-    "using_safe_tensors",
-    "strict_loading",
-    "drawing_pai",
-    "drawing_extra_graphs",
-    "test_saves",
-    "pai_saves",
-    "improvement_threshold",
-    "improvement_threshold_raw",
-    "DOING_SWITCH_EVERY_TIME",
-    "DOING_HISTORY",
-    "n_epochs_to_switch",
-    "history_lookback",
-    "initial_history_after_switches",
-    "DOING_FIXED_SWITCH",
-    "fixed_switch_num",
-    "first_fixed_switch_num",
-    "DOING_NO_SWITCH",
-    "switch_mode",
-    "reset_best_score_on_switch",
-    "learn_dendrites_live",
-    "no_extra_n_modes",
-    "d_type",
-    "find_best_lr",
-    "dont_give_up_unless_learning_rate_lowered",
-    "maximizing_score",
-    "max_dendrite_tries",
-    "PARAM_VALS_BY_TOTAL_EPOCH",
-    "PARAM_VALS_BY_UPDATE_EPOCH",
-    "PARAM_VALS_BY_NEURON_EPOCH_START",
-    "param_vals_setting",
-    "modules_to_perforate",
-    "module_names_to_perforate",
-    "module_ids_to_perforate",
-    "modules_to_track",
-    "module_names_to_track",
-    "module_ids_to_track",
-    "parameter_ids_to_track",
-    "modules_to_replace",
-    "replacement_modules",
-    "modules_with_processing",
-    "modules_processing_classes",
-    "module_names_with_processing",
-    "module_by_name_processing_classes",
-    "module_names_to_not_save",
-    "perforated_backpropagation",
-    "weight_tying_experimental",
-    "dashboard_events_enabled",
-    "dashboard_url",
-    "dashboard_debug",
-    "library_validation_score",
-    "library_extra_scores",
-    "library_extra_scores_without_graphing",
-    "output_dimensions",
-    "verbose",
-    "extra_verbose",
-    "silent",
-    "global_candidates",
-    "candidate_weight_initialization_multiplier",
-    "candidate_weight_init_by_main",
-    "retain_all_dendrites",
-    "max_dendrites",
-    "pai_forward_function",
-}
-
-EXPERIMENTAL_SETTING_NAMES = {
-    "learn_dendrites_live",
-    "no_extra_n_modes",
-    "weight_tying_experimental",
-}
-
-CONSTANT_SETTING_PREFIXES = ("DOING_", "PARAM_VALS_BY_")
-CONSTANT_SETTING_NAMES = {"use_cuda", "device", "d_type"}
-
-IMPACTFUL_SETTING_NAMES = {
-    "module_names_to_perforate",
-    "module_ids_to_perforate",
-    "module_names_to_track",
-    "module_ids_to_track",
-    "parameter_ids_to_track",
-    "switch_mode",
-    "n_epochs_to_switch",
-    "history_lookback",
-    "initial_history_after_switches",
-    "fixed_switch_num",
-    "first_fixed_switch_num",
-    "improvement_threshold",
-    "improvement_threshold_raw",
-    "find_best_lr",
-    "dont_give_up_unless_learning_rate_lowered",
-    "maximizing_score",
-    "max_dendrite_tries",
-    "max_dendrites",
-    "global_candidates",
-    "candidate_weight_initialization_multiplier",
-    "candidate_weight_init_by_main",
-    "retain_all_dendrites",
-    "pai_forward_function",
-}
 
 DESCRIPTION_FILE_NAME = "configuration_descriptions.json"
 DESCRIPTION_CACHE = None
@@ -906,6 +834,17 @@ def _normalize_label(label_text):
     return LABEL_SUPPORTING
 
 
+LABEL_TO_COLOR = {
+    LABEL_CONFIGURATION: SETTING_COLOR_CONFIGURATION,
+    LABEL_IMPACTFUL: SETTING_COLOR_IMPACTFUL,
+    LABEL_SUPPORTING: SETTING_COLOR_SUPPORTING,
+    LABEL_SUPPORTING_CONFIGURATION: SETTING_COLOR_SUPPORTING_CONFIGURATION,
+    LABEL_PB: SETTING_COLOR_PB,
+    LABEL_CONSTANTS: SETTING_COLOR_CONSTANT,
+    LABEL_EXPERIMENTAL: SETTING_COLOR_EXPERIMENTAL,
+}
+
+
 def load_description_data():
     """Load bucket and setting metadata from local JSON."""
     global DESCRIPTION_CACHE
@@ -924,7 +863,9 @@ def load_description_data():
     bucket_descriptions = {}
     setting_descriptions = {}
     setting_labels = {}
+    setting_to_bucket = {}
     settings_by_bucket = {}
+    bucket_order = []
 
     # New nested schema:
     # {
@@ -939,6 +880,7 @@ def load_description_data():
     # }
     if isinstance(bucket_entries, dict):
         for bucket_name, bucket_payload in bucket_entries.items():
+            bucket_order.append(bucket_name)
             if isinstance(bucket_payload, dict):
                 bucket_descriptions[bucket_name] = bucket_payload.get("description", "")
 
@@ -947,6 +889,7 @@ def load_description_data():
                 if isinstance(bucket_settings, dict):
                     for setting_name, setting_payload in bucket_settings.items():
                         ordered_setting_names.append(setting_name)
+                        setting_to_bucket[setting_name] = bucket_name
                         if isinstance(setting_payload, dict):
                             setting_descriptions[setting_name] = setting_payload.get("description", "")
                             setting_labels[setting_name] = _normalize_label(
@@ -975,8 +918,10 @@ def load_description_data():
 
     DESCRIPTION_CACHE = {
         "buckets": bucket_descriptions,
+        "bucket_order": bucket_order,
         "settings": setting_descriptions,
         "setting_labels": setting_labels,
+        "setting_to_bucket": setting_to_bucket,
         "settings_by_bucket": settings_by_bucket,
     }
     return DESCRIPTION_CACHE
@@ -986,7 +931,19 @@ def format_setting_value(value):
     """Format setting values for compact configuration screen display."""
     if value is None:
         return "None"
-    text = str(value)
+    if callable(value):
+        name = getattr(value, "__name__", None) or getattr(value, "__qualname__", None)
+        mod = getattr(value, "__module__", None)
+        if name in ("sigmoid", "relu", "tanh"):
+            text = f"torch.{name}"
+        elif name and mod:
+            text = f"{mod}.{name}"
+        elif name:
+            text = str(name)
+        else:
+            text = repr(value)
+    else:
+        text = str(value)
     if len(text) > 140:
         return text[:137] + "..."
     return text
@@ -994,20 +951,7 @@ def format_setting_value(value):
 
 def get_setting_options_hint(setting_name):
     """Return optional inline options text for known settings."""
-    if setting_name == "pai_forward_function":
-        return " [options: sigmoid, relu, tanh]"
-    if setting_name == "global_candidates":
-        return " (leave at 1)"
     return ""
-
-
-def is_perforatedbp_setting(setting_name):
-    """Return True when a setting appears to come from perforatedbp globals."""
-    if setting_name in INTERNAL_CONFIG_KEYS:
-        return False
-    if setting_name in RUNTIME_ONLY_CONFIG_KEYS:
-        return False
-    return setting_name not in NATIVE_PAI_SETTING_NAMES
 
 
 def get_setting_color_hex(setting_name):
@@ -1017,32 +961,8 @@ def get_setting_color_hex(setting_name):
     label_name = setting_labels.get(setting_name)
     if label_name is not None:
         normalized_label = _normalize_label(label_name)
-        if normalized_label == LABEL_CONFIGURATION:
-            return SETTING_COLOR_CONFIGURATION
-        if normalized_label == LABEL_IMPACTFUL:
-            return SETTING_COLOR_IMPACTFUL
-        if normalized_label == LABEL_SUPPORTING:
-            return SETTING_COLOR_SUPPORTING
-        if normalized_label == LABEL_SUPPORTING_CONFIGURATION:
-            return SETTING_COLOR_SUPPORTING_CONFIGURATION
-        if normalized_label == LABEL_PB:
-            return SETTING_COLOR_PB
-        if normalized_label == LABEL_CONSTANTS:
-            return SETTING_COLOR_CONSTANT
-        if normalized_label == LABEL_EXPERIMENTAL:
-            return SETTING_COLOR_EXPERIMENTAL
+        return LABEL_TO_COLOR.get(normalized_label, SETTING_COLOR_SUPPORTING)
 
-    if is_perforatedbp_setting(setting_name):
-        return SETTING_COLOR_PB
-    if setting_name in EXPERIMENTAL_SETTING_NAMES:
-        return SETTING_COLOR_EXPERIMENTAL
-    if setting_name in CONSTANT_SETTING_NAMES:
-        return SETTING_COLOR_CONSTANT
-    for prefix in CONSTANT_SETTING_PREFIXES:
-        if setting_name.startswith(prefix):
-            return SETTING_COLOR_CONSTANT
-    if setting_name in IMPACTFUL_SETTING_NAMES:
-        return SETTING_COLOR_IMPACTFUL
     return SETTING_COLOR_SUPPORTING
 
 
@@ -1053,19 +973,6 @@ def get_setting_label(setting_name):
     if setting_name in setting_labels:
         return _normalize_label(setting_labels[setting_name])
 
-    color_hex = get_setting_color_hex(setting_name)
-    if color_hex == SETTING_COLOR_CONFIGURATION:
-        return LABEL_CONFIGURATION
-    if color_hex == SETTING_COLOR_IMPACTFUL:
-        return LABEL_IMPACTFUL
-    if color_hex == SETTING_COLOR_CONSTANT:
-        return LABEL_CONSTANTS
-    if color_hex == SETTING_COLOR_EXPERIMENTAL:
-        return LABEL_EXPERIMENTAL
-    if color_hex == SETTING_COLOR_PB:
-        return LABEL_PB
-    if color_hex == SETTING_COLOR_SUPPORTING_CONFIGURATION:
-        return LABEL_SUPPORTING_CONFIGURATION
     return LABEL_SUPPORTING
 
 
@@ -1079,9 +986,12 @@ def sort_settings_for_bucket(bucket_name, setting_names):
     fallback_base = len(configured_order) + 100000
 
     def _sort_key(setting_name):
+        # Keep constants at the end of each bucket while preserving the
+        # configured JSON order for everything else.
+        is_constant = get_setting_label(setting_name) == LABEL_CONSTANTS
         if setting_name in configured_index:
-            return (0, configured_index[setting_name], setting_name)
-        return (1, fallback_base, setting_name)
+            return (1 if is_constant else 0, 0, configured_index[setting_name], setting_name)
+        return (1 if is_constant else 0, 1, fallback_base, setting_name)
 
     return sorted(setting_names, key=_sort_key)
 
@@ -1106,124 +1016,29 @@ def get_bucket_color_hex(setting_names):
 
 
 def classify_setting_bucket(setting_name):
-    """Classify one setting into a configuration bucket."""
-    if is_perforatedbp_setting(setting_name):
-        return "PerforatedBP Settings"
-
-    if setting_name in {
-        "save_name",
-        "config_file",
-        "configuration_confirmed",
-        "testing_dendrite_capacity",
-        "output_dimensions",
-        "device",
-        "use_cuda",
-        "d_type",
-        "perforated_backpropagation",
-        "using_safe_tensors",
-        "strict_loading",
-        "checked_skipped_modules",
-        "unwrapped_modules_confirmed",
-        "weight_decay_accepted",
-    }:
-        return "Main Run Settings"
-
-    if (
-        setting_name.startswith("module_")
-        or setting_name.startswith("modules_")
-        or setting_name.startswith("parameter_ids")
-        or setting_name in {"output_dimensions", "replacement_modules"}
-    ):
-        return "Target Selection"
-
-    if setting_name in {
-        "switch_mode",
-        "DOING_SWITCH_EVERY_TIME",
-        "DOING_HISTORY",
-        "DOING_FIXED_SWITCH",
-        "DOING_NO_SWITCH",
-        "n_epochs_to_switch",
-        "history_lookback",
-        "initial_history_after_switches",
-        "fixed_switch_num",
-        "first_fixed_switch_num",
-        "reset_best_score_on_switch",
-        "param_vals_setting",
-        "PARAM_VALS_BY_TOTAL_EPOCH",
-        "PARAM_VALS_BY_UPDATE_EPOCH",
-        "PARAM_VALS_BY_NEURON_EPOCH_START",
-    }:
-        return "Switch Strategy"
-
-    if setting_name in {
-        "improvement_threshold",
-        "improvement_threshold_raw",
-        "find_best_lr",
-        "dont_give_up_unless_learning_rate_lowered",
-        "maximizing_score",
-        "max_dendrite_tries",
-        "max_dendrites",
-        "retain_all_dendrites",
-        "global_candidates",
-        "candidate_weight_initialization_multiplier",
-        "candidate_weight_init_by_main",
-    }:
-        return "Optimization And Search"
-
-    if setting_name in {
-        "verbose",
-        "extra_verbose",
-        "silent",
-        "drawing_pai",
-        "drawing_extra_graphs",
-        "save_old_graph_scores",
-        "test_saves",
-        "pai_saves",
-        "library_validation_score",
-        "library_extra_scores",
-        "library_extra_scores_without_graphing",
-        "pai_forward_function",
-        "confirm_correct_sizes",
-        "debugging_output_dimensions",
-    }:
-        return "Visualization And Logging"
-
-    if setting_name.startswith("dashboard_"):
-        return "Dashboard"
-
-    if setting_name in {
-        "learn_dendrites_live",
-        "no_extra_n_modes",
-        "perforated_backpropagation",
-        "weight_tying_experimental",
-    }:
-        return "Experimental"
-
-    return "Other"
+    """Classify one setting into a configuration bucket from JSON metadata."""
+    description_data = load_description_data()
+    bucket_name = description_data.get("setting_to_bucket", {}).get(setting_name)
+    if bucket_name is not None:
+        return bucket_name
+    return None
 
 
 def get_all_global_parameters():
-    """Collect all global config parameters as name -> current value."""
+    """Collect JSON-declared global config parameters as name -> current value."""
+    description_data = load_description_data()
+    visible_names = []
+    for bucket_name in description_data.get("bucket_order", []):
+        visible_names.extend(
+            description_data.get("settings_by_bucket", {}).get(bucket_name, [])
+        )
+
     values = {}
 
-    for key, value in GPA.pc.__dict__.items():
-        if callable(value):
+    for setting_name in visible_names:
+        if setting_name in RUNTIME_ONLY_CONFIG_KEYS:
             continue
-        if not (key.startswith("_") and not key.startswith("__")):
-            continue
-        clean_name = key[1:]
-        if clean_name in INTERNAL_CONFIG_KEYS or clean_name in RUNTIME_ONLY_CONFIG_KEYS:
-            continue
-        values[clean_name] = value
-
-    for key, value in GPA.pc.__dict__.items():
-        if key.startswith("_") or callable(value):
-            continue
-        if key in RUNTIME_ONLY_CONFIG_KEYS:
-            continue
-        if key in values:
-            continue
-        values[key] = value
+        values[setting_name] = get_global_setting_value(setting_name)
 
     return values
 
@@ -1231,16 +1046,13 @@ def get_all_global_parameters():
 def build_settings_items(expanded_buckets):
     """Build hierarchical settings items with collapsible buckets."""
     values = get_all_global_parameters()
-    grouped = {bucket_name: [] for bucket_name in BUCKET_ORDER}
-
-    for setting_name in sorted(values.keys()):
-        bucket_name = classify_setting_bucket(setting_name)
-        grouped.setdefault(bucket_name, []).append(setting_name)
 
     items = []
-    for bucket_name in BUCKET_ORDER:
+    description_data = load_description_data()
+    for bucket_name in description_data.get("bucket_order", []):
         settings_in_bucket = sort_settings_for_bucket(
-            bucket_name, grouped.get(bucket_name, [])
+            bucket_name,
+            description_data.get("settings_by_bucket", {}).get(bucket_name, []),
         )
         if len(settings_in_bucket) == 0:
             continue
@@ -1270,10 +1082,10 @@ def build_settings_items(expanded_buckets):
                         "type": "setting",
                         "bucket": bucket_name,
                         "name": setting_name,
-                        "value": values[setting_name],
+                        "value": values.get(setting_name, "<unavailable>"),
                         "text": (
                             f"  {setting_name} = "
-                            f"{format_setting_value(values[setting_name])}"
+                            f"{format_setting_value(values.get(setting_name, '<unavailable>'))}"
                             f"{get_setting_options_hint(setting_name)}"
                         ),
                     }
@@ -1348,15 +1160,18 @@ def build_module_settings_items(
         scope_key, module_settings_overrides, existing_module_settings
     )
 
-    grouped = {bucket_name: [] for bucket_name in BUCKET_ORDER}
-    for setting_name in sorted(GPA.PAIConfig._CUSTOMIZABLE.keys()):
-        bucket_name = classify_setting_bucket(setting_name)
-        grouped.setdefault(bucket_name, []).append(setting_name)
-
     items = []
-    for bucket_name in BUCKET_ORDER:
+    description_data = load_description_data()
+    customizable_setting_names = list(GPA.PAIConfig._CUSTOMIZABLE.keys())
+    for bucket_name in description_data.get("bucket_order", []):
         settings_in_bucket = sort_settings_for_bucket(
-            bucket_name, grouped.get(bucket_name, [])
+            bucket_name,
+            [
+                setting_name
+                for setting_name in customizable_setting_names
+                if description_data.get("setting_to_bucket", {}).get(setting_name)
+                == bucket_name
+            ],
         )
         if len(settings_in_bucket) == 0:
             continue
@@ -1485,9 +1300,7 @@ def get_item_description(item):
     if item["type"] == "bucket":
         return bucket_descriptions.get(
             item["bucket"],
-            FALLBACK_BUCKET_DESCRIPTIONS.get(
-                item["bucket"], "No description available."
-            ),
+            "No description available.",
         )
     if item["type"] == "setting":
         if item["name"] in setting_descriptions:
@@ -1507,19 +1320,6 @@ def get_item_display_name(item):
 
 def get_enum_options(setting_name):
     """Return enum options for known enum-like settings."""
-    if setting_name == "switch_mode":
-        return [
-            GPA.pc.DOING_SWITCH_EVERY_TIME,
-            GPA.pc.DOING_HISTORY,
-            GPA.pc.DOING_FIXED_SWITCH,
-            GPA.pc.DOING_NO_SWITCH,
-        ]
-    if setting_name == "param_vals_setting":
-        return [
-            GPA.pc.PARAM_VALS_BY_TOTAL_EPOCH,
-            GPA.pc.PARAM_VALS_BY_UPDATE_EPOCH,
-            GPA.pc.PARAM_VALS_BY_NEURON_EPOCH_START,
-        ]
     return None
 
 
@@ -1586,6 +1386,13 @@ def format_list_editor_line(list_editor_state):
         tokens.append(make_inverted_text(add_token))
     else:
         tokens.append(add_token)
+
+    save_index = len(values) + 1
+    save_token = "Save list and return"
+    if selected_index == save_index and not typing_active:
+        tokens.append(make_inverted_text(save_token))
+    else:
+        tokens.append(save_token)
 
     line = " | ".join(tokens)
     if len(line) > 180:
@@ -1671,11 +1478,11 @@ def get_preview_header_lines(
             )
     elif active_screen == 0:
         lines.append(
-            "Use Up/Down to select. PageUp/PageDown scroll page-1. Left/Right switches to global settings. lowercase p/t set by id. uppercase P/T set by name. Space/Enter opens module settings for selected module (if explicitly perforated). s opens save dialog"
+            "Use Up/Down to select. PageUp/PageDown to scroll. Left/Right switches to global settings. Lowercase p/t set by id. Uppercase P/T set by name. Space/Enter opens module settings for selected module (if explicitly perforated). s opens save dialog and begins training with the specified configuration."
         )
     elif active_screen == 1:
         lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
+            "Use Up/Down to browse settings. PageUp/PageDown to scroll. Left/Right switches screens. Space/Enter edits. h shows description. s opens save dialog and begins training with the specified configuration."
         )
         lines.append(
             "Legend: "
@@ -1691,7 +1498,7 @@ def get_preview_header_lines(
             lines.append("")
     else:
         lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown scroll page-1. Left/Right switches screens. e toggles bucket open/closed. Space/Enter edits. h shows description. s opens save dialog"
+            "Use Up/Down to browse settings. PageUp/PageDown to scroll. Left/Right switches screens. Space/Enter edits. h shows description. s opens save dialog and begins training with the specified configuration."
         )
         lines.append(
             "Legend: "
@@ -1713,9 +1520,16 @@ def get_preview_header_lines(
             lines.append("")
 
     if help_text:
+        lines.append("")
         lines.append(help_text)
+        lines.append("")
     elif edit_text:
-        lines.append(edit_text)
+        if edit_text.startswith("EDIT -"):
+            lines.append("")
+            lines.append(edit_text)
+            lines.append("")
+        else:
+            lines.append(edit_text)
 
     if active_screen == 0:
         lines.append("")
@@ -1723,11 +1537,13 @@ def get_preview_header_lines(
             "Legend: "
             f"perforated={make_color_square('00A5A5')} "
             f"tracked={make_color_square('DEECED')} "
-            f"ignored-individual-setting={make_color_square('9781E6')} "
-            "submodule-S=inherited parent mode recursively "
             f"neither-no-params={make_color_square('000000')} "
             f"neither-with-params={make_color_square('FD4D00')} "
+            f"ignored-individual-setting={make_color_square('9781E6')} "
             "(For best results all parameters should be either tracked or perforated)"
+        )
+        lines.append(
+            "S - setting inherited as submodule | I - setting by id | N - setting by name of type. -- Left most takes priority"
         )
     if entries is None:
         entries = []
@@ -1737,7 +1553,7 @@ def get_preview_header_lines(
     if active_screen == 0:
         lines.append(build_target_summary_line(entries, recursive_modes))
         lines.append("")
-        lines.append("  S|I|A")
+        lines.append("  S|I|N")
     return lines
 
 
@@ -1897,7 +1713,7 @@ def render_preview_screen_window(
     if list_editor_state is not None:
         lines.append("")
         lines.append(
-            "List editor: Left/Right move, Space edit selected/add new, Backspace/Delete remove selected, Enter save list+exit, Esc cancel typing"
+            "List editor: Left/Right move, Space/Enter select, Backspace/Delete remove selected entry, Esc cancel typing"
         )
         lines.append(format_list_editor_line(list_editor_state))
 
@@ -1995,12 +1811,15 @@ def read_single_key():
 
 def enter_alternate_screen():
     """Switch terminal to alternate screen buffer for interactive UI."""
-    print("\x1b[?1049h\x1b[2J\x1b[H", end="", flush=True)
+    # Hide the terminal cursor while rendering the full-screen menu to avoid
+    # a second editor/terminal selection rectangle overlapping the UI.
+    print("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H", end="", flush=True)
 
 
 def exit_alternate_screen():
     """Return terminal to normal screen buffer."""
-    print("\x1b[?1049l", end="", flush=True)
+    # Always restore the cursor when leaving the menu.
+    print("\x1b[?25h\x1b[?1049l", end="", flush=True)
 
 
 def set_perforation_targets(model):
@@ -2171,22 +1990,21 @@ def set_perforation_targets(model):
 
             # Clear terminal and draw the updated preview.
             print("\x1b[2J\x1b[H", end="")
-            print(
-                render_preview_screen_window(
-                    entries,
-                    current_selected,
-                    current_window_start,
-                    window_size,
-                    active_screen,
-                    settings_items,
-                    confirm_dialog_active,
-                    confirm_choice_index,
-                    help_text,
-                    edit_text,
-                    list_editor_state,
-                    module_scope,
-                )
+            screen_text = render_preview_screen_window(
+                entries,
+                current_selected,
+                current_window_start,
+                window_size,
+                active_screen,
+                settings_items,
+                confirm_dialog_active,
+                confirm_choice_index,
+                help_text,
+                edit_text,
+                list_editor_state,
+                module_scope,
             )
+            print(wrap_screen_text_for_terminal(screen_text))
 
             key = read_single_key()
 
@@ -2295,6 +2113,7 @@ def set_perforation_targets(model):
                 values = list_editor_state["values"]
                 selected_list_index = list_editor_state["selected_index"]
                 add_index = len(values)
+                save_index = len(values) + 1
                 typing_active = list_editor_state.get("typing_active", False)
 
                 if typing_active:
@@ -2381,15 +2200,35 @@ def set_perforation_targets(model):
                     list_editor_state["selected_index"] = max(0, selected_list_index - 1)
                     continue
                 if is_right_key(key):
-                    list_editor_state["selected_index"] = min(add_index, selected_list_index + 1)
+                    list_editor_state["selected_index"] = min(save_index, selected_list_index + 1)
                     continue
                 if key == "\x7f" or is_delete_key(key):
                     if selected_list_index < len(values):
                         del values[selected_list_index]
-                        if list_editor_state["selected_index"] > len(values):
-                            list_editor_state["selected_index"] = len(values)
+                        if list_editor_state["selected_index"] > len(values) + 1:
+                            list_editor_state["selected_index"] = len(values) + 1
                     continue
-                if key == " ":
+                if is_select_key(key):
+                    if selected_list_index == save_index:
+                        if list_editor_state.get("apply_to_module_scope", False):
+                            if module_scope is None:
+                                ok, message = False, "No module scope selected."
+                            else:
+                                set_module_scoped_value(
+                                    module_settings_overrides,
+                                    module_scope["scope_key"],
+                                    list_editor_state["setting_name"],
+                                    values,
+                                )
+                                ok, message = True, ""
+                        else:
+                            ok, message = apply_setting_value(
+                                list_editor_state["setting_name"], values
+                            )
+                        list_editor_state = None
+                        edit_text = message if not ok else ""
+                        continue
+
                     edit_index = selected_list_index
                     initial_text = ""
                     if edit_index < len(values):
@@ -2398,25 +2237,6 @@ def set_perforation_targets(model):
                     list_editor_state["edit_index"] = edit_index
                     list_editor_state["input_buffer"] = initial_text
                     list_editor_state["cursor_index"] = len(initial_text)
-                    continue
-                if key == "\r" or key == "\n":
-                    if list_editor_state.get("apply_to_module_scope", False):
-                        if module_scope is None:
-                            ok, message = False, "No module scope selected."
-                        else:
-                            set_module_scoped_value(
-                                module_settings_overrides,
-                                module_scope["scope_key"],
-                                list_editor_state["setting_name"],
-                                values,
-                            )
-                            ok, message = True, ""
-                    else:
-                        ok, message = apply_setting_value(
-                            list_editor_state["setting_name"], values
-                        )
-                    list_editor_state = None
-                    edit_text = message if not ok else ""
                     continue
                 continue
 

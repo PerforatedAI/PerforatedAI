@@ -53,7 +53,7 @@
           "label": "Impactful hyperparameters"
         },
         "first_fixed_switch_num": {
-          "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number should be >= fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
+          "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number is ignored unless it is > fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
           "label": "Impactful hyperparameters"
         },
         "initial_history_after_switches": {
@@ -108,10 +108,6 @@
         "max_dendrites": {
           "description": "Hard upper bound on dendrites added.",
           "label": "Impactful hyperparameters"
-        },
-        "global_candidates": {
-          "description": "Number of candidate dendrites considered each cycle. In the current version this must be left at 1.",
-          "label": "Experimental hyperparameters"
         },
         "candidate_weight_initialization_multiplier": {
           "description": "Multiplier controlling random candidate weight initialization magnitude.  Can be adjusted if dendrites have too high or too small of an impact when added to network.",
@@ -207,7 +203,7 @@
       "settings": {
         "pai_forward_function": {
           "description": "Activation function used by dendrites where applicable. Options are 'relu', 'tanh', 'sigmoid'",
-          "label": "Configuration parameters"
+          "label": "Impactful hyperparameters"
         }
       }
     },

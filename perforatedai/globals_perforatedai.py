@@ -236,11 +236,15 @@ def _serialize_pai_value(val):
         mod = getattr(val, "__module__", "") or ""
         return f"{mod}.{val.__name__}" if mod else val.__name__
     if callable(val):
-        name = getattr(val, "__name__", None)
+        name = getattr(val, "__name__", None) or getattr(val, "__qualname__", None)
         mod = getattr(val, "__module__", None)
         if name and mod:
+            if name in ("sigmoid", "relu", "tanh"):
+                return f"torch.{name}"
             return f"{mod}.{name}"
-        return str(val)
+        if name:
+            return str(name)
+        return repr(val)
     return str(val)
 
 
@@ -412,6 +416,7 @@ class PAIConfig:
                 "silent",
                 "save_old_graph_scores",
                 "testing_dendrite_capacity",
+                "strict_loading",
                 "using_safe_tensors",
                 "drawing_pai",
                 "drawing_extra_graphs",
@@ -500,16 +505,16 @@ class PAIConfig:
     # in :py:meth:`__init__`, so they are meaningful when constructing a
     # module-specific PAIConfig instance.
     _CUSTOMIZABLE: dict = {
-        "verbose": bool,
-        "extra_verbose": bool,
-        "silent": bool,
-        "global_candidates": int,
+        #"verbose": bool,
+        #"extra_verbose": bool,
+        #"silent": bool,
+        #"global_candidates": int,
         "output_dimensions": list,
-        "candidate_weight_initialization_multiplier": float,
-        "candidate_weight_init_by_main": bool,
-        "retain_all_dendrites": bool,
-        "max_dendrites": int,
-        "pai_forward_function": callable,
+        #"candidate_weight_initialization_multiplier": float,
+        #"candidate_weight_init_by_main": bool,
+        #"retain_all_dendrites": bool,
+        #"max_dendrites": int,
+        #"pai_forward_function": callable,
     }
 
     def __getstate__(self):
@@ -760,7 +765,7 @@ class PAIConfig:
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than
             # the above it will be ignored.
-            self.first_fixed_switch_num = 1
+            self.first_fixed_switch_num = -1
             add_pai_config_var_functions(
                 self, "first_fixed_switch_num", self.first_fixed_switch_num
             )
