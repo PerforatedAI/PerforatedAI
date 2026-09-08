@@ -609,7 +609,7 @@ def make_mode_prefix(entry, recursive_modes):
     Returns
     -------
     str
-        Prefix string in S|I|N layout.
+        Prefix string in S|I|T layout.
     """
     id_mode = get_id_mode(entry["id"])
     name_mode = get_name_mode(entry["type_name"])
@@ -1543,7 +1543,7 @@ def get_preview_header_lines(
             "(For best results all parameters should be either tracked or perforated)"
         )
         lines.append(
-            "S - setting inherited as submodule | I - setting by id | N - setting by name of type. -- Left most takes priority"
+            "S - setting inherited as submodule | I - setting by id | T - setting by type name. -- Left most takes priority"
         )
     if entries is None:
         entries = []
@@ -1553,7 +1553,7 @@ def get_preview_header_lines(
     if active_screen == 0:
         lines.append(build_target_summary_line(entries, recursive_modes))
         lines.append("")
-        lines.append("  S|I|N")
+        lines.append("  S|I|T")
     return lines
 
 
