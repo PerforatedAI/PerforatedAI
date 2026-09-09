@@ -69,7 +69,7 @@ def test_perforate_by_id_updates_marker_and_budget(monkeypatch, capsys):
     driver = Driver(monkeypatch, ["j", "p"])  # move to Conv2d, perforate
     frames = driver.run(capsys)
     final = frames[-1]
-    assert "mode=perforated" in final
+    assert "mode=perforate" in final
     assert "Perforation budget:" in final
     assert "params per dendrite cycle" in final
 
@@ -80,8 +80,17 @@ def test_type_rule_shows_in_overlay_with_count(monkeypatch, capsys):
     frames = driver.run(capsys)
     overlay = find_frame(frames, "Type rules")
     assert overlay is not None
-    assert "Conv2d → perforated" in overlay
+    assert "Conv2d → perforate" in overlay
     assert "(2)" in overlay  # two Conv2d modules in the fixture
+
+
+def test_h_on_targets_opens_marker_legend(monkeypatch, capsys):
+    driver = Driver(monkeypatch, ["p", "h"])
+    frames = driver.run(capsys)
+    legend = find_frame(frames, "Targets legend")
+    assert legend is not None
+    assert "inherited from an ancestor" in legend
+    assert "needs attention" in legend
 
 
 def test_unset_modules_warning_and_save_gate(monkeypatch, capsys):

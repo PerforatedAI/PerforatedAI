@@ -984,7 +984,15 @@ def render_tab_bar(active_screen):
         targets = color_text(targets, COLOR_ACCENT)
     else:
         run = color_text(run, COLOR_ACCENT)
-    return f"[ {targets} │ {run} ]" + " " * 12 + dim("⇥ switch    ? help")
+    return f"[ {targets} │ {run} ]" + " " * 12 + dim("Tab switch panel    ? help")
+
+
+MODE_VERB = {"perforated": "perforate", "tracked": "track"}
+
+
+def mode_verb(mode):
+    """Present-tense verb form of a resolved mode for user-facing display."""
+    return MODE_VERB.get(mode, str(mode))
 
 
 def make_target_marker(entry, record):
@@ -1028,8 +1036,9 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
 
     hint = color_text(f"[y] type rules ({len(rules)})", COLOR_ACCENT)
     if need > 0:
-        plural = "s" if need != 1 else ""
-        status = color_text(f"  ⚠ {need} module{plural} still need a mode", COLOR_ATTENTION)
+        noun = "module" if need == 1 else "modules"
+        verb = "needs" if need == 1 else "need"
+        status = color_text(f"  ⚠ {need} {noun} still {verb} a mode", COLOR_ATTENTION)
     else:
         status = color_text("  ✓ every parameter is perforated or tracked", COLOR_PERFORATE)
     pad = max(2, 58 - len(strip_ansi(status)))
@@ -1075,11 +1084,13 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         tail = ""
         if record["eff"] is not None:
             mode_color = get_color_hex_for_mode(record["eff"])
-            tail = color_text(f"mode={record['eff']}", mode_color)
+            tail = color_text(f"mode={mode_verb(record['eff'])}", mode_color)
             if record["source"] == "inherited":
                 tail += dim(f"  (via {record['origin_id']})")
                 if record["overridden"] is not None:
-                    tail += dim(f"  — your {record['overridden']['mode']} here is ignored")
+                    tail += dim(
+                        f"  — your {mode_verb(record['overridden']['mode'])} here is ignored"
+                    )
         elif entry["direct_param_count"] > 0:
             tail = color_text("needs a mode", COLOR_ATTENTION)
 
@@ -1110,7 +1121,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
-            "↑↓/jk move   s start"
+            "h legend   ↑↓/jk move   s start"
         ),
     ]
     return lines, body_lines, footer
@@ -1147,7 +1158,7 @@ def render_run_settings_lines(items, selected_index, describe_name):
 
     footer_line = dim(
         "→ expand · ← collapse   Enter edit   h describe   "
-        "↑↓/jk move   ⇥ Targets   s start"
+        "↑↓/jk move   Tab switch panel   s start"
     )
     if describe_name:
         footer_line = dim(f"{describe_name} — {get_setting_description(describe_name)}")
@@ -1190,11 +1201,11 @@ def render_type_rules_overlay(entries):
     rows = []
     if rules:
         for type_name, mode, count in rules:
-            plain = f"{type_name} → {mode}  ({count})"
+            plain = f"{type_name} → {mode_verb(mode)}  ({count})"
             html = (
                 type_name
                 + " "
-                + color_text(f"→ {mode}", get_color_hex_for_mode(mode))
+                + color_text(f"→ {mode_verb(mode)}", get_color_hex_for_mode(mode))
                 + dim(f"  ({count})")
             )
             rows.append((plain, html))
@@ -1249,10 +1260,10 @@ def render_save_overlay(entries, resolved, save_selected_index, config_target_pa
     lines = ["", "  " + color_text("Save configuration", "E8EEEC"), ""]
 
     if unset:
-        plural = "s" if len(unset) != 1 else ""
+        noun = "module has" if len(unset) == 1 else "modules have"
         lines.append(
             color_text(
-                f"  ⚠  {len(unset)} module{plural} have parameters but no mode",
+                f"  ⚠  {len(unset)} {noun} parameters but no mode",
                 COLOR_ATTENTION,
             )
         )
@@ -1319,6 +1330,7 @@ def render_help_overlay():
         "   x         clear this module (falls back to its type rule)",
         "   → / ←     expand / collapse a module that will be restructured (↯)",
         "   y         show / hide the type-rules list",
+        "   h         show the marker & colour legend",
         "   Enter     open Overrides for a perforated module",
         "",
         dim("  Run settings screen"),
@@ -1327,7 +1339,7 @@ def render_help_overlay():
         "   h         describe the highlighted setting",
         "",
         dim("  Everywhere"),
-        "   ↑↓ / jk   move        ⇥  switch screen",
+        "   ↑↓ / jk   move        Tab  switch panel",
         "   s         save & start training",
         "   q         quit without configuring",
         "",
@@ -1337,6 +1349,34 @@ def render_help_overlay():
         "   " + dim("↳ inherited") + " = a mode set on an ancestor applies to the whole subtree",
         "",
         color_text("  ? or Esc to close", COLOR_ACCENT),
+    ]
+
+
+def render_legend_overlay():
+    """Describe the Targets-screen markers and colours."""
+    perf = color_text("██", COLOR_PERFORATE)
+    trk = color_text("██", COLOR_TRACK)
+    att = color_text("██", COLOR_ATTENTION)
+    return [
+        "",
+        "  " + color_text("Targets legend", "E8EEEC"),
+        "",
+        dim("  Mode blocks"),
+        f"   {perf}        " + color_text("perforate", COLOR_PERFORATE)
+        + " — dendrites are added here during training",
+        f"   {trk}        " + color_text("track", COLOR_TRACK)
+        + " — no dendrites, the parameters are just counted",
+        "",
+        dim("  Marker prefixes"),
+        f"     {perf}     mode set directly on this module (by id)",
+        f"   * {perf}     set by type name — every module of this class",
+        f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
+        f"   ! {att}     has parameters but no mode — needs attention",
+        "   ↯         will be restructured for PAI before training;",
+        "             target the modules inside it by type (P/T), not by id",
+        "   (none)    structural container with no parameters of its own",
+        "",
+        color_text("  h or Esc to close", COLOR_ACCENT),
     ]
 
 
@@ -1554,6 +1594,8 @@ def set_perforation_targets(model):
 
             if overlay == "help":
                 screen_text = render_static_overlay(render_help_overlay())
+            elif overlay == "legend":
+                screen_text = render_static_overlay(render_legend_overlay())
             elif overlay == "quit":
                 screen_text = render_static_overlay(render_quit_overlay())
             elif overlay == "save":
@@ -1605,6 +1647,11 @@ def set_perforation_targets(model):
             # ---- overlay key handling -----------------------------------
             if overlay == "help":
                 if key == "?" or key == "\x1b":
+                    overlay = None
+                continue
+
+            if overlay == "legend":
+                if key == "h" or key == "\x1b":
                     overlay = None
                 continue
 
@@ -1745,6 +1792,8 @@ def set_perforation_targets(model):
                     target_selected_index = _move(target_selected_index, 10, len(vis))
                 elif key == "y":
                     overlay = "typerules"
+                elif key == "h":
+                    overlay = "legend"
                 elif is_right_key(key) or is_left_key(key):
                     if entry["is_replaced_root"]:
                         expanded_replaced[entry["id"]] = is_right_key(key)
