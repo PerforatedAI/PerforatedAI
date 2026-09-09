@@ -1,0 +1,77 @@
+{
+  "out": "yolo26n_test",
+  "title": "Perforated YOLO26n CityScape",
+  "y_axis": {
+    "label": "mAP50-95",
+    "format": ".4f"
+  },
+  "anchor": {
+    "x": 2506920,
+    "y": 0.26187,
+    "name": "Vanilla",
+    "source": "yolo26n_cityscapes_plain results.csv epoch 131"
+  },
+  "streams": [
+    {
+      "name": "L0_L1_L2_First",
+      "style": "line",
+      "points": [
+        [
+          2571528,
+          0.26447
+        ],
+        [
+          2636136,
+          0.27322
+        ],
+        [
+          2700744,
+          0.27421
+        ]
+      ],
+      "source": "yolo26n_cityscapes_pai_pos0_rerun2 _best_arch_scores.csv"
+    },
+    {
+      "name": "L2_Full",
+      "style": "scatter",
+      "dash_to_anchor": true,
+      "points": [
+        {
+          "x": 2585520,
+          "y": 0.26641,
+          "label": "2d"
+        }
+      ]
+    },
+    {
+      "name": "L0_L1_Full_L2_First",
+      "style": "scatter",
+      "points": [
+        [
+          2645752,
+          0.27019
+        ]
+      ]
+    },
+    {
+      "name": "fourth",
+      "style": "scatter",
+      "points": [
+        [
+          2620000,
+          0.2685
+        ]
+      ]
+    },
+    {
+      "name": "fifth",
+      "style": "scatter",
+      "points": [
+        [
+          2660000,
+          0.2655
+        ]
+      ]
+    }
+  ]
+}
