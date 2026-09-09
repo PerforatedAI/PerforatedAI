@@ -1045,9 +1045,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
     lines.append(status + " " * pad + hint)
     lines.append(HR)
 
-    body_lines = []
-    for i, entry in enumerate(visible_entries):
-        selected = i == selected_index
+    def entry_lines(entry, selected):
         cursor = color_text("> ", "E8EEEC") if selected else "  "
         indent = "  " * entry["depth"]
         record = resolved[entry["id"]]
@@ -1055,29 +1053,25 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         if entry["is_replaced_root"]:
             child_count = sum(1 for e in entries if e["replaced_root"] == entry["id"])
             glyph = color_text("↯", COLOR_ACCENT)
-            body_lines.append(
-                f"{cursor}{glyph}   {indent}{entry['id']}  "
-                f"{dim('[' + entry['type_name'] + ']')}   "
-                f"{dim('will be restructured for PAI before training')}"
-            )
             is_open = expanded_replaced.get(entry["id"], False)
             toggle = "[← collapse]" if is_open else "[→ expand]"
-            body_lines.append(
+            return [
+                f"{cursor}{glyph}   {indent}{entry['id']}  "
+                f"{dim('[' + entry['type_name'] + ']')}   "
+                f"{dim('will be restructured for PAI before training')}",
                 "      "
                 + dim(
                     f"└ {child_count} modules below — ids won't exist at "
                     f"train time · target by type (P/T), not id  "
                 )
-                + color_text(toggle, COLOR_ACCENT)
-            )
-            continue
+                + color_text(toggle, COLOR_ACCENT),
+            ]
 
         marker_display, marker_plain = make_target_marker(entry, record)
 
         if entry["in_replaced"]:
             id_part = dim(f"{entry['id']}  [{entry['type_name']}] (id stale)")
-            body_lines.append(f"{cursor}{marker_display} {indent}{id_part}")
-            continue
+            return [f"{cursor}{marker_display} {indent}{id_part}"]
 
         id_part = f"{entry['id']}  {dim('[' + entry['type_name'] + ']')}"
 
@@ -1101,19 +1095,21 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         )
 
         lead = (
-            2
-            + len(marker_plain)
-            + 1
-            + len(indent)
-            + len(entry["id"])
-            + 2
-            + len(entry["type_name"])
-            + 2
+            2 + len(marker_plain) + 1 + len(indent) + len(entry["id"])
+            + 2 + len(entry["type_name"]) + 2
         )
         gap = max(2, 46 - lead)
-        body_lines.append(
+        return [
             f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params
-        )
+        ]
+
+    body_lines = []
+    focus = (0, 1)
+    for i, entry in enumerate(visible_entries):
+        rendered = entry_lines(entry, i == selected_index)
+        if i == selected_index:
+            focus = (len(body_lines), len(body_lines) + len(rendered))
+        body_lines.extend(rendered)
 
     footer = [
         HR,
@@ -1124,7 +1120,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
             "h legend   ↑↓/jk move   s start"
         ),
     ]
-    return lines, body_lines, footer
+    return lines, body_lines, footer, focus
 
 
 def render_run_settings_lines(items, selected_index, describe_name):
@@ -1163,10 +1159,11 @@ def render_run_settings_lines(items, selected_index, describe_name):
     if describe_name:
         footer_line = dim(f"{describe_name} — {get_setting_description(describe_name)}")
     footer = [HR, footer_line]
-    return lines, body_lines, footer
+    focus = (selected_index, selected_index + 1)
+    return lines, body_lines, footer, focus
 
 
-def compose_scrolling_screen(header_lines, body_lines, footer_lines, window_start):
+def compose_scrolling_screen(header_lines, body_lines, footer_lines, window_start, focus=None):
     """Join a header + windowed body + footer into one screen string."""
     size = terminal_size()
     columns = size.columns
@@ -1176,10 +1173,16 @@ def compose_scrolling_screen(header_lines, body_lines, footer_lines, window_star
     available = max(1, size.lines - reserved - 3)
 
     total = len(body_lines)
-    if window_start > max(0, total - available):
-        window_start = max(0, total - available)
-    if window_start < 0:
-        window_start = 0
+
+    # Scroll the window so the focused (selected) rows stay visible.
+    if focus is not None:
+        focus_start, focus_end = focus
+        if focus_start < window_start:
+            window_start = focus_start
+        if focus_end > window_start + available:
+            window_start = focus_end - available
+
+    window_start = max(0, min(window_start, max(0, total - available)))
     window_end = min(total, window_start + available)
 
     out = list(header_lines)
@@ -1627,7 +1630,7 @@ def set_perforation_targets(model):
                 vis = visible_targets()
                 if target_selected_index >= len(vis):
                     target_selected_index = max(0, len(vis) - 1)
-                header, body, footer = render_targets_lines(
+                header, body, footer, focus = render_targets_lines(
                     entries, vis, target_selected_index, resolved, expanded_replaced
                 )
                 if overlay == "typerules":
@@ -1635,19 +1638,19 @@ def set_perforation_targets(model):
                 if status_message:
                     footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
                 screen_text, target_window_start = compose_scrolling_screen(
-                    header, body, footer, target_window_start
+                    header, body, footer, target_window_start, focus
                 )
             else:
                 items = build_run_items(expanded_buckets)
                 if run_selected_index >= len(items):
                     run_selected_index = max(0, len(items) - 1)
-                header, body, footer = render_run_settings_lines(
+                header, body, footer, focus = render_run_settings_lines(
                     items, run_selected_index, describe_name
                 )
                 if status_message:
                     footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
                 screen_text, run_window_start = compose_scrolling_screen(
-                    header, body, footer, run_window_start
+                    header, body, footer, run_window_start, focus
                 )
 
             print(wrap_screen_text_for_terminal(screen_text))

@@ -95,6 +95,17 @@ def test_h_on_targets_opens_marker_legend(monkeypatch, capsys):
     assert "inherited  >  by id  >  by type" in legend
 
 
+def test_list_scrolls_to_follow_selection(monkeypatch, capsys):
+    big = nn.Sequential(*[nn.Linear(4, 4) for _ in range(60)])
+    driver = Driver(monkeypatch, ["j"] * 55)
+    with pytest.raises(SystemExit):
+        CPA.set_perforation_targets(big)
+    frames = [CPA.strip_ansi(f) for f in capsys.readouterr().out.split("\x1b[2J\x1b[H") if f.strip()]
+    final = frames[-1]
+    assert "more above" in final
+    assert ".55  [Linear]" in final  # selection scrolled into view
+
+
 def test_unset_modules_warning_and_save_gate(monkeypatch, capsys):
     driver = Driver(monkeypatch, ["s"])  # straight to the save dialog, nothing set
     frames = driver.run(capsys)
