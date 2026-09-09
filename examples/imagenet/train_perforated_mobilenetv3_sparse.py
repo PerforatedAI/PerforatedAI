@@ -49,7 +49,7 @@ from perforatedai import utils_perforatedai as UPA
 from perforatedai import network_perforatedai as NPA
 
 from clean_somas import CleanSomas
-from rf_dendrites_original import initialize_variant_dendrite, MaskedLinear as SparseLinear
+from rf_dendrites_original import initialize_variant_dendrite, SparseLinear
 
 import wandb
 from types import SimpleNamespace
@@ -234,27 +234,6 @@ def train_one_epoch(
             loss.backward()
             if args.clip_grad_norm is not None:
                 nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad_norm)
-            if epoch == 0 and i == 0:
-                from rf_dendrites_original import MaskedLinear as SparseLinear
-                print(f"[DIAG] logits: mean={output.mean():.4f}, std={output.std():.4f}, "
-                      f"loss={loss.item():.4f}")
-                for mod in model.modules():
-                    if hasattr(mod, 'dendrites_to_top') and len(mod.dendrites_to_top) > 0:
-                        print(f"[DIAG] to_top: val={mod.dendrites_to_top[-1].data.mean():.4f}, "
-                              f"grad={'None' if mod.dendrites_to_top[-1].grad is None else f'{mod.dendrites_to_top[-1].grad.norm():.4f}'}")
-                    if isinstance(mod, SparseLinear):
-                        gn = 'None' if mod.weight.grad is None else f'{mod.weight.grad.norm():.4f}'
-                        in_opt = any(mod.weight is p for g in optimizer.param_groups for p in g['params'])
-                        print(f"[DIAG] SparseLinear: weight_grad={gn}, in_optimizer={in_opt}, "
-                              f"weight_std={mod.weight.data.std():.4f}")
-                # Check backbone gradient: last conv in features
-                backbone_last = list(model.features.children())[-1]
-                for name, p in backbone_last.named_parameters():
-                    gn = 'None' if p.grad is None else f'{p.grad.norm():.4f}'
-                    in_opt = any(p is q for g in optimizer.param_groups for q in g['params'])
-                    rg = p.requires_grad
-                    print(f"[DIAG] backbone_last.{name}: grad={gn}, in_optimizer={in_opt}, requires_grad={rg}")
-                    break
             optimizer.step()
 
         if model_ema and i % args.model_ema_steps == 0:
@@ -491,7 +470,7 @@ def initialize_dendrites(model, n):
         if hasattr(module, 'dendrite_module'):
             UPA.simulate_cycles(module, n * 2, doing_pai=True)
 
-    from rf_dendrites_original import MaskedLinear as SparseLinear
+    from rf_dendrites_original import MaskedLinear, SparseLinear
     filled = 0
     for module in model.modules():
         if hasattr(module, 'dendrites_to_top') and len(module.dendrites_to_top) > 0:
@@ -507,11 +486,12 @@ def initialize_dendrites(model, n):
     # so CleanSomas + fully-connected identity dendrite == nn.Linear.
     import math
     for module in model.modules():
-        if isinstance(module, SparseLinear):
-            nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))
-            fan_in = module.weight.size(1)
-            bound = 1.0 / math.sqrt(fan_in)
-            nn.init.uniform_(module.bias, -bound, bound)
+        if isinstance(module, (MaskedLinear, SparseLinear)):
+            fan_in = module.in_features
+            a = math.sqrt(5)
+            bound_w = math.sqrt(3.0) * math.sqrt(2.0 / (1 + a ** 2) / fan_in)
+            nn.init.uniform_(module.weight, -bound_w, bound_w)
+            nn.init.uniform_(module.bias, -1.0 / math.sqrt(fan_in), 1.0 / math.sqrt(fan_in))
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
@@ -776,14 +756,7 @@ def load_data(traindir, valdir, args):
 
 
 def main(args):
-    TESTING = False
-    # True = full receptive field + 1 dendrite (wiring check)
-    # False = 1/4 receptive field + 2 dendrites (production)
-    RF_FULL_WIDTH = True
-    # 0 = baseline (InvertedResidual + standard classifier[0])
-    # 1 = sparse perforation config + pre-grown dendrites, standard soma/factory
-    # 2 = full sparse (CleanSomas + RF dendrite factory)
-    STEP = 2
+    TESTING = False  # True = DOING_FIXED_SWITCH with fixed_switch_num=3 (load testing)
 
     # Initialize wandb if enabled
     run = None
@@ -891,6 +864,8 @@ def main(args):
         pai_forward_function = torch.tanh
     elif args.pai_forward_function == "identity":
         pai_forward_function = pai_identity
+    elif args.pai_forward_function == "hardswish":
+        pai_forward_function = nn.functional.hardswish
     else:
         pai_forward_function = torch.sigmoid
     GPA.pc.set_pai_forward_function(pai_forward_function)
@@ -959,35 +934,24 @@ def main(args):
             )
             print(f"Applied dropout rate: {args.dropout}")
 
-    if STEP == 2:
-        # Replace classifier[0] with CleanSoma — soma emits only a bias; all input
-        # signal flows through the RF dendrites PAI will grow on this module.
-        clf0_in = model.classifier[0].in_features
-        clf0_out = model.classifier[0].out_features
-        model.classifier[0] = CleanSomas(
-            clf0_out,
-            config={'in_features': clf0_in, 'out_features': clf0_out},
-        )
-        print(f"Replaced classifier[0] with CleanSomas({clf0_in}→{clf0_out})")
-        # Identity activation: dendrite output is linear, making CleanSomas + fully
-        # connected dendrite functionally identical to nn.Linear.
-        GPA.pc.set_pai_forward_function(pai_identity)
-        # CleanSomas has no gradient path through the soma (ignores x).
-        # preprocess_pb would detach x before MaskedLinear, killing backbone grads.
-        # Disabling dendrite_graph_mode lets gradients flow normally through n-mode.
-        GPA.pc.set_dendrite_graph_mode(False)
-        GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
-        GPA.pc.append_module_ids_to_perforate([".classifier.0"])
-    elif STEP == 1:
-        # Sparse perforation config, standard nn.Linear soma
-        clf0_in = model.classifier[0].in_features
-        GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
-        GPA.pc.append_module_ids_to_perforate([".classifier.0"])
-    else:
-        # Baseline: InvertedResidual + standard classifier[0]
-        GPA.pc.append_module_names_to_perforate(["InvertedResidual"])
-        GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
-        GPA.pc.append_module_ids_to_perforate([".classifier.0"])
+    # Replace classifier[0] with CleanSomas — soma emits only a bias; all input
+    # signal flows through the RF dendrites PAI will grow on this module.
+    clf0_in = model.classifier[0].in_features
+    clf0_out = model.classifier[0].out_features
+    model.classifier[0] = CleanSomas(
+        clf0_out,
+        config={'in_features': clf0_in, 'out_features': clf0_out},
+    )
+    print(f"Replaced classifier[0] with CleanSomas({clf0_in}→{clf0_out})")
+    # Identity activation: dendrite output is linear, making CleanSomas + fully
+    # connected dendrite functionally identical to nn.Linear.
+    GPA.pc.set_pai_forward_function(pai_identity)
+    # CleanSomas has no gradient path through the soma (ignores x).
+    # preprocess_pb would detach x before MaskedLinear, killing backbone grads.
+    # Disabling dendrite_graph_mode lets gradients flow normally through n-mode.
+    GPA.pc.set_dendrite_graph_mode(False)
+    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
+    GPA.pc.append_module_ids_to_perforate([".classifier.0"])
 
     # Build save name
     save_name = f"{args.model}_sparse_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
@@ -1000,22 +964,17 @@ def main(args):
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
         model = UPA.perforate_model(model, save_name=args.perforated_load_path)
-        if STEP == 2:
-            initialize_variant_dendrite(synapses=clf0_in if RF_FULL_WIDTH else clf0_in // 4, rf_mode='random')
+        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
         model = UPA.load_system(model, args.perforated_load_path, args.load_checkpoint_name, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
-        if STEP == 2:
-            # Must be called after perforate_model so GPA.pai_tracker is initialized.
-            synapses = clf0_in if RF_FULL_WIDTH else clf0_in // 4
-            initialize_variant_dendrite(synapses=synapses, rf_mode='random')
-    import pdb; pdb.set_trace()
+        # Must be called after perforate_model so GPA.pai_tracker is initialized.
+        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
     model.to(device)
 
-    if STEP >= 1 and args.perforated_load_path == "":
-        num_pre_dendrites = 1 if RF_FULL_WIDTH else 2
-        print(f"Pre-growing {num_pre_dendrites} RF dendrite(s) on classifier[0]...")
-        initialize_dendrites(model, num_pre_dendrites)
+    if args.perforated_load_path == "":
+        print("Pre-growing 1 RF dendrite on classifier[0]...")
+        initialize_dendrites(model, 1)
         print(f"Pre-grown dendrites complete. Param count: {UPA.count_params(model):,}")
 
     if args.distributed and args.sync_bn:
@@ -1567,7 +1526,7 @@ def get_args_parser(add_help=True):
         "--pai-forward-function",
         default="relu",
         type=str,
-        choices=["sigmoid", "relu", "tanh", "identity"],
+        choices=["sigmoid", "relu", "tanh", "identity", "hardswish"],
         help="PAI forward function (default: relu)",
     )
     parser.add_argument(

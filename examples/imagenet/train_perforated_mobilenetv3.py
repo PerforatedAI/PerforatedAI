@@ -5,7 +5,7 @@ Based on PyTorch official training recipe for MobileNetV3.
 
 Single GPU default command (scaled from the original 8-GPU recipe):
 python train_perforated_mobilenetv3.py \
-  --model mobilenet_v3_small --epochs 600 --opt rmsprop --batch-size 16 --lr 0.008 \
+  --model mobilenet_v3_small --epochs 600 --opt rmsprop --batch-size 128 --lr 0.008 \
   --wd 0.00001 --lr-step-size 2 --lr-gamma 0.973 --auto-augment imagenet --random-erase 0.2 \
   --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
@@ -78,33 +78,30 @@ class Top3CheckpointTracker:
         if dendrite_count == 0:
             return
         
-        # Add to list
-        self.top3_checkpoints.append((acc1, epoch))
-        
-        # Sort by accuracy (descending) and keep only top 3
-        self.top3_checkpoints.sort(key=lambda x: x[0], reverse=True)
-        
-        # Remove old checkpoints if we have more than 3
-        if len(self.top3_checkpoints) > 3:
-            removed = self.top3_checkpoints[3:]
-            self.top3_checkpoints = self.top3_checkpoints[:3]
-            
-            # Clean up old checkpoint files
-            for _, old_epoch in removed:
-                checkpoint_file = f"{self.save_name}/top3_epoch_{old_epoch}_pai.pt"
-                if os.path.exists(checkpoint_file):
-                    os.remove(checkpoint_file)
-                    print(f"Removed checkpoint file: top3_epoch_{old_epoch}_pai.pt")
-        
-        # Copy latest_pai.pt to epoch-specific backup
+        # Copy first, then evict — so if this epoch ranks outside top 3 its file
+        # is created and immediately deleted in the same cleanup pass below
         source_file = f"{self.save_name}/latest_pai.pt"
         dest_file = f"{self.save_name}/top3_epoch_{epoch}_pai.pt"
-        
+
         if os.path.exists(source_file):
             shutil.copy2(source_file, dest_file)
             print(f"Saved top-3 candidate: epoch {epoch} with Acc@1 {acc1:.3f}")
         else:
             print(f"Warning: {source_file} not found - checkpoint not saved")
+
+        # Add to list, sort, and evict anything outside top 3
+        self.top3_checkpoints.append((acc1, epoch))
+        self.top3_checkpoints.sort(key=lambda x: x[0], reverse=True)
+
+        if len(self.top3_checkpoints) > 3:
+            removed = self.top3_checkpoints[3:]
+            self.top3_checkpoints = self.top3_checkpoints[:3]
+
+            for _, old_epoch in removed:
+                checkpoint_file = f"{self.save_name}/top3_epoch_{old_epoch}_pai.pt"
+                if os.path.exists(checkpoint_file):
+                    os.remove(checkpoint_file)
+                    print(f"Removed checkpoint file: top3_epoch_{old_epoch}_pai.pt")
     
     def get_top3_info(self):
         """Return information about top 3 checkpoints."""
@@ -471,13 +468,21 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         ),
     )
 
+    # Apply dendrite LR multiplier on subsequent n-phase cycles
+    current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
+    num_cycles = GPA.pai_tracker.member_vars.get("num_cycles", 0)
+    effective_lr = args.lr
+    if current_mode == "n" and num_cycles > 1 and args.dendrite_lr_multiplier != 1.0:
+        effective_lr = args.lr * args.dendrite_lr_multiplier
+        print(f"[dendrite_lr_multiplier] mode=n, num_cycles={num_cycles}, lr {args.lr} -> {effective_lr}")
+
     # Set optimizer class
     opt_name = args.opt.lower()
     if opt_name.startswith("sgd"):
         GPA.pai_tracker.set_optimizer(torch.optim.SGD)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "momentum": args.momentum,
             "weight_decay": args.weight_decay,
             "nesterov": "nesterov" in opt_name,
@@ -486,7 +491,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         GPA.pai_tracker.set_optimizer(torch.optim.RMSprop)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "momentum": args.momentum,
             "weight_decay": args.weight_decay,
             "eps": 0.0316,
@@ -496,7 +501,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         GPA.pai_tracker.set_optimizer(torch.optim.AdamW)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "weight_decay": args.weight_decay,
         }
     else:
@@ -879,8 +884,9 @@ def main(args):
             )
             print(f"Applied dropout rate: {args.dropout}")
 
-    # Track backbone/pooling for checkpointing; Linear layers in classifier get perforated
-    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier"])
+    # Track backbone, pooling, and full classifier; perforate only classifier[0] (Linear 576→1024)
+    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
+    GPA.pc.append_module_ids_to_perforate([".classifier.0"])
 
     # Build save name
     save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
@@ -893,7 +899,7 @@ def main(args):
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
         model = UPA.perforate_model(model, save_name=args.perforated_load_path)
-        model = UPA.load_system(model, args.perforated_load_path, "latest", True)
+        model = UPA.load_system(model, args.perforated_load_path, args.load_checkpoint_name, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
 
@@ -919,14 +925,6 @@ def main(args):
     optimizer, lr_scheduler = create_optimizer_and_scheduler(
         model, args, custom_keys_weight_decay
     )
-
-    # Diagnostic: verify optimizer has all model parameters
-    total_model_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total_opt_params = sum(p.numel() for g in optimizer.param_groups for p in g["params"])
-    print(f"[DIAG] Model trainable params: {total_model_params:,}")
-    print(f"[DIAG] Optimizer params:       {total_opt_params:,}")
-    if total_opt_params < total_model_params * 0.9:
-        print(f"[DIAG] WARNING: optimizer is missing {total_model_params - total_opt_params:,} params!")
 
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
@@ -1152,9 +1150,9 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=16,
+        default=128,
         type=int,
-        help="images per gpu; single-GPU default matches original 8-GPU recipe scaled by 8x (128/8=16)",
+        help="images per gpu; default matches original 8-GPU recipe per-GPU batch size",
     )
     parser.add_argument(
         "--batch-lr-factor",
@@ -1182,7 +1180,7 @@ def get_args_parser(add_help=True):
         "--lr",
         default=0.008,
         type=float,
-        help="initial learning rate; single-GPU default is 0.008, matching the original 8-GPU LR 0.064 scaled by 8x",
+        help="initial learning rate; default is 0.064/8=0.008, matching the original 8-GPU LR scaled for 1 GPU",
     )
     parser.add_argument(
         "--momentum", default=0.9, type=float, metavar="M", help="momentum"
@@ -1471,6 +1469,20 @@ def get_args_parser(add_help=True):
         default="",
         type=str,
         help="Path to load PerforatedAI checkpoint from (default: '', initialize new)",
+    )
+    parser.add_argument(
+        "--dendrite-lr-multiplier",
+        default=1.0,
+        type=float,
+        dest="dendrite_lr_multiplier",
+        help="Multiply LR by this factor when mode=n and num_cycles>1 (default: 1.0, no change)",
+    )
+    parser.add_argument(
+        "--load-checkpoint-name",
+        default="latest",
+        type=str,
+        dest="load_checkpoint_name",
+        help="Checkpoint name to load when resuming (default: 'latest'; e.g. 'switch_2', 'best_model', 'beforeSwitch_1')",
     )
 
     # Wandb logging

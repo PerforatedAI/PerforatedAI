@@ -658,25 +658,40 @@ def _make_improvement_bar_plot(
     dendrite_by_prune_row: Dict[Tuple[int, int], Dict[str, Tuple[float, float]]],
     output_path: str,
 ) -> str:
-    """Create a stacked bar graph showing average score improvement from d0.
+    """Create a stacked bar graph showing average score improvement from d0 with filled forward.
+
+    Uses "filled forward" logic: if a run only reaches dendrite M, its score at M
+    is used for all dendrite counts > M. This shows "if at most N dendrites allowed".
 
     One bar per pruning iteration (prune 8 leftmost, prune 0 rightmost).
     Each bar is stacked by dendrite count: bottom segment = avg(d1-d0),
     next segment = avg(d2-d0) - avg(d1-d0), etc.
-
-    Per-run monotonicity is validated: if any best_arch_scores CSV has a
-    higher-dendrite score below a lower-dendrite score, raises ValueError.
 
     Returns the path to the companion CSV.
     """
     prune_indices = sorted(set(k[0] for k in dendrite_by_prune_row), reverse=True)
     max_dend_row = max((k[1] for k in dendrite_by_prune_row), default=0)
 
+    # Build filled scores: for each run, fill forward its best score
+    filled: Dict[Tuple[int, int], Dict[str, Tuple[float, float]]] = {}
+    for prune_idx in prune_indices:
+        base_runs = dendrite_by_prune_row.get((prune_idx, 0), {})
+        if not base_runs:
+            continue
+        for run_name, (base_param, base_score) in base_runs.items():
+            best_param = base_param
+            best_score = base_score
+            for row_idx in range(0, max_dend_row + 1):
+                actual = dendrite_by_prune_row.get((prune_idx, row_idx), {}).get(run_name)
+                if actual is not None:
+                    best_param, best_score = actual
+                filled.setdefault((prune_idx, row_idx), {})[run_name] = (best_param, best_score)
+
     bars: List[Dict] = []
     csv_rows: List[Dict] = []
 
     for prune_idx in prune_indices:
-        base_runs = dendrite_by_prune_row.get((prune_idx, 0), {})
+        base_runs = filled.get((prune_idx, 0), {})
         if not base_runs:
             continue
 
@@ -684,22 +699,12 @@ def _make_improvement_bar_plot(
         per_dend_diffs: Dict[int, List[float]] = {}
 
         for run_name, (_, base_score) in base_runs.items():
-            prev_score = base_score
             for row_idx in range(1, max_dend_row + 1):
                 key = (prune_idx, row_idx)
-                if key not in dendrite_by_prune_row:
+                if key not in filled or run_name not in filled[key]:
                     break
-                if run_name not in dendrite_by_prune_row[key]:
-                    break
-                _, score = dendrite_by_prune_row[key][run_name]
-                if score < prev_score:
-                    raise ValueError(
-                        f"Non-monotonic scores in PAI_prune{prune_idx}, run={run_name}: "
-                        f"score at dendrite {row_idx} ({score:.6f}) < "
-                        f"score at dendrite {row_idx - 1} ({prev_score:.6f})"
-                    )
+                _, score = filled[key][run_name]
                 per_dend_diffs.setdefault(row_idx, []).append((score - base_score) * 100.0)
-                prev_score = score
 
         if not per_dend_diffs:
             continue
@@ -738,7 +743,128 @@ def _make_improvement_bar_plot(
     ax.set_xticklabels(x_labels)
     ax.set_xlabel("Pruning Iteration")
     ax.set_ylabel("Average Improvement from d0 (percentage points)")
-    ax.set_title("Average Improvement by Adding Dendrites per Pruning Iteration")
+    ax.set_title("Average Improvement by Adding Up To N Dendrites per Pruning Iteration")
+    ax.legend(loc="upper right", framealpha=0.9)
+    ax.grid(axis="y", linestyle="--", alpha=0.4, zorder=0)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+
+    csv_path = os.path.splitext(output_path)[0] + ".csv"
+    pd.DataFrame(csv_rows).to_csv(csv_path, index=False)
+    print(f"Saved: {csv_path}")
+    return csv_path
+
+
+# ---------------------------------------------------------------------------
+# Error Reduction stacked bar graph
+# ---------------------------------------------------------------------------
+
+def _make_error_reduction_bar_plot(
+    dendrite_by_prune_row: Dict[Tuple[int, int], Dict[str, Tuple[float, float]]],
+    output_path: str,
+) -> str:
+    """Create a stacked bar graph showing average Remaining Error Reduction from d0 with filled forward.
+
+    Uses "filled forward" logic: if a run only reaches dendrite M, its score at M
+    is used for all dendrite counts > M. This shows "if at most N dendrites allowed".
+
+    Measures the reduction in remaining error rather than raw percentage points.
+    For example, 90->91 is 10% error reduction (from 10% error to 9% error),
+    while 80->81 is only 5% error reduction (from 20% error to 19% error).
+
+    One bar per pruning iteration (prune 8 leftmost, prune 0 rightmost).
+    Each bar is stacked by dendrite count: bottom segment = avg(d1-d0) error reduction,
+    next segment = avg(d2-d0) - avg(d1-d0) error reduction, etc.
+
+    Returns the path to the companion CSV.
+    """
+    prune_indices = sorted(set(k[0] for k in dendrite_by_prune_row), reverse=True)
+    max_dend_row = max((k[1] for k in dendrite_by_prune_row), default=0)
+
+    # Build filled scores: for each run, fill forward its best score
+    filled: Dict[Tuple[int, int], Dict[str, Tuple[float, float]]] = {}
+    for prune_idx in prune_indices:
+        base_runs = dendrite_by_prune_row.get((prune_idx, 0), {})
+        if not base_runs:
+            continue
+        for run_name, (base_param, base_score) in base_runs.items():
+            best_param = base_param
+            best_score = base_score
+            for row_idx in range(0, max_dend_row + 1):
+                actual = dendrite_by_prune_row.get((prune_idx, row_idx), {}).get(run_name)
+                if actual is not None:
+                    best_param, best_score = actual
+                filled.setdefault((prune_idx, row_idx), {})[run_name] = (best_param, best_score)
+
+    bars: List[Dict] = []
+    csv_rows: List[Dict] = []
+
+    for prune_idx in prune_indices:
+        base_runs = filled.get((prune_idx, 0), {})
+        if not base_runs:
+            continue
+
+        # Per-run error reductions: {row_idx: [error_reduction_run0, error_reduction_run1, ...]}
+        per_dend_error_reductions: Dict[int, List[float]] = {}
+
+        for run_name, (_, base_score) in base_runs.items():
+            base_error = 1.0 - base_score
+            if base_error <= 0:
+                # If baseline is already 100%, can't measure error reduction
+                continue
+            
+            for row_idx in range(1, max_dend_row + 1):
+                key = (prune_idx, row_idx)
+                if key not in filled or run_name not in filled[key]:
+                    break
+                _, score = filled[key][run_name]
+                # Calculate error reduction: (improvement / baseline_error) * 100
+                # This gives the percentage of remaining error that was eliminated
+                error_reduction = ((score - base_score) / base_error) * 100.0
+                per_dend_error_reductions.setdefault(row_idx, []).append(error_reduction)
+
+        if not per_dend_error_reductions:
+            continue
+
+        avg_error_reductions = {row_idx: float(np.mean(reductions)) 
+                                for row_idx, reductions in per_dend_error_reductions.items()}
+        bars.append({"prune_idx": prune_idx, "avg_error_reductions": avg_error_reductions})
+        for row_idx, avg_reduction in sorted(avg_error_reductions.items()):
+            csv_rows.append({
+                "prune_idx": prune_idx,
+                "dendrite_row": row_idx,
+                "avg_error_reduction_from_d0": avg_reduction,
+            })
+
+    if not bars:
+        raise ValueError("No error reduction data to plot.")
+
+    all_dend_rows = sorted(set(row_idx for b in bars for row_idx in b["avg_error_reductions"]))
+
+    fig, ax = plt.subplots(figsize=(max(10, len(bars) * 1.2), 7))
+    x = list(range(len(bars)))
+    x_labels = [str(b["prune_idx"]) for b in bars]
+    bottoms = [0.0] * len(bars)
+
+    for row_idx in all_dend_rows:
+        heights = []
+        for b in bars:
+            cum = b["avg_error_reductions"].get(row_idx, 0.0)
+            prev_cum = b["avg_error_reductions"].get(row_idx - 1, 0.0) if row_idx > 1 else 0.0
+            heights.append(max(0.0, cum - prev_cum))
+        color = _series_color(row_idx + 1)
+        ax.bar(x, heights, bottom=bottoms, color=color, alpha=0.85,
+               label=f"d{row_idx - 1} \u2192 d{row_idx}")
+        bottoms = [b + h for b, h in zip(bottoms, heights)]
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(x_labels)
+    ax.set_xlabel("Pruning Iteration")
+    ax.set_ylabel("Average Remaining Error Reduction (%)")
+    ax.set_title("Average Remaining Error Reduction by Adding Up To N Dendrites per Pruning Iteration")
     ax.legend(loc="upper right", framealpha=0.9)
     ax.grid(axis="y", linestyle="--", alpha=0.4, zorder=0)
 
@@ -846,6 +972,9 @@ def main() -> None:
 
     improvement_path = os.path.join(output_dir, "improvement_bars.png")
     _make_improvement_bar_plot(dendrite_by_prune_row, improvement_path)
+
+    error_reduction_path = os.path.join(output_dir, "error_reduction_bars.png")
+    _make_error_reduction_bar_plot(dendrite_by_prune_row, error_reduction_path)
 
     filled_average_path = os.path.join(output_dir, "filled_average.png")
     _make_filled_average_plot(dendrite_by_prune_row, filled_average_path)

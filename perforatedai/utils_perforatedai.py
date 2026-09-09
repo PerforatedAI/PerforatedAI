@@ -1873,6 +1873,10 @@ def simulate_cycles(module, num_cycles, doing_pai):
     Simulate the back and forth processes of adding dendrites to build a
     pretrained dendrite model before loading weights.  Required for loading
     dendrite save files from non dendrite initial models.
+    
+    If calling this by hand to start off a network with dendrites added,
+    make sure to pass a single datapoint forward and backward through the network
+    so that array sizes are initialized.
 
     Parameters
     ----------
