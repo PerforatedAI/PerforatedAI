@@ -91,6 +91,8 @@ def test_h_on_targets_opens_marker_legend(monkeypatch, capsys):
     assert legend is not None
     assert "inherited from an ancestor" in legend
     assert "needs attention" in legend
+    assert "Which mode wins" in legend
+    assert "inherited  >  by id  >  by type" in legend
 
 
 def test_unset_modules_warning_and_save_gate(monkeypatch, capsys):
@@ -121,14 +123,6 @@ def test_switch_mode_renders_by_name_and_cycles(monkeypatch, capsys):
     # after one cycle from DOING_HISTORY the value should have changed
     final = frames[-1]
     assert "switch_mode = DOING_FIXED_SWITCH" in final
-
-
-def test_help_overlay_describes_mode_precedence(monkeypatch, capsys):
-    driver = Driver(monkeypatch, ["?"])
-    frames = driver.run(capsys)
-    help_frame = find_frame(frames, "Which mode wins")
-    assert help_frame is not None
-    assert "inherited  >  by id  >  by type" in help_frame
 
 
 def test_quit_confirim_exits(monkeypatch, capsys):
