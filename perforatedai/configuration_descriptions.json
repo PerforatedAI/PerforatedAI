@@ -1,35 +1,31 @@
 {
   "buckets": {
-    "Main Run Settings": {
-      "description": "These settings define high level run configuration and local persistence behavior. Run variables, data type, run device, testing flags, and other runtime controls are included here.",
+    "Run basics": {
+      "description": "High level run configuration and local persistence behavior: run variables, data type, run device, and testing flags.",
       "settings": {
         "testing_dendrite_capacity": {
           "description": "testing_dendrite_capacity toggles to just add 3 over the first few epochs to test memory capacity and confirm settings don't have errors which will crash the program.",
-          "label": "Configuration parameters"
+          "label": "supporting"
         },
         "save_name": {
           "description": "save_name defines the run folder under the current working directory where saved models, configuration files, and output graphs and csvs are stored.",
-          "label": "Configuration parameters"
-        },
-        "configuration_confirmed": {
-          "description": "This flag indicates whether interactive configuration has already been confirmed in the current process. perforate_model checks it to decide whether to open the target-selection UI.",
-          "label": "Configuration parameters"
+          "label": "supporting"
         },
         "output_dimensions": {
-          "description": "output_dimensions defines the expected output tensor shape for perforated modules and affects dendrite routing assumptions.  The setting here should match the shape of the most frequent output of perforated modules.  When the output shape varies, individual modules will need to be set either one by one in the UI by selecting them from the Perforation Targets menu or with calls to set_this_output_dimensions programmatically after perforate_model in your training script.",
-          "label": "Configuration parameters"
+          "description": "output_dimensions defines the expected output tensor shape for perforated modules and affects dendrite routing assumptions.  The setting here should match the shape of the most frequent output of perforated modules.  When the output shape varies, individual modules will need to be set either one by one in the UI by opening Overrides on a perforated module, or with calls to set_this_output_dimensions programmatically after perforate_model in your training script.",
+          "label": "supporting"
         },
         "device": {
           "description": "device controls where tensors and modules are expected to run, such as cpu or cuda.",
-          "label": "Configuration parameters"
+          "label": "supporting"
         },
         "use_cuda": {
           "description": "use_cuda indicates whether CUDA is available and selected for this runtime.",
-          "label": "Configuration parameters"
+          "label": "supporting"
         },
         "d_type": {
           "description": "d_type defines the numeric dtype used for perforated weights and related tensors.  Should be set to a valid PyTorch dtype such as torch.float32 or torch.float64.",
-          "label": "Configuration parameters"
+          "label": "supporting"
         }
       }
     },
@@ -37,147 +33,156 @@
       "description": "These settings control when the training loop decides to add or switch dendrite structure.  On the backend an epoch is defined by a call to add_validation_score.",
       "settings": {
         "switch_mode": {
-          "description": "switch_mode chooses which switching policy constant is active during training. Choose an int corresponding to one of the defined constants such as DOING_SWITCH_EVERY_TIME, DOING_HISTORY, DOING_FIXED_SWITCH, or DOING_NO_SWITCH.",
-          "label": "Impactful hyperparameters"
+          "description": "switch_mode chooses which switching policy is active during training. DOING_HISTORY switches when validation has not improved over a patience window, DOING_FIXED_SWITCH switches on a fixed epoch interval, DOING_SWITCH_EVERY_TIME switches every epoch (implementation debugging), and DOING_NO_SWITCH never adds dendrites.",
+          "label": "impactful"
         },
         "n_epochs_to_switch": {
           "description": "In history-based mode, this value acts like a patience window before triggering a switch consideration.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "history_lookback": {
           "description": "This defines the averaging window used by history-based switching logic.  When set to 1, only the most recent epoch is considered for switching decisions, otherwise a running average over the specified number of epochs is used.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "fixed_switch_num": {
           "description": "In fixed-switch mode, this sets the interval in epochs between switches.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "first_fixed_switch_num": {
           "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number is ignored unless it is > fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "initial_history_after_switches": {
           "description": "Amount of epochs to run after adding dendrites before history checks resume.  After dendrites are added there is often an initial drop in scores as the model adjusts, this setting ensures that history-based switching logic does not react prematurely to a score not being better quickly.",
-          "label": "Supporting hyperparameters"
-        },
-        "DOING_SWITCH_EVERY_TIME": {
-          "description": "Constant value used by switch_mode for switch every epoch behavior.",
-          "label": "Constants"
-        },
-        "DOING_HISTORY": {
-          "description": "Constant value used by switch_mode for history-based behavior.",
-          "label": "Constants"
-        },
-        "DOING_FIXED_SWITCH": {
-          "description": "Constant value used by switch_mode for fixed interval behavior.",
-          "label": "Constants"
-        },
-        "DOING_NO_SWITCH": {
-          "description": "Constant value used by switch_mode for disabling switching.  This will let you test your system with identical hyperparameters without ever adding dendrites.",
-          "label": "Constants"
+          "label": "supporting"
         }
       }
     },
-    "Optimization And Search": {
+    "Dendrite acceptance": {
       "description": "These settings govern score thresholds, retries, and search behavior after structural updates.",
       "settings": {
         "maximizing_score": {
           "description": "Whether higher validation scores are better or lower values are better.  I.e. True for accuracy or other metrics where higher is better, False for loss or other metrics where lower is better",
-          "label": "Configuration parameters"
+          "label": "supporting"
         },
         "improvement_threshold": {
           "description": "Relative improvement thresholds used by tracker acceptance logic.  For a new best score to be defined it must beat the previous best score by at least this much over total number of epochs set by the history settings.  E.g. if this is set to 0.01 and the history window is 10 epochs, the new score must be at least 1% better than the previous best over those 10 epochs.  Consider your metric when choosing this, loss vs accuracy should have different settings.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "improvement_threshold_raw": {
           "description": "Absolute improvement floor to avoid treating tiny metric deltas as meaningful.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "find_best_lr": {
           "description": "Enables learning-rate search behavior after structural changes.  This can only be used when calling setup_optimizer and not set_optimizer_instance.  When True it will iterate over a range of learning rates to find the most effective one based on what learning rates were seen at the last neuron training cycle.  This should only be used with step based schedulers or else it will add large timing addition to the run as it iterates over every candidate learning rate.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "dont_give_up_unless_learning_rate_lowered": {
           "description": "Requires at least one LR-lowered path before ending search attempts.  This is a defensive setting to ensure that the history switch does not get triggered before the learning rate is stepped at least once.  Should not be set to True without a scheduler",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "max_dendrite_tries": {
           "description": "Retry cap for candidate dendrite initializations before concluding no improvement.  If this is >= 2 then when an added set of dendrites does not improve validation scores it will be deleted, and a new dendrite cycle will begin with a different random initialization.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "max_dendrites": {
           "description": "Hard upper bound on dendrites added.",
-          "label": "Impactful hyperparameters"
+          "label": "impactful"
         },
         "candidate_weight_initialization_multiplier": {
           "description": "Multiplier controlling random candidate weight initialization magnitude.  Can be adjusted if dendrites have too high or too small of an impact when added to network.",
-          "label": "Supporting hyperparameters"
+          "label": "supporting"
         },
         "candidate_weight_init_by_main": {
           "description": "Scales initialization weights by magnitude of parent weights during candidate initialization.",
-          "label": "Supporting hyperparameters"
+          "label": "supporting"
         },
         "retain_all_dendrites": {
           "description": "Keep dendrites even when they do not improve score.  Useful for debugging to view all calculated metrics over multiple cycles of dendrite addition even when the main validation metric is not improving.",
-          "label": "Supporting hyperparameters"
+          "label": "supporting"
         }
       }
     },
-    "Visualization, Logging, and Debugging": {
+    "Dendrite Settings": {
+      "description": "Settings for the dendrites themselves.",
+      "settings": {
+        "pai_forward_function": {
+          "description": "Activation function used by dendrites where applicable. Options are relu, tanh, and sigmoid.",
+          "label": "impactful"
+        }
+      }
+    },
+    "Output & logging": {
       "description": "These settings control console verbosity, graph/csv/model artifact output, and debugging flags.",
       "settings": {
         "verbose": {
           "description": "verbose enables broader informational logging across the pipeline.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "extra_verbose": {
           "description": "extra_verbose expands on verbose with additional low-level details.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "silent": {
           "description": "silent suppresses most normal informational output.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "confirm_correct_sizes": {
           "description": "Enables additional dimension checks for tensor shape assumptions.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "debugging_output_dimensions": {
           "description": "When set to True, all output dimension problems can be printed at once instead of running the program multiple times to find each one.  Useful for identifying which output dimension setting should be used as the main one and which should be set individually.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "drawing_pai": {
           "description": "Toggles standard graph generation associated with PAI training progress.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "drawing_extra_graphs": {
           "description": "Enables additional graph outputs beyond the core set.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "save_old_graph_scores": {
           "description": "Keep historical graph score artifacts when writing outputs to see what actually happened during the run before early stopping triggers an earlier model to be loaded before adding dendrites.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "library_validation_score": {
           "description": "When using a library, such as huggingface transformers, and add_validation_score is integrated into that library rather than your code this string setting specifies which metric of the library you are optimizing.  This only works if perforated has been integrated into the library so be sure to check our repository of integrated libraries.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "library_extra_scores": {
           "description": "When using a library, such as huggingface transformers, and add_extra_score is integrated into that library rather than your code this string setting specifies which metric of the library you are optimizing.  This only works if perforated has been integrated into the library so be sure to check our repository of integrated libraries.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "library_extra_scores_without_graphing": {
           "description": "When using a library, such as huggingface transformers, and library_extra_score_without_graphing is integrated into that library rather than your code this string setting specifies which metric of the library you are optimizing.  This only works if perforated has been integrated into the library so be sure to check our repository of integrated libraries..",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         }
       }
     },
-    "PerforatedBP Settings": {
-      "description": "PerforatedBP-specific settings provided by the external perforatedbp package when available. This adds additional tools, settings, and optimizations for Perforated Backpropagation. Contact Perforated for access and guidance.",
+    "Saving & loading": {
+      "description": "Settings related to saving, loading, and checkpoint restore behavior.",
       "settings": {
-        "perforated_backpropagation": {
-          "description": "This flag enables integration with perforated backpropagation when the external package is available.",
-          "label": "PerforatedBP hyperparameters"
+        "checked_skipped_modules": {
+          "description": "Can be set to True to shut off the warning that you have not perforated or tracked all parameters.  Reccomended to not use this setting.",
+          "label": "supporting"
+        },
+        "using_safe_tensors": {
+          "description": "Use safe tensors format for serialization where applicable.  Can be swapped if there are saving issues with your model and the perforated tools reccomend trying this approach.",
+          "label": "supporting"
+        },
+        "strict_loading": {
+          "description": "Use strict state-dict loading behavior for checkpoint restore.  Must be used when loaded model and current model have different architectures.  Useful when changing network heads, or other significant modifications to the model structure from the loaded state-dict.",
+          "label": "supporting"
+        },
+        "test_saves": {
+          "description": "Enable intermediary test saves for debugging and experimentation.  Setting to False will save on memory usage.",
+          "label": "supporting"
+        },
+        "pai_saves": {
+          "description": "Enable PAI-specific save behavior for streamlined artifacts.  These models have removed dendritic scaffolding for optimized inference model footprint.  Useful when building a deployment model, not needed when running initial experiments.",
+          "label": "supporting"
         }
       }
     },
@@ -186,74 +191,24 @@
       "settings": {
         "dashboard_events_enabled": {
           "description": "Toggles emission of dashboard events during run lifecycle and updates.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "dashboard_url": {
           "description": "Dashboard endpoint used when event emission is enabled.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         },
         "dashboard_debug": {
           "description": "Enables additional debugging output for dashboard event emission paths.",
-          "label": "Supporting configuration parameters"
+          "label": "supporting"
         }
       }
     },
-    "Dendrite Settings": {
-      "description": "Global settings that do not fit another category.",
+    "Perforated Backprop": {
+      "description": "Perforated Backprop settings provided by the external perforatedbp package when available. This adds additional tools, settings, and optimizations for Perforated Backpropagation. Contact Perforated for access and guidance.",
       "settings": {
-        "pai_forward_function": {
-          "description": "Activation function used by dendrites where applicable. Options are 'relu', 'tanh', 'sigmoid'",
-          "label": "Impactful hyperparameters"
-        }
-      }
-    },
-    "Target Selection": {
-      "description": "These settings decide what gets perforated, what gets tracked, and what gets transformed before wrapping. It is highly recommended to use the Perforation Targets menu rather than make direct edits here.",
-      "settings": {
-        "module_names_to_perforate": {
-          "description": "This list toggles whether to perforate modules by module type name, such as Linear or Conv2d. In the selector UI this corresponds to name-level targeting with capital p.",
-          "label": "Configuration parameters"
-        },
-        "module_ids_to_perforate": {
-          "description": "This list toggles whether to perforate modules by module id.  IDs should always start with a \".\" and arrays are also represented with a \".\".  For example if a model has a sequential named \"layers\" and in that sequential is a module named \"layer2\" with a conv in it, the entry would read \".layers.2.conv\". This is much easier to do with the UI than by hand.  Setting perforation by id is the most direct way to target individual modules when class-wide rules are too broad. Settings by ID override settings by name, but parent rules still override submodule rules. Prefer IDs when you need exact surgical control. In the selector UI this corresponds to name-level targeting with lowercase p.",
-          "label": "Configuration parameters"
-        },
-        "module_names_to_track": {
-          "description": "This list toggles whether to track modules by module type name, such as Linear or Conv2d. In the selector UI this corresponds to name-level targeting with capital t.",
-          "label": "Configuration parameters"
-        },
-        "module_ids_to_track": {
-          "description": "This list toggles whether to track modules by module id.  IDs should always start with a \".\" and arrays are also represented with a \".\".  For example if a model has a sequential named \"layers\" and in that sequential is a module named \"layer2\" with a conv in it, the entry would read \".layers.2.conv\". This is much easier to do with the UI than by hand.  Setting tracking by id is the most direct way to target individual modules when class-wide rules are too broad. Settings by ID override settings by name, but parent rules still override submodule rules. Prefer IDs when you need exact surgical control. In the selector UI this corresponds to name-level targeting with lowercase t.",
-          "label": "Configuration parameters"
-        },
-        "parameter_ids_to_track": {
-          "description": "This list tracks individual parameters directly.  It is generally best practice to perforate or track a full module with parameters, but this can be used when a parent module contains some submodules to perforate and some to track.  Standalone parameters can not be perforated so they must be added to this list to be tracked.  IDs should always start with a \".\" and arrays are also represented with a \".\".  For example if a model has a sequential named \"layers\" and in that sequential is a module named \"layer2\" with a conv in it, the entry would read \".layers.2.conv\".  This is currently not set up to do with the UI since it is rarely used.",
-          "label": "Configuration parameters"
-        }
-      }
-    },
-    "Saving and Additional Configuration": {
-      "description": "Additional settings related to saving, loading, and other operational behaviors.",
-      "settings": {
-        "checked_skipped_modules": {
-          "description": "Can be set to True to shut off the warning that you have not perforated or tracked all parameters.  Reccomended to not use this setting.",
-          "label": "Supporting configuration parameters"
-        },
-        "using_safe_tensors": {
-          "description": "Use safe tensors format for serialization where applicable.  Can be swapped if there are saving issues with your model and the perforated tools reccomend trying this approach.",
-          "label": "Supporting configuration parameters"
-        },
-        "strict_loading": {
-          "description": "Use strict state-dict loading behavior for checkpoint restore.  Must be used when loaded model and current model have different architectures.  Useful when changing network heads, or other significant modifications to the model structure from the loaded state-dict.",
-          "label": "Supporting configuration parameters"
-        },
-        "test_saves": {
-          "description": "Enable intermediary test saves for debugging and experimentation.  Setting to False will save on memory usage.",
-          "label": "Supporting configuration parameters"
-        },
-        "pai_saves": {
-          "description": "Enable PAI-specific save behavior for streamlined artifacts.  These models have removed dendritic scaffolding for optimized inference model footprint.  Useful when building a deployment model, not needed when running initial experiments.",
-          "label": "Supporting configuration parameters"
+        "perforated_backpropagation": {
+          "description": "This flag enables integration with perforated backpropagation when the external package is available.",
+          "label": "supporting"
         }
       }
     }

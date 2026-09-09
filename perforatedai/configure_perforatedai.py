@@ -9,20 +9,17 @@ import re
 
 from perforatedai import globals_perforatedai as GPA
 
+try:
+    import torch
+except Exception:  # pragma: no cover - torch is a hard dependency at runtime
+    torch = None
 
+
+# ---------------------------------------------------------------------------
+# Selection list plumbing
+# ---------------------------------------------------------------------------
 def dedupe_list(values):
-    """Return a list with duplicates removed while preserving order.
-
-    Parameters
-    ----------
-    values : list
-        Input list that may contain duplicate values.
-
-    Returns
-    -------
-    list
-        De-duplicated list with original order preserved.
-    """
+    """Return a list with duplicates removed while preserving order."""
     seen = set()
     unique = []
     for value in values:
@@ -34,23 +31,7 @@ def dedupe_list(values):
 
 
 def normalize_selection_conflicts():
-    """Normalize id and name selection lists and remove direct conflicts.
-
-    Rules enforced:
-    - No item can exist in both id lists.
-    - No item can exist in both name lists.
-    - Id conflicts and name conflicts are resolved by removing from tracked
-      when also present in perforated.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-    """
+    """Normalize id and name selection lists and remove direct conflicts."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
     ids_track = dedupe_list(GPA.pc.get_module_ids_to_track())
     names_perforate = dedupe_list(GPA.pc.get_module_names_to_perforate())
@@ -73,16 +54,10 @@ def normalize_selection_conflicts():
 def get_module_entries(model):
     """Collect modules for interactive navigation.
 
-    Parameters
-    ----------
-    model : nn.Module
-        Root model to inspect.
-
-    Returns
-    -------
-    list
-        List of module entry dictionaries containing module id, module type,
-        object pointer, and tree depth.
+    Each entry also carries ``is_replaced_root`` (this module's class is in
+    ``modules_to_replace`` and will be restructured before training) and
+    ``in_replaced`` / ``replaced_root`` (this module lives under such a module,
+    so its id will not exist at training time).
     """
     entries = []
     for name, module in model.named_modules(remove_duplicate=False):
@@ -107,22 +82,31 @@ def get_module_entries(model):
                 ),
             }
         )
+
+    replace_classes = tuple(GPA.pc.get_modules_to_replace())
+    replaced_root_ids = []
+    for entry in entries:
+        entry["is_replaced_root"] = (
+            len(replace_classes) > 0
+            and isinstance(entry["module"], replace_classes)
+        )
+        if entry["is_replaced_root"]:
+            replaced_root_ids.append(entry["id"])
+
+    for entry in entries:
+        entry["replaced_root"] = None
+        entry["in_replaced"] = False
+        for root_id in replaced_root_ids:
+            if entry["id"].startswith(root_id + "."):
+                entry["replaced_root"] = root_id
+                entry["in_replaced"] = True
+                break
+
     return entries
 
 
 def get_id_mode(module_id):
-    """Get explicit id-based mode for a module id.
-
-    Parameters
-    ----------
-    module_id : str
-        Module id in dot notation (e.g. ".layer1.0.conv1").
-
-    Returns
-    -------
-    str or None
-        "perforated", "tracked", or None when not set by id.
-    """
+    """Get explicit id-based mode for a module id ("perforated"/"tracked"/None)."""
     if module_id in GPA.pc.get_module_ids_to_perforate():
         return "perforated"
     if module_id in GPA.pc.get_module_ids_to_track():
@@ -131,18 +115,7 @@ def get_id_mode(module_id):
 
 
 def get_name_mode(module_type_name):
-    """Get type-name-based mode for a module type.
-
-    Parameters
-    ----------
-    module_type_name : str
-        Module class name (e.g. "Linear").
-
-    Returns
-    -------
-    str or None
-        "perforated", "tracked", or None when not set by name.
-    """
+    """Get type-name-based mode for a module type ("perforated"/"tracked"/None)."""
     if module_type_name in GPA.pc.get_module_names_to_perforate():
         return "perforated"
     if module_type_name in GPA.pc.get_module_names_to_track():
@@ -150,52 +123,8 @@ def get_name_mode(module_type_name):
     return None
 
 
-def get_effective_mode(entry):
-    """Compute the effective mode for one module entry.
-
-    Precedence:
-    1) Explicit id mode
-    2) Type-name mode
-    3) Replacement mode
-    4) None
-
-    Parameters
-    ----------
-    entry : dict
-        Module entry dictionary from get_module_entries().
-
-    Returns
-    -------
-    str or None
-        "perforated", "tracked", "replaced", or None.
-    """
-    id_mode = get_id_mode(entry["id"])
-    if id_mode is not None:
-        return id_mode
-
-    name_mode = get_name_mode(entry["type_name"])
-    if name_mode is not None:
-        return name_mode
-
-    if type(entry["module"]) in GPA.pc.get_modules_to_replace():
-        return "replaced"
-
-    return None
-
-
 def get_parent_module_id(module_id):
-    """Return the direct parent module id for a dot-id module path.
-
-    Parameters
-    ----------
-    module_id : str
-        Module id in dot notation (e.g. ".layer1.0.conv1").
-
-    Returns
-    -------
-    str or None
-        Parent module id or None when there is no parent.
-    """
+    """Return the direct parent module id for a dot-id module path."""
     parts = module_id.split(".")
     if len(parts) <= 2:
         return None
@@ -205,19 +134,8 @@ def get_parent_module_id(module_id):
 def build_recursive_modes(entries):
     """Build recursive inherited modes for all entries.
 
-    Recursive rule:
-    - if parent has a recursive mode, inherit it (descendant override ignored)
-    - otherwise explicit id mode or explicit name mode sets this node's mode
-
-    Parameters
-    ----------
-    entries : list
-        Module entries from get_module_entries().
-
-    Returns
-    -------
-    dict
-        Map of module id to recursive mode ("perforated", "tracked", or None).
+    - if an ancestor has a recursive mode, inherit it (descendant override ignored)
+    - otherwise an explicit id mode or explicit name mode sets this node's mode
     """
     recursive_modes = {}
     for entry in entries:
@@ -240,184 +158,109 @@ def build_recursive_modes(entries):
     return recursive_modes
 
 
-def get_color_hex_for_mode(mode):
-    """Map preview mode to color hex value.
+def resolve_entry_modes(entries):
+    """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
-    Parameters
-    ----------
-    mode : str or None
-        Mode name.
-
-    Returns
-    -------
-    str
-        Six-character RGB hex string.
+    Returns a map of module id to a dict with:
+      - ``eff``:    "perforated" / "tracked" / None
+      - ``source``: "id" / "type" / "inherited" / None
+      - ``origin_id``: the id the mode was set on (for inherited rows)
+      - ``overridden``: {"mode", "source"} when a direct setting here is ignored
     """
+    resolved = {}
+    by_id = {entry["id"]: entry for entry in entries}
+    for entry in entries:
+        module_id = entry["id"]
+        parent_id = get_parent_module_id(module_id)
+        parent = resolved.get(parent_id) if parent_id in by_id else None
+
+        own_id_mode = get_id_mode(module_id)
+        own_type_mode = get_name_mode(entry["type_name"])
+        own_mode = own_id_mode or own_type_mode
+        own_source = "id" if own_id_mode else ("type" if own_type_mode else None)
+
+        record = {
+            "eff": None,
+            "source": None,
+            "origin_id": module_id,
+            "overridden": None,
+        }
+        if parent is not None and parent["eff"] is not None:
+            record["eff"] = parent["eff"]
+            record["source"] = "inherited"
+            record["origin_id"] = parent["origin_id"]
+            if own_mode is not None:
+                record["overridden"] = {"mode": own_mode, "source": own_source}
+        elif own_mode is not None:
+            record["eff"] = own_mode
+            record["source"] = own_source
+            record["origin_id"] = module_id
+        resolved[module_id] = record
+    return resolved
+
+
+# ---------------------------------------------------------------------------
+# Formatting helpers
+# ---------------------------------------------------------------------------
+COLOR_PERFORATE = "00A5A5"
+COLOR_TRACK = "8A95A0"
+COLOR_ATTENTION = "FD4D00"
+COLOR_ACCENT = "D9A441"
+
+
+def get_color_hex_for_mode(mode):
+    """Map a resolved mode to its color hex value."""
     if mode == "perforated":
-        return "00A5A5"
+        return COLOR_PERFORATE
     if mode == "tracked":
-        return "DEECED"
+        return COLOR_TRACK
     return "000000"
 
 
 def format_human_count(value):
-    """Format integer counts into compact human-readable units.
-
-    Parameters
-    ----------
-    value : int
-        Non-negative integer to format.
-
-    Returns
-    -------
-    str
-        Formatted value using raw numbers, K, M, or B suffix.
-    """
+    """Format integer counts into compact human-readable units (K/M/B)."""
     if value < 1000:
         return str(value)
-
     if value < 1000000:
         scaled = value / 1000.0
         text = f"{scaled:.1f}"
-        if text.endswith(".0"):
-            text = text[:-2]
-        return f"{text}K"
-
+        return (text[:-2] if text.endswith(".0") else text) + "K"
     if value < 1000000000:
         scaled = value / 1000000.0
         text = f"{scaled:.1f}"
-        if text.endswith(".0"):
-            text = text[:-2]
-        return f"{text}M"
-
+        return (text[:-2] if text.endswith(".0") else text) + "M"
     scaled = value / 1000000000.0
     text = f"{scaled:.1f}"
-    if text.endswith(".0"):
-        text = text[:-2]
-    return f"{text}B"
-
-
-def get_resolved_mode(entry, recursive_modes):
-    """Resolve final mode for an entry including recursive inheritance.
-
-    Parameters
-    ----------
-    entry : dict
-        Module entry dictionary from get_module_entries().
-    recursive_modes : dict
-        Map from module id to recursive inherited mode.
-
-    Returns
-    -------
-    str or None
-        "perforated", "tracked", "replaced", or None.
-    """
-    recursive_mode = recursive_modes.get(entry["id"])
-    if recursive_mode is not None:
-        return recursive_mode
-
-    if type(entry["module"]) in GPA.pc.get_modules_to_replace():
-        return "replaced"
-
-    return None
-
-
-def build_target_summary_line(entries, recursive_modes):
-    """Build the sticky summary line for target counts and parameters.
-
-    Parameters
-    ----------
-    entries : list
-        Module entries from get_module_entries().
-    recursive_modes : dict
-        Map from module id to recursive inherited mode.
-
-    Returns
-    -------
-    str
-        Summary line shown in the fixed header.
-    """
-    perforated_targets = 0
-    tracked_targets = 0
-    unset_targets = 0
-    total_parameters_added_per_cycle = 0
-    total_model_params = 0
-    seen_parameter_ids = set()
-    seen_perforated_parameter_ids = set()
-
-    for entry in entries:
-        for _param_name, parameter in entry["module"].named_parameters(recurse=False):
-            parameter_id = id(parameter)
-            if parameter_id in seen_parameter_ids:
-                continue
-            seen_parameter_ids.add(parameter_id)
-            total_model_params += parameter.numel()
-
-        resolved_mode = get_resolved_mode(entry, recursive_modes)
-        param_count = entry["direct_param_count"]
-
-        if resolved_mode == "perforated":
-            perforated_targets += 1
-            for _param_name, parameter in entry["module"].named_parameters(recurse=False):
-                parameter_id = id(parameter)
-                if parameter_id in seen_perforated_parameter_ids:
-                    continue
-                seen_perforated_parameter_ids.add(parameter_id)
-                total_parameters_added_per_cycle += parameter.numel()
-        elif resolved_mode == "tracked":
-            tracked_targets += 1
-        elif param_count > 0:
-            unset_targets += 1
-
-    return (
-        "Perforated targets - "
-        f"{perforated_targets}, "
-        "Tracked targets - "
-        f"{tracked_targets}, "
-        "unset targets which need to be set - "
-        f"{unset_targets}, "
-        "total parameters added per cycle - "
-        f"{format_human_count(total_parameters_added_per_cycle)}, "
-        "total model params - "
-        f"{format_human_count(total_model_params)}"
-    )
+    return (text[:-2] if text.endswith(".0") else text) + "B"
 
 
 def module_has_direct_parameters(module):
-    """Check whether a module directly owns any parameters.
-
-    Parameters
-    ----------
-    module : nn.Module
-        Module to inspect.
-
-    Returns
-    -------
-    bool
-        True when the module has at least one direct parameter.
-    """
+    """Check whether a module directly owns any parameters."""
     for _name, _param in module.named_parameters(recurse=False):
         return True
     return False
 
 
-def make_color_square(hex_color):
-    """Create one colored square character using ANSI truecolor.
+def _ansi(text, code):
+    return f"\x1b[{code}m{text}\x1b[0m"
 
-    Parameters
-    ----------
-    hex_color : str
-        RGB hex color in RRGGBB format.
 
-    Returns
-    -------
-    str
-        Colored square character.
-    """
+def color_text(text, hex_color):
+    """Render text in an ANSI truecolor foreground."""
     r = int(hex_color[0:2], 16)
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)
-    return f"\x1b[38;2;{r};{g};{b}m█\x1b[0m"
+    return f"\x1b[38;2;{r};{g};{b}m{text}\x1b[0m"
+
+
+def make_color_square(hex_color):
+    """Create one colored block character using ANSI truecolor."""
+    return color_text("█", hex_color)
+
+
+def dim(text):
+    """Render text dimmed."""
+    return _ansi(text, "90")
 
 
 def make_inverted_text(text):
@@ -437,7 +280,6 @@ def get_visual_line_count(lines, terminal_columns):
     """Count rendered terminal rows, including wrapped long lines."""
     if terminal_columns < 1:
         return len(lines)
-
     total = 0
     for line in lines:
         plain = strip_ansi(line)
@@ -449,11 +291,7 @@ def get_visual_line_count(lines, terminal_columns):
 
 
 def wrap_ansi_line_on_words(line, terminal_columns):
-    """Wrap one ANSI-colored line on word boundaries for terminal display.
-
-    Falls back to a hard split only when one contiguous token is wider than
-    the available width.
-    """
+    """Wrap one ANSI-colored line on word boundaries for terminal display."""
     if terminal_columns < 1:
         return [line]
 
@@ -461,8 +299,6 @@ def wrap_ansi_line_on_words(line, terminal_columns):
     if len(plain) <= terminal_columns:
         return [line]
 
-    # Map each visible-character index to the corresponding raw-string index,
-    # skipping ANSI escape sequences which have zero visual width.
     visible_to_raw = []
     raw_index = 0
     while raw_index < len(line):
@@ -515,15 +351,13 @@ def wrap_screen_text_for_terminal(screen_text):
 
 
 def render_text_with_cursor(text, cursor_index):
-    """Render text with CLI-style inverted-character cursor."""
+    """Render text with a CLI-style inverted-character cursor."""
     if cursor_index < 0:
         cursor_index = 0
     if cursor_index > len(text):
         cursor_index = len(text)
-
     if cursor_index == len(text):
         return text + make_inverted_text(" ")
-
     current_char = text[cursor_index]
     return (
         text[:cursor_index]
@@ -532,143 +366,67 @@ def render_text_with_cursor(text, cursor_index):
     )
 
 
+# ---------------------------------------------------------------------------
+# Key token predicates
+# ---------------------------------------------------------------------------
 def is_up_key(key):
-    """Return True when key token represents Up arrow."""
+    if key in ("k",):
+        return True
     if not key.startswith("\x1b"):
         return False
-    return key in ("\x1b[A", "\x1bOA") or (
-        key.startswith("\x1b[") and key.endswith("A")
-    )
+    return key in ("\x1b[A", "\x1bOA") or (key.startswith("\x1b[") and key.endswith("A"))
 
 
 def is_down_key(key):
-    """Return True when key token represents Down arrow."""
+    if key in ("j",):
+        return True
     if not key.startswith("\x1b"):
         return False
-    return key in ("\x1b[B", "\x1bOB") or (
-        key.startswith("\x1b[") and key.endswith("B")
-    )
+    return key in ("\x1b[B", "\x1bOB") or (key.startswith("\x1b[") and key.endswith("B"))
 
 
 def is_left_key(key):
-    """Return True when key token represents Left arrow."""
     if not key.startswith("\x1b"):
         return False
-    return key in ("\x1b[D", "\x1bOD") or (
-        key.startswith("\x1b[") and key.endswith("D")
-    )
+    return key in ("\x1b[D", "\x1bOD") or (key.startswith("\x1b[") and key.endswith("D"))
 
 
 def is_right_key(key):
-    """Return True when key token represents Right arrow."""
     if not key.startswith("\x1b"):
         return False
-    return key in ("\x1b[C", "\x1bOC") or (
-        key.startswith("\x1b[") and key.endswith("C")
-    )
+    return key in ("\x1b[C", "\x1bOC") or (key.startswith("\x1b[") and key.endswith("C"))
 
 
 def is_page_up_key(key):
-    """Return True when key token represents Page Up."""
     return key == "\x1b[5~" or (key.startswith("\x1b[") and "[5" in key and key.endswith("~"))
 
 
 def is_page_down_key(key):
-    """Return True when key token represents Page Down."""
     return key == "\x1b[6~" or (key.startswith("\x1b[") and "[6" in key and key.endswith("~"))
 
 
 def is_delete_key(key):
-    """Return True when key token represents Delete."""
     return key == "\x1b[3~" or (key.startswith("\x1b[") and "[3" in key and key.endswith("~"))
 
 
+def is_enter_key(key):
+    return key in ("\r", "\n")
+
+
+def is_tab_key(key):
+    return key == "\t"
+
+
 def is_select_key(key):
-    """Return True when key token should trigger selection/edit actions."""
-    return key == " " or key == "\r" or key == "\n"
+    """Space/Enter — used only inside the inline value editors."""
+    return key in (" ", "\r", "\n")
 
 
-def make_mode_prefix(entry, recursive_modes):
-    """Build the color-square prefix for one module line.
-
-    Rules:
-    - Submodule inherited mode draws in the first marker column (S).
-    - Id mode draws in the second marker column (I).
-    - Name mode draws in the third marker column (N).
-    - Vertical dividers are always present between columns.
-    - If neither applies, show one neutral marker in the I column.
-
-    Parameters
-    ----------
-    entry : dict
-        Module entry dictionary from get_module_entries().
-
-    recursive_modes : dict
-        Map from module id to recursive inherited mode.
-
-    Returns
-    -------
-    str
-        Prefix string in S|I|T layout.
-    """
-    id_mode = get_id_mode(entry["id"])
-    name_mode = get_name_mode(entry["type_name"])
-    parent_id = get_parent_module_id(entry["id"])
-    submodule_mode = None
-    if parent_id is not None:
-        submodule_mode = recursive_modes.get(parent_id)
-
-    # Fixed marker columns:
-    # slots[0] = inherited parent mode (S), slots[1] = id mode (I),
-    # slots[2] = name mode (A)
-    slots = [" ", " ", " "]
-
-    # Submodule column shows inherited parent mode recursively.
-    if submodule_mode is not None:
-        slots[0] = make_color_square(get_color_hex_for_mode(submodule_mode))
-
-    # Id-level selection occupies column 2.
-    # When a parent already applies recursively, this explicit id setting is
-    # ignored by design and shown in a dedicated color.
-    if id_mode is not None:
-        if submodule_mode is not None:
-            slots[1] = make_color_square("9781E6")
-        else:
-            slots[1] = make_color_square(get_color_hex_for_mode(id_mode))
-
-    # Name-level selection occupies column 3.
-    # When a parent already applies recursively, this name setting is
-    # ignored by design and shown in a dedicated color.
-    if name_mode is not None:
-        if submodule_mode is not None:
-            slots[2] = make_color_square("9781E6")
-        else:
-            slots[2] = make_color_square(get_color_hex_for_mode(name_mode))
-
-    if id_mode is None and name_mode is None and submodule_mode is None:
-        if module_has_direct_parameters(entry["module"]):
-            slots[1] = make_color_square("FD4D00")
-        else:
-            slots[1] = make_color_square("000000")
-
-    return f"{slots[0]}|{slots[1]}|{slots[2]}"
-
-
+# ---------------------------------------------------------------------------
+# Mode setters
+# ---------------------------------------------------------------------------
 def set_module_id_mode(module_id, mode):
-    """Set id-based mode and enforce id-list exclusivity.
-
-    Parameters
-    ----------
-    module_id : str
-        Module id in dot notation.
-    mode : str
-        "perforated" or "tracked".
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-    """
+    """Set (or toggle off) an id-based mode, enforcing id-list exclusivity."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
     ids_track = dedupe_list(GPA.pc.get_module_ids_to_track())
 
@@ -690,159 +448,141 @@ def set_module_id_mode(module_id, mode):
 
 
 def set_module_name_mode(module_type_name, mode):
-    """Set name-based mode and enforce name-list exclusivity.
-
-    Parameters
-    ----------
-    module_type_name : str
-        Module class name (e.g. "Linear").
-    mode : str
-        "perforated" or "tracked".
-
-    Returns
-    -------
-    None
-        This function does not return a value.
-    """
+    """Set (or toggle off) a type-name-based mode, enforcing name-list exclusivity."""
     names_perforate = dedupe_list(GPA.pc.get_module_names_to_perforate())
     names_track = dedupe_list(GPA.pc.get_module_names_to_track())
 
     if mode == "perforated":
         if module_type_name in names_perforate:
-            names_perforate = [
-                value for value in names_perforate if value != module_type_name
-            ]
+            names_perforate = [v for v in names_perforate if v != module_type_name]
         else:
             names_perforate.append(module_type_name)
-            names_track = [value for value in names_track if value != module_type_name]
+            names_track = [v for v in names_track if v != module_type_name]
     elif mode == "tracked":
         if module_type_name in names_track:
-            names_track = [value for value in names_track if value != module_type_name]
+            names_track = [v for v in names_track if v != module_type_name]
         else:
             names_track.append(module_type_name)
-            names_perforate = [
-                value for value in names_perforate if value != module_type_name
-            ]
+            names_perforate = [v for v in names_perforate if v != module_type_name]
 
     GPA.pc.set_module_names_to_perforate(names_perforate)
     GPA.pc.set_module_names_to_track(names_track)
 
 
-def render_module_line(entry, selected, recursive_modes):
-    """Render one interactive line for a module entry.
+def clear_module_mode(entry):
+    """Clear a direct id rule on this module; if none, clear its type rule.
 
-    Parameters
-    ----------
-    entry : dict
-        Module entry dictionary from get_module_entries().
-    selected : bool
-        Whether this line is currently selected by the cursor.
-
-    recursive_modes : dict
-        Map from module id to recursive inherited mode.
-
-    Returns
-    -------
-    str
-        Rendered text line.
+    Returns a short human message describing what was cleared.
     """
-    selector = ">" if selected else " "
-    indent = "  " * entry["depth"]
-    prefix = make_mode_prefix(entry, recursive_modes)
-    effective_mode = get_resolved_mode(entry, recursive_modes)
-    if effective_mode is None:
-        effective_mode_text = "none"
-    else:
-        effective_mode_text = effective_mode
-    param_count_text = format_human_count(entry["tree_param_count"])
+    module_id = entry["id"]
+    type_name = entry["type_name"]
 
+    ids_perforate = [v for v in GPA.pc.get_module_ids_to_perforate() if v != module_id]
+    ids_track = [v for v in GPA.pc.get_module_ids_to_track() if v != module_id]
+    if (
+        module_id in GPA.pc.get_module_ids_to_perforate()
+        or module_id in GPA.pc.get_module_ids_to_track()
+    ):
+        GPA.pc.set_module_ids_to_perforate(ids_perforate)
+        GPA.pc.set_module_ids_to_track(ids_track)
+        return f"cleared {module_id}"
+
+    if (
+        type_name in GPA.pc.get_module_names_to_perforate()
+        or type_name in GPA.pc.get_module_names_to_track()
+    ):
+        GPA.pc.set_module_names_to_perforate(
+            [v for v in GPA.pc.get_module_names_to_perforate() if v != type_name]
+        )
+        GPA.pc.set_module_names_to_track(
+            [v for v in GPA.pc.get_module_names_to_track() if v != type_name]
+        )
+        return f"cleared the {type_name} type rule"
+
+    return "nothing to clear on this module"
+
+
+# ---------------------------------------------------------------------------
+# Type rules / budget / attention
+# ---------------------------------------------------------------------------
+def type_rule_entries(entries):
+    """Active type-name rules as (type_name, mode, live count) tuples."""
+    counts = {}
+    for entry in entries:
+        if entry["in_replaced"]:
+            continue
+        counts[entry["type_name"]] = counts.get(entry["type_name"], 0) + 1
+
+    rules = []
+    for type_name in sorted(GPA.pc.get_module_names_to_perforate()):
+        rules.append((type_name, "perforated", counts.get(type_name, 0)))
+    for type_name in sorted(GPA.pc.get_module_names_to_track()):
+        rules.append((type_name, "tracked", counts.get(type_name, 0)))
+    return rules
+
+
+def unset_module_entries(entries, resolved):
+    """Entries that own parameters but have no resolved mode (need attention)."""
+    unset = []
+    for entry in entries:
+        if entry["in_replaced"] or entry["is_replaced_root"]:
+            continue
+        if entry["direct_param_count"] <= 0:
+            continue
+        if resolved[entry["id"]]["eff"] is None:
+            unset.append(entry)
+    return unset
+
+
+def build_budget_line(entries, resolved):
+    """The perforation-budget line: parameter cost of the current selection."""
+    added = 0
+    total_model_params = 0
+    seen_added = set()
+    seen_total = set()
+
+    for entry in entries:
+        for _name, parameter in entry["module"].named_parameters(recurse=False):
+            pid = id(parameter)
+            if pid not in seen_total:
+                seen_total.add(pid)
+                total_model_params += parameter.numel()
+
+        if resolved[entry["id"]]["eff"] == "perforated":
+            for _name, parameter in entry["module"].named_parameters(recurse=False):
+                pid = id(parameter)
+                if pid not in seen_added:
+                    seen_added.add(pid)
+                    added += parameter.numel()
+
+    pct = (100.0 * added / total_model_params) if total_model_params else 0.0
     return (
-        f"{selector} {prefix} {indent}{entry['id']} "
-        f"[{entry['type_name']}] mode={effective_mode_text} "
-        f"params={param_count_text}"
+        f"Perforation budget:  +{format_human_count(added)} params per dendrite cycle"
+        f"  ·  model {format_human_count(total_model_params)}"
+        f"  (+{pct:.1f}% / cycle)"
     )
 
 
-INTERNAL_CONFIG_KEYS = {
-    "module_name",
-    "module_type",
-    "manually_set_keys",
-    "loading_config_values",
-    "auto_persist_config",
-}
-
+# ---------------------------------------------------------------------------
+# Run settings metadata
+# ---------------------------------------------------------------------------
 RUNTIME_ONLY_CONFIG_KEYS = {"config_file"}
-
-SETTING_COLOR_IMPACTFUL = "00A5A5"
-SETTING_COLOR_SUPPORTING = "004145"
-SETTING_COLOR_SUPPORTING_CONFIGURATION = "001424"
-SETTING_COLOR_CONSTANT = "9892A0"
-SETTING_COLOR_EXPERIMENTAL = "FD4D00"
-SETTING_COLOR_PB = "00F9C9"
-SETTING_COLOR_CONFIGURATION = "FFFFFF"
 
 DESCRIPTION_FILE_NAME = "configuration_descriptions.json"
 DESCRIPTION_CACHE = None
 
-LABEL_IMPACTFUL = "Impactful hyperparameters"
-LABEL_SUPPORTING = "Supporting hyperparameters"
-LABEL_SUPPORTING_CONFIGURATION = "Supporting configuration parameters"
-LABEL_CONSTANTS = "Constants"
-LABEL_EXPERIMENTAL = "Experimental hyperparameters"
-LABEL_PB = "PerforatedBP hyperparameters"
-LABEL_CONFIGURATION = "Configuration Parameters"
-
-SETTING_LABEL_PRIORITY = {
-    LABEL_CONFIGURATION: 1,
-    LABEL_IMPACTFUL: 2,
-    LABEL_SUPPORTING: 3,
-    LABEL_SUPPORTING_CONFIGURATION: 4,
-    LABEL_PB: 5,
-    LABEL_CONSTANTS: 6,
-    LABEL_EXPERIMENTAL: 7,
-}
+LABEL_IMPACTFUL = "impactful"
+LABEL_SUPPORTING = "supporting"
 
 
 def _normalize_label(label_text):
-    """Normalize label text for stable ordering/lookups."""
+    """Normalize a label to one of the two tiers: impactful / supporting."""
     if not isinstance(label_text, str):
         return LABEL_SUPPORTING
-
     compact = " ".join(label_text.strip().split()).lower()
     if compact in ("impactful", "impactful hyperparameters"):
         return LABEL_IMPACTFUL
-    if compact in ("supporting", "supporting hyperparameters"):
-        return LABEL_SUPPORTING
-    if compact in (
-        "supporting configuration",
-        "supporting configuration parameters",
-    ):
-        return LABEL_SUPPORTING_CONFIGURATION
-    if compact in ("configuration", "configuration parameters"):
-        return LABEL_CONFIGURATION
-    if compact in ("constants", "constant"):
-        return LABEL_CONSTANTS
-    if compact in ("experimental", "experimental hyperparameters"):
-        return LABEL_EXPERIMENTAL
-    if compact in (
-        "perforatedbp",
-        "perforatedbp hyperparameters",
-        "perforatedbp settings",
-    ):
-        return LABEL_PB
-
     return LABEL_SUPPORTING
-
-
-LABEL_TO_COLOR = {
-    LABEL_CONFIGURATION: SETTING_COLOR_CONFIGURATION,
-    LABEL_IMPACTFUL: SETTING_COLOR_IMPACTFUL,
-    LABEL_SUPPORTING: SETTING_COLOR_SUPPORTING,
-    LABEL_SUPPORTING_CONFIGURATION: SETTING_COLOR_SUPPORTING_CONFIGURATION,
-    LABEL_PB: SETTING_COLOR_PB,
-    LABEL_CONSTANTS: SETTING_COLOR_CONSTANT,
-    LABEL_EXPERIMENTAL: SETTING_COLOR_EXPERIMENTAL,
-}
 
 
 def load_description_data():
@@ -867,23 +607,11 @@ def load_description_data():
     settings_by_bucket = {}
     bucket_order = []
 
-    # New nested schema:
-    # {
-    #   "buckets": {
-    #      "Bucket Name": {
-    #          "description": "...",
-    #          "settings": {
-    #              "setting_name": {"description": "...", "label": "..."}
-    #          }
-    #      }
-    #   }
-    # }
     if isinstance(bucket_entries, dict):
         for bucket_name, bucket_payload in bucket_entries.items():
             bucket_order.append(bucket_name)
             if isinstance(bucket_payload, dict):
                 bucket_descriptions[bucket_name] = bucket_payload.get("description", "")
-
                 bucket_settings = bucket_payload.get("settings", {})
                 ordered_setting_names = []
                 if isinstance(bucket_settings, dict):
@@ -891,7 +619,9 @@ def load_description_data():
                         ordered_setting_names.append(setting_name)
                         setting_to_bucket[setting_name] = bucket_name
                         if isinstance(setting_payload, dict):
-                            setting_descriptions[setting_name] = setting_payload.get("description", "")
+                            setting_descriptions[setting_name] = setting_payload.get(
+                                "description", ""
+                            )
                             setting_labels[setting_name] = _normalize_label(
                                 setting_payload.get("label")
                             )
@@ -900,21 +630,7 @@ def load_description_data():
                             setting_labels[setting_name] = LABEL_SUPPORTING
                 settings_by_bucket[bucket_name] = ordered_setting_names
             elif isinstance(bucket_payload, str):
-                # Backward compatibility: old flat schema bucket description
                 bucket_descriptions[bucket_name] = bucket_payload
-
-    # Backward compatibility: old top-level flat settings object
-    top_level_settings = payload.get("settings", {})
-    if isinstance(top_level_settings, dict):
-        for setting_name, setting_payload in top_level_settings.items():
-            if setting_name in setting_descriptions:
-                continue
-            if isinstance(setting_payload, dict):
-                setting_descriptions[setting_name] = setting_payload.get("description", "")
-                setting_labels[setting_name] = _normalize_label(setting_payload.get("label"))
-            elif isinstance(setting_payload, str):
-                setting_descriptions[setting_name] = setting_payload
-                setting_labels[setting_name] = LABEL_SUPPORTING
 
     DESCRIPTION_CACHE = {
         "buckets": bucket_descriptions,
@@ -925,6 +641,14 @@ def load_description_data():
         "settings_by_bucket": settings_by_bucket,
     }
     return DESCRIPTION_CACHE
+
+
+def get_setting_label(setting_name):
+    """Get the tier (impactful / supporting) for one setting."""
+    setting_labels = load_description_data().get("setting_labels", {})
+    if setting_name in setting_labels:
+        return _normalize_label(setting_labels[setting_name])
+    return LABEL_SUPPORTING
 
 
 def format_setting_value(value):
@@ -949,149 +673,64 @@ def format_setting_value(value):
     return text
 
 
-def get_setting_options_hint(setting_name):
-    """Return optional inline options text for known settings."""
-    return ""
+SWITCH_MODE_NAMES = [
+    "DOING_SWITCH_EVERY_TIME",
+    "DOING_HISTORY",
+    "DOING_FIXED_SWITCH",
+    "DOING_NO_SWITCH",
+]
+FORWARD_FUNCTION_NAMES = ["relu", "tanh", "sigmoid"]
 
 
-def get_setting_color_hex(setting_name):
-    """Choose a legend color for one setting name."""
-    description_data = load_description_data()
-    setting_labels = description_data.get("setting_labels", {})
-    label_name = setting_labels.get(setting_name)
-    if label_name is not None:
-        normalized_label = _normalize_label(label_name)
-        return LABEL_TO_COLOR.get(normalized_label, SETTING_COLOR_SUPPORTING)
-
-    return SETTING_COLOR_SUPPORTING
+def _switch_mode_values():
+    return [
+        GPA.pc.DOING_SWITCH_EVERY_TIME,
+        GPA.pc.DOING_HISTORY,
+        GPA.pc.DOING_FIXED_SWITCH,
+        GPA.pc.DOING_NO_SWITCH,
+    ]
 
 
-def get_setting_label(setting_name):
-    """Get label text for one setting, preferring description metadata."""
-    description_data = load_description_data()
-    setting_labels = description_data.get("setting_labels", {})
-    if setting_name in setting_labels:
-        return _normalize_label(setting_labels[setting_name])
-
-    return LABEL_SUPPORTING
-
-
-def sort_settings_for_bucket(bucket_name, setting_names):
-    """Sort settings by appearance order in configuration_descriptions JSON."""
-    description_data = load_description_data()
-    configured_order = description_data.get("settings_by_bucket", {}).get(
-        bucket_name, []
-    )
-    configured_index = {name: i for i, name in enumerate(configured_order)}
-    fallback_base = len(configured_order) + 100000
-
-    def _sort_key(setting_name):
-        # Keep constants at the end of each bucket while preserving the
-        # configured JSON order for everything else.
-        is_constant = get_setting_label(setting_name) == LABEL_CONSTANTS
-        if setting_name in configured_index:
-            return (1 if is_constant else 0, 0, configured_index[setting_name], setting_name)
-        return (1 if is_constant else 0, 1, fallback_base, setting_name)
-
-    return sorted(setting_names, key=_sort_key)
-
-
-def get_bucket_color_hex(setting_names):
-    """Pick bucket marker color from highest-priority setting label."""
-    if not setting_names:
-        return SETTING_COLOR_SUPPORTING
-
-    best_setting = None
-    best_priority = 10**9
-    for setting_name in setting_names:
-        label_name = get_setting_label(setting_name)
-        priority = SETTING_LABEL_PRIORITY.get(label_name, 99)
-        if priority < best_priority:
-            best_priority = priority
-            best_setting = setting_name
-
-    if best_setting is None:
-        return SETTING_COLOR_SUPPORTING
-    return get_setting_color_hex(best_setting)
-
-
-def classify_setting_bucket(setting_name):
-    """Classify one setting into a configuration bucket from JSON metadata."""
-    description_data = load_description_data()
-    bucket_name = description_data.get("setting_to_bucket", {}).get(setting_name)
-    if bucket_name is not None:
-        return bucket_name
+def get_enum_options(setting_name):
+    """Return the ordered set of values for an enum-like setting, else None."""
+    if setting_name == "switch_mode":
+        return list(_switch_mode_values())
+    if setting_name == "pai_forward_function":
+        return list(FORWARD_FUNCTION_NAMES)
     return None
 
 
-def get_all_global_parameters():
-    """Collect JSON-declared global config parameters as name -> current value."""
-    description_data = load_description_data()
-    visible_names = []
-    for bucket_name in description_data.get("bucket_order", []):
-        visible_names.extend(
-            description_data.get("settings_by_bucket", {}).get(bucket_name, [])
-        )
-
-    values = {}
-
-    for setting_name in visible_names:
-        if setting_name in RUNTIME_ONLY_CONFIG_KEYS:
-            continue
-        values[setting_name] = get_global_setting_value(setting_name)
-
-    return values
+def format_run_setting_value(setting_name, value):
+    """Display string for a run setting, naming enum values."""
+    if setting_name == "switch_mode":
+        try:
+            return SWITCH_MODE_NAMES[list(_switch_mode_values()).index(value)]
+        except (ValueError, IndexError):
+            return str(value)
+    if setting_name == "pai_forward_function":
+        name = getattr(value, "__name__", None)
+        if name in FORWARD_FUNCTION_NAMES:
+            return name
+        return format_setting_value(value)
+    return format_setting_value(value)
 
 
-def build_settings_items(expanded_buckets):
-    """Build hierarchical settings items with collapsible buckets."""
-    values = get_all_global_parameters()
+def cycle_enum_setting(setting_name, current_value):
+    """Compute and apply the next value for an enum setting."""
+    options = get_enum_options(setting_name)
+    if not options:
+        return False, f"{setting_name} is not an enum setting."
 
-    items = []
-    description_data = load_description_data()
-    for bucket_name in description_data.get("bucket_order", []):
-        settings_in_bucket = sort_settings_for_bucket(
-            bucket_name,
-            description_data.get("settings_by_bucket", {}).get(bucket_name, []),
-        )
-        if len(settings_in_bucket) == 0:
-            continue
+    if setting_name == "pai_forward_function":
+        current_name = getattr(current_value, "__name__", None)
+        index = options.index(current_name) if current_name in options else -1
+        next_name = options[(index + 1) % len(options)]
+        next_value = getattr(torch, next_name) if torch is not None else next_name
+        return apply_setting_value(setting_name, next_value)
 
-        is_expanded = expanded_buckets.get(bucket_name, False)
-        marker = "[-]" if is_expanded else "[+]"
-        bucket_color = make_color_square(get_bucket_color_hex(settings_in_bucket))
-        display_bucket_name = bucket_name
-        if bucket_name == "Target Selection":
-            display_bucket_name = (
-                "Target Selection (Recommended to use Perforation Targets Menu)"
-            )
-        items.append(
-            {
-                "type": "bucket",
-                "bucket": bucket_name,
-                "is_expanded": is_expanded,
-                "count": len(settings_in_bucket),
-                "text": f"{marker} {bucket_color} {display_bucket_name} ({len(settings_in_bucket)})",
-            }
-        )
-
-        if is_expanded:
-            for setting_name in settings_in_bucket:
-                items.append(
-                    {
-                        "type": "setting",
-                        "bucket": bucket_name,
-                        "name": setting_name,
-                        "value": values.get(setting_name, "<unavailable>"),
-                        "text": (
-                            f"  {setting_name} = "
-                            f"{format_setting_value(values.get(setting_name, '<unavailable>'))}"
-                            f"{get_setting_options_hint(setting_name)}"
-                        ),
-                    }
-                )
-
-    return items
+    index = options.index(current_value) if current_value in options else -1
+    next_value = options[(index + 1) % len(options)]
+    return apply_setting_value(setting_name, next_value)
 
 
 def get_global_setting_value(setting_name):
@@ -1107,10 +746,104 @@ def get_global_setting_value(setting_name):
     return "<unavailable>"
 
 
+def apply_setting_value(setting_name, value):
+    """Apply one setting value through a setter when available."""
+    setter = getattr(GPA.pc, f"set_{setting_name}", None)
+    if setter is not None:
+        setter(value)
+        return True, ""
+    if hasattr(GPA.pc, setting_name) and not callable(getattr(GPA.pc, setting_name)):
+        setattr(GPA.pc, setting_name, value)
+        return True, ""
+    return False, f"Setting {setting_name} is not editable."
+
+
+def parse_value_from_text(text, sample_value):
+    """Parse user text into the same type as a sample value where possible."""
+    if isinstance(sample_value, bool):
+        lowered = text.strip().lower()
+        if lowered in ("1", "true", "t", "yes", "y", "on"):
+            return True
+        if lowered in ("0", "false", "f", "no", "n", "off"):
+            return False
+        raise ValueError("Expected boolean value (true/false).")
+    if isinstance(sample_value, int) and not isinstance(sample_value, bool):
+        return int(text.strip())
+    if isinstance(sample_value, float):
+        return float(text.strip())
+    return text
+
+
+def get_all_global_parameters():
+    """Collect JSON-declared run settings as name -> current value."""
+    description_data = load_description_data()
+    visible_names = []
+    for bucket_name in description_data.get("bucket_order", []):
+        visible_names.extend(
+            description_data.get("settings_by_bucket", {}).get(bucket_name, [])
+        )
+    values = {}
+    for setting_name in visible_names:
+        if setting_name in RUNTIME_ONLY_CONFIG_KEYS:
+            continue
+        values[setting_name] = get_global_setting_value(setting_name)
+    return values
+
+
+def build_run_items(expanded_buckets):
+    """Build the Run settings list: bucket rows, tier-sorted settings, dividers."""
+    values = get_all_global_parameters()
+    description_data = load_description_data()
+    items = []
+
+    for bucket_name in description_data.get("bucket_order", []):
+        names = [
+            name
+            for name in description_data.get("settings_by_bucket", {}).get(bucket_name, [])
+            if name not in RUNTIME_ONLY_CONFIG_KEYS
+        ]
+        if not names:
+            continue
+
+        is_expanded = expanded_buckets.get(bucket_name, False)
+        items.append(
+            {
+                "type": "bucket",
+                "bucket": bucket_name,
+                "is_expanded": is_expanded,
+                "count": len(names),
+            }
+        )
+        if not is_expanded:
+            continue
+
+        impactful = [n for n in names if get_setting_label(n) == LABEL_IMPACTFUL]
+        supporting = [n for n in names if get_setting_label(n) != LABEL_IMPACTFUL]
+
+        def _setting_item(setting_name):
+            return {
+                "type": "setting",
+                "bucket": bucket_name,
+                "name": setting_name,
+                "value": values.get(setting_name, "<unavailable>"),
+            }
+
+        for setting_name in impactful:
+            items.append(_setting_item(setting_name))
+        if impactful and supporting:
+            items.append({"type": "divider", "bucket": bucket_name})
+        for setting_name in supporting:
+            items.append(_setting_item(setting_name))
+
+    return items
+
+
+# ---------------------------------------------------------------------------
+# Overrides (per-target settings)
+# ---------------------------------------------------------------------------
 def load_existing_module_settings():
     """Load existing module_settings from local config sources."""
     merged = {}
-
     source_paths = []
     config_file = GPA.pc.get_config_file()
     run_config = GPA.pc.get_run_config_path()
@@ -1131,12 +864,11 @@ def load_existing_module_settings():
                     merged[scope_key] = dict(values)
         except Exception:
             continue
-
     return merged
 
 
 def get_scope_values(scope_key, module_settings_overrides, existing_module_settings):
-    """Get merged module-scope values from existing data plus in-session edits."""
+    """Merged override values for one scope: saved data plus in-session edits."""
     values = {}
     if scope_key in existing_module_settings:
         values.update(existing_module_settings[scope_key])
@@ -1145,107 +877,38 @@ def get_scope_values(scope_key, module_settings_overrides, existing_module_setti
     return values
 
 
-def build_module_settings_items(
-    expanded_buckets,
-    module_scope,
-    module_settings_overrides,
-    existing_module_settings,
-):
-    """Build bucketed items for module-customizable settings only."""
-    if module_scope is None:
-        return []
-
-    scope_key = module_scope["scope_key"]
-    scoped_values = get_scope_values(
-        scope_key, module_settings_overrides, existing_module_settings
-    )
-
-    items = []
-    description_data = load_description_data()
-    customizable_setting_names = list(GPA.PAIConfig._CUSTOMIZABLE.keys())
-    for bucket_name in description_data.get("bucket_order", []):
-        settings_in_bucket = sort_settings_for_bucket(
-            bucket_name,
-            [
-                setting_name
-                for setting_name in customizable_setting_names
-                if description_data.get("setting_to_bucket", {}).get(setting_name)
-                == bucket_name
-            ],
-        )
-        if len(settings_in_bucket) == 0:
-            continue
-
-        is_expanded = expanded_buckets.get(bucket_name, False)
-        marker = "[-]" if is_expanded else "[+]"
-        bucket_color = make_color_square(get_bucket_color_hex(settings_in_bucket))
-        items.append(
-            {
-                "type": "bucket",
-                "bucket": bucket_name,
-                "is_expanded": is_expanded,
-                "count": len(settings_in_bucket),
-                "text": f"{marker} {bucket_color} {bucket_name} ({len(settings_in_bucket)})",
-            }
-        )
-
-        if is_expanded:
-            for setting_name in settings_in_bucket:
-                if setting_name in scoped_values:
-                    value = scoped_values[setting_name]
-                    source = "scope"
-                else:
-                    value = get_global_setting_value(setting_name)
-                    source = "global-default"
-                items.append(
-                    {
-                        "type": "setting",
-                        "bucket": bucket_name,
-                        "name": setting_name,
-                        "value": value,
-                        "scope_key": scope_key,
-                        "source": source,
-                        "text": (
-                            f"  {setting_name} = {format_setting_value(value)} "
-                            f"({source})"
-                            f"{get_setting_options_hint(setting_name)}"
-                        ),
-                    }
-                )
-
-    return items
-
-
 def set_module_scoped_value(module_settings_overrides, scope_key, setting_name, value):
-    """Write one module-scoped value into in-session overrides."""
+    """Write one override value into in-session state."""
     module_settings_overrides.setdefault(scope_key, {})[setting_name] = value
 
 
-def get_space_scope_for_entry(entry, recursive_modes):
-    """Determine module customization scope or return a warning reason."""
-    parent_id = get_parent_module_id(entry["id"])
-    if parent_id is not None and recursive_modes.get(parent_id) is not None:
-        return None, "Cannot customize this module: it is a submodule inheriting parent mode settings."
+def get_override_scope_for_entry(entry, resolved):
+    """Determine the override scope for a target, or a reason it is blocked."""
+    record = resolved[entry["id"]]
+    if entry["is_replaced_root"] or entry["in_replaced"]:
+        return None, (
+            "Overrides are not available inside a module that will be restructured."
+        )
+    if record["eff"] is None:
+        return None, (
+            "Overrides are only for perforated modules. Perforate this one first "
+            "(p), or track it if you just want it monitored."
+        )
+    if record["source"] == "inherited":
+        origin = record["origin_id"]
+        return None, (
+            f"This module inherits {origin}'s mode. Open overrides on {origin} to "
+            "change settings for the whole subtree."
+        )
+    if record["eff"] != "perforated":
+        return None, "Overrides are only for perforated modules — this one is tracked."
 
-    if entry["id"] in GPA.pc.get_module_ids_to_perforate():
-        return {
-            "scope_kind": "id",
-            "scope_key": entry["id"],
-            "module_id": entry["id"],
-            "module_type": entry["type_name"],
-            "scope_text": f"Applying to module id {entry['id']}",
-        }, None
-
-    if entry["type_name"] in GPA.pc.get_module_names_to_perforate():
-        return {
-            "scope_kind": "name",
-            "scope_key": entry["type_name"],
-            "module_id": entry["id"],
-            "module_type": entry["type_name"],
-            "scope_text": f"Applying to all modules of type {entry['type_name']}",
-        }, None
-
-    return None, "Cannot customize this module: it is not explicitly perforated by id or by name."
+    if record["source"] == "type":
+        return (
+            {"kind": "type", "scope_key": entry["type_name"]},
+            None,
+        )
+    return ({"kind": "id", "scope_key": entry["id"]}, None)
 
 
 def persist_module_settings_updates(module_settings_overrides, overwrite_config_file=False):
@@ -1274,14 +937,12 @@ def persist_module_settings_updates(module_settings_overrides, overwrite_config_
         module_settings = payload.get("module_settings", {})
         if not isinstance(module_settings, dict):
             module_settings = {}
-
         for scope_key, values in module_settings_overrides.items():
             existing = module_settings.get(scope_key, {})
             if not isinstance(existing, dict):
                 existing = {}
             existing.update(values)
             module_settings[scope_key] = existing
-
         payload["module_settings"] = module_settings
 
         directory = os.path.dirname(destination)
@@ -1291,483 +952,415 @@ def persist_module_settings_updates(module_settings_overrides, overwrite_config_
             json.dump(payload, file_handle, indent=2)
 
 
-def get_item_description(item):
-    """Return help text for a highlighted bucket or setting item."""
-    description_data = load_description_data()
-    bucket_descriptions = description_data.get("buckets", {})
-    setting_descriptions = description_data.get("settings", {})
+CUSTOMIZABLE_SETTING_NAMES = list(GPA.PAIConfig._CUSTOMIZABLE.keys())
 
-    if item["type"] == "bucket":
-        return bucket_descriptions.get(
-            item["bucket"],
-            "No description available.",
+
+def get_setting_description(setting_name):
+    """Help text for one setting."""
+    descriptions = load_description_data().get("settings", {})
+    return descriptions.get(setting_name, f"No description available for {setting_name}.")
+
+
+def get_bucket_description(bucket_name):
+    descriptions = load_description_data().get("buckets", {})
+    return descriptions.get(bucket_name, "No description available.")
+
+
+# ---------------------------------------------------------------------------
+# Rendering
+# ---------------------------------------------------------------------------
+HR = "  " + "─" * 70
+
+
+def terminal_size():
+    return shutil.get_terminal_size(fallback=(120, 40))
+
+
+def render_tab_bar(active_screen):
+    """The `[ Targets | Run settings ]` tab bar with the active screen lit."""
+    targets = "Targets"
+    run = "Run settings"
+    if active_screen == "targets":
+        targets = color_text(targets, COLOR_ACCENT)
+    else:
+        run = color_text(run, COLOR_ACCENT)
+    return f"[ {targets} │ {run} ]" + " " * 12 + dim("⇥ switch    ? help")
+
+
+def make_target_marker(entry, record):
+    """(display, plain) marker for one target row, per D8."""
+    if entry["in_replaced"]:
+        return "     ", "     "
+
+    mode = record["eff"]
+    if mode is None:
+        if entry["direct_param_count"] > 0:
+            glyph_display = color_text("!", COLOR_ATTENTION)
+            block_display = color_text("██", COLOR_ATTENTION)
+            return f"{glyph_display} {block_display} ", "! ██ "
+        return "     ", "     "
+
+    block_display = make_block(mode)
+    if record["source"] == "inherited":
+        return f"↳ {block_display} ", "↳ ██ "
+    if record["source"] == "type":
+        return f"* {block_display} ", "* ██ "
+    return f"  {block_display} ", "  ██ "
+
+
+def make_block(mode):
+    return color_text("██", get_color_hex_for_mode(mode))
+
+
+def render_targets_lines(entries, visible_entries, selected_index, resolved, expanded_replaced):
+    """Header + tree + footer for the Targets screen, as a list of lines."""
+    need = len(unset_module_entries(entries, resolved))
+    rules = type_rule_entries(entries)
+
+    lines = [render_tab_bar("targets"), ""]
+    lines.append(
+        dim(
+            "  perforate = add dendrites   ·   track = no dendrites, just counted"
+            "   ·   every parameter needs one"
         )
-    if item["type"] == "setting":
-        if item["name"] in setting_descriptions:
-            return setting_descriptions[item["name"]]
-        return f"No description available for {item['name']}."
-    return "No description available."
+    )
+    lines.append("")
 
+    hint = color_text(f"[y] type rules ({len(rules)})", COLOR_ACCENT)
+    if need > 0:
+        plural = "s" if need != 1 else ""
+        status = color_text(f"  ⚠ {need} module{plural} still need a mode", COLOR_ATTENTION)
+    else:
+        status = color_text("  ✓ every parameter is perforated or tracked", COLOR_PERFORATE)
+    pad = max(2, 58 - len(strip_ansi(status)))
+    lines.append(status + " " * pad + hint)
+    lines.append(HR)
 
-def get_item_display_name(item):
-    """Return display name for help/edit messages."""
-    if item["type"] == "bucket":
-        return item["bucket"]
-    if item["type"] == "setting":
-        return item["name"]
-    return "unknown"
+    body_lines = []
+    for i, entry in enumerate(visible_entries):
+        selected = i == selected_index
+        cursor = color_text("> ", "E8EEEC") if selected else "  "
+        indent = "  " * entry["depth"]
+        record = resolved[entry["id"]]
 
-
-def get_enum_options(setting_name):
-    """Return enum options for known enum-like settings."""
-    return None
-
-
-def apply_setting_value(setting_name, value):
-    """Apply one setting value through setter when available."""
-    setter = getattr(GPA.pc, f"set_{setting_name}", None)
-    if setter is not None:
-        setter(value)
-        return True, ""
-
-    if hasattr(GPA.pc, setting_name) and not callable(getattr(GPA.pc, setting_name)):
-        setattr(GPA.pc, setting_name, value)
-        return True, ""
-
-    return False, f"Setting {setting_name} is not editable."
-
-
-def parse_value_from_text(text, sample_value):
-    """Parse user text into same type as sample value where possible."""
-    if isinstance(sample_value, bool):
-        lowered = text.strip().lower()
-        if lowered in ("1", "true", "t", "yes", "y", "on"):
-            return True
-        if lowered in ("0", "false", "f", "no", "n", "off"):
-            return False
-        raise ValueError("Expected boolean value (true/false).")
-
-    if isinstance(sample_value, int) and not isinstance(sample_value, bool):
-        return int(text.strip())
-
-    if isinstance(sample_value, float):
-        return float(text.strip())
-
-    return text
-
-
-def format_list_editor_line(list_editor_state):
-    """Build one-line list editor preview."""
-    values = list_editor_state["values"]
-    selected_index = list_editor_state["selected_index"]
-    typing_active = list_editor_state.get("typing_active", False)
-    edit_index = list_editor_state.get("edit_index")
-    input_buffer = list_editor_state.get("input_buffer", "")
-    cursor_index = list_editor_state.get("cursor_index", len(input_buffer))
-
-    tokens = []
-    for i, value in enumerate(values):
-        if typing_active and i == edit_index:
-            token = render_text_with_cursor(input_buffer, cursor_index)
-            tokens.append(token)
+        if entry["is_replaced_root"]:
+            child_count = sum(1 for e in entries if e["replaced_root"] == entry["id"])
+            glyph = color_text("↯", COLOR_ACCENT)
+            body_lines.append(
+                f"{cursor}{glyph}   {indent}{entry['id']}  "
+                f"{dim('[' + entry['type_name'] + ']')}   "
+                f"{dim('will be restructured for PAI before training')}"
+            )
+            is_open = expanded_replaced.get(entry["id"], False)
+            toggle = "[← collapse]" if is_open else "[→ expand]"
+            body_lines.append(
+                "      "
+                + dim(
+                    f"└ {child_count} modules below — ids won't exist at "
+                    f"train time · target by type (P/T), not id  "
+                )
+                + color_text(toggle, COLOR_ACCENT)
+            )
             continue
 
-        token = str(value)
-        if i == selected_index and not typing_active:
-            tokens.append(make_inverted_text(token))
-        else:
-            tokens.append(token)
+        marker_display, marker_plain = make_target_marker(entry, record)
 
-    add_index = len(values)
-    add_token = "Add new entry"
-    if typing_active and edit_index == add_index:
-        tokens.append(render_text_with_cursor(input_buffer, cursor_index))
-    elif selected_index == add_index:
-        tokens.append(make_inverted_text(add_token))
-    else:
-        tokens.append(add_token)
+        if entry["in_replaced"]:
+            id_part = dim(f"{entry['id']}  [{entry['type_name']}] (id stale)")
+            body_lines.append(f"{cursor}{marker_display} {indent}{id_part}")
+            continue
 
-    save_index = len(values) + 1
-    save_token = "Save list and return"
-    if selected_index == save_index and not typing_active:
-        tokens.append(make_inverted_text(save_token))
-    else:
-        tokens.append(save_token)
+        id_part = f"{entry['id']}  {dim('[' + entry['type_name'] + ']')}"
 
-    line = " | ".join(tokens)
-    if len(line) > 180:
-        line = line[:177] + "..."
-    return line
+        tail = ""
+        if record["eff"] is not None:
+            mode_color = get_color_hex_for_mode(record["eff"])
+            tail = color_text(f"mode={record['eff']}", mode_color)
+            if record["source"] == "inherited":
+                tail += dim(f"  (via {record['origin_id']})")
+                if record["overridden"] is not None:
+                    tail += dim(f"  — your {record['overridden']['mode']} here is ignored")
+        elif entry["direct_param_count"] > 0:
+            tail = color_text("needs a mode", COLOR_ATTENTION)
 
-
-def render_configuration_line(item, selected):
-    """Render one interactive line for the configuration settings screen."""
-    selector = ">" if selected else " "
-    if item["type"] == "setting":
-        color_marker = make_color_square(get_setting_color_hex(item["name"]))
-        return f"{selector} {color_marker} {item['text']}"
-    return f"{selector} {item['text']}"
-
-
-def get_screen_header_line(active_screen):
-    """Build the fixed screen header line with active view highlighted."""
-    if active_screen == 0:
-        return (
-            "Screen: "
-            f"{make_inverted_text('Perforation targets')}  "
-            "Global settings  "
-            "Module settings"
+        params = (
+            dim(f"   params={format_human_count(entry['direct_param_count'])}")
+            if entry["direct_param_count"] > 0
+            else ""
         )
-    if active_screen == 1:
-        return (
-            "Screen: Perforation targets  "
-            f"{make_inverted_text('Global settings')}  "
-            "Module settings"
+
+        lead = (
+            2
+            + len(marker_plain)
+            + 1
+            + len(indent)
+            + len(entry["id"])
+            + 2
+            + len(entry["type_name"])
+            + 2
         )
-    return (
-        "Screen: Perforation targets  "
-        "Global settings  "
-        f"{make_inverted_text('Module settings')}"
-    )
-
-
-def get_preview_header_lines(
-    entries=None,
-    recursive_modes=None,
-    active_screen=0,
-    confirm_dialog_active=False,
-    confirm_choice_index=0,
-    help_text="",
-    edit_text="",
-    module_scope=None,
-):
-    """Build fixed header lines for the interactive preview screen.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    list
-        Header lines shown above the scrolling module list.
-    """
-    lines = []
-    lines.append("PerforatedAI Configuration Preview")
-    lines.append(get_screen_header_line(active_screen))
-
-    if confirm_dialog_active:
-        if confirm_choice_index == 0:
-            lines.append(
-                "Confirm save: "
-                f"{make_inverted_text('save for current run')}   "
-                "overwrite configuration and save for current run   "
-                "go back to editing"
-            )
-        elif confirm_choice_index == 1:
-            lines.append(
-                "Confirm save: save for current run   "
-                f"{make_inverted_text('overwrite configuration and save for current run')}   "
-                "go back to editing"
-            )
-        else:
-            lines.append(
-                "Confirm save: save for current run   "
-                "overwrite configuration and save for current run   "
-                f"{make_inverted_text('go back to editing')}"
-            )
-    elif active_screen == 0:
-        lines.append(
-            "Use Up/Down to select. PageUp/PageDown to scroll. Left/Right switches to global settings. Lowercase p/t set by id. Uppercase P/T set by name. Space/Enter opens module settings for selected module (if explicitly perforated). s opens save dialog and begins training with the specified configuration."
+        gap = max(2, 46 - lead)
+        body_lines.append(
+            f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params
         )
-    elif active_screen == 1:
-        lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown to scroll. Left/Right switches screens. Space/Enter edits. h shows description. s opens save dialog and begins training with the specified configuration."
-        )
-        lines.append(
-            "Legend: "
-            f"{LABEL_CONFIGURATION}={make_color_square(SETTING_COLOR_CONFIGURATION)} "
-            f"{LABEL_IMPACTFUL}={make_color_square(SETTING_COLOR_IMPACTFUL)} "
-            f"{LABEL_SUPPORTING}={make_color_square(SETTING_COLOR_SUPPORTING)} "
-            f"{LABEL_SUPPORTING_CONFIGURATION}={make_color_square(SETTING_COLOR_SUPPORTING_CONFIGURATION)} "
-            f"{LABEL_PB}={make_color_square(SETTING_COLOR_PB)} "
-            f"{LABEL_CONSTANTS}={make_color_square(SETTING_COLOR_CONSTANT)} "
-            f"{LABEL_EXPERIMENTAL}={make_color_square(SETTING_COLOR_EXPERIMENTAL)}"
-        )
-        if not help_text and not edit_text:
-            lines.append("")
-    else:
-        lines.append(
-            "Use Up/Down to browse settings. PageUp/PageDown to scroll. Left/Right switches screens. Space/Enter edits. h shows description. s opens save dialog and begins training with the specified configuration."
-        )
-        lines.append(
-            "Legend: "
-            f"{LABEL_CONFIGURATION}={make_color_square(SETTING_COLOR_CONFIGURATION)} "
-            f"{LABEL_IMPACTFUL}={make_color_square(SETTING_COLOR_IMPACTFUL)} "
-            f"{LABEL_SUPPORTING}={make_color_square(SETTING_COLOR_SUPPORTING)} "
-            f"{LABEL_SUPPORTING_CONFIGURATION}={make_color_square(SETTING_COLOR_SUPPORTING_CONFIGURATION)} "
-            f"{LABEL_PB}={make_color_square(SETTING_COLOR_PB)} "
-            f"{LABEL_CONSTANTS}={make_color_square(SETTING_COLOR_CONSTANT)} "
-            f"{LABEL_EXPERIMENTAL}={make_color_square(SETTING_COLOR_EXPERIMENTAL)}"
-        )
-        if not help_text and not edit_text:
-            lines.append("")
-        if module_scope is not None:
-            lines.append(module_scope["scope_text"])
-        else:
-            lines.append("Scope: none")
-        if not help_text and not edit_text:
-            lines.append("")
 
-    if help_text:
-        lines.append("")
-        lines.append(help_text)
-        lines.append("")
-    elif edit_text:
-        if edit_text.startswith("EDIT -"):
-            lines.append("")
-            lines.append(edit_text)
-            lines.append("")
-        else:
-            lines.append(edit_text)
-
-    if active_screen == 0:
-        lines.append("")
-        lines.append(
-            "Legend: "
-            f"perforated={make_color_square('00A5A5')} "
-            f"tracked={make_color_square('DEECED')} "
-            f"neither-no-params={make_color_square('000000')} "
-            f"neither-with-params={make_color_square('FD4D00')} "
-            f"ignored-individual-setting={make_color_square('9781E6')} "
-            "(For best results all parameters should be either tracked or perforated)"
-        )
-        lines.append(
-            "S - setting inherited as submodule | I - setting by id | T - setting by type name. -- Left most takes priority"
-        )
-    if entries is None:
-        entries = []
-    if recursive_modes is None:
-        recursive_modes = {}
-
-    if active_screen == 0:
-        lines.append(build_target_summary_line(entries, recursive_modes))
-        lines.append("")
-        lines.append("  S|I|T")
-    return lines
-
-
-def get_list_window_size(
-    total_entries,
-    entries=None,
-    recursive_modes=None,
-    active_screen=0,
-    confirm_dialog_active=False,
-    confirm_choice_index=0,
-    help_text="",
-    edit_text="",
-    extra_footer_lines=0,
-    module_scope=None,
-):
-    """Compute how many module rows can be shown in the terminal viewport.
-
-    Parameters
-    ----------
-    total_entries : int
-        Number of available module entries.
-
-    Returns
-    -------
-    int
-        Number of rows available for the scrolling list.
-    """
-    terminal_size = shutil.get_terminal_size(fallback=(120, 40))
-    terminal_lines = terminal_size.lines
-    terminal_columns = terminal_size.columns
-    header_lines = get_visual_line_count(
-        get_preview_header_lines(
-            entries,
-            recursive_modes,
-            active_screen,
-            confirm_dialog_active,
-            confirm_choice_index,
-            help_text,
-            edit_text,
-            module_scope,
+    footer = [
+        HR,
+        dim(build_budget_line(entries, resolved)),
+        "",
+        dim(
+            "p/t perforate·track this module   P/T whole type   x clear   "
+            "↑↓/jk move   s start"
         ),
-        terminal_columns,
-    )
-    # Reserve two lines for top/bottom overflow indicators, plus one safety
-    # line so exact-fit renders do not push the first header line off-screen.
-    available = terminal_lines - header_lines - 2 - extra_footer_lines - 1
-    if available < 1:
-        return 1
-    if available > total_entries:
-        return total_entries
-    return available
+    ]
+    return lines, body_lines, footer
 
 
-def clamp_window_start(window_start, selected_index, window_size, total_entries):
-    """Clamp and adjust list window start to keep selection visible.
+def render_run_settings_lines(items, selected_index, describe_name):
+    """Header + item body + footer for the Run settings screen."""
+    lines = [
+        render_tab_bar("run"),
+        "",
+        dim("  Run settings — run-wide configuration"),
+        HR,
+    ]
 
-    Parameters
-    ----------
-    window_start : int
-        Current first visible row index.
-    selected_index : int
-        Currently selected module row index.
-    window_size : int
-        Number of visible list rows.
-    total_entries : int
-        Total number of list rows.
-
-    Returns
-    -------
-    int
-        Updated first visible row index.
-    """
-    max_start = max(0, total_entries - window_size)
-    if window_start > max_start:
-        window_start = max_start
-    if window_start < 0:
-        window_start = 0
-
-    if selected_index < window_start:
-        window_start = selected_index
-    elif selected_index >= window_start + window_size:
-        window_start = selected_index - window_size + 1
-
-    if window_start > max_start:
-        window_start = max_start
-    if window_start < 0:
-        window_start = 0
-    return window_start
-
-
-def render_preview_screen_window(
-    entries,
-    selected_index,
-    window_start,
-    window_size,
-    active_screen,
-    settings_items,
-    confirm_dialog_active,
-    confirm_choice_index,
-    help_text,
-    edit_text,
-    list_editor_state,
-    module_scope=None,
-):
-    """Render preview with a fixed header and scrolling module rows.
-
-    Parameters
-    ----------
-    entries : list
-        Module entries from get_module_entries().
-    selected_index : int
-        Index of the currently selected entry.
-    window_start : int
-        First visible row index in the module list.
-    window_size : int
-        Number of visible rows.
-
-    Returns
-    -------
-    str
-        Full screen text to print.
-    """
-    recursive_modes = build_recursive_modes(entries)
-    lines = get_preview_header_lines(
-        entries,
-        recursive_modes,
-        active_screen,
-        confirm_dialog_active,
-        confirm_choice_index,
-        help_text,
-        edit_text,
-        module_scope,
-    )
-
-    if active_screen == 0:
-        total_lines = len(entries)
-    else:
-        total_lines = len(settings_items)
-
-    window_end = min(total_lines, window_start + window_size)
-
-    if window_start > 0:
-        lines.append("^^^^ more above ^^^^")
-
-    if active_screen == 0:
-        for i in range(window_start, window_end):
-            lines.append(
-                render_module_line(entries[i], i == selected_index, recursive_modes)
+    body_lines = []
+    for i, item in enumerate(items):
+        selected = i == selected_index
+        cursor = color_text("> ", "E8EEEC") if selected else "  "
+        if item["type"] == "bucket":
+            glyph = color_text("▾" if item["is_expanded"] else "▸", COLOR_ACCENT)
+            body_lines.append(
+                f"{cursor}{glyph} {item['bucket']} {dim('(' + str(item['count']) + ')')}"
             )
-    else:
-        for i in range(window_start, window_end):
-            lines.append(render_configuration_line(settings_items[i], i == selected_index))
+        elif item["type"] == "divider":
+            body_lines.append("     " + dim("─ rarely changed ─"))
+        else:
+            value_text = format_run_setting_value(item["name"], item["value"])
+            hint = ""
+            if get_enum_options(item["name"]) is not None:
+                hint = dim("  (Enter cycles)")
+            elif isinstance(item["value"], bool):
+                hint = dim("  (Enter toggles)")
+            body_lines.append(f"{cursor}  {item['name']} = {value_text}{hint}")
 
-    if window_end < total_lines:
-        lines.append("vvvv more below vvvv")
+    footer_line = dim(
+        "→ expand · ← collapse   Enter edit   h describe   "
+        "↑↓/jk move   ⇥ Targets   s start"
+    )
+    if describe_name:
+        footer_line = dim(f"{describe_name} — {get_setting_description(describe_name)}")
+    footer = [HR, footer_line]
+    return lines, body_lines, footer
 
-    if list_editor_state is not None:
-        lines.append("")
-        lines.append(
-            "List editor: Left/Right move, Space/Enter select, Backspace/Delete remove selected entry, Esc cancel typing"
-        )
-        lines.append(format_list_editor_line(list_editor_state))
 
+def compose_scrolling_screen(header_lines, body_lines, footer_lines, window_start):
+    """Join a header + windowed body + footer into one screen string."""
+    size = terminal_size()
+    columns = size.columns
+    reserved = get_visual_line_count(header_lines, columns) + get_visual_line_count(
+        footer_lines, columns
+    )
+    available = max(1, size.lines - reserved - 3)
+
+    total = len(body_lines)
+    if window_start > max(0, total - available):
+        window_start = max(0, total - available)
+    if window_start < 0:
+        window_start = 0
+    window_end = min(total, window_start + available)
+
+    out = list(header_lines)
+    if window_start > 0:
+        out.append(dim("  ^^^^ more above ^^^^"))
+    out.extend(body_lines[window_start:window_end])
+    if window_end < total:
+        out.append(dim("  vvvv more below vvvv"))
+    out.extend(footer_lines)
+    return "\n".join(out), window_start
+
+
+def render_static_overlay(lines):
     return "\n".join(lines)
 
 
-def render_preview_screen(entries, selected_index):
-    """Render the full interactive preview screen.
+def render_type_rules_overlay(entries):
+    rules = type_rule_entries(entries)
+    rows = []
+    if rules:
+        for type_name, mode, count in rules:
+            plain = f"{type_name} → {mode}  ({count})"
+            html = (
+                type_name
+                + " "
+                + color_text(f"→ {mode}", get_color_hex_for_mode(mode))
+                + dim(f"  ({count})")
+            )
+            rows.append((plain, html))
+    else:
+        rows.append(("none yet — P / T on a row sets one",
+                     dim("none yet — P / T on a row sets one")))
 
-    Parameters
-    ----------
-    entries : list
-        Module entries from get_module_entries().
-    selected_index : int
-        Index of the currently selected entry.
+    width = max(38, max(len(plain) for plain, _ in rows) + 2)
+    box = ["  " + dim("┌─ Type rules " + "─" * max(1, width - 12) + "┐")]
+    for plain, html in rows:
+        box.append("  " + dim("│ ") + html + " " * (width - len(plain) - 1) + dim("│"))
+    box.append("  " + dim("└" + "─" * width + "┘"))
+    box.append("  " + color_text("y or Esc to close", COLOR_ACCENT))
+    return box
 
-    Returns
-    -------
-    str
-        Full screen text to print.
-    """
-    recursive_modes = build_recursive_modes(entries)
-    window_size = get_list_window_size(
-        len(entries), entries, recursive_modes, 0, False, 0, "", "", 0
+
+def render_overrides_overlay(scope, ov_selected_index, module_settings_overrides,
+                             existing_module_settings, describe_name):
+    if scope["kind"] == "id":
+        title = f"Overrides — {scope['scope_key']}"
+    else:
+        title = f"Overrides — every {scope['scope_key']}"
+
+    scoped = get_scope_values(
+        scope["scope_key"], module_settings_overrides, existing_module_settings
     )
-    window_start = clamp_window_start(0, selected_index, window_size, len(entries))
-    return render_preview_screen_window(
-        entries,
-        selected_index,
-        window_start,
-        window_size,
-        0,
-        [],
-        False,
-        0,
+
+    lines = [render_tab_bar("targets"), "", "  " + color_text(title, COLOR_ACCENT), HR, ""]
+    if not CUSTOMIZABLE_SETTING_NAMES:
+        lines.append("  " + dim("No per-target settings are customizable in this build."))
+    for i, name in enumerate(CUSTOMIZABLE_SETTING_NAMES):
+        overridden = name in scoped
+        value = scoped[name] if overridden else get_global_setting_value(name)
+        cursor = color_text("> ", "E8EEEC") if i == ov_selected_index else "  "
+        tag = dim("(overridden here)") if overridden else dim("(from run settings)")
+        lines.append(
+            f"{cursor}{name} = {format_run_setting_value(name, value)}  {tag}"
+        )
+
+    lines.append("")
+    footer_line = dim(
+        "Enter edit · h describe · ↑↓/jk move · Esc / x close"
+    )
+    if describe_name:
+        footer_line = dim(f"{describe_name} — {get_setting_description(describe_name)}")
+    lines.append(footer_line)
+    return lines
+
+
+def render_save_overlay(entries, resolved, save_selected_index, config_target_path):
+    unset = unset_module_entries(entries, resolved)
+    lines = ["", "  " + color_text("Save configuration", "E8EEEC"), ""]
+
+    if unset:
+        plural = "s" if len(unset) != 1 else ""
+        lines.append(
+            color_text(
+                f"  ⚠  {len(unset)} module{plural} have parameters but no mode",
+                COLOR_ATTENTION,
+            )
+        )
+        lines.append("")
+        for entry in unset[:5]:
+            lines.append(f"      {dim(entry['id'] + '   [' + entry['type_name'] + ']')}")
+        if len(unset) > 5:
+            lines.append(f"      {dim('(+' + str(len(unset) - 5) + ' more)')}")
+        lines.append("")
+        lines.append(
+            dim(
+                "  These parameters get no dendrites and are not tracked. "
+                "Usually a mistake."
+            )
+        )
+        lines.append("")
+        options = [
+            "Keep editing",
+            f"Start anyway — I know these {len(unset)} have no mode",
+        ]
+    else:
+        lines.append(dim("  Start training with this configuration:"))
+        lines.append("")
+        options = [
+            ("just this run", "don't touch my saved config"),
+            (
+                "and save it as default",
+                f"write it to {config_target_path}, skip this screen next time",
+            ),
+            ("Keep editing", ""),
+        ]
+
+    for i, option in enumerate(options):
+        marked = i == save_selected_index
+        pointer = color_text("  ▸ ", "E8EEEC") if marked else "    "
+        if isinstance(option, tuple):
+            label, detail = option
+            text = color_text(label, "E8EEEC") if marked else label
+            if detail:
+                text += dim(f"  — {detail}")
+            lines.append(pointer + text)
+        else:
+            text = color_text(option, "E8EEEC") if marked else dim(option)
+            lines.append(pointer + text)
+
+    lines.append("")
+    lines.append("")
+    lines.append(
+        dim("  ↑↓/jk move · Enter choose · Esc / x back to editing")
+    )
+    return lines
+
+
+def render_help_overlay():
+    p = lambda t: color_text(t, COLOR_PERFORATE)
+    tr = lambda t: color_text(t, COLOR_TRACK)
+    return [
+        "",
+        "  " + color_text("Keys", "E8EEEC"),
+        "",
+        dim("  Targets screen"),
+        "   p / t     perforate / track this module",
+        "   P / T     perforate / track every module of this type",
+        "   x         clear this module (falls back to its type rule)",
+        "   → / ←     expand / collapse a module that will be restructured (↯)",
+        "   y         show / hide the type-rules list",
+        "   Enter     open Overrides for a perforated module",
+        "",
+        dim("  Run settings screen"),
+        "   → / ←     expand / collapse a bucket",
+        "   Enter     edit the highlighted setting",
+        "   h         describe the highlighted setting",
+        "",
+        dim("  Everywhere"),
+        "   ↑↓ / jk   move        ⇥  switch screen",
+        "   s         save & start training",
+        "   q         quit without configuring",
+        "",
+        dim("  Modes"),
+        "   " + p("perforate") + " = dendrites are added here during training",
+        "   " + tr("track") + "     = no dendrites, the parameters are just counted",
+        "   " + dim("↳ inherited") + " = a mode set on an ancestor applies to the whole subtree",
+        "",
+        color_text("  ? or Esc to close", COLOR_ACCENT),
+    ]
+
+
+def render_quit_overlay():
+    return [
         "",
         "",
-        None,
-    )
+        "",
+        "  " + color_text("Quit without configuring?", "E8EEEC"),
+        "",
+        dim("  Training will not start. Re-run to configure again, or set"),
+        dim("  configuration_confirmed=True to skip this screen."),
+        "",
+        "  " + color_text("[y] quit", COLOR_ATTENTION) + "     " + dim("[n] keep configuring"),
+    ]
 
 
+# ---------------------------------------------------------------------------
+# Key input
+# ---------------------------------------------------------------------------
 def read_single_key():
     """Read one keypress, including arrow keys, from stdin.
 
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    str
-        Key token. Arrow keys are returned as escape sequences like
-        "\x1b[A" and "\x1b[B". Page Up/Down are returned as
-        "\x1b[5~" and "\x1b[6~".
+    Ctrl-C raises KeyboardInterrupt so the caller can exit cleanly.
     """
     file_descriptor = sys.stdin.fileno()
     old_settings = termios.tcgetattr(file_descriptor)
@@ -1779,22 +1372,17 @@ def read_single_key():
         if first != b"\x1b":
             return first.decode("latin1")
 
-        # Read escape sequences at byte level to avoid TextIO buffering issues.
         sequence = bytearray(first)
-
-        # Distinguish plain Esc from control sequences.
         ready, _, _ = select.select([file_descriptor], [], [], 0.05)
         if not ready:
             return "\x1b"
         sequence.extend(os.read(file_descriptor, 1))
 
-        # If this is CSI/SS3, require at least one payload byte.
         if sequence[1] in (ord("["), ord("O")):
             ready, _, _ = select.select([file_descriptor], [], [], 0.15)
             if ready:
                 sequence.extend(os.read(file_descriptor, 1))
 
-        # Drain any remaining bytes that are already arriving for this keypress.
         while True:
             last_byte = sequence[-1]
             if chr(last_byte).isalpha() or last_byte == ord("~"):
@@ -1810,47 +1398,50 @@ def read_single_key():
 
 
 def enter_alternate_screen():
-    """Switch terminal to alternate screen buffer for interactive UI."""
-    # Hide the terminal cursor while rendering the full-screen menu to avoid
-    # a second editor/terminal selection rectangle overlapping the UI.
+    """Switch terminal to alternate screen buffer for the interactive UI."""
     print("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H", end="", flush=True)
 
 
 def exit_alternate_screen():
-    """Return terminal to normal screen buffer."""
-    # Always restore the cursor when leaving the menu.
+    """Return terminal to the normal screen buffer."""
     print("\x1b[?25h\x1b[?1049l", end="", flush=True)
 
 
+# ---------------------------------------------------------------------------
+# Main loop
+# ---------------------------------------------------------------------------
+def _config_target_path():
+    """Human path where 'save as default' would write."""
+    config_file = GPA.pc.get_config_file()
+    if config_file:
+        return config_file
+    run_config_path = GPA.pc.get_run_config_path()
+    if run_config_path:
+        try:
+            return os.path.relpath(run_config_path, os.getcwd())
+        except Exception:
+            return run_config_path
+    save_name = GPA.pc.get_save_name() or "PAI"
+    return f"{save_name}/{save_name}_config.json"
+
+
+def _move(index, delta, length):
+    if length <= 0:
+        return 0
+    return max(0, min(length - 1, index + delta))
+
+
 def set_perforation_targets(model):
-    """Interactive configuration prompt for perforation target selection.
+    """Interactive configuration TUI for perforation targets and run settings.
 
-    This function displays modules, allows keyboard-driven selection updates,
-    and writes resulting id/name selections to the global PAI config.
-
-    Controls:
-    - Up/Down arrows: move selection
-    - p: perforate selected module by id
-    - t: track selected module by id
-    - Shift+P: perforate selected module type by name
-    - Shift+T: track selected module type by name
-    - Space/Enter: select or edit current item
-    - s: open save dialog
-    - Esc: go back/cancel current inline edit
-
-    Parameters
-    ----------
-    model : nn.Module
-        Model whose modules are shown in the interactive selector.
-
-    Returns
-    -------
-    None
-        This function does not return a value.
+    Two screens (Tab to switch): Targets (the module tree) and Run settings.
+    See the `?` overlay for the full key reference.
     """
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
     entered_alt_screen = False
+    quit_requested = False
+
     try:
         enter_alternate_screen()
         entered_alt_screen = True
@@ -1863,720 +1454,614 @@ def set_perforation_targets(model):
             GPA.pc.set_configuration_confirmed(True)
             return
 
-        selected_index = 0
-        window_start = 0
-        global_settings_selected_index = 0
-        global_settings_window_start = 0
-        module_settings_selected_index = 0
-        module_settings_window_start = 0
-        active_screen = 0
-        confirm_dialog_active = False
-        confirm_choice_index = 0
-        help_text = ""
-        help_overlay_active = False
-        edit_text = ""
-        global_expanded_buckets = {}
-        module_expanded_buckets = {}
-        list_editor_state = None
-        scalar_editor_state = None
-        module_scope = None
+        active_screen = "targets"
+        overlay = None
+        status_message = ""
+
+        target_selected_index = 0
+        target_window_start = 0
+        expanded_replaced = {}
+
+        run_selected_index = 0
+        run_window_start = 0
+        expanded_buckets = {}
+        describe_name = ""
+
+        ov_scope = None
+        ov_selected_index = 0
         module_settings_overrides = {}
         existing_module_settings = load_existing_module_settings()
+
+        save_selected_index = 0
+
+        scalar_editor_state = None
+        list_editor_state = None
 
         def finalize_save(choice_index):
             if choice_index == 0:
                 GPA.pc.persist_config_outputs(overwrite_config_file=False)
                 persist_module_settings_updates(
-                    module_settings_overrides,
-                    overwrite_config_file=False,
+                    module_settings_overrides, overwrite_config_file=False
                 )
                 return
 
             config_file = GPA.pc.get_config_file()
             if not config_file:
-                import os
-
                 current_save_name = GPA.pc.get_save_name() or "PAI"
-                run_config_path = GPA.pc.get_run_config_path()
-                relative_config_name = (
-                    os.path.relpath(run_config_path, os.getcwd())
-                    if run_config_path
-                    else f"{current_save_name}/{current_save_name}_config.json"
-                )
+                relative_config_name = _config_target_path()
+                exit_alternate_screen()
                 print("\x1b[2J\x1b[H", end="")
                 print("No config_file is set.")
                 print(
-                    "Enter a local JSON filename/path to create a reusable configuration file."
+                    "Enter a local JSON filename/path to create a reusable "
+                    "configuration file."
                 )
                 print(
-                    f"You currently have save_name='{current_save_name}'. "
-                    f"Choose the filename '{relative_config_name}' to skip this menu next time without changing your perforate_model call."
-                )
-                print(
-                    "Alternative: set config_file in perforate_model(..., config_file='your_path.json')."
+                    f"You currently have save_name='{current_save_name}'. Choose "
+                    f"'{relative_config_name}' to skip this screen next time without "
+                    "changing your perforate_model call."
                 )
                 while True:
                     filename = input("Config filename/path: ").strip()
                     if filename:
                         GPA.pc.__dict__["_config_file"] = filename
                         break
-                    print("Filename is required for overwrite mode.")
+                    print("A filename is required to save a default configuration.")
+                enter_alternate_screen()
 
             GPA.pc.persist_config_outputs(overwrite_config_file=True)
             persist_module_settings_updates(
-                module_settings_overrides,
-                overwrite_config_file=True,
+                module_settings_overrides, overwrite_config_file=True
             )
+
+        def visible_targets():
+            out = []
+            for entry in entries:
+                if entry["in_replaced"] and not expanded_replaced.get(
+                    entry["replaced_root"], False
+                ):
+                    continue
+                out.append(entry)
+            return out
 
         while True:
             normalize_selection_conflicts()
-            if active_screen == 1:
-                settings_items = build_settings_items(global_expanded_buckets)
-            elif active_screen == 2:
-                settings_items = build_module_settings_items(
-                    module_expanded_buckets,
-                    module_scope,
-                    module_settings_overrides,
-                    existing_module_settings,
-                )
-            else:
-                settings_items = []
+            resolved = resolve_entry_modes(entries)
 
-            if selected_index >= len(entries):
-                selected_index = len(entries) - 1
-            if active_screen == 1:
-                if global_settings_selected_index >= len(settings_items):
-                    global_settings_selected_index = max(0, len(settings_items) - 1)
-            elif active_screen == 2:
-                if module_settings_selected_index >= len(settings_items):
-                    module_settings_selected_index = max(0, len(settings_items) - 1)
-
-            if active_screen == 0:
-                current_total = len(entries)
-                current_selected = selected_index
-                current_window_start = window_start
-            elif active_screen == 1:
-                current_total = len(settings_items)
-                current_selected = global_settings_selected_index
-                current_window_start = global_settings_window_start
-            else:
-                current_total = len(settings_items)
-                current_selected = module_settings_selected_index
-                current_window_start = module_settings_window_start
-
-            recursive_modes = build_recursive_modes(entries)
-            window_size = get_list_window_size(
-                current_total,
-                entries,
-                recursive_modes,
-                active_screen,
-                confirm_dialog_active,
-                confirm_choice_index,
-                help_text,
-                edit_text,
-                3 if list_editor_state is not None else 0,
-                module_scope,
-            )
-            current_window_start = clamp_window_start(
-                current_window_start, current_selected, window_size, current_total
-            )
-
-            if active_screen == 0:
-                window_start = current_window_start
-            elif active_screen == 1:
-                global_settings_window_start = current_window_start
-            else:
-                module_settings_window_start = current_window_start
-
-            # Clear terminal and draw the updated preview.
-            print("\x1b[2J\x1b[H", end="")
-            screen_text = render_preview_screen_window(
-                entries,
-                current_selected,
-                current_window_start,
-                window_size,
-                active_screen,
-                settings_items,
-                confirm_dialog_active,
-                confirm_choice_index,
-                help_text,
-                edit_text,
-                list_editor_state,
-                module_scope,
-            )
-            print(wrap_screen_text_for_terminal(screen_text))
-
-            key = read_single_key()
-
-            if help_overlay_active:
-                help_overlay_active = False
-                help_text = ""
-                continue
-
-            if confirm_dialog_active:
-                if key == "\x1b":
-                    confirm_dialog_active = False
-                    edit_text = ""
-                    continue
-                if is_left_key(key):
-                    confirm_choice_index = max(0, confirm_choice_index - 1)
-                    continue
-                if is_right_key(key):
-                    confirm_choice_index = min(2, confirm_choice_index + 1)
-                    continue
-                if key == "\r" or key == "\n":
-                    if confirm_choice_index == 2:
-                        confirm_dialog_active = False
-                        edit_text = ""
-                        continue
-
-                    # Only persist configuration_confirmed=True for overwrite mode.
-                    # For "save for current run", keep confirmation in-memory for this
-                    # run but do not bake it into saved config JSON.
-                    if confirm_choice_index == 1:
-                        GPA.pc.set_configuration_confirmed(True)
-                        finalize_save(confirm_choice_index)
-                    else:
-                        finalize_save(confirm_choice_index)
-                        GPA.pc.set_configuration_confirmed(True)
-                    break
-                continue
-
+            # ---- editors capture input first -------------------------------
             if scalar_editor_state is not None:
-                input_buffer = scalar_editor_state.get("input_buffer", "")
-                cursor_index = scalar_editor_state.get("cursor_index", 0)
-
-                if key == "\x1b":
+                _render_editor_frame(scalar_editor_state)
+                key = read_single_key()
+                done, status_message = _handle_scalar_editor(
+                    scalar_editor_state, key, module_settings_overrides
+                )
+                if done:
                     scalar_editor_state = None
-                    edit_text = ""
-                    continue
-                if is_left_key(key):
-                    scalar_editor_state["cursor_index"] = max(0, cursor_index - 1)
-                elif is_right_key(key):
-                    scalar_editor_state["cursor_index"] = min(
-                        len(input_buffer), cursor_index + 1
-                    )
-                elif key == "\x7f":
-                    if cursor_index > 0:
-                        scalar_editor_state["input_buffer"] = (
-                            input_buffer[: cursor_index - 1] + input_buffer[cursor_index:]
-                        )
-                        scalar_editor_state["cursor_index"] = cursor_index - 1
-                elif is_delete_key(key):
-                    if cursor_index < len(input_buffer):
-                        scalar_editor_state["input_buffer"] = (
-                            input_buffer[:cursor_index] + input_buffer[cursor_index + 1 :]
-                        )
-                elif key == "\r" or key == "\n":
-                    setting_name = scalar_editor_state["setting_name"]
-                    sample_value = scalar_editor_state["sample_value"]
-                    try:
-                        parsed = parse_value_from_text(
-                            scalar_editor_state.get("input_buffer", ""), sample_value
-                        )
-                    except Exception as exc:
-                        edit_text = f"Invalid value for {setting_name}: {exc}"
-                        scalar_editor_state = None
-                        continue
-
-                    if scalar_editor_state.get("apply_to_module_scope", False):
-                        set_module_scoped_value(
-                            module_settings_overrides,
-                            scalar_editor_state["scope_key"],
-                            setting_name,
-                            parsed,
-                        )
-                        ok, message = True, ""
-                    else:
-                        ok, message = apply_setting_value(setting_name, parsed)
-
-                    scalar_editor_state = None
-                    edit_text = message if not ok else ""
-                    continue
-                elif len(key) == 1 and key >= " ":
-                    scalar_editor_state["input_buffer"] = (
-                        input_buffer[:cursor_index] + key + input_buffer[cursor_index:]
-                    )
-                    scalar_editor_state["cursor_index"] = cursor_index + 1
-
-                if scalar_editor_state is not None:
-                    name = scalar_editor_state["setting_name"]
-                    buffer_text = scalar_editor_state.get("input_buffer", "")
-                    cursor = scalar_editor_state.get("cursor_index", len(buffer_text))
-                    edit_text = (
-                        f"EDIT - {name} - {render_text_with_cursor(buffer_text, cursor)} "
-                        "(Enter save, Esc cancel)"
-                    )
                 continue
 
             if list_editor_state is not None:
-                values = list_editor_state["values"]
-                selected_list_index = list_editor_state["selected_index"]
-                add_index = len(values)
-                save_index = len(values) + 1
-                typing_active = list_editor_state.get("typing_active", False)
-
-                if typing_active:
-                    if key == "\x1b":
-                        list_editor_state["typing_active"] = False
-                        list_editor_state["edit_index"] = None
-                        list_editor_state["input_buffer"] = ""
-                        list_editor_state["cursor_index"] = 0
-                        continue
-                    if is_left_key(key):
-                        list_editor_state["cursor_index"] = max(
-                            0, list_editor_state.get("cursor_index", 0) - 1
-                        )
-                        continue
-                    if is_right_key(key):
-                        list_editor_state["cursor_index"] = min(
-                            len(list_editor_state.get("input_buffer", "")),
-                            list_editor_state.get("cursor_index", 0) + 1,
-                        )
-                        continue
-                    if key == "\x7f":
-                        cursor_index = list_editor_state.get("cursor_index", 0)
-                        input_buffer = list_editor_state.get("input_buffer", "")
-                        if cursor_index > 0:
-                            list_editor_state["input_buffer"] = (
-                                input_buffer[: cursor_index - 1]
-                                + input_buffer[cursor_index:]
-                            )
-                            list_editor_state["cursor_index"] = cursor_index - 1
-                        continue
-                    if is_delete_key(key):
-                        cursor_index = list_editor_state.get("cursor_index", 0)
-                        input_buffer = list_editor_state.get("input_buffer", "")
-                        if cursor_index < len(input_buffer):
-                            list_editor_state["input_buffer"] = (
-                                input_buffer[:cursor_index]
-                                + input_buffer[cursor_index + 1 :]
-                            )
-                        continue
-                    if key == "\r" or key == "\n":
-                        edit_index = list_editor_state.get("edit_index", add_index)
-                        sample_value = list_editor_state.get("sample_type")
-                        if edit_index < len(values):
-                            sample_value = values[edit_index]
-                        try:
-                            parsed = parse_value_from_text(
-                                list_editor_state.get("input_buffer", ""),
-                                sample_value,
-                            )
-                        except Exception as exc:
-                            edit_text = f"Invalid list entry: {exc}"
-                            list_editor_state["typing_active"] = False
-                            list_editor_state["edit_index"] = None
-                            list_editor_state["input_buffer"] = ""
-                            continue
-
-                        if edit_index < len(values):
-                            values[edit_index] = parsed
-                            list_editor_state["selected_index"] = edit_index
-                        else:
-                            values.append(parsed)
-                            list_editor_state["selected_index"] = len(values) - 1
-                        list_editor_state["typing_active"] = False
-                        list_editor_state["edit_index"] = None
-                        list_editor_state["input_buffer"] = ""
-                        list_editor_state["cursor_index"] = 0
-                        edit_text = ""
-                        continue
-                    if len(key) == 1 and key >= " ":
-                        cursor_index = list_editor_state.get("cursor_index", 0)
-                        input_buffer = list_editor_state.get("input_buffer", "")
-                        list_editor_state["input_buffer"] = (
-                            input_buffer[:cursor_index] + key + input_buffer[cursor_index:]
-                        )
-                        list_editor_state["cursor_index"] = cursor_index + 1
-                        continue
-                    continue
-
-                if key == "\x1b":
+                _render_editor_frame(list_editor_state)
+                key = read_single_key()
+                done, status_message = _handle_list_editor(
+                    list_editor_state, key, module_settings_overrides
+                )
+                if done:
                     list_editor_state = None
-                    edit_text = ""
-                    continue
-                if is_left_key(key):
-                    list_editor_state["selected_index"] = max(0, selected_list_index - 1)
-                    continue
-                if is_right_key(key):
-                    list_editor_state["selected_index"] = min(save_index, selected_list_index + 1)
-                    continue
-                if key == "\x7f" or is_delete_key(key):
-                    if selected_list_index < len(values):
-                        del values[selected_list_index]
-                        if list_editor_state["selected_index"] > len(values) + 1:
-                            list_editor_state["selected_index"] = len(values) + 1
-                    continue
-                if is_select_key(key):
-                    if selected_list_index == save_index:
-                        if list_editor_state.get("apply_to_module_scope", False):
-                            if module_scope is None:
-                                ok, message = False, "No module scope selected."
-                            else:
-                                set_module_scoped_value(
-                                    module_settings_overrides,
-                                    module_scope["scope_key"],
-                                    list_editor_state["setting_name"],
-                                    values,
-                                )
-                                ok, message = True, ""
+                continue
+
+            # ---- draw the current screen ---------------------------------
+            print("\x1b[2J\x1b[H", end="")
+
+            if overlay == "help":
+                screen_text = render_static_overlay(render_help_overlay())
+            elif overlay == "quit":
+                screen_text = render_static_overlay(render_quit_overlay())
+            elif overlay == "save":
+                screen_text = render_static_overlay(
+                    render_save_overlay(
+                        entries, resolved, save_selected_index, _config_target_path()
+                    )
+                )
+            elif overlay == "overrides":
+                screen_text = render_static_overlay(
+                    render_overrides_overlay(
+                        ov_scope,
+                        ov_selected_index,
+                        module_settings_overrides,
+                        existing_module_settings,
+                        describe_name,
+                    )
+                )
+            elif active_screen == "targets":
+                vis = visible_targets()
+                if target_selected_index >= len(vis):
+                    target_selected_index = max(0, len(vis) - 1)
+                header, body, footer = render_targets_lines(
+                    entries, vis, target_selected_index, resolved, expanded_replaced
+                )
+                if overlay == "typerules":
+                    header = header + [""] + render_type_rules_overlay(entries) + [""]
+                if status_message:
+                    footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
+                screen_text, target_window_start = compose_scrolling_screen(
+                    header, body, footer, target_window_start
+                )
+            else:
+                items = build_run_items(expanded_buckets)
+                if run_selected_index >= len(items):
+                    run_selected_index = max(0, len(items) - 1)
+                header, body, footer = render_run_settings_lines(
+                    items, run_selected_index, describe_name
+                )
+                if status_message:
+                    footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
+                screen_text, run_window_start = compose_scrolling_screen(
+                    header, body, footer, run_window_start
+                )
+
+            print(wrap_screen_text_for_terminal(screen_text))
+            key = read_single_key()
+
+            # ---- overlay key handling -----------------------------------
+            if overlay == "help":
+                if key == "?" or key == "\x1b":
+                    overlay = None
+                continue
+
+            if overlay == "quit":
+                if key in ("y", "Y"):
+                    quit_requested = True
+                    break
+                if key in ("n", "N") or key == "\x1b":
+                    overlay = None
+                continue
+
+            if overlay == "typerules":
+                if key in ("y", "Y") or key == "\x1b":
+                    overlay = None
+                elif key.lower() == "s":
+                    overlay = "save"
+                    save_selected_index = 0
+                continue
+
+            if overlay == "save":
+                unset = unset_module_entries(entries, resolved)
+                option_count = 2 if unset else 3
+                if is_up_key(key):
+                    save_selected_index = _move(save_selected_index, -1, option_count)
+                elif is_down_key(key):
+                    save_selected_index = _move(save_selected_index, 1, option_count)
+                elif key == "\x1b" or key == "x":
+                    overlay = None
+                elif is_enter_key(key):
+                    if unset:
+                        if save_selected_index == 0:
+                            overlay = None
                         else:
-                            ok, message = apply_setting_value(
-                                list_editor_state["setting_name"], values
-                            )
-                        list_editor_state = None
-                        edit_text = message if not ok else ""
-                        continue
-
-                    edit_index = selected_list_index
-                    initial_text = ""
-                    if edit_index < len(values):
-                        initial_text = str(values[edit_index])
-                    list_editor_state["typing_active"] = True
-                    list_editor_state["edit_index"] = edit_index
-                    list_editor_state["input_buffer"] = initial_text
-                    list_editor_state["cursor_index"] = len(initial_text)
-                    continue
+                            finalize_save(0)
+                            GPA.pc.set_configuration_confirmed(True)
+                            break
+                    else:
+                        if save_selected_index == 2:
+                            overlay = None
+                        elif save_selected_index == 1:
+                            GPA.pc.set_configuration_confirmed(True)
+                            finalize_save(1)
+                            break
+                        else:
+                            finalize_save(0)
+                            GPA.pc.set_configuration_confirmed(True)
+                            break
                 continue
 
-            if is_up_key(key):
-                help_text = ""
-                edit_text = ""
-                if active_screen == 0:
-                    selected_index = max(0, selected_index - 1)
-                elif active_screen == 1:
-                    global_settings_selected_index = max(
-                        0, global_settings_selected_index - 1
+            if overlay == "overrides":
+                names = CUSTOMIZABLE_SETTING_NAMES
+                if key == "\x1b" or key == "x":
+                    overlay = None
+                    describe_name = ""
+                elif is_up_key(key):
+                    ov_selected_index = _move(ov_selected_index, -1, len(names))
+                    describe_name = ""
+                elif is_down_key(key):
+                    ov_selected_index = _move(ov_selected_index, 1, len(names))
+                    describe_name = ""
+                elif key == "h" and names:
+                    current = names[ov_selected_index]
+                    describe_name = "" if describe_name == current else current
+                elif is_enter_key(key) and names:
+                    name = names[ov_selected_index]
+                    scoped = get_scope_values(
+                        ov_scope["scope_key"],
+                        module_settings_overrides,
+                        existing_module_settings,
                     )
-                else:
-                    module_settings_selected_index = max(
-                        0, module_settings_selected_index - 1
-                    )
-                continue
-            if is_down_key(key):
-                help_text = ""
-                edit_text = ""
-                if active_screen == 0:
-                    selected_index = min(len(entries) - 1, selected_index + 1)
-                elif active_screen == 1:
-                    global_settings_selected_index = min(
-                        len(settings_items) - 1, global_settings_selected_index + 1
-                    )
-                else:
-                    module_settings_selected_index = min(
-                        len(settings_items) - 1, module_settings_selected_index + 1
-                    )
-                continue
-            if is_page_up_key(key):
-                help_text = ""
-                edit_text = ""
-                page_step = max(1, window_size - 1)
-                if active_screen == 0:
-                    selected_index = max(0, selected_index - page_step)
-                    window_start = max(0, window_start - page_step)
-                elif active_screen == 1:
-                    global_settings_selected_index = max(
-                        0, global_settings_selected_index - page_step
-                    )
-                    global_settings_window_start = max(
-                        0, global_settings_window_start - page_step
-                    )
-                else:
-                    module_settings_selected_index = max(
-                        0, module_settings_selected_index - page_step
-                    )
-                    module_settings_window_start = max(
-                        0, module_settings_window_start - page_step
-                    )
-                continue
-            if is_page_down_key(key):
-                help_text = ""
-                edit_text = ""
-                page_step = max(1, window_size - 1)
-                if active_screen == 0:
-                    selected_index = min(len(entries) - 1, selected_index + page_step)
-                    window_start = min(len(entries) - 1, window_start + page_step)
-                elif active_screen == 1:
-                    global_settings_selected_index = min(
-                        len(settings_items) - 1,
-                        global_settings_selected_index + page_step,
-                    )
-                    global_settings_window_start = min(
-                        len(settings_items) - 1,
-                        global_settings_window_start + page_step,
-                    )
-                else:
-                    module_settings_selected_index = min(
-                        len(settings_items) - 1,
-                        module_settings_selected_index + page_step,
-                    )
-                    module_settings_window_start = min(
-                        len(settings_items) - 1,
-                        module_settings_window_start + page_step,
-                    )
-                continue
-            if is_left_key(key):
-                help_text = ""
-                edit_text = ""
-                if active_screen == 0:
-                    active_screen = 1
-                elif active_screen == 1:
-                    active_screen = 0
-                else:
-                    active_screen = 0
-                    module_scope = None
-                    module_expanded_buckets = {}
-                    module_settings_selected_index = 0
-                    module_settings_window_start = 0
-                continue
-            if is_right_key(key):
-                help_text = ""
-                edit_text = ""
-                if active_screen == 0:
-                    active_screen = 1
-                elif active_screen == 1:
-                    active_screen = 0
-                else:
-                    active_screen = 0
-                    module_scope = None
-                    module_expanded_buckets = {}
-                    module_settings_selected_index = 0
-                    module_settings_window_start = 0
-                continue
-
-            if key == "\x1b":
-                help_text = ""
-                edit_text = ""
-                if active_screen == 2:
-                    active_screen = 0
-                    module_scope = None
-                    module_expanded_buckets = {}
-                    module_settings_selected_index = 0
-                    module_settings_window_start = 0
-                elif active_screen == 1:
-                    active_screen = 0
-                continue
-
-            if active_screen == 0:
-                selected_entry = entries[selected_index]
-
-                if key == "p":
-                    set_module_id_mode(selected_entry["id"], "perforated")
-                    continue
-                if key == "t":
-                    set_module_id_mode(selected_entry["id"], "tracked")
-                    continue
-                if key == "P":
-                    set_module_name_mode(selected_entry["type_name"], "perforated")
-                    continue
-                if key == "T":
-                    set_module_name_mode(selected_entry["type_name"], "tracked")
-                    continue
-                if is_select_key(key):
-                    recursive_modes = build_recursive_modes(entries)
-                    scope, warning = get_space_scope_for_entry(
-                        selected_entry, recursive_modes
-                    )
-                    if scope is None:
-                        edit_text = warning
-                        continue
-                    module_scope = scope
-                    active_screen = 2
-                    module_expanded_buckets = {}
-                    module_settings_selected_index = 0
-                    module_settings_window_start = 0
-                    help_text = ""
-                    edit_text = ""
-                    continue
-            elif active_screen == 1:
-                if key == "e" and len(settings_items) > 0:
-                    item = settings_items[global_settings_selected_index]
-                    if item["type"] == "bucket":
-                        global_expanded_buckets[item["bucket"]] = not item["is_expanded"]
-                    continue
-                if key == "h" and len(settings_items) > 0:
-                    item = settings_items[global_settings_selected_index]
-                    help_text = (
-                        f"HELP - {get_item_display_name(item)} - "
-                        f"{get_item_description(item)}"
-                    )
-                    help_overlay_active = True
-                    edit_text = ""
-                    continue
-                if is_select_key(key) and len(settings_items) > 0:
-                    item = settings_items[global_settings_selected_index]
-                    if item["type"] == "bucket":
-                        global_expanded_buckets[item["bucket"]] = not item["is_expanded"]
-                        edit_text = ""
-                        continue
-                    if item["type"] != "setting":
-                        edit_text = ""
-                        continue
-
-                    setting_name = item["name"]
-                    setting_value = item["value"]
-                    enum_options = get_enum_options(setting_name)
-
-                    if isinstance(setting_value, bool):
-                        ok, message = apply_setting_value(setting_name, not setting_value)
-                        edit_text = message if not ok else ""
-                        continue
-
-                    if enum_options is not None and len(enum_options) > 1:
+                    value = scoped[name] if name in scoped else get_global_setting_value(name)
+                    if isinstance(value, bool):
+                        set_module_scoped_value(
+                            module_settings_overrides, ov_scope["scope_key"], name, not value
+                        )
+                    elif get_enum_options(name) is not None:
+                        options = get_enum_options(name)
                         try:
-                            index = enum_options.index(setting_value)
+                            index = options.index(value)
                         except ValueError:
                             index = -1
-                        next_value = enum_options[(index + 1) % len(enum_options)]
-                        ok, message = apply_setting_value(setting_name, next_value)
-                        edit_text = message if not ok else ""
-                        continue
-
-                    if isinstance(setting_value, list):
-                        sample_type = None
-                        if len(setting_value) > 0:
-                            sample_type = setting_value[0]
-                        list_editor_state = {
-                            "setting_name": setting_name,
-                            "values": list(setting_value),
-                            "selected_index": 0,
-                            "sample_type": sample_type,
-                            "typing_active": False,
-                            "edit_index": None,
-                            "input_buffer": "",
-                            "cursor_index": 0,
-                            "apply_to_module_scope": False,
-                        }
-                        edit_text = (
-                            f"EDIT - {setting_name} - list mode active"
-                        )
-                        continue
-
-                    if isinstance(setting_value, (int, float)):
-                        initial_text = str(setting_value)
-                        scalar_editor_state = {
-                            "setting_name": setting_name,
-                            "sample_value": setting_value,
-                            "input_buffer": initial_text,
-                            "cursor_index": len(initial_text),
-                            "apply_to_module_scope": False,
-                            "scope_key": None,
-                        }
-                        edit_text = (
-                            f"EDIT - {setting_name} - "
-                            f"{render_text_with_cursor(initial_text, len(initial_text))} "
-                            "(Enter save, Esc cancel)"
-                        )
-                        continue
-
-                    edit_text = f"Setting {setting_name} edit is not supported."
-                    continue
-            else:
-                if module_scope is None:
-                    if key in ("h", " ", "e"):
-                        edit_text = "Select a perforation target on screen 1 and press Space to choose scope."
-                    continue
-
-                if key == "e" and len(settings_items) > 0:
-                    item = settings_items[module_settings_selected_index]
-                    if item["type"] == "bucket":
-                        module_expanded_buckets[item["bucket"]] = not item["is_expanded"]
-                    continue
-                if key == "h" and len(settings_items) > 0:
-                    item = settings_items[module_settings_selected_index]
-                    help_text = (
-                        f"HELP - {get_item_display_name(item)} - "
-                        f"{get_item_description(item)}"
-                    )
-                    help_overlay_active = True
-                    edit_text = ""
-                    continue
-                if is_select_key(key) and len(settings_items) > 0:
-                    item = settings_items[module_settings_selected_index]
-                    if item["type"] == "bucket":
-                        module_expanded_buckets[item["bucket"]] = not item["is_expanded"]
-                        edit_text = ""
-                        continue
-                    if item["type"] != "setting":
-                        edit_text = ""
-                        continue
-
-                    setting_name = item["name"]
-                    setting_value = item["value"]
-                    enum_options = get_enum_options(setting_name)
-                    scope_key = module_scope["scope_key"]
-
-                    def apply_module_setting(new_value):
                         set_module_scoped_value(
                             module_settings_overrides,
-                            scope_key,
-                            setting_name,
-                            new_value,
+                            ov_scope["scope_key"],
+                            name,
+                            options[(index + 1) % len(options)],
                         )
-                        return True, ""
-
-                    if isinstance(setting_value, bool):
-                        ok, message = apply_module_setting(not setting_value)
-                        edit_text = message if not ok else ""
-                        continue
-
-                    if enum_options is not None and len(enum_options) > 1:
-                        try:
-                            index = enum_options.index(setting_value)
-                        except ValueError:
-                            index = -1
-                        next_value = enum_options[(index + 1) % len(enum_options)]
-                        ok, message = apply_module_setting(next_value)
-                        edit_text = message if not ok else ""
-                        continue
-
-                    if isinstance(setting_value, list):
-                        sample_type = None
-                        if len(setting_value) > 0:
-                            sample_type = setting_value[0]
-                        list_editor_state = {
-                            "setting_name": setting_name,
-                            "values": list(setting_value),
-                            "selected_index": 0,
-                            "sample_type": sample_type,
-                            "typing_active": False,
-                            "edit_index": None,
-                            "input_buffer": "",
-                            "cursor_index": 0,
-                            "apply_to_module_scope": True,
-                        }
-                        edit_text = (
-                            f"EDIT - {setting_name} - list mode active"
+                    elif isinstance(value, list):
+                        list_editor_state = _new_list_editor(
+                            name, value, scope_key=ov_scope["scope_key"]
                         )
-                        continue
-
-                    if isinstance(setting_value, (int, float)):
-                        initial_text = str(setting_value)
-                        scalar_editor_state = {
-                            "setting_name": setting_name,
-                            "sample_value": setting_value,
-                            "input_buffer": initial_text,
-                            "cursor_index": len(initial_text),
-                            "apply_to_module_scope": True,
-                            "scope_key": scope_key,
-                        }
-                        edit_text = (
-                            f"EDIT - {setting_name} - "
-                            f"{render_text_with_cursor(initial_text, len(initial_text))} "
-                            "(Enter save, Esc cancel)"
+                    elif isinstance(value, (int, float)):
+                        scalar_editor_state = _new_scalar_editor(
+                            name, value, scope_key=ov_scope["scope_key"]
                         )
-                        continue
-
-                    edit_text = f"Setting {setting_name} edit is not supported."
-                    continue
-
-            if key.lower() == "s":
-                edit_text = ""
-                confirm_dialog_active = True
-                confirm_choice_index = 0
+                    else:
+                        status_message = f"{name} cannot be edited here."
+                elif key.lower() == "s":
+                    overlay = "save"
+                    save_selected_index = 0
                 continue
+
+            # ---- global keys (no overlay) -------------------------------
+            if key == "?":
+                overlay = "help"
+                continue
+            if key == "q":
+                overlay = "quit"
+                continue
+            if key.lower() == "s":
+                overlay = "save"
+                save_selected_index = 0
+                continue
+            if is_tab_key(key):
+                active_screen = "run" if active_screen == "targets" else "targets"
+                status_message = ""
+                describe_name = ""
+                continue
+
+            status_message = ""
+
+            if active_screen == "targets":
+                vis = visible_targets()
+                if not vis:
+                    continue
+                if target_selected_index >= len(vis):
+                    target_selected_index = len(vis) - 1
+                entry = vis[target_selected_index]
+                record = resolved[entry["id"]]
+
+                if is_up_key(key):
+                    target_selected_index = _move(target_selected_index, -1, len(vis))
+                elif is_down_key(key):
+                    target_selected_index = _move(target_selected_index, 1, len(vis))
+                elif is_page_up_key(key):
+                    target_selected_index = _move(target_selected_index, -10, len(vis))
+                elif is_page_down_key(key):
+                    target_selected_index = _move(target_selected_index, 10, len(vis))
+                elif key == "y":
+                    overlay = "typerules"
+                elif is_right_key(key) or is_left_key(key):
+                    if entry["is_replaced_root"]:
+                        expanded_replaced[entry["id"]] = is_right_key(key)
+                elif key in ("p", "t"):
+                    if entry["is_replaced_root"] or entry["in_replaced"]:
+                        status_message = (
+                            f"{entry['id']} is inside a module that will be restructured "
+                            "— its id won't exist at training time. Use P/T to target "
+                            "by type instead."
+                        )
+                    else:
+                        set_module_id_mode(
+                            entry["id"], "perforated" if key == "p" else "tracked"
+                        )
+                elif key in ("P", "T"):
+                    if entry["is_replaced_root"]:
+                        status_message = (
+                            "Set a mode on this module's children by type, not on the "
+                            "container that will be restructured."
+                        )
+                    else:
+                        set_module_name_mode(
+                            entry["type_name"], "perforated" if key == "P" else "tracked"
+                        )
+                elif key == "x":
+                    status_message = clear_module_mode(entry)
+                elif is_enter_key(key):
+                    scope, reason = get_override_scope_for_entry(entry, resolved)
+                    if scope is None:
+                        status_message = reason
+                    else:
+                        ov_scope = scope
+                        ov_selected_index = 0
+                        describe_name = ""
+                        overlay = "overrides"
+                continue
+
+            # ---- run settings screen -----------------------------------
+            items = build_run_items(expanded_buckets)
+            if not items:
+                continue
+            if run_selected_index >= len(items):
+                run_selected_index = len(items) - 1
+            item = items[run_selected_index]
+
+            if is_up_key(key) or is_down_key(key):
+                step = -1 if is_up_key(key) else 1
+                run_selected_index = _move(run_selected_index, step, len(items))
+                while (
+                    0 < run_selected_index < len(items) - 1
+                    and items[run_selected_index]["type"] == "divider"
+                ):
+                    run_selected_index = _move(run_selected_index, step, len(items))
+                describe_name = ""
+            elif is_page_up_key(key):
+                run_selected_index = _move(run_selected_index, -10, len(items))
+            elif is_page_down_key(key):
+                run_selected_index = _move(run_selected_index, 10, len(items))
+            elif is_right_key(key):
+                if item["type"] == "bucket":
+                    expanded_buckets[item["bucket"]] = True
+            elif is_left_key(key):
+                if item["type"] == "bucket":
+                    expanded_buckets[item["bucket"]] = False
+                else:
+                    expanded_buckets[item["bucket"]] = False
+                    for idx, other in enumerate(items):
+                        if other["type"] == "bucket" and other["bucket"] == item["bucket"]:
+                            run_selected_index = idx
+                            break
+            elif key == "h" and item["type"] == "setting":
+                describe_name = "" if describe_name == item["name"] else item["name"]
+            elif is_enter_key(key):
+                describe_name = ""
+                if item["type"] == "bucket":
+                    expanded_buckets[item["bucket"]] = not item["is_expanded"]
+                elif item["type"] == "setting":
+                    name = item["name"]
+                    value = item["value"]
+                    if isinstance(value, bool):
+                        ok, message = apply_setting_value(name, not value)
+                        status_message = message
+                    elif get_enum_options(name) is not None:
+                        ok, message = cycle_enum_setting(name, value)
+                        status_message = message
+                    elif isinstance(value, list):
+                        list_editor_state = _new_list_editor(name, value, scope_key=None)
+                    elif isinstance(value, (int, float)):
+                        scalar_editor_state = _new_scalar_editor(name, value, scope_key=None)
+                    else:
+                        status_message = f"{name} cannot be edited from this screen."
+            continue
+
+    except KeyboardInterrupt:
+        quit_requested = True
     finally:
         if entered_alt_screen:
             exit_alternate_screen()
         GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist
+
+    if quit_requested:
+        print("Configuration cancelled — training did not start.")
+        print(
+            "Re-run to configure again, or set configuration_confirmed=True "
+            "(GPA.pc.set_configuration_confirmed(True)) to skip this screen."
+        )
+        sys.exit(0)
+
+
+# ---------------------------------------------------------------------------
+# Inline value editors (scalar + list)
+# ---------------------------------------------------------------------------
+def _new_scalar_editor(setting_name, value, scope_key):
+    text = str(value)
+    return {
+        "kind": "scalar",
+        "setting_name": setting_name,
+        "sample_value": value,
+        "input_buffer": text,
+        "cursor_index": len(text),
+        "scope_key": scope_key,
+    }
+
+
+def _new_list_editor(setting_name, value, scope_key):
+    return {
+        "kind": "list",
+        "setting_name": setting_name,
+        "values": list(value),
+        "selected_index": 0,
+        "sample_type": value[0] if value else None,
+        "typing_active": False,
+        "edit_index": None,
+        "input_buffer": "",
+        "cursor_index": 0,
+        "scope_key": scope_key,
+    }
+
+
+def _render_editor_frame(state):
+    print("\x1b[2J\x1b[H", end="")
+    name = state["setting_name"]
+    if state["kind"] == "scalar":
+        body = render_text_with_cursor(state["input_buffer"], state["cursor_index"])
+        lines = [
+            "  " + color_text(f"Edit {name}", "E8EEEC"),
+            "",
+            f"  {body}",
+            "",
+            dim("  Enter save · Esc cancel"),
+        ]
+    else:
+        lines = [
+            "  " + color_text(f"Edit {name}", "E8EEEC"),
+            "",
+            "  " + _format_list_editor_line(state),
+            "",
+            dim(
+                "  ←/→ move · Enter edit/select · "
+                "Backspace/Delete remove · Esc cancel"
+            ),
+        ]
+    print(wrap_screen_text_for_terminal("\n".join(lines)))
+
+
+def _format_list_editor_line(state):
+    values = state["values"]
+    tokens = []
+    for i, value in enumerate(values):
+        if state["typing_active"] and i == state["edit_index"]:
+            tokens.append(render_text_with_cursor(state["input_buffer"], state["cursor_index"]))
+        elif i == state["selected_index"] and not state["typing_active"]:
+            tokens.append(make_inverted_text(str(value)))
+        else:
+            tokens.append(str(value))
+
+    add_index = len(values)
+    if state["typing_active"] and state["edit_index"] == add_index:
+        tokens.append(render_text_with_cursor(state["input_buffer"], state["cursor_index"]))
+    elif state["selected_index"] == add_index:
+        tokens.append(make_inverted_text("Add new entry"))
+    else:
+        tokens.append("Add new entry")
+
+    save_index = len(values) + 1
+    save_token = "Save list and return"
+    tokens.append(
+        make_inverted_text(save_token)
+        if state["selected_index"] == save_index and not state["typing_active"]
+        else save_token
+    )
+    return " | ".join(tokens)
+
+
+def _persist_edited_value(state, module_settings_overrides, value):
+    if state["scope_key"] is not None:
+        set_module_scoped_value(
+            module_settings_overrides, state["scope_key"], state["setting_name"], value
+        )
+        return ""
+    ok, message = apply_setting_value(state["setting_name"], value)
+    return "" if ok else message
+
+
+def _handle_scalar_editor(state, key, module_settings_overrides):
+    buffer_text = state["input_buffer"]
+    cursor = state["cursor_index"]
+
+    if key == "\x1b":
+        return True, ""
+    if is_left_key(key):
+        state["cursor_index"] = max(0, cursor - 1)
+        return False, ""
+    if is_right_key(key):
+        state["cursor_index"] = min(len(buffer_text), cursor + 1)
+        return False, ""
+    if key == "\x7f":
+        if cursor > 0:
+            state["input_buffer"] = buffer_text[: cursor - 1] + buffer_text[cursor:]
+            state["cursor_index"] = cursor - 1
+        return False, ""
+    if is_delete_key(key):
+        if cursor < len(buffer_text):
+            state["input_buffer"] = buffer_text[:cursor] + buffer_text[cursor + 1 :]
+        return False, ""
+    if is_enter_key(key):
+        try:
+            parsed = parse_value_from_text(state["input_buffer"], state["sample_value"])
+        except Exception as exc:
+            return True, f"Invalid value for {state['setting_name']}: {exc}"
+        return True, _persist_edited_value(state, module_settings_overrides, parsed)
+    if len(key) == 1 and key >= " ":
+        state["input_buffer"] = buffer_text[:cursor] + key + buffer_text[cursor:]
+        state["cursor_index"] = cursor + 1
+    return False, ""
+
+
+def _handle_list_editor(state, key, module_settings_overrides):
+    values = state["values"]
+    add_index = len(values)
+    save_index = len(values) + 1
+
+    if state["typing_active"]:
+        buffer_text = state["input_buffer"]
+        cursor = state["cursor_index"]
+        if key == "\x1b":
+            state["typing_active"] = False
+            state["edit_index"] = None
+            state["input_buffer"] = ""
+            state["cursor_index"] = 0
+            return False, ""
+        if is_left_key(key):
+            state["cursor_index"] = max(0, cursor - 1)
+            return False, ""
+        if is_right_key(key):
+            state["cursor_index"] = min(len(buffer_text), cursor + 1)
+            return False, ""
+        if key == "\x7f":
+            if cursor > 0:
+                state["input_buffer"] = buffer_text[: cursor - 1] + buffer_text[cursor:]
+                state["cursor_index"] = cursor - 1
+            return False, ""
+        if is_delete_key(key):
+            if cursor < len(buffer_text):
+                state["input_buffer"] = buffer_text[:cursor] + buffer_text[cursor + 1 :]
+            return False, ""
+        if is_enter_key(key):
+            edit_index = state["edit_index"]
+            sample = state["sample_type"]
+            if edit_index is not None and edit_index < len(values):
+                sample = values[edit_index]
+            try:
+                parsed = parse_value_from_text(state["input_buffer"], sample)
+            except Exception as exc:
+                state["typing_active"] = False
+                state["edit_index"] = None
+                state["input_buffer"] = ""
+                return False, f"Invalid list entry: {exc}"
+            if edit_index is not None and edit_index < len(values):
+                values[edit_index] = parsed
+                state["selected_index"] = edit_index
+            else:
+                values.append(parsed)
+                state["selected_index"] = len(values) - 1
+            state["typing_active"] = False
+            state["edit_index"] = None
+            state["input_buffer"] = ""
+            state["cursor_index"] = 0
+            return False, ""
+        if len(key) == 1 and key >= " ":
+            state["input_buffer"] = buffer_text[:cursor] + key + buffer_text[cursor:]
+            state["cursor_index"] = cursor + 1
+        return False, ""
+
+    selected = state["selected_index"]
+    if key == "\x1b":
+        return True, ""
+    if is_left_key(key):
+        state["selected_index"] = max(0, selected - 1)
+        return False, ""
+    if is_right_key(key):
+        state["selected_index"] = min(save_index, selected + 1)
+        return False, ""
+    if key == "\x7f" or is_delete_key(key):
+        if selected < len(values):
+            del values[selected]
+            if state["selected_index"] > len(values) + 1:
+                state["selected_index"] = len(values) + 1
+        return False, ""
+    if is_select_key(key):
+        if selected == save_index:
+            return True, _persist_edited_value(
+                state, module_settings_overrides, list(values)
+            )
+        initial_text = str(values[selected]) if selected < len(values) else ""
+        state["typing_active"] = True
+        state["edit_index"] = selected
+        state["input_buffer"] = initial_text
+        state["cursor_index"] = len(initial_text)
+    return False, ""
