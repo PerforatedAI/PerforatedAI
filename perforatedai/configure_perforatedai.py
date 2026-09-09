@@ -984,7 +984,7 @@ def render_tab_bar(active_screen):
         targets = color_text(targets, COLOR_ACCENT)
     else:
         run = color_text(run, COLOR_ACCENT)
-    return f"[ {targets} │ {run} ]" + " " * 12 + dim("Tab switch panel    ? help")
+    return f"[ {targets} │ {run} ]" + " " * 12 + dim("[Tab] switch panel    ? help")
 
 
 MODE_VERB = {"perforated": "perforate", "tracked": "track"}
@@ -1346,7 +1346,14 @@ def render_help_overlay():
         dim("  Modes"),
         "   " + p("perforate") + " = dendrites are added here during training",
         "   " + tr("track") + "     = no dendrites, the parameters are just counted",
-        "   " + dim("↳ inherited") + " = a mode set on an ancestor applies to the whole subtree",
+        "",
+        dim("  Which mode wins  (highest priority first)"),
+        "   1. inherited — a mode on an ancestor applies to its whole",
+        "      subtree; a mode set directly on a descendant is ignored",
+        "      while the ancestor's mode is in effect",
+        "   2. by id — a mode set on this exact module",
+        "   3. by type — a mode set on the module's class name",
+        "   So: inherited  >  by id  >  by type.",
         "",
         color_text("  ? or Esc to close", COLOR_ACCENT),
     ]
