@@ -1,11 +1,18 @@
 import sys
-import termios
-import tty
 import shutil
 import json
 import os
 import select
 import re
+
+# POSIX-only. The module must still import on native Windows (perforate_model
+# imports it unconditionally); the interactive TUI just cannot run there.
+try:
+    import termios
+    import tty
+except ImportError:  # pragma: no cover - exercised only on Windows
+    termios = None
+    tty = None
 
 from perforatedai import globals_perforatedai as GPA
 
@@ -1496,6 +1503,14 @@ def require_interactive_session():
     no usable TTY, so we fail fast with actionable guidance instead of crashing
     inside ``termios``.
     """
+    if termios is None:
+        raise RuntimeError(
+            "The interactive perforation-configuration TUI is not available on this "
+            "platform (no termios). Set configuration_confirmed=True in your config "
+            "file (or call GPA.pc.set_configuration_confirmed(True)) and configure "
+            "targets via the config file or Perforated Studio instead."
+        )
+
     try:
         is_tty = bool(sys.stdin.isatty() and sys.stdout.isatty())
     except (ValueError, AttributeError, OSError):

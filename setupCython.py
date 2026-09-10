@@ -61,6 +61,8 @@ setup(
     name="perforatedai",
     version="3.2.8",
     packages=find_packages(),
+    package_data={"perforatedai": ["*.json"]},
+    include_package_data=True,
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
     description="Official package for the artificial dendrite library for PyTorch, Perforated AI",
