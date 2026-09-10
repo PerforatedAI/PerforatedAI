@@ -140,18 +140,10 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             for module_id in value:
                 _validate_module_id(module_id)
         setattr(self, private_name, value)
-        # Auto-save: if a config file has been configured (set when save_name is set),
-        # persist the new value immediately so the JSON stays in sync.
-        config_file = self.__dict__.get("_config_file")
-        # Special case: if save_name changed to non-empty, update config file path
-        if var_name == "save_name" and value:
-            import os as _os
-
-            _save_folder = _os.path.join(_os.getcwd(), value)
-            config_file = _os.path.join(_save_folder, f"{value}_config.json")
-            self.__dict__["_config_file"] = config_file
-        elif config_file and not self.__dict__.get("_testing_dendrite_capacity", False):
-            self.save_config(config_file)
+        if not self.__dict__.get("_loading_config_values", False):
+            self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
+            if var_name == "config_file":
+                self.sync_config_sources()
 
     def appender(self, value):
         """Append a value to the property if it is a list.
@@ -207,6 +199,14 @@ def _resolve_dotted_name(dotted_name):
     """
     import importlib
 
+    # Common shorthand names accepted in user-facing config files.
+    if dotted_name == "sigmoid":
+        return torch.sigmoid
+    if dotted_name == "relu":
+        return torch.relu
+    if dotted_name == "tanh":
+        return torch.tanh
+
     parts = dotted_name.rsplit(".", 1)
     if len(parts) == 2:
         try:
@@ -218,6 +218,26 @@ def _resolve_dotted_name(dotted_name):
     import builtins
 
     return getattr(builtins, dotted_name, None)
+
+
+_TORCH_ACTIVATION_SHORTHAND = ("sigmoid", "relu", "tanh")
+
+
+def callable_config_repr(val):
+    """Canonical string form of a callable config value (e.g. pai_forward_function).
+
+    Shared by config serialisation and the interactive configuration display so
+    the two never disagree on how a callable is named.
+    """
+    name = getattr(val, "__name__", None) or getattr(val, "__qualname__", None)
+    mod = getattr(val, "__module__", None)
+    if name and mod:
+        if name in _TORCH_ACTIVATION_SHORTHAND:
+            return f"torch.{name}"
+        return f"{mod}.{name}"
+    if name:
+        return str(name)
+    return repr(val)
 
 
 def _serialize_pai_value(val):
@@ -236,11 +256,7 @@ def _serialize_pai_value(val):
         mod = getattr(val, "__module__", "") or ""
         return f"{mod}.{val.__name__}" if mod else val.__name__
     if callable(val):
-        name = getattr(val, "__name__", None)
-        mod = getattr(val, "__module__", None)
-        if name and mod:
-            return f"{mod}.{name}"
-        return str(val)
+        return callable_config_repr(val)
     return str(val)
 
 
@@ -406,11 +422,13 @@ class PAIConfig:
                 "unwrapped_modules_confirmed",
                 "weight_decay_accepted",
                 "checked_skipped_modules",
+                "configuration_confirmed",
                 "verbose",
                 "extra_verbose",
                 "silent",
                 "save_old_graph_scores",
                 "testing_dendrite_capacity",
+                "strict_loading",
                 "using_safe_tensors",
                 "drawing_pai",
                 "drawing_extra_graphs",
@@ -422,6 +440,7 @@ class PAIConfig:
                 "retain_all_dendrites",
                 "find_best_lr",
                 "dont_give_up_unless_learning_rate_lowered",
+                "maximizing_score",
                 "candidate_weight_init_by_main",
                 "perforated_backpropagation",
                 "weight_tying_experimental",
@@ -452,7 +471,14 @@ class PAIConfig:
                 "candidate_weight_initialization_multiplier",
             )
         },
-        **{k: str for k in ("save_name", "library_validation_score", "dashboard_url")},
+        **{
+            k: str
+            for k in (
+                "save_name",
+                "library_validation_score",
+                "dashboard_url",
+            )
+        },
         "device": torch.device,
         "d_type": torch.dtype,
         "pai_forward_function": callable,
@@ -491,16 +517,16 @@ class PAIConfig:
     # in :py:meth:`__init__`, so they are meaningful when constructing a
     # module-specific PAIConfig instance.
     _CUSTOMIZABLE: dict = {
-        "verbose": bool,
-        "extra_verbose": bool,
-        "silent": bool,
-        "global_candidates": int,
+        #"verbose": bool,
+        #"extra_verbose": bool,
+        #"silent": bool,
+        #"global_candidates": int,
         "output_dimensions": list,
-        "candidate_weight_initialization_multiplier": float,
-        "candidate_weight_init_by_main": bool,
-        "retain_all_dendrites": bool,
-        "max_dendrites": int,
-        "pai_forward_function": callable,
+        #"candidate_weight_initialization_multiplier": float,
+        #"candidate_weight_init_by_main": bool,
+        #"retain_all_dendrites": bool,
+        #"max_dendrites": int,
+        #"pai_forward_function": callable,
     }
 
     def __getstate__(self):
@@ -603,6 +629,9 @@ class PAIConfig:
         # during construction (before add_pai_config_var_functions sets it).
         # Also disables auto-save in setters until the end of __init__.
         self.__dict__["_config_file"] = None
+        self.__dict__["_manually_set_keys"] = set()
+        self.__dict__["_loading_config_values"] = False
+        self.__dict__["_auto_persist_config"] = True
         # None = global config; any string = per-module config
         self.__dict__["_module_name"] = module_name
         # Short class name of the wrapped module (e.g. 'Conv2d'), used as
@@ -619,6 +648,9 @@ class PAIConfig:
 
             self.save_name = ""
             add_pai_config_var_functions(self, "save_name", self.save_name)
+
+            self.config_file = None
+            add_pai_config_var_functions(self, "config_file", self.config_file)
 
             # Debug settings
             self.debugging_output_dimensions = 0
@@ -638,13 +670,19 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "unwrapped_modules_confirmed", self.unwrapped_modules_confirmed
             )
-            self.weight_decay_accepted = False
+            # We used to be worried this caused problems, but it is now accepted.
+            # Leaving code in case future changes require revisiting this decision.
+            self.weight_decay_accepted = True
             add_pai_config_var_functions(
                 self, "weight_decay_accepted", self.weight_decay_accepted
             )
             self.checked_skipped_modules = False
             add_pai_config_var_functions(
                 self, "checked_skipped_modules", self.checked_skipped_modules
+            )
+            self.configuration_confirmed = False
+            add_pai_config_var_functions(
+                self, "configuration_confirmed", self.configuration_confirmed
             )
             # Analysis settings
             self.save_old_graph_scores = True
@@ -739,7 +777,7 @@ class PAIConfig:
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than
             # the above it will be ignored.
-            self.first_fixed_switch_num = 1
+            self.first_fixed_switch_num = -1
             add_pai_config_var_functions(
                 self, "first_fixed_switch_num", self.first_fixed_switch_num
             )
@@ -790,6 +828,11 @@ class PAIConfig:
                 self,
                 "dont_give_up_unless_learning_rate_lowered",
                 self.dont_give_up_unless_learning_rate_lowered,
+            )
+            # Whether a higher validation score is better (True) or lower is better (False).
+            self.maximizing_score = True
+            add_pai_config_var_functions(
+                self, "maximizing_score", self.maximizing_score
             )
 
             # Dendrite attempt settings
@@ -1039,6 +1082,30 @@ class PAIConfig:
             self, "pai_forward_function", self.pai_forward_function
         )
 
+        # Apply per-module overrides after defaults are defined so loaded values
+        # win over initializer defaults.
+        if module_name is not None:
+            import os
+
+            global_pc = globals().get("pc")
+            source_paths = []
+            if global_pc is not None:
+                config_file = getattr(global_pc, "__dict__", {}).get("_config_file")
+                run_config = global_pc.get_run_config_path()
+                if config_file:
+                    source_paths.append(config_file)
+                if run_config:
+                    source_paths.append(run_config)
+
+            for source_path in source_paths:
+                if source_path and os.path.exists(source_path):
+                    self.load_config(
+                        source_path,
+                        module_name=module_name,
+                        module_type=module_type,
+                    )
+                    break
+
         # ------------------------------------------------------------------
         # Config file will be set when save_name is assigned (in perforate_model)
         # ------------------------------------------------------------------
@@ -1076,11 +1143,20 @@ class PAIConfig:
             if not (key.startswith("_") and not key.startswith("__")):
                 continue
             # Skip internal bookkeeping keys that must not round-trip through JSON
-            if key in ("_config_file", "_module_name", "_module_type"):
-                continue
-            if callable(val):  # skip bound method refs
+            if key in (
+                "_config_file",
+                "_module_name",
+                "_module_type",
+                "_manually_set_keys",
+                "_loading_config_values",
+                "_auto_persist_config",
+            ):
                 continue
             clean_key = key[1:]
+            # Keep callable config fields (e.g. pai_forward_function) but skip
+            # any other private callable values that are not typed as callable.
+            if callable(val) and PAIConfig._TYPES.get(clean_key) is not callable:
+                continue
             try:
                 config_dict[clean_key] = _serialize_pai_value(val)
             except Exception:
@@ -1091,6 +1167,10 @@ class PAIConfig:
             if key.startswith("_") or callable(val):
                 continue
             if key not in config_dict:
+                # Keep config_file runtime-only: do not persist pointer paths in
+                # saved JSON snapshots.
+                if key == "config_file":
+                    continue
                 try:
                     config_dict[key] = _serialize_pai_value(val)
                 except Exception:
@@ -1127,13 +1207,15 @@ class PAIConfig:
         # Ensure the directory exists before saving
         import os
 
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        directory = os.path.dirname(filename)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
 
         with open(filename, "w") as f:
             json.dump(config_dict, f, indent=2)
         print(f"[PAI Config] Saved {len(config_dict)} variables \u2192 {filename}")
 
-    def load_config(self, filename, module_name=None, module_type=None):
+    def load_config(self, filename, module_name=None, module_type=None, skip_keys=None):
         """Load PAIConfig state from a JSON file produced by :py:meth:`save_config`.
 
         If *module_name* is ``None`` (default) every serialisable variable in
@@ -1152,6 +1234,9 @@ class PAIConfig:
             Display name (id) of the module whose custom settings should be loaded.
         module_type : str, optional
             Short class name of the module type, used as a fallback key.
+
+        skip_keys : set, optional
+            Variable names to ignore while loading (manual overrides).
 
         Returns
         -------
@@ -1206,47 +1291,112 @@ class PAIConfig:
             return
 
         # ── Global load: every variable in the JSON ──────────────────────────
+        skip_keys = set(skip_keys or [])
         loaded = 0
         skipped = 0
-        for key, json_val in config_dict.items():
-            # Skip internal bookkeeping and Studio-only metadata keys.
-            # 'module_name' and 'module_type' must never overwrite the
-            # instance's _module_name/_module_type (they are internal only).
-            if key in (
-                "config_file",
-                "module_settings",
-                "module_name",
-                "module_type",
-            ) or key.startswith("_"):
-                continue
-            type_hint = PAIConfig._TYPES.get(key)
-            private_key = f"_{key}"
-            if hasattr(self, private_key):
-                try:
-                    setattr(
-                        self,
-                        private_key,
-                        (
-                            _deserialize_pai_value(json_val, type_hint)
-                            if type_hint is not None
-                            else json_val
-                        ),
-                    )
-                    loaded += 1
-                except Exception as exc:
-                    print(f"[PAI Config] Warning: could not load '{key}': {exc}")
-                    skipped += 1
-            elif hasattr(self, key) and not callable(getattr(self, key, None)):
-                try:
-                    setattr(self, key, json_val)
-                    loaded += 1
-                except Exception:
-                    skipped += 1
+        self.__dict__["_loading_config_values"] = True
+        try:
+            for key, json_val in config_dict.items():
+                # Skip internal bookkeeping and Studio-only metadata keys.
+                # 'module_name' and 'module_type' must never overwrite the
+                # instance's _module_name/_module_type (they are internal only).
+                if key in (
+                    "config_file",
+                    "module_settings",
+                    "module_name",
+                    "module_type",
+                ) or key.startswith("_"):
+                    continue
+                if key in skip_keys:
+                    continue
+                type_hint = PAIConfig._TYPES.get(key)
+                private_key = f"_{key}"
+                if hasattr(self, private_key):
+                    try:
+                        setattr(
+                            self,
+                            private_key,
+                            (
+                                _deserialize_pai_value(json_val, type_hint)
+                                if type_hint is not None
+                                else json_val
+                            ),
+                        )
+                        loaded += 1
+                    except Exception as exc:
+                        print(f"[PAI Config] Warning: could not load '{key}': {exc}")
+                        skipped += 1
+                elif hasattr(self, key) and not callable(getattr(self, key, None)):
+                    try:
+                        setattr(self, key, json_val)
+                        loaded += 1
+                    except Exception:
+                        skipped += 1
+        finally:
+            self.__dict__["_loading_config_values"] = False
 
         print(
             f"[PAI Config] Loaded {loaded} variables from {filename}"
             + (f" ({skipped} skipped)" if skipped else "")
         )
+
+    def get_run_config_path(self):
+        """Get the run-specific config path derived from save_name.
+
+        Returns
+        -------
+        str or None
+            Path to the run config file, or None when save_name is unset.
+        """
+        import os
+
+        save_name = self.__dict__.get("_save_name")
+        if not save_name:
+            return None
+        return os.path.join(os.getcwd(), save_name, f"{save_name}_config.json")
+
+    def sync_config_sources(self):
+        """Load config values from configured local JSON sources.
+
+        Load order:
+        1. config_file pointer (if set)
+        2. run config derived from save_name (if present)
+
+        Keys set manually in this process are never overwritten.
+        """
+        import os
+
+        if self.__dict__.get("_module_name") is not None:
+            return
+
+        skip_keys = self.__dict__.get("_manually_set_keys", set())
+        config_file = self.__dict__.get("_config_file")
+        run_config = self.get_run_config_path()
+
+        if config_file and os.path.exists(config_file):
+            self.load_config(config_file, skip_keys=skip_keys)
+        if run_config and os.path.exists(run_config):
+            self.load_config(run_config, skip_keys=skip_keys)
+
+    def persist_config_outputs(self, overwrite_config_file=False):
+        """Persist current config state to local JSON outputs.
+
+        Parameters
+        ----------
+        overwrite_config_file : bool
+            When True, also writes the configured config_file pointer target.
+        """
+        if self.__dict__.get("_module_name") is not None:
+            return
+
+        run_config = self.get_run_config_path()
+        if run_config:
+            self.save_config(run_config)
+
+        if overwrite_config_file:
+            config_file = self.__dict__.get("_config_file")
+            if config_file:
+                self.save_config(config_file)
 
 
 class PAISequential(nn.Sequential):
