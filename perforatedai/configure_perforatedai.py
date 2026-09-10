@@ -1011,7 +1011,7 @@ def make_target_marker(entry, record):
     block_display = make_block(mode)
     if record["source"] == "inherited":
         return f"↳ {block_display} ", "↳ ██ "
-    if record["source"] == "type":
+    if record["source"] == "id":
         return f"* {block_display} ", "* ██ "
     return f"  {block_display} ", "  ██ "
 
@@ -1372,8 +1372,8 @@ def render_legend_overlay():
         + " — no dendrites, the parameters are just counted",
         "",
         dim("  Marker prefixes"),
-        f"     {perf}     mode set directly on this module (by id)",
-        f"   * {perf}     set by type name — every module of this class",
+        f"   * {perf}     mode set directly on this module (by id)",
+        f"     {perf}     set by type name — every module of this class",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
         "   ↯         will be restructured for PAI before training;",

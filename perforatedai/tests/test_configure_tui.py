@@ -70,8 +70,17 @@ def test_perforate_by_id_updates_marker_and_budget(monkeypatch, capsys):
     frames = driver.run(capsys)
     final = frames[-1]
     assert "mode=perforate" in final
+    assert "* ██" in final  # star marks a mode set directly by id
     assert "Perforation budget:" in final
     assert "params per dendrite cycle" in final
+
+
+def test_type_rule_row_has_no_star_marker(monkeypatch, capsys):
+    driver = Driver(monkeypatch, ["P"])  # perforate the whole Conv2d type
+    frames = driver.run(capsys)
+    final = frames[-1]
+    assert "  ██  .0  [Conv2d]" in final  # by-type rows use a plain block
+    assert "* ██  .0  [Conv2d]" not in final
 
 
 def test_type_rule_shows_in_overlay_with_count(monkeypatch, capsys):
