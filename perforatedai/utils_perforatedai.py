@@ -154,7 +154,14 @@ def perforate_model(
         values_per_val_epoch=values_per_val_epoch,
         zooming_graph=zooming_graph,
     )
-    
+
+    # Persist the resolved configuration so Studio/dashboard tooling and resume
+    # flows can read {save_name}/{save_name}_config.json. The interactive TUI
+    # also writes this when used; doing it here covers the skip-TUI path
+    # (configuration_confirmed=True) and keeps the write unconditional.
+    if not GPA.pc.get_testing_dendrite_capacity():
+        GPA.pc.persist_config_outputs(overwrite_config_file=False)
+
     return model
 
 

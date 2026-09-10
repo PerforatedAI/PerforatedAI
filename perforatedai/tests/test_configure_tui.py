@@ -6,6 +6,8 @@ script runs out the fake key reader raises ``KeyboardInterrupt``, which the TUI
 treats as a clean quit (``SystemExit``), so every test ends in ``SystemExit``.
 """
 
+import os
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -42,6 +44,7 @@ class Driver:
         self.frames = []
         monkeypatch.setattr(CPA, "enter_alternate_screen", lambda: None)
         monkeypatch.setattr(CPA, "exit_alternate_screen", lambda: None)
+        monkeypatch.setattr(CPA, "require_interactive_session", lambda: None)
         monkeypatch.setattr(CPA, "read_single_key", self._next_key)
 
     def _next_key(self):
@@ -143,6 +146,38 @@ def test_switch_mode_renders_by_name_and_cycles(monkeypatch, capsys):
     # after one cycle from DOING_HISTORY the value should have changed
     final = frames[-1]
     assert "switch_mode = DOING_FIXED_SWITCH" in final
+
+
+def test_require_interactive_session_raises_without_tty(monkeypatch):
+    monkeypatch.setattr(CPA.sys.stdin, "isatty", lambda: False, raising=False)
+    with pytest.raises(RuntimeError, match="configuration_confirmed"):
+        CPA.require_interactive_session()
+
+
+def test_require_interactive_session_raises_off_rank_zero(monkeypatch):
+    monkeypatch.setattr(CPA.sys.stdin, "isatty", lambda: True, raising=False)
+    monkeypatch.setattr(CPA.sys.stdout, "isatty", lambda: True, raising=False)
+    monkeypatch.setenv("RANK", "2")
+    with pytest.raises(RuntimeError, match="rank is 2"):
+        CPA.require_interactive_session()
+
+
+def test_scroll_window_is_wrap_aware(monkeypatch):
+    monkeypatch.setattr(CPA, "terminal_size", lambda: os.terminal_size((40, 20)))
+    header = ["header"] * 3
+    footer = ["FOOTER-BUDGET", "FOOTER-KEYS"]
+    body = ["row-" + "x" * 120 for _ in range(30)]  # each wraps to several rows at 40 cols
+    text, _ = CPA.compose_scrolling_screen(header, body, footer, 0, focus=(0, 1))
+    lines = text.split("\n")
+    assert CPA.get_visual_line_count(lines, 40) <= 20  # fits the viewport
+    assert lines[-1] == "FOOTER-KEYS"  # footer never scrolls off
+
+
+def test_callable_repr_shared_between_serialize_and_display():
+    for fn in (torch.relu, torch.tanh, torch.sigmoid):
+        shared = GPA.callable_config_repr(fn)
+        assert shared == CPA.format_setting_value(fn)
+        assert shared == GPA._serialize_pai_value(fn)
 
 
 def test_quit_confirim_exits(monkeypatch, capsys):

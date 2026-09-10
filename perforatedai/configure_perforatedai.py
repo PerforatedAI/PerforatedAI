@@ -131,33 +131,6 @@ def get_parent_module_id(module_id):
     return "." + ".".join(parts[1:-1])
 
 
-def build_recursive_modes(entries):
-    """Build recursive inherited modes for all entries.
-
-    - if an ancestor has a recursive mode, inherit it (descendant override ignored)
-    - otherwise an explicit id mode or explicit name mode sets this node's mode
-    """
-    recursive_modes = {}
-    for entry in entries:
-        explicit_mode = get_id_mode(entry["id"])
-        if explicit_mode is None:
-            explicit_mode = get_name_mode(entry["type_name"])
-
-        parent_id = get_parent_module_id(entry["id"])
-        parent_mode = None
-        if parent_id is not None:
-            parent_mode = recursive_modes.get(parent_id)
-
-        if parent_mode is not None:
-            recursive_modes[entry["id"]] = parent_mode
-        elif explicit_mode is not None:
-            recursive_modes[entry["id"]] = explicit_mode
-        else:
-            recursive_modes[entry["id"]] = None
-
-    return recursive_modes
-
-
 def resolve_entry_modes(entries):
     """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
@@ -232,13 +205,6 @@ def format_human_count(value):
     scaled = value / 1000000000.0
     text = f"{scaled:.1f}"
     return (text[:-2] if text.endswith(".0") else text) + "B"
-
-
-def module_has_direct_parameters(module):
-    """Check whether a module directly owns any parameters."""
-    for _name, _param in module.named_parameters(recurse=False):
-        return True
-    return False
 
 
 def _ansi(text, code):
@@ -656,16 +622,7 @@ def format_setting_value(value):
     if value is None:
         return "None"
     if callable(value):
-        name = getattr(value, "__name__", None) or getattr(value, "__qualname__", None)
-        mod = getattr(value, "__module__", None)
-        if name in ("sigmoid", "relu", "tanh"):
-            text = f"torch.{name}"
-        elif name and mod:
-            text = f"{mod}.{name}"
-        elif name:
-            text = str(name)
-        else:
-            text = repr(value)
+        text = GPA.callable_config_repr(value)
     else:
         text = str(value)
     if len(text) > 140:
@@ -1028,8 +985,8 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
     lines = [render_tab_bar("targets"), ""]
     lines.append(
         dim(
-            "  perforate = add dendrites   ·   track = no dendrites, just counted"
-            "   ·   every parameter needs one"
+            "  perforate = add dendrites   ·   track = not perforated"
+            "   "
         )
     )
     lines.append("")
@@ -1164,26 +1121,62 @@ def render_run_settings_lines(items, selected_index, describe_name):
 
 
 def compose_scrolling_screen(header_lines, body_lines, footer_lines, window_start, focus=None):
-    """Join a header + windowed body + footer into one screen string."""
+    """Join a header + windowed body + footer into one screen string.
+
+    Body rows may wrap to more than one terminal row, so the window is measured
+    in *rendered* rows (after wrapping), not logical lines — otherwise a narrow
+    terminal pushes the footer and budget line off-screen.
+    """
     size = terminal_size()
     columns = size.columns
     reserved = get_visual_line_count(header_lines, columns) + get_visual_line_count(
         footer_lines, columns
     )
-    available = max(1, size.lines - reserved - 3)
+    # Two rows held back for the ^^^^ / vvvv overflow indicators.
+    budget = max(1, size.lines - reserved - 3 - 2)
 
     total = len(body_lines)
 
-    # Scroll the window so the focused (selected) rows stay visible.
+    def rows_for(line):
+        return max(1, get_visual_line_count([line], columns))
+
+    def window_end_from(start):
+        used = 0
+        end = start
+        while end < total:
+            height = rows_for(body_lines[end])
+            if end > start and used + height > budget:
+                break
+            used += height
+            end += 1
+        return end
+
+    def window_start_for_end(end):
+        used = 0
+        start = end
+        while start > 0:
+            height = rows_for(body_lines[start - 1])
+            if used + height > budget:
+                break
+            used += height
+            start -= 1
+        return start
+
     if focus is not None:
         focus_start, focus_end = focus
+        focus_start = max(0, min(focus_start, total))
+        focus_end = max(focus_start + 1, min(focus_end, total))
         if focus_start < window_start:
             window_start = focus_start
-        if focus_end > window_start + available:
-            window_start = focus_end - available
+        if window_end_from(window_start) < focus_end:
+            window_start = window_start_for_end(focus_end)
 
-    window_start = max(0, min(window_start, max(0, total - available)))
-    window_end = min(total, window_start + available)
+    window_start = max(0, min(window_start, total))
+    window_end = window_end_from(window_start)
+    # Grow upward if there is spare room at the bottom of the list.
+    if window_end >= total:
+        window_start = min(window_start, window_start_for_end(total))
+        window_end = total
 
     out = list(header_lines)
     if window_start > 0:
@@ -1483,12 +1476,53 @@ def _move(index, delta, length):
     return max(0, min(length - 1, index + delta))
 
 
+def _distributed_rank():
+    """Best-effort process rank for common launchers (0 when not distributed)."""
+    for var in ("RANK", "LOCAL_RANK", "SLURM_PROCID", "OMPI_COMM_WORLD_RANK"):
+        value = os.environ.get(var)
+        if value is not None:
+            try:
+                return int(value)
+            except ValueError:
+                return 0
+    return 0
+
+
+def require_interactive_session():
+    """Raise a clear error if the TUI cannot be driven in this process.
+
+    The configuration TUI reads raw keystrokes from the terminal. Under CI,
+    ``nohup``, notebooks, piped stdin, or non-rank-0 distributed workers there is
+    no usable TTY, so we fail fast with actionable guidance instead of crashing
+    inside ``termios``.
+    """
+    try:
+        is_tty = bool(sys.stdin.isatty() and sys.stdout.isatty())
+    except (ValueError, AttributeError, OSError):
+        is_tty = False
+    rank = _distributed_rank()
+
+    if is_tty and rank == 0:
+        return
+
+    reason = "no interactive terminal is attached" if not is_tty else f"process rank is {rank}, not 0"
+    raise RuntimeError(
+        "Perforation configuration has not been confirmed, and it cannot be done "
+        f"interactively here ({reason}).\n"
+        "Run perforate_model once from an interactive terminal to choose "
+        "perforation targets, or set configuration_confirmed=True in your config "
+        "file (or call GPA.pc.set_configuration_confirmed(True) before "
+        "perforate_model) to skip the interactive step."
+    )
+
+
 def set_perforation_targets(model):
     """Interactive configuration TUI for perforation targets and run settings.
 
     Two screens (Tab to switch): Targets (the module tree) and Run settings.
     See the `?` overlay for the full key reference.
     """
+    require_interactive_session()
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
     entered_alt_screen = False

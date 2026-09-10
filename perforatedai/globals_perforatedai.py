@@ -220,6 +220,26 @@ def _resolve_dotted_name(dotted_name):
     return getattr(builtins, dotted_name, None)
 
 
+_TORCH_ACTIVATION_SHORTHAND = ("sigmoid", "relu", "tanh")
+
+
+def callable_config_repr(val):
+    """Canonical string form of a callable config value (e.g. pai_forward_function).
+
+    Shared by config serialisation and the interactive configuration display so
+    the two never disagree on how a callable is named.
+    """
+    name = getattr(val, "__name__", None) or getattr(val, "__qualname__", None)
+    mod = getattr(val, "__module__", None)
+    if name and mod:
+        if name in _TORCH_ACTIVATION_SHORTHAND:
+            return f"torch.{name}"
+        return f"{mod}.{name}"
+    if name:
+        return str(name)
+    return repr(val)
+
+
 def _serialize_pai_value(val):
     """Recursively convert a PAIConfig value to a JSON-serialisable form."""
     if isinstance(val, bool):
@@ -236,15 +256,7 @@ def _serialize_pai_value(val):
         mod = getattr(val, "__module__", "") or ""
         return f"{mod}.{val.__name__}" if mod else val.__name__
     if callable(val):
-        name = getattr(val, "__name__", None) or getattr(val, "__qualname__", None)
-        mod = getattr(val, "__module__", None)
-        if name and mod:
-            if name in ("sigmoid", "relu", "tanh"):
-                return f"torch.{name}"
-            return f"{mod}.{name}"
-        if name:
-            return str(name)
-        return repr(val)
+        return callable_config_repr(val)
     return str(val)
 
 
