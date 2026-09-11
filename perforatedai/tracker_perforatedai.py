@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Perforated AI
 
+import glob
 import io
 import math
 import os
@@ -3819,6 +3820,128 @@ class PAINeuronModuleTracker:
 
         # Always False for training complete if nothing triggered that training is over
         return net, restructuring_status_value, False
+
+    def add_validation_score_distributed(
+        self,
+        accuracy,
+        net,
+        force_switch=False,
+        save_name=None,
+        find_unused_parameters=True,
+    ):
+        """DDP-aware wrapper around add_validation_score.
+
+        Restructuring decisions in PerforatedAI are made by mutating a
+        single in-memory model object, which only ever happens on the rank
+        that calls add_validation_score. Under DistributedDataParallel that
+        can only safely be rank 0 (calling it on every rank would let each
+        process make an independent, possibly divergent, decision). This
+        function does the rank-0-only evaluation, broadcasts the resulting
+        decision to every other rank, and -- if a restructure happened --
+        has the other ranks load the same switch_N.pt checkpoint rank 0 just
+        wrote so every rank ends up with an identical architecture, then
+        rebuilds the DistributedDataParallel wrapper on every rank. None of
+        that requires exiting or relaunching the process.
+
+        When torch.distributed is not initialized (single-GPU or
+        DataParallel), this just calls add_validation_score directly, so the
+        same call site works unmodified across all three modes.
+
+        Callers are still responsible for rebuilding their optimizer (via
+        setup_optimizer) whenever `restructured` comes back True, exactly as
+        with the non-distributed path -- this function does not own
+        optimizer/scheduler state.
+
+        Parameters
+        ----------
+        accuracy : float or int
+            The accuracy or loss value to add. Only used on rank 0; other
+            ranks may pass any value, it is ignored.
+        net : nn.Module or nn.parallel.DistributedDataParallel
+            The network, optionally already wrapped in
+            DistributedDataParallel.
+        force_switch : bool, optional
+            Whether to force a switch, by default False. Only honored on
+            rank 0.
+        save_name : str, optional
+            Folder to read the restructured checkpoint from on non-zero
+            ranks. Defaults to GPA.pc.get_save_name().
+        find_unused_parameters : bool, optional
+            Passed through to the rebuilt DistributedDataParallel wrapper
+            after a restructure, by default True (required for
+            PerforatedAI's selective/dendrite training under DDP).
+
+        Returns
+        -------
+        net : nn.Module or nn.parallel.DistributedDataParallel
+            The (possibly restructured) network, wrapped in
+            DistributedDataParallel if and only if it was wrapped on input.
+        restructured : bool
+            Whether the model was restructured, agreed across all ranks.
+        training_complete : bool
+            Whether training is complete, agreed across all ranks.
+        """
+        if not (
+            torch.distributed.is_available() and torch.distributed.is_initialized()
+        ):
+            return self.add_validation_score(accuracy, net, force_switch=force_switch)
+
+        rank = torch.distributed.get_rank()
+        is_ddp = isinstance(net, nn.parallel.DistributedDataParallel)
+        inner = net.module if is_ddp else net
+        device = next(inner.parameters()).device
+        save_name = save_name if save_name is not None else GPA.pc.get_save_name()
+
+        if rank == 0:
+            inner, restructured, training_complete = self.add_validation_score(
+                accuracy, inner, force_switch=force_switch
+            )
+        else:
+            restructured, training_complete = False, False
+
+        flags = torch.tensor(
+            [1 if restructured else 0, 1 if training_complete else 0], dtype=torch.int
+        )
+        torch.distributed.broadcast(flags, src=0)
+        restructured = bool(flags[0].item())
+        training_complete = bool(flags[1].item())
+
+        if not restructured:
+            inner = inner.to(device)
+            if is_ddp:
+                net.module = inner
+                return net, restructured, training_complete
+            return inner, restructured, training_complete
+
+        if rank != 0:
+            switch_files = glob.glob(os.path.join(save_name, "switch_*.pt"))
+            if not switch_files:
+                raise RuntimeError(
+                    f"Rank {rank} was told the model restructured, but no "
+                    f"switch_*.pt checkpoint was found in '{save_name}'. "
+                    "Rank 0 must be able to write to the same shared folder "
+                    "every other rank can read from."
+                )
+            switch_numbers = [
+                int(os.path.basename(f).split("switch_")[1].split(".pt")[0])
+                for f in switch_files
+            ]
+            inner = UPA.load_system(
+                inner, save_name, f"switch_{max(switch_numbers)}", True
+            )
+
+        # Every rank must have its model in its final restructured form
+        # before any rank starts constructing the new DDP wrapper.
+        torch.distributed.barrier()
+        inner = inner.to(device)
+        if is_ddp:
+            net = nn.parallel.DistributedDataParallel(
+                inner, find_unused_parameters=find_unused_parameters
+            )
+        else:
+            net = inner
+
+        return net, restructured, training_complete
 
     def clear_all_processors(self):
         """Clear all processors from modules.
