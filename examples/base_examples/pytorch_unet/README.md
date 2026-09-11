@@ -1,6 +1,6 @@
 # PAI Readme
 
-Checked out from https://github.com/milesial/Pytorch-UNet.git July 12th 2024.  See more details about original at that link.
+Checked out from https://github.com/milesial/Pytorch-UNet.git. See more details about original at that link.
 
 Setup with:
 
