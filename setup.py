@@ -4,7 +4,7 @@ setup(
     name="perforatedai",
     # Remember to also edit setupCython
     version="3.2.8",
-    packages=["perforatedai", "dashboard_utils"],
+    packages=["perforatedai"],
     package_data={"perforatedai": ["*.json"]},
     include_package_data=True,
     author="PerforatedAI",

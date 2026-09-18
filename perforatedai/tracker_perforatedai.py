@@ -24,10 +24,14 @@ from perforatedai import modules_perforatedai as PA
 from perforatedai import utils_perforatedai as UPA
 
 try:
-    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
-except ImportError as e:
-    print(f"[ERROR] Failed to import dashboard_utils.event_emitter: {e}")
-    _dashboard_emitter = None
+    from studio_transport.event_emitter import emitter as _dashboard_emitter
+except ModuleNotFoundError as e:
+    # Only pass if studio_transport package itself is missing
+    if e.name == "studio_transport":
+        _dashboard_emitter = None
+    else:
+        # studio_transport exists but is missing a dependency
+        raise
 
 
 def _pai_log(level, message):

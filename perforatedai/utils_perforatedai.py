@@ -22,9 +22,14 @@ from perforatedai import network_perforatedai as NPA
 from perforatedai import configure_perforatedai as CPA
 
 try:
-    from dashboard_utils.event_emitter import emitter as _dashboard_emitter
-except ImportError:
-    _dashboard_emitter = None
+    from studio_transport.event_emitter import emitter as _dashboard_emitter
+except ModuleNotFoundError as e:
+    # Only pass if studio_transport package itself is missing
+    if e.name == "studio_transport":
+        _dashboard_emitter = None
+    else:
+        # studio_transport exists but is missing a dependency
+        raise
 
 try:
     from perforatedbp import utils_pbp as UPB
