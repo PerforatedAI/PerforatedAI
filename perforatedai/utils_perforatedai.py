@@ -862,18 +862,26 @@ def convert_network(net, layer_name=""):
                 "\n------------------------------------------------------------------"
             )
             print(
-                "The following params are not wrapped.\n------------------------------------------------------------------"
+                "%d params are not wrapped, %d params are not tracked or wrapped."
+                % (len(tracked_ones), len(missed_ones))
             )
-            for name in tracked_ones:
-                print("." + name)
-            print(
-                "\n------------------------------------------------------------------"
-            )
-            print(
-                "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
-            )
-            for name in missed_ones:
-                print("." + name)
+            if GPA.pc.get_verbose():
+                print(
+                    "------------------------------------------------------------------"
+                )
+                print(
+                    "The following params are not wrapped.\n------------------------------------------------------------------"
+                )
+                for name in tracked_ones:
+                    print("." + name)
+                print(
+                    "\n------------------------------------------------------------------"
+                )
+                print(
+                    "The following params are not tracked or wrapped.\n------------------------------------------------------------------"
+                )
+                for name in missed_ones:
+                    print("." + name)
             print(
                 "\n------------------------------------------------------------------"
             )
@@ -1033,6 +1041,8 @@ def load_system(
     """
     if GPA.pc.get_verbose():
         print("loading system %s" % name)
+    if not switch_call and not load_from_manual_save:
+        print("Loading system %s (user initiated)" % name)
     net = load_net(net, folder, name)
     GPA.pai_tracker.reset_module_vector(net, load_from_restart)
 

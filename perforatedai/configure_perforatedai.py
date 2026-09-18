@@ -1655,7 +1655,7 @@ def set_perforation_targets(model):
 
         run_selected_index = 0
         run_window_start = 0
-        expanded_buckets = {}
+        expanded_buckets = {"Run basics": True}
         describe_name = ""
 
         ov_scope = None
