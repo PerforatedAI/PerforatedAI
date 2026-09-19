@@ -14,13 +14,13 @@ Foundational, first-party integrations across common architectures.
 
 | Example                                                                                    | What it shows                                                                                         |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| [MNIST](baseExamples/mnist)                                                                | The canonical integration and the template to copy when contributing a new example. Start here.       |
-| [ResNet](baseExamples/resnet)                                                              | ResNet-18 on Food-101 combined with knowledge distillation.                                           |
-| [Transformer](baseExamples/transformer)                                                    | Head-to-head comparison of a dendritic vs. vanilla Transformer language model.                        |
-| [YOLO (Pascal)](baseExamples/yolo-pascal)                                                  | YOLOv11n object detection made more accurate with dendrites.                                          |
-| [PyTorch-UNet](baseExamples/Pytorch-UNet)                                                  | U-Net image segmentation (fork of [milesial/Pytorch-UNet](https://github.com/milesial/Pytorch-UNet)). |
-| [Segmentation Resolution](baseExamples/segmentation-resolution/Human-Segmentation-PyTorch) | Human-segmentation experiments across input resolutions.                                              |
-| [scRNA Cell Type](baseExamples/scrna_celltype)                                             | Single-cell RNA-seq cell-type annotation with dendritic transformers.                                 |
+| [MNIST](base_examples/mnist)                                                               | The canonical integration and the template to copy when contributing a new example. Start here.       |
+| [ResNet](base_examples/resnet)                                                             | ResNet-18 on Food-101 combined with knowledge distillation.                                           |
+| [Transformer](base_examples/transformer)                                                   | Head-to-head comparison of a dendritic vs. vanilla Transformer language model.                        |
+| [YOLO (Pascal)](base_examples/yolo-pascal)                                                 | YOLOv11n object detection made more accurate with dendrites.                                          |
+| [PyTorch-UNet](base_examples/Pytorch-UNet)                                                 | U-Net image segmentation (fork of [milesial/Pytorch-UNet](https://github.com/milesial/Pytorch-UNet)). |
+| [Segmentation Resolution](base_examples/segmentation-resolution/Human-Segmentation-PyTorch)| Human-segmentation experiments across input resolutions.                                              |
+| [scRNA Cell Type](base_examples/scrna_celltype)                                            | Single-cell RNA-seq cell-type annotation with dendritic transformers.                                 |
 
 ### Library & Framework Integrations
 
@@ -28,23 +28,15 @@ Using PAI inside popular training frameworks.
 
 | Example                                                | What it shows                                                                                           |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| [Hugging Face](libraryExamples/huggingface)            | Transformers with dendritic layers - MNIST, BERT classification, and a ViT-Tiny classifier on RVL-CDIP. |
-| [PyTorch Lightning](libraryExamples/pytorch_lightning) | Integrating PAI into a PyTorch Lightning training loop (MNIST).                                         |
+| [Hugging Face](library_examples/huggingface)            | Transformers with dendritic layers - MNIST, BERT classification, and a ViT-Tiny classifier on RVL-CDIP. |
+| [PyTorch Lightning](library_examples/pytorch_lightning) | Integrating PAI into a PyTorch Lightning training loop (MNIST).                                         |
 
 ### Reinforcement Learning
 
 | Example                                            | What it shows                                         |
 | -------------------------------------------------- | ----------------------------------------------------- |
-| [TD3 (Cheetah)](reinforcementLearning/td3_cheetah) | TD3 continuous control on the DeepMind Control Suite. |
-| [DQN (MinAtar)](reinforcementLearning/dqn_minatar) | DQN on MinAtar's miniaturized Atari 2600 games.       |
-
-### Challenge Examples
-
-Larger or harder reproductions.
-
-| Example                              | What it shows                                   |
-| ------------------------------------ | ----------------------------------------------- |
-| [nanoGPT](challengeExamples/nanoGPT) | Reproducing Perforated AI's results on nanoGPT. |
+| [TD3 (Cheetah)](reinforcement_learning/td3_cheetah) | TD3 continuous control on the DeepMind Control Suite. |
+| [DQN (MinAtar)](reinforcement_learning/dqn_minatar) | DQN on MinAtar's miniaturized Atari 2600 games.       |
 
 ### ImageNet
 
@@ -59,9 +51,9 @@ Experimental and domain-specific integrations.
 
 | Example                                                                         | What it shows                                                                       |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [KAN](additionalExamples/KAN)                                                   | Converting and experimenting with Kolmogorov–Arnold Networks via `perforate_model`. |
-| [Fire Detection](additionalExamples/fire_detection_pai_experiments)             | Wildfire prediction from satellite-derived vegetation and temperature data.         |
-| [Hallucination Classification](additionalExamples/hallucination_classification) | Detecting hallucinated answers in medical QA pairs (MedHallu).                      |
+| [KAN](additional_examples/KAN)                                                   | Converting and experimenting with Kolmogorov–Arnold Networks via `perforate_model`. |
+| [Fire Detection](additional_examples/fire_detection_pai_experiments)             | Wildfire prediction from satellite-derived vegetation and temperature data.         |
+| [Hallucination Classification](additional_examples/hallucination_classification) | Detecting hallucinated answers in medical QA pairs (MedHallu).                      |
 
 ### Hackathon Projects
 
