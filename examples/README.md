@@ -19,8 +19,7 @@ Foundational, first-party integrations across common architectures.
 | [Transformer](base_examples/transformer)                                                   | Head-to-head comparison of a dendritic vs. vanilla Transformer language model.                        |
 | [YOLO (Pascal)](base_examples/yolo-pascal)                                                 | YOLOv11n object detection made more accurate with dendrites.                                          |
 | [PyTorch-UNet](base_examples/Pytorch-UNet)                                                 | U-Net image segmentation (fork of [milesial/Pytorch-UNet](https://github.com/milesial/Pytorch-UNet)). |
-| [Segmentation Resolution](base_examples/segmentation-resolution/Human-Segmentation-PyTorch)| Human-segmentation experiments across input resolutions.                                              |
-| [scRNA Cell Type](base_examples/scrna_celltype)                                            | Single-cell RNA-seq cell-type annotation with dendritic transformers.                                 |
+| [Segmentation Resolution](base_examples/segmentation-image-resolution)                     | Human-segmentation experiments across input resolutions.                                              |
 
 ### Library & Framework Integrations
 
@@ -43,21 +42,20 @@ Using PAI inside popular training frameworks.
 | Example                                    | What it shows                                               |
 | ------------------------------------------ | ----------------------------------------------------------- |
 | [ImageNet](imagenet)                       | Training a ResNet on the ImageNet dataset.                  |
-| [ImageNet Pretrained](imagenet_pretrained) | Using our ImageNet-pretrained models (currently ResNet-18). |
+| [ImageNet Pretrained](transfer_learning) | Using our ImageNet-pretrained models (currently ResNet-18). |
 
-### Additional Examples
+### External Examples
 
-Experimental and domain-specific integrations.
+Projects with integration with external repos that are not full libraries
 
 | Example                                                                         | What it shows                                                                       |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [KAN](additional_examples/KAN)                                                   | Converting and experimenting with Kolmogorov–Arnold Networks via `perforate_model`. |
-| [Fire Detection](additional_examples/fire_detection_pai_experiments)             | Wildfire prediction from satellite-derived vegetation and temperature data.         |
-| [Hallucination Classification](additional_examples/hallucination_classification) | Detecting hallucinated answers in medical QA pairs (MedHallu).                      |
+| [KAN](external_examples/KAN)                                                    | Converting and experimenting with Kolmogorov–Arnold Networks via `perforate_model`. |
+| [Video Classification](external_examples/video_classification)                  | Accuracy improvement for a video classification model optimized for edge deployment |
 
-### Hackathon Projects
+### Submitted Projects
 
-Community submissions from hackathons - a large and growing collection covering many additional architectures and domains. These have not necessarily been verified by us, so use them as examples at your own risk. See the [Hackathon Projects index](hackathonProjects) for the full list.
+Community submissions - a large and growing collection covering many additional architectures and domains. These have not necessarily been verified by us, so use them as examples at your own risk. See the [Submitted Projects Index](submitted_projects) for the full list.
 
 ## Contributing
 
