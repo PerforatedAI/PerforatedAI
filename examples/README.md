@@ -18,7 +18,7 @@ Foundational, first-party integrations across common architectures.
 | [ResNet](base_examples/resnet)                                                             | ResNet-18 on Food-101 combined with knowledge distillation.                                           |
 | [Transformer](base_examples/transformer)                                                   | Head-to-head comparison of a dendritic vs. vanilla Transformer language model.                        |
 | [YOLO (Pascal)](base_examples/yolo-pascal)                                                 | YOLOv11n object detection made more accurate with dendrites.                                          |
-| [PyTorch-UNet](base_examples/Pytorch-UNet)                                                 | U-Net image segmentation (fork of [milesial/Pytorch-UNet](https://github.com/milesial/Pytorch-UNet)). |
+| [PyTorch-UNet](base_examples/pytorch_unet)                                                 | U-Net image segmentation (fork of [milesial/Pytorch-UNet](https://github.com/milesial/Pytorch-UNet)). |
 | [Segmentation Resolution](base_examples/segmentation-image-resolution)                     | Human-segmentation experiments across input resolutions.                                              |
 
 ### Library & Framework Integrations
@@ -59,7 +59,7 @@ Community submissions - a large and growing collection covering many additional 
 
 ## Contributing
 
-We welcome any contributions to this folder. Please look at the [MNIST example](baseExamples/mnist) for how to format a contribution.
+We welcome any contributions to this folder. Please look at the [MNIST example](base_examples/mnist) for how to format a contribution.
 
 ## Licensing
 
