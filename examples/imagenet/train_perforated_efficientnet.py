@@ -756,8 +756,10 @@ def main(args):
 
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
-        model = UPA.perforate_model(model, save_name=args.perforated_load_path)
-        model = UPA.load_system(model, args.perforated_load_path, "latest", True)
+        load_dir = os.path.dirname(args.perforated_load_path)
+        load_file = os.path.splitext(os.path.basename(args.perforated_load_path))[0]
+        model = UPA.perforate_model(model, save_name=load_dir)
+        model = UPA.load_system(model, load_dir, load_file, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
 

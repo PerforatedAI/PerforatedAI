@@ -470,7 +470,6 @@ def initialize_dendrites(model, n):
         if hasattr(module, 'dendrite_module'):
             UPA.simulate_cycles(module, n * 2, doing_pai=True)
 
-    from rf_dendrites_original import SparseLinear
     filled = 0
     for module in model.modules():
         if hasattr(module, 'dendrites_to_top') and len(module.dendrites_to_top) > 0:
@@ -480,17 +479,6 @@ def initialize_dendrites(model, n):
                   f"shape={module.dendrites_to_top[-1].shape}, "
                   f"dendrites_added={module.dendrite_modules_added}")
     print(f"initialize_dendrites: filled {filled} module(s)")
-
-    # The approved dendrite bypasses init_params and uses xavier_uniform_.
-    # Reinit to match nn.Linear defaults exactly (kaiming_uniform_ + bias uniform)
-    # so CleanSomas + fully-connected identity dendrite == nn.Linear.
-    import math
-    for module in model.modules():
-        if isinstance(module, SparseLinear):
-            nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))
-            fan_in = module.weight.size(1)
-            bound = 1.0 / math.sqrt(fan_in)
-            nn.init.uniform_(module.bias, -bound, bound)
 
 
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
@@ -755,7 +743,7 @@ def load_data(traindir, valdir, args):
 
 
 def main(args):
-    TESTING = True  # True = DOING_FIXED_SWITCH with fixed_switch_num=3 (load testing)
+    TESTING = False  # True = DOING_FIXED_SWITCH with fixed_switch_num=3 (load testing)
 
     # Initialize wandb if enabled
     run = None
@@ -963,12 +951,12 @@ def main(args):
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
         model = UPA.perforate_model(model, save_name=args.perforated_load_path)
-        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random')
+        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
         model = UPA.load_system(model, args.perforated_load_path, args.load_checkpoint_name, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
         # Must be called after perforate_model so GPA.pai_tracker is initialized.
-        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random')
+        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
     model.to(device)
 
     if args.perforated_load_path == "":
