@@ -274,6 +274,12 @@ def extract_data_percent_from_run_name(
         value = match_data_percent.group(1)
         return f"data_percent_{value}", f"{float(value):g}% data"
 
+    match_dataset_fraction = re.search(r"dataset_fraction_([0-9]+(?:\.[0-9]+)?)", text)
+    if match_dataset_fraction:
+        value = match_dataset_fraction.group(1)
+        pct = float(value) * 100
+        return f"dataset_fraction_{value}", f"{pct:g}% data"
+
     match_subj = re.search(r"subj_([0-9]+(?:\.[0-9]+)?)", text)
     match_samp = re.search(r"samp_([0-9]+(?:\.[0-9]+)?)", text)
 
@@ -2879,10 +2885,25 @@ def create_data_percent_line_plot(
                     if present_fraction < dendrite_percent_to_graph:
                         continue
 
-                param_sum       = sum(p[0] for p in pair_list)
-                score_sum       = sum(p[1] for p in pair_list)
-                avg_param_count = float(param_sum / len(pair_list))
-                avg_score       = float(score_sum / len(pair_list))
+                # Fill-forward: runs that stopped before dendrite_idx contribute
+                # their best achieved score at any lower dendrite.  This keeps
+                # the denominator equal across all dendrite levels so a higher-
+                # dendrite mean can't be artificially low due to a smaller,
+                # biased subset of runs.
+                fill_scores: List[float] = []
+                for run_id in grouped_entry["run_ids"]:
+                    run_scores = run_data[run_id]["scores"]
+                    available = [d for d in run_scores if d <= dendrite_idx]
+                    if not available:
+                        continue
+                    _, score = run_scores[max(available)]
+                    fill_scores.append(score)
+
+                if not fill_scores:
+                    continue
+
+                avg_param_count = float(sum(p[0] for p in pair_list) / len(pair_list))
+                avg_score = float(sum(fill_scores) / len(fill_scores))
                 averaged_scores[dendrite_idx] = (avg_param_count, avg_score)
 
             if not averaged_scores:
@@ -4270,7 +4291,170 @@ def create_subject_split_two_line_plot_for_sample(
     pai_style.save_figure(fig, output_path)
 
 
-if __name__ == "__main__":
+def _create_data_fraction_val_test_plot(
+    df: pd.DataFrame,
+    val_columns: Sequence[str],
+    test_columns: Sequence[str],
+    output_path: str,
+    model_name_map: Optional[Dict[str, str]] = None,
+    target_dendrite_idx: Optional[int] = None,
+) -> None:
+    """Val and test scores vs data fraction on the same axes.
+
+    X-axis: data fraction (%) parsed from run names (e.g. dataset_fraction_0.5 -> 50%).
+    Y-axis: mean score across all seeds, using fill-forward so every seed counts:
+      - if target_dendrite_idx is given, each seed contributes its score at
+        min(target_dendrite_idx, max_achieved_dendrite).
+      - if None (default), each seed contributes its score at the group's
+        highest achieved dendrite (fill-forward).
+    One color per model; solid lines = val, dashed lines = test.
+    """
+    # Collect per-run scores.
+    run_info: Dict[str, Dict[str, Any]] = {}
+    all_columns: List[str] = list(val_columns) + list(test_columns)
+
+    for _, row in df.iterrows():
+        run_id = str(row.get("run_id", "")).strip()
+        run_name = str(row.get("run_name", "")).strip()
+        if not run_id or not run_name:
+            continue
+
+        data_percent_key, _ = _extract_data_percent_from_run_name(run_name)
+        if data_percent_key is None:
+            continue
+
+        model_match = re.search(r"model_index_(\d+)", run_name)
+        if model_match:
+            model_id = f"model_{model_match.group(1)}"
+        else:
+            populated: set = set()
+            for col in all_columns:
+                mid, _ = _parse_model_and_dendrite(col)
+                if mid is None:
+                    continue
+                if not pd.isna(pd.to_numeric(row.get(col, None), errors="coerce")):
+                    populated.add(mid)
+            if len(populated) != 1:
+                continue
+            model_id = populated.pop()
+
+        if run_id not in run_info:
+            run_info[run_id] = {
+                "model_id": model_id,
+                "data_percent_key": data_percent_key,
+                "val": {},
+                "test": {},
+            }
+
+        for col in val_columns:
+            mid, d_idx = _parse_model_and_dendrite(col)
+            if mid != model_id or d_idx is None:
+                continue
+            v = pd.to_numeric(row.get(col, None), errors="coerce")
+            if not pd.isna(v):
+                run_info[run_id]["val"][d_idx] = float(v)
+
+        for col in test_columns:
+            mid, d_idx = _parse_model_and_dendrite(col)
+            if mid != model_id or d_idx is None:
+                continue
+            v = pd.to_numeric(row.get(col, None), errors="coerce")
+            if not pd.isna(v):
+                run_info[run_id]["test"][d_idx] = float(v)
+
+    if not run_info:
+        raise ValueError("No run data found for val/test data-fraction plot.")
+
+    # Group by (model_id, data_percent_key).
+    groups: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for run_id, info in run_info.items():
+        key = (info["model_id"], info["data_percent_key"])
+        if key not in groups:
+            groups[key] = {
+                "model_id": info["model_id"],
+                "data_percent_key": info["data_percent_key"],
+                "run_ids": [],
+                "val_accum": defaultdict(list),
+                "test_accum": defaultdict(list),
+            }
+        groups[key]["run_ids"].append(run_id)
+        for d, s in info["val"].items():
+            groups[key]["val_accum"][d].append(s)
+        for d, s in info["test"].items():
+            groups[key]["test_accum"][d].append(s)
+
+    # Compute fill-forward averages per (model, data_fraction, metric).
+    plot_data: Dict[str, Dict[str, Dict[float, float]]] = {}
+
+    for (model_id, data_percent_key), group in groups.items():
+        frac_match = re.search(r"_([0-9]+(?:\.[0-9]+)?)$", data_percent_key)
+        if not frac_match:
+            continue
+        x_value = float(frac_match.group(1)) * 100  # 0.5 -> 50.0
+
+        for metric_key, accum_key in [("val", "val_accum"), ("test", "test_accum")]:
+            accum = group[accum_key]
+            all_dendrites = sorted(accum.keys())
+            if not all_dendrites:
+                continue
+
+            cap = target_dendrite_idx if target_dendrite_idx is not None else max(all_dendrites)
+
+            fill_scores: List[float] = []
+            for run_id in group["run_ids"]:
+                run_scores = run_info[run_id][metric_key]
+                available = [d for d in run_scores if d <= cap]
+                if not available:
+                    continue
+                fill_scores.append(run_scores[max(available)])
+
+            if not fill_scores:
+                continue
+
+            avg = sum(fill_scores) / len(fill_scores)
+            plot_data.setdefault(model_id, {}).setdefault(metric_key, {})[x_value] = avg
+
+    if not plot_data:
+        raise ValueError("No averaged data available for val/test data-fraction plot.")
+
+    model_ids_sorted = sorted(plot_data.keys(), key=_model_sort_key)
+    n_models = max(1, len(model_ids_sorted))
+    model_colors = {
+        mid: colorsys.hsv_to_rgb(i / n_models, 0.8, 0.85)
+        for i, mid in enumerate(model_ids_sorted)
+    }
+
+    fig, ax = plt.subplots(figsize=(9, 5.5))
+
+    for model_id in model_ids_sorted:
+        color = model_colors[model_id]
+        model_label = (model_name_map or {}).get(model_id, model_id)
+        metrics = plot_data[model_id]
+
+        if "val" in metrics:
+            xs = sorted(metrics["val"].keys())
+            ys = [metrics["val"][x] for x in xs]
+            ax.plot(xs, ys, color=color, linewidth=2, marker="o", markersize=5,
+                    linestyle="-", label=f"{model_label} val")
+
+        if "test" in metrics:
+            xs = sorted(metrics["test"].keys())
+            ys = [metrics["test"][x] for x in xs]
+            ax.plot(xs, ys, color=color, linewidth=2, marker="s", markersize=5,
+                    linestyle="--", label=f"{model_label} test")
+
+    dendrite_suffix = f" (dendrite {target_dendrite_idx})" if target_dendrite_idx is not None else " (best dendrite)"
+    ax.set_xlabel("Data Fraction (%)")
+    ax.set_ylabel("Score")
+    ax.set_title(f"Val and Test Score vs Data Fraction{dendrite_suffix}")
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="best", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def main() -> None:
     parser = argparse.ArgumentParser(
         description = (
             "Process a by-dendrite-separate CSV and generate candlestick "
@@ -4674,6 +4858,21 @@ if __name__ == "__main__":
                         dendrite_percent_to_graph = dendrite_percent_to_graph,
                     )
                     created_files.append(subject_two_line_path)
+
+        if val_columns and test_columns:
+            val_test_path = os.path.join(output_dir, "data_fraction_val_test.png")
+            try:
+                _create_data_fraction_val_test_plot(
+                    df,
+                    val_columns,
+                    test_columns,
+                    val_test_path,
+                    model_name_map=model_name_map,
+                )
+                created_files.append(val_test_path)
+            except ValueError as ve:
+                print(f"Warning: data_fraction_val_test plot skipped: {ve}", file=sys.stderr)
+
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

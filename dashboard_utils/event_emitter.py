@@ -18,10 +18,12 @@ class DashboardEventEmitter:
     def __init__(self):
         self._failure_count = 0
         self._warned = False
+        self._epochs_emitted = 0
 
     def reset(self):
         self._failure_count = 0
         self._warned = False
+        self._epochs_emitted = 0
 
     def _post(self, url, payload, pc):
         if not _requests_available:
@@ -62,14 +64,20 @@ class DashboardEventEmitter:
             "timestamp": datetime.now().isoformat(),
         }, pc)
 
-    def emit_epoch(self, pc, epoch, validation_score, learning_rate, train_score=None, normal_time=None, pai_time=None, pb_scores=None):
+    def emit_epoch(self, pc, epoch_index, phase, scores, learning_rate=None,
+                   normal_time=None, pai_time=None, pb_scores=None,
+                   pb_scores_current=None):
         if not self._enabled(pc):
             return
+        # true_epoch: emitter-side monotonic counter, never decremented, even
+        # across a rollback that steps epoch_index backward.
+        self._epochs_emitted += 1
         payload = {
             "type": "epoch",
-            "epoch": epoch,
-            "validation_score": validation_score,
-            "train_score": train_score,
+            "epoch_index": epoch_index,
+            "true_epoch": self._epochs_emitted,
+            "phase": phase,
+            "scores": scores,
             "learning_rate": learning_rate,
             "normal_time": normal_time,
             "pai_time": pai_time,
@@ -78,15 +86,18 @@ class DashboardEventEmitter:
         # dashboard draws a break in the line rather than a carried-forward value
         if pb_scores:
             payload["pb_scores"] = pb_scores
+        if pb_scores_current:
+            payload["pb_scores_current"] = pb_scores_current
         self._post(self._url(pc), payload, pc)
 
-    def emit_switch(self, pc, switch_number, epoch, param_count, switch_type=None):
+    def emit_switch(self, pc, switch_ordinal, epoch_index, param_count, switch_type=None):
         if not self._enabled(pc):
             return
         payload = {
             "type": "switch",
-            "switch_number": switch_number,
-            "epoch": epoch,
+            "switch_ordinal": switch_ordinal,
+            "epoch_index": epoch_index,
+            "true_epoch": self._epochs_emitted,
             "param_count": param_count,
         }
         # switch_type names the phase being entered, not the one that ended.
@@ -96,19 +107,30 @@ class DashboardEventEmitter:
             payload["switch_type"] = switch_type
         self._post(self._url(pc), payload, pc)
 
-    def emit_dendrite_added(self, pc, epoch, num_dendrites_integrated):
+    def emit_dendrite_added(self, pc, epoch_index, num_dendrites_integrated, param_count):
         if not self._enabled(pc):
             return
         self._post(self._url(pc), {
             "type": "dendrite_added",
-            "epoch": epoch,
+            "epoch_index": epoch_index,
+            "true_epoch": self._epochs_emitted,
             "num_dendrites_integrated": num_dendrites_integrated,
+            "param_count": param_count,
         }, pc)
 
-    def emit_run_end(self, pc):
+    def emit_run_end(self, pc, epoch_last_improved, global_best_score):
         if not self._enabled(pc):
             return
-        self._post(self._url(pc), {"type": "run_end"}, pc)
+        # Send PerforatedAI's own stored "best" values verbatim - no argmax over
+        # accuracies - so the dashboard marker matches the patience metric.
+        self._post(self._url(pc), {
+            "type": "run_end",
+            "epoch_last_improved": epoch_last_improved,
+            "global_best": {
+                "epoch_index": epoch_last_improved,
+                "score": global_best_score,
+            },
+        }, pc)
 
     def log(self, pc, level, message):
         if level in ("warning", "error") or not pc.get_silent():

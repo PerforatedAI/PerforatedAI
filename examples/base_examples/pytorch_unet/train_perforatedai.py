@@ -230,7 +230,7 @@ if __name__ == '__main__':
     GPA.pc.set_testing_dendrite_capacity(False)
     GPA.pc.set_max_dendrites(2)
     GPA.pc.append_module_names_to_track(['ConvTranspose2d'])
-
+    GPA.pc.set_cap_at_n(True)
     # Change here to adapt to your data
     # n_channels=3 for RGB images
     # n_classes is the number of probabilities you want to get per pixel

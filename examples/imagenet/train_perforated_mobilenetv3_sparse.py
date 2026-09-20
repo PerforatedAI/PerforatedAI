@@ -1,23 +1,27 @@
 """
-Training EfficientNet-V2 Small with PerforatedAI on ImageNet.
+Training MobileNetV3 Small with PerforatedAI on ImageNet.
 
-Based on PyTorch official training recipe for EfficientNet-V2.
+Based on PyTorch official training recipe for MobileNetV3.
 
-Single GPU command (scaled from 8 GPU setup):
-python train_perforated_efficientnet.py \
-  --model efficientnet_v2_s --batch-size 32 --lr 0.016 \
-  --lr-scheduler cosineannealinglr --lr-warmup-epochs 5 --lr-warmup-method linear \
-  --auto-augment ta_wide --epochs 600 --random-erase 0.1 \
-  --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
-  --weight-decay 0.00002 --norm-weight-decay 0.0 \
-  --train-crop-size 300 --val-crop-size 384 --val-resize-size 384 \
-  --model-ema --ra-sampler --ra-reps 4 \
+Single GPU default command (scaled from the original 8-GPU recipe):
+python train_perforated_mobilenetv3.py \
+  --model mobilenet_v3_small --epochs 600 --opt rmsprop --batch-size 128 --lr 0.008 \
+  --wd 0.00001 --lr-step-size 2 --lr-gamma 0.973 --auto-augment imagenet --random-erase 0.2 \
   --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
   --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
-Note: For EfficientNet-V2 Medium, use:
-  --model efficientnet_v2_m --train-crop-size 384 --val-crop-size 480 --val-resize-size 480
+This matches the original 8-GPU setup with 128 images/GPU and LR 0.064, scaled for a single GPU.
+
+Note: For MobileNetV3 Large, use:
+  --model mobilenet_v3_large
+  
+Note: This script implements checkpoint averaging using PerforatedAI's checkpoint system:
+  - Tracks the top 3 checkpoints during 'n' mode (neuron addition) by accuracy
+  - Uses UPA.save_system() to save checkpoints with PAI's complete system state
+  - When transitioning to 'p' mode (pruning), loads all 3 checkpoints using UPA.load_system()
+  - Averages their weights while preserving the PAI system state from the best checkpoint
+  - This ensures proper dendrite state, tracker history, and optimizer state are maintained
 """
 
 import datetime
@@ -25,6 +29,8 @@ import os
 import time
 import warnings
 import argparse
+import collections
+import shutil
 
 import presets
 import torch
@@ -40,12 +46,152 @@ from transforms import get_mixup_cutmix
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
+from perforatedai import network_perforatedai as NPA
 
-# Import EfficientNet pre-FC wrapper
-import efficientnet_prefc
+from clean_somas import CleanSomas
+from rf_dendrites_original import initialize_variant_dendrite, SparseLinear
 
 import wandb
 from types import SimpleNamespace
+
+
+def pai_identity(x):
+    return x
+
+
+class Top3CheckpointTracker:
+    """
+    Tracks the top 3 checkpoints during 'n' mode and provides averaging functionality.
+    Uses _pai.pt file copying for checkpoint management.
+    """
+    def __init__(self, save_name, model_name, num_classes):
+        self.save_name = save_name
+        self.model_name = model_name
+        self.num_classes = num_classes
+        self.top3_checkpoints = []  # List of (acc1, epoch) tuples
+        self.current_mode = None
+        
+    def update(self, acc1, epoch, model, current_mode):
+        """Update tracker with new checkpoint if it's in top 3."""
+        self.current_mode = current_mode
+        
+        # Only track during 'n' mode
+        if current_mode != "n":
+            return
+        
+        # Only track after at least one dendrite has been added
+        # (to ensure checkpoint has layer_array structure with dendrites)
+        dendrite_count = GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
+        if dendrite_count == 0:
+            return
+        
+        # Copy first, then evict — so if this epoch ranks outside top 3 its file
+        # is created and immediately deleted in the same cleanup pass below
+        source_file = f"{self.save_name}/latest_pai.pt"
+        dest_file = f"{self.save_name}/top3_epoch_{epoch}_pai.pt"
+
+        if os.path.exists(source_file):
+            shutil.copy2(source_file, dest_file)
+            print(f"Saved top-3 candidate: epoch {epoch} with Acc@1 {acc1:.3f}")
+        else:
+            print(f"Warning: {source_file} not found - checkpoint not saved")
+
+        # Add to list, sort, and evict anything outside top 3
+        self.top3_checkpoints.append((acc1, epoch))
+        self.top3_checkpoints.sort(key=lambda x: x[0], reverse=True)
+
+        if len(self.top3_checkpoints) > 3:
+            removed = self.top3_checkpoints[3:]
+            self.top3_checkpoints = self.top3_checkpoints[:3]
+
+            for _, old_epoch in removed:
+                checkpoint_file = f"{self.save_name}/top3_epoch_{old_epoch}_pai.pt"
+                if os.path.exists(checkpoint_file):
+                    os.remove(checkpoint_file)
+                    print(f"Removed checkpoint file: top3_epoch_{old_epoch}_pai.pt")
+    
+    def get_top3_info(self):
+        """Return information about top 3 checkpoints."""
+        return [(acc, epoch) for acc, epoch in self.top3_checkpoints]
+    
+    def get_top3_epochs(self):
+        """Return list of top 3 epochs."""
+        return [epoch for _, epoch in self.top3_checkpoints]
+    
+    def average_and_load(self, model, device):
+        """
+        Average the top 3 checkpoints and load into model.
+        
+        Workflow:
+        1. For each checkpoint, create a fresh unperforated model
+        2. Load checkpoint using NPA.load_pai_model() (which perforates and loads weights)
+        3. Extract state dicts and average them
+        4. Load averaged weights back into the current model
+        """
+        if len(self.top3_checkpoints) == 0:
+            print("No checkpoints to average!")
+            return model
+        
+        epochs = [epoch for _, epoch in self.top3_checkpoints]
+        accs = [acc for acc, _ in self.top3_checkpoints]
+        
+        print(f"\nAveraging top {len(epochs)} checkpoints:")
+        for acc, epoch in zip(accs, epochs):
+            print(f"  - Epoch {epoch}: Acc@1 {acc:.3f}")
+        
+        # Collect state dicts from all top 3 checkpoints
+        # NOTE: Checkpoints have N-1 dendrites (saved before final restructure)
+        # Current model has N dendrites (just added during transition to 'p' mode)
+        all_state_dicts = []
+        for epoch in epochs:
+            checkpoint_file = f"{self.save_name}/top3_epoch_{epoch}_pai.pt"
+            
+            if not os.path.exists(checkpoint_file):
+                print(f"Warning: {checkpoint_file} not found, skipping")
+                continue
+            
+            # Load checkpoint directly as state dict
+            from safetensors.torch import load_file
+            checkpoint_state = load_file(checkpoint_file)
+            
+            # Clone all tensors to CPU for averaging
+            state_dict_cpu = {k: v.clone().cpu() for k, v in checkpoint_state.items()}
+            all_state_dicts.append(state_dict_cpu)
+            print(f"  - Loaded state dict from epoch {epoch}")
+        
+        if len(all_state_dicts) == 0:
+            print("Error: No checkpoints could be loaded!")
+            return model
+        
+        # Average the weights
+        print("  - Computing averaged weights...")
+        averaged_state = collections.OrderedDict()
+        for key in all_state_dicts[0].keys():
+            # Stack tensors and compute mean
+            tensor_list = [d[key].float() for d in all_state_dicts]
+            stacked = torch.stack(tensor_list, dim=0)
+            averaged = torch.mean(stacked, dim=0)
+            
+            # Convert back to original dtype if needed
+            if all_state_dicts[0][key].dtype != averaged.dtype:
+                averaged = averaged.to(all_state_dicts[0][key].dtype)
+            
+            averaged_state[key] = averaged
+        
+        # Load averaged weights into model (strict=False to ignore new dendrite keys)
+        missing_keys, unexpected_keys = model.load_state_dict(averaged_state, strict=False)
+        if missing_keys:
+            print(f"  - Note: {len(missing_keys)} keys not in averaged checkpoints (newly added dendrite)")
+        if unexpected_keys:
+            print(f"  - Warning: {len(unexpected_keys)} unexpected keys in averaged state")
+        model = model.to(device)
+        print(f"✓ Loaded averaged weights into model\n")
+        
+        return model
+    
+    def clear(self):
+        """Clear the tracker (e.g., after averaging)."""
+        self.top3_checkpoints = []
 
 
 def train_one_epoch(
@@ -307,6 +453,34 @@ def filter_imagenet100(dataset):
     return dataset
 
 
+def initialize_dendrites(model, n):
+    """Initialize PAI module shapes and pre-grow n dendrites.
+
+    Runs a single dummy forward+backward (no optimizer step) so PAI's
+    internal out_channels arrays are set, then calls simulate_cycles with
+    2*n cycles which adds n dendrites (each n→p transition adds one).
+    """
+    device = next(model.parameters()).device
+    dummy_x = torch.zeros(1, 3, 224, 224, device=device)
+    out = model(dummy_x)
+    out.sum().backward()
+    model.zero_grad()
+
+    for module in model.modules():
+        if hasattr(module, 'dendrite_module'):
+            UPA.simulate_cycles(module, n * 2, doing_pai=True)
+
+    filled = 0
+    for module in model.modules():
+        if hasattr(module, 'dendrites_to_top') and len(module.dendrites_to_top) > 0:
+            module.dendrites_to_top[-1].data.fill_(1.0)
+            filled += 1
+            print(f"  to_top fill: {type(module).__name__}, "
+                  f"shape={module.dendrites_to_top[-1].shape}, "
+                  f"dendrites_added={module.dendrite_modules_added}")
+    print(f"initialize_dendrites: filled {filled} module(s)")
+
+
 def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=None):
     """Create optimizer and scheduler for the model using PerforatedAI setup.
 
@@ -329,13 +503,21 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         ),
     )
 
+    # Apply dendrite LR multiplier on subsequent n-phase cycles
+    current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
+    num_cycles = GPA.pai_tracker.member_vars.get("num_cycles", 0)
+    effective_lr = args.lr
+    if current_mode == "n" and num_cycles > 1 and args.dendrite_lr_multiplier != 1.0:
+        effective_lr = args.lr * args.dendrite_lr_multiplier
+        print(f"[dendrite_lr_multiplier] mode=n, num_cycles={num_cycles}, lr {args.lr} -> {effective_lr}")
+
     # Set optimizer class
     opt_name = args.opt.lower()
     if opt_name.startswith("sgd"):
         GPA.pai_tracker.set_optimizer(torch.optim.SGD)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "momentum": args.momentum,
             "weight_decay": args.weight_decay,
             "nesterov": "nesterov" in opt_name,
@@ -344,7 +526,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         GPA.pai_tracker.set_optimizer(torch.optim.RMSprop)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "momentum": args.momentum,
             "weight_decay": args.weight_decay,
             "eps": 0.0316,
@@ -354,7 +536,7 @@ def create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=
         GPA.pai_tracker.set_optimizer(torch.optim.AdamW)
         optimArgs = {
             "params": parameters,
-            "lr": args.lr,
+            "lr": effective_lr,
             "weight_decay": args.weight_decay,
         }
     else:
@@ -561,11 +743,13 @@ def load_data(traindir, valdir, args):
 
 
 def main(args):
+    TESTING = False  # True = DOING_FIXED_SWITCH with fixed_switch_num=3 (load testing)
+
     # Initialize wandb if enabled
     run = None
     if args.use_wandb:
         run = wandb.init(
-            project="ImageNet EfficientNetV2 PerforatedAI",
+            project="ImageNet MobileNetV3 PerforatedAI",
             name=f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}",
             config=vars(args),
         )
@@ -622,18 +806,28 @@ def main(args):
     print(f"Training with {num_classes} classes ({dataset_type})")
 
     # Set up PerforatedAI global parameters
-    GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
+    if TESTING:
+        print("=" * 60)
+        print("TESTING MODE ENABLED")
+        print("Using DOING_FIXED_SWITCH with fixed_switch_num=3")
+        print("=" * 60)
+        GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
+        GPA.pc.set_fixed_switch_num(3)
+        GPA.pc.set_first_fixed_switch_num(3)
+        GPA.pc.set_max_dendrites(3)
+    else:
+        GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
+        GPA.pc.set_n_epochs_to_switch(40)
+        GPA.pc.set_p_epochs_to_switch(40)
+    
+    GPA.pc.set_output_dimensions([-1,0])
     GPA.pc.set_weight_decay_accepted(True)
-    GPA.pc.set_n_epochs_to_switch(40)
-    GPA.pc.set_p_epochs_to_switch(40)
     GPA.pc.set_cap_at_n(True)
     GPA.pc.set_initial_history_after_switches(2)
     GPA.pc.set_test_saves(True)
+    GPA.pc.set_pai_saves(True)  # Enable _pai.pt checkpoint creation for averaging
     GPA.pc.set_testing_dendrite_capacity(False)
-    # EfficientNet uses FusedMBConv and MBConv blocks instead of ResNet blocks
-    GPA.pc.append_module_names_to_perforate(["FusedMBConv", "MBConv"])
     GPA.pc.set_verbose(False)
-    # GPA.pc.set_max_dendrites(3)
 
     # Apply PAI settings from command-line args
     if args.improvement_threshold == 0:
@@ -655,6 +849,10 @@ def main(args):
         pai_forward_function = torch.relu
     elif args.pai_forward_function == "tanh":
         pai_forward_function = torch.tanh
+    elif args.pai_forward_function == "identity":
+        pai_forward_function = pai_identity
+    elif args.pai_forward_function == "hardswish":
+        pai_forward_function = nn.functional.hardswish
     else:
         pai_forward_function = torch.sigmoid
     GPA.pc.set_pai_forward_function(pai_forward_function)
@@ -707,9 +905,9 @@ def main(args):
 
     # Apply dropout if specified (add dropout after global average pooling, before final classifier)
     if args.dropout > 0.0:
-        # For models with classifier attribute (like EfficientNet)
+        # For models with classifier attribute (like MobileNet)
         if hasattr(model, "classifier"):
-            # EfficientNet has a classifier Sequential with Dropout and Linear
+            # MobileNetV3 has a classifier Sequential with Dropout and Linear
             # We can adjust the dropout rate
             for module in model.classifier:
                 if isinstance(module, nn.Dropout):
@@ -723,31 +921,27 @@ def main(args):
             )
             print(f"Applied dropout rate: {args.dropout}")
 
-    # Apply stochastic depth if specified (for ResNet models)
-    if args.stochastic_depth_prob > 0.0:
-        print(
-            f"Note: Stochastic depth rate {args.stochastic_depth_prob} specified, but requires model recreation with stochastic_depth parameter"
-        )
+    # Replace classifier[0] with CleanSomas — soma emits only a bias; all input
+    # signal flows through the RF dendrites PAI will grow on this module.
+    clf0_in = model.classifier[0].in_features
+    clf0_out = model.classifier[0].out_features
+    model.classifier[0] = CleanSomas(
+        clf0_out,
+        config={'in_features': clf0_in, 'out_features': clf0_out},
+    )
+    print(f"Replaced classifier[0] with CleanSomas({clf0_in}→{clf0_out})")
+    # Identity activation: dendrite output is linear, making CleanSomas + fully
+    # connected dendrite functionally identical to nn.Linear.
+    GPA.pc.set_pai_forward_function(pai_identity)
+    # CleanSomas has no gradient path through the soma (ignores x).
+    # preprocess_pb would detach x before MaskedLinear, killing backbone grads.
+    # Disabling dendrite_graph_mode lets gradients flow normally through n-mode.
+    GPA.pc.set_dendrite_graph_mode(False)
+    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier.3"])
+    GPA.pc.append_module_ids_to_perforate([".classifier.0"])
 
-    # Note on width/depth multipliers
-    if args.width_multiplier != 1.0 or args.depth_multiplier != 1.0:
-        print(
-            f"Note: Width multiplier {args.width_multiplier} and/or depth multiplier {args.depth_multiplier} specified"
-        )
-        print(
-            f"These require custom model creation. Consider using different model variants."
-        )
-
-    # For EfficientNet with pre-FC layer:
-    # Track all original model components (features, avgpool, classifier)
-    # Only the pre_fc layer will be perforated
-    GPA.pc.append_module_ids_to_track([".features", ".avgpool", ".classifier"])
-    
-    # Wrap model with PerforatedAI - adds perforable pre-FC layer
-    model = efficientnet_prefc.EfficientNetPAI(model)
-    
     # Build save name
-    save_name = f"{args.model}_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
+    save_name = f"{args.model}_sparse_c{args.convert_count}_wd{args.weight_decay}_dmode{args.dendrite_mode}"
     if run is not None:
         run.name = save_name
 
@@ -756,14 +950,19 @@ def main(args):
 
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
-        load_dir = os.path.dirname(args.perforated_load_path)
-        load_file = os.path.splitext(os.path.basename(args.perforated_load_path))[0]
-        model = UPA.perforate_model(model, save_name=load_dir)
-        model = UPA.load_system(model, load_dir, load_file, True)
+        model = UPA.perforate_model(model, save_name=args.perforated_load_path)
+        initialize_variant_dendrite(synapses=clf0_in // 2, rf_mode='random', sparse=True)
+        model = UPA.load_system(model, args.perforated_load_path, args.load_checkpoint_name, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
-
+        # Must be called after perforate_model so GPA.pai_tracker is initialized.
+        initialize_variant_dendrite(synapses=clf0_in // 2, rf_mode='random', sparse=True)
     model.to(device)
+
+    if args.perforated_load_path == "":
+        print("Pre-growing 1 RF dendrite on classifier[0]...")
+        initialize_dendrites(model, 1)
+        print(f"Pre-grown dendrites complete. Param count: {UPA.count_params(model):,}")
 
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -785,9 +984,7 @@ def main(args):
     optimizer, lr_scheduler = create_optimizer_and_scheduler(
         model, args, custom_keys_weight_decay
     )
-    args.lr = (
-        args.lr * 10
-    )  # Increase LR after restructuring to help adapt to new architecture
+
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
     model_without_ddp = model
@@ -844,10 +1041,13 @@ def main(args):
     max_params = 0
     dendrite_count = 0
     original_model = model
+    
+    # Initialize checkpoint averaging tracker (uses _pai.pt files and fresh model creation)
+    checkpoint_tracker = Top3CheckpointTracker(save_name_with_timestamp, args.model, num_classes)
+    last_mode = None
 
     while True:
         epoch += 1
-        #    for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         train_one_epoch(
@@ -861,8 +1061,6 @@ def main(args):
             model_ema,
             scaler,
         )
-        # This is done in the pai backend now
-        # lr_scheduler.step()
 
         model, acc1, restructured, trainingComplete = evaluate(
             model, criterion, data_loader_test, device=device
@@ -872,6 +1070,9 @@ def main(args):
         train_acc1 = GPA.pai_tracker.member_vars.get("extra_scores", {}).get(
             "Train Acc 1", 0
         )
+        
+        # Get current mode
+        current_mode = GPA.pai_tracker.member_vars.get("mode", "n")
 
         # Update max values
         if acc1 > max_val_acc1:
@@ -890,12 +1091,13 @@ def main(args):
                         "num_dendrites_added", 0
                     ),
                     "epoch": epoch,
+                    "mode": current_mode,
                 }
             )
 
             # Log architecture maximums when dendrites are added
             if restructured:
-                if GPA.pai_tracker.member_vars["mode"] == "n" and (
+                if current_mode == "n" and (
                     dendrite_count
                     != GPA.pai_tracker.member_vars.get("num_dendrites_added", 0)
                 ):
@@ -911,6 +1113,42 @@ def main(args):
                         }
                     )
 
+        # Track top 3 checkpoints during 'n' mode (PAI handles actual saving)
+        if current_mode == "n":
+            checkpoint_tracker.update(acc1, epoch, model_without_ddp, current_mode)
+            
+            # Print current top 3
+            top3_info = checkpoint_tracker.get_top3_info()
+            if top3_info:
+                print(f"\n=== Top 3 checkpoints in 'n' mode ===")
+                for i, (acc, ep) in enumerate(top3_info, 1):
+                    print(f"  {i}. Epoch {ep}: Acc@1 {acc:.3f}")
+                print("=" * 40 + "\n")
+        
+        # Check for mode transition from 'n' to 'p'
+        if last_mode == "n" and current_mode == "p":
+            print("\n" + "="*60)
+            print("MODE TRANSITION: 'n' → 'p' detected!")
+            print("Performing checkpoint averaging with PAI's checkpoint system...")
+            print("="*60 + "\n")
+            
+            # Average the top 3 checkpoints and load into model
+            model_without_ddp = checkpoint_tracker.average_and_load(model_without_ddp, device)
+            if args.distributed:
+                model.module = model_without_ddp
+            
+            # Log to wandb
+            if run is not None:
+                run.log({
+                    "checkpoint_averaging": 1,
+                    "averaged_at_epoch": epoch,
+                })
+            
+            # Clear the tracker for the next cycle
+            checkpoint_tracker.clear()
+        
+        last_mode = current_mode
+
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
             model.to(device)
@@ -921,25 +1159,6 @@ def main(args):
         if model_ema:
             evaluate(
                 model_ema, criterion, data_loader_test, device=device, log_suffix="EMA"
-            )
-
-        if args.output_dir:
-            checkpoint = {
-                "model": model_without_ddp.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "lr_scheduler": lr_scheduler.state_dict(),
-                "epoch": epoch,
-                "args": args,
-            }
-            if model_ema:
-                checkpoint["model_ema"] = model_ema.state_dict()
-            if scaler:
-                checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(
-                checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth")
-            )
-            utils.save_on_master(
-                checkpoint, os.path.join(args.output_dir, "checkpoint.pth")
             )
 
         # Check if PerforatedAI training is complete
@@ -959,6 +1178,7 @@ def main(args):
                     }
                 )
             break
+    
     print("Final Param Count:", UPA.count_params(model))
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -969,7 +1189,7 @@ def get_args_parser(add_help=True):
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="PyTorch EfficientNet-V2 Training with PerforatedAI on ImageNet",
+        description="PyTorch MobileNetV3 Training with PerforatedAI on ImageNet",
         add_help=add_help,
     )
 
@@ -979,7 +1199,7 @@ def get_args_parser(add_help=True):
         type=str,
         help="dataset path",
     )
-    parser.add_argument("--model", default="efficientnet_v2_s", type=str, help="model name")
+    parser.add_argument("--model", default="mobilenet_v3_small", type=str, help="model name")
     parser.add_argument(
         "--device",
         default="cuda",
@@ -989,9 +1209,9 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=32,
+        default=128,
         type=int,
-        help="images per gpu, the total batch size is $NGPU x batch_size",
+        help="images per gpu; default matches original 8-GPU recipe per-GPU batch size",
     )
     parser.add_argument(
         "--batch-lr-factor",
@@ -1014,9 +1234,12 @@ def get_args_parser(add_help=True):
         metavar="N",
         help="number of data loading workers (default: 16)",
     )
-    parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
+    parser.add_argument("--opt", default="rmsprop", type=str, help="optimizer (default: rmsprop for MobileNetV3)")
     parser.add_argument(
-        "--lr", default=0.016, type=float, help="initial learning rate (scaled from 0.5 for 32 GPUs)"
+        "--lr",
+        default=0.008,
+        type=float,
+        help="initial learning rate; default is 0.064/8=0.008, matching the original 8-GPU LR scaled for 1 GPU",
     )
     parser.add_argument(
         "--momentum", default=0.9, type=float, metavar="M", help="momentum"
@@ -1024,17 +1247,17 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--wd",
         "--weight-decay",
-        default=2e-5,
+        default=1e-5,
         type=float,
         metavar="W",
-        help="weight decay (default: 2e-5 for EfficientNet-V2)",
+        help="weight decay (default: 1e-5 for MobileNetV3)",
         dest="weight_decay",
     )
     parser.add_argument(
         "--norm-weight-decay",
-        default=0.0,
+        default=None,
         type=float,
-        help="weight decay for Normalization layers (default: 0.0 for EfficientNet-V2)",
+        help="weight decay for Normalization layers (default: None, same value as --wd)",
     )
     parser.add_argument(
         "--bias-weight-decay",
@@ -1050,49 +1273,49 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--label-smoothing",
-        default=0.1,
+        default=0.0,
         type=float,
-        help="label smoothing (default: 0.1 for EfficientNet-V2)",
+        help="label smoothing (default: 0.0)",
         dest="label_smoothing",
     )
     parser.add_argument(
-        "--mixup-alpha", default=0.2, type=float, help="mixup alpha (default: 0.2 for EfficientNet-V2)"
+        "--mixup-alpha", default=0.0, type=float, help="mixup alpha (default: 0.0)"
     )
     parser.add_argument(
-        "--cutmix-alpha", default=1.0, type=float, help="cutmix alpha (default: 1.0 for EfficientNet-V2)"
+        "--cutmix-alpha", default=0.0, type=float, help="cutmix alpha (default: 0.0)"
     )
     parser.add_argument(
         "--lr-scheduler",
-        default="cosineannealinglr",
+        default="steplr",
         type=str,
-        help="the lr scheduler (default: cosineannealinglr for EfficientNet-V2)",
+        help="the lr scheduler (default: steplr for MobileNetV3)",
     )
     parser.add_argument(
         "--lr-warmup-epochs",
-        default=5,
+        default=0,
         type=int,
-        help="the number of epochs to warmup (default: 5 for EfficientNet-V2)",
+        help="the number of epochs to warmup (default: 0)",
     )
     parser.add_argument(
         "--lr-warmup-method",
-        default="linear",
+        default="constant",
         type=str,
-        help="the warmup method (default: linear for EfficientNet-V2)",
+        help="the warmup method (default: constant)",
     )
     parser.add_argument(
         "--lr-warmup-decay", default=0.01, type=float, help="the decay for lr"
     )
     parser.add_argument(
         "--lr-step-size",
-        default=30,
+        default=2,
         type=int,
-        help="decrease lr every step-size epochs",
+        help="decrease lr every step-size epochs (default: 2 for MobileNetV3)",
     )
     parser.add_argument(
         "--lr-gamma",
-        default=0.1,
+        default=0.973,
         type=float,
-        help="decrease lr by a factor of lr-gamma",
+        help="decrease lr by a factor of lr-gamma (default: 0.973 for MobileNetV3)",
     )
     parser.add_argument(
         "--lr-min",
@@ -1100,7 +1323,7 @@ def get_args_parser(add_help=True):
         type=float,
         help="minimum lr of lr schedule (default: 0.0)",
     )
-    parser.add_argument("--print-freq", default=10, type=int, help="print frequency")
+    parser.add_argument("--print-freq", default=500, type=int, help="print frequency")
     parser.add_argument(
         "--output-dir", default=None, type=str, help="path to save outputs"
     )
@@ -1128,9 +1351,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--auto-augment",
-        default="ta_wide",
+        default="imagenet",
         type=lambda x: None if x == "None" else x,
-        help="auto augment policy (default: ta_wide for EfficientNet-V2)",
+        help="auto augment policy (default: imagenet for MobileNetV3)",
     )
     parser.add_argument(
         "--ra-magnitude", default=9, type=int, help="magnitude of auto augment policy"
@@ -1140,9 +1363,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--random-erase",
-        default=0.1,
+        default=0.2,
         type=float,
-        help="random erasing probability (default: 0.1 for EfficientNet-V2)",
+        help="random erasing probability (default: 0.2 for MobileNetV3)",
     )
 
     # Regularization parameters to reduce overfitting (train-val gap)
@@ -1216,24 +1439,24 @@ def get_args_parser(add_help=True):
         type=str,
         help="the interpolation method (default: bilinear)",
     )
-    # EfficientNet-V2 Small image sizes
+    # Standard ImageNet resolution for MobileNetV3
     parser.add_argument(
         "--val-resize-size",
-        default=384,
+        default=256,
         type=int,
-        help="the resize size used for validation (default: 384 for EfficientNet-V2 Small)",
+        help="the resize size used for validation (default: 256)",
     )
     parser.add_argument(
         "--val-crop-size",
-        default=384,
+        default=224,
         type=int,
-        help="the central crop size used for validation (default: 384 for EfficientNet-V2 Small)",
+        help="the central crop size used for validation (default: 224)",
     )
     parser.add_argument(
         "--train-crop-size",
-        default=300,
+        default=224,
         type=int,
-        help="the random crop size used for training (default: 300 for EfficientNet-V2 Small)",
+        help="the random crop size used for training (default: 224)",
     )
     parser.add_argument(
         "--convert-count", default=0, type=int, help="total number of layers to convert"
@@ -1247,13 +1470,13 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--ra-sampler",
         action="store_true",
-        help="whether to use Repeated Augmentation in training (recommended for EfficientNet-V2)",
+        help="whether to use Repeated Augmentation in training",
     )
     parser.add_argument(
         "--ra-reps",
-        default=4,
+        default=3,
         type=int,
-        help="number of repetitions for Repeated Augmentation (default: 4 for EfficientNet-V2)",
+        help="number of repetitions for Repeated Augmentation (default: 3)",
     )
     parser.add_argument(
         "--weights", default=None, type=str, help="the weights enum name to load"
@@ -1290,7 +1513,7 @@ def get_args_parser(add_help=True):
         "--pai-forward-function",
         default="relu",
         type=str,
-        choices=["sigmoid", "relu", "tanh"],
+        choices=["sigmoid", "relu", "tanh", "identity", "hardswish"],
         help="PAI forward function (default: relu)",
     )
     parser.add_argument(
@@ -1305,6 +1528,20 @@ def get_args_parser(add_help=True):
         default="",
         type=str,
         help="Path to load PerforatedAI checkpoint from (default: '', initialize new)",
+    )
+    parser.add_argument(
+        "--dendrite-lr-multiplier",
+        default=1.0,
+        type=float,
+        dest="dendrite_lr_multiplier",
+        help="Multiply LR by this factor when mode=n and num_cycles>1 (default: 1.0, no change)",
+    )
+    parser.add_argument(
+        "--load-checkpoint-name",
+        default="latest",
+        type=str,
+        dest="load_checkpoint_name",
+        help="Checkpoint name to load when resuming (default: 'latest'; e.g. 'switch_2', 'best_model', 'beforeSwitch_1')",
     )
 
     # Wandb logging

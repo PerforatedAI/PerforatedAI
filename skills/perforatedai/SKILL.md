@@ -1,6 +1,6 @@
 ---
 name: perforatedai
-description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration), 'load my perforated model for inference' (deploy trained models). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule. For analyzing completed training results, use the perforatedai-analyze skill."
+description: "Expert in PerforatedAI library for adding artificial dendrites to PyTorch neural networks. Triggers: 'Perforate my model' (start interactive setup), 'debug my perforated model' (debug/optimize existing integration), 'load my perforated model for inference' (deploy trained models), 'export my perforated model' (ONNX/TFLite/TorchScript export). Also use when: debugging dendrite training, configuring PAI settings, troubleshooting dendrite issues, working with PAINeuronModule or PAIDendriteModule. For analyzing completed training results, use the perforatedai-analyze skill."
 ---
 
 # PerforatedAI Dendrite Network Skill
@@ -1208,6 +1208,304 @@ A: No. For continued dendrite training, use `UPA.load_system()` or `UPA.load_pre
 
 ---
 
+### 5. "Export my perforated model" - ONNX/TFLite/TorchScript Export
+
+When the user wants to export a trained perforated model to **ONNX**, **TFLite**, or **TorchScript** for deployment on non-PyTorch platforms (mobile, edge devices, web, C++ runtimes), use this workflow.
+
+**Important: This is for exporting models to platform-agnostic formats AFTER training completes. For PyTorch inference, see entry point #4 ("Load my perforated model for inference").**
+
+---
+
+**Step 1: Confirm the export target**
+
+Ask: "What format do you need to export to?
+1. **ONNX** (most platforms, TensorRT, ONNX Runtime)
+2. **TFLite** (Android, iOS, embedded systems via TensorFlow Lite)
+3. **TorchScript** (C++ production, PyTorch Serve)
+4. **Other** (specify your target platform)"
+
+**Common use cases:**
+- **ONNX**: Cross-platform inference, GPU acceleration with TensorRT, ONNX Runtime deployment
+- **TFLite**: Mobile apps (Android/iOS), microcontrollers, edge TPUs
+- **TorchScript**: Production C++ environments, PyTorch Serve, when you need full PyTorch compatibility
+
+---
+
+**Step 2: Apply PAI cleanup (REQUIRED for all export formats)**
+
+**CRITICAL: You must apply these two PAI transformations BEFORE exporting. They convert PAI's dendritic wrapper structure into standard PyTorch operations.**
+
+```python
+from perforatedai import blockwise_perforatedai as BPA
+from perforatedai import clean_perforatedai as CPA
+
+# Set to eval mode (standard PyTorch requirement)
+model.eval()
+
+# Apply PAI cleanup - THE ONLY PAI-SPECIFIC REQUIREMENT
+model = BPA.blockwise_network(model)
+model = CPA.refresh_net(model)
+```
+
+**What these do:**
+- `BPA.blockwise_network()`: Converts dendritic computation into standard PyTorch Conv/Linear blocks
+- `CPA.refresh_net()`: Removes PAI wrapper classes (`PAINeuronModule`, `PAIDendriteModule`), leaving pure PyTorch modules
+
+**Why this is required:**
+- PAI wrapper classes are training scaffolding that ONNX/TFLite/TorchScript exporters don't understand
+- After cleanup, dendrites become standard Conv/Mul/Add operations that trace cleanly
+- Cleanup is one-way: you can't resume PAI training after this (save a checkpoint before cleanup if needed)
+
+**Optional (not PAI-specific):**
+- `model.cpu()` - Moves to CPU before export (common practice, but can export on GPU)
+- Output suppression - BPA/CPA print some info; suppress with `contextlib.redirect_stdout()` if desired
+
+---
+
+**Step 3: Export to ONNX**
+
+After applying BPA + CPA cleanup:
+
+```python
+import torch
+
+# Prepare dummy input matching your model's input shape
+# Example: for (batch, channels, height, width)
+dummy_input = torch.randn(1, 3, 224, 224)  # Adjust shape to match your model
+
+onnx_path = 'model.onnx'
+
+# Standard ONNX export
+torch.onnx.export(
+    model,
+    dummy_input,
+    onnx_path,
+    export_params=True,
+    opset_version=11,  # 10+ works; higher versions have more operators
+    do_constant_folding=True,  # Optimize constants at export time
+    input_names=['input'],
+    output_names=['output'],
+    dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}},  # Optional: allow variable batch size
+    dynamo=False  # Optional: use legacy exporter for better compatibility
+)
+
+print(f"Exported to {onnx_path}")
+```
+
+**Key export parameters explained:**
+- `opset_version=11`: Use 10+ for modern operators; higher is fine, not PAI-specific
+- `do_constant_folding=True`: Bakes constants at export time, reduces runtime computation
+- `dynamic_axes`: Optional - allows variable batch size; omit for fixed batch (sometimes faster)
+- `dynamo=False`: Optional - uses legacy `torch.onnx.export`; omit or set to `True` for newer `torch.export` path
+
+**Verify the export:**
+```python
+import onnxruntime as ort
+
+# Load and test the ONNX model
+ort_session = ort.InferenceSession(onnx_path)
+test_input = dummy_input.numpy()
+ort_outputs = ort_session.run(None, {ort_session.get_inputs()[0].name: test_input})
+print(f"ONNX output shape: {ort_outputs[0].shape}")
+```
+
+---
+
+**Step 4: Convert ONNX to TFLite (optional, for mobile/edge)**
+
+If the user needs TFLite (for Android, iOS, microcontrollers):
+
+**Install conversion tools:**
+```bash
+pip install onnx onnxsim onnx2tf tensorflow
+```
+
+**Convert:**
+```python
+import subprocess
+import sys
+import onnx
+import onnxsim
+
+# Step 1: Simplify ONNX (RECOMMENDED for TFLite, not PAI-specific)
+# This is a workaround for onnx2tf/TFLite issues with quantization.
+# It folds standalone Constant ops into consuming ops, preventing
+# INT8 quantization failures. Skip this if you only need float32 TFLite.
+onnx_model = onnx.load(onnx_path)
+simplified_model, check = onnxsim.simplify(onnx_model)
+simplified_path = 'model_simplified.onnx'
+onnx.save(simplified_model, simplified_path)
+print("✓ Simplified ONNX model")
+
+# Step 2: Convert to TensorFlow SavedModel
+saved_model_dir = 'saved_model'
+result = subprocess.run(
+    [sys.executable, "-m", "onnx2tf", "-i", simplified_path, "-o", saved_model_dir, "-osd"],
+    capture_output=True, text=True, timeout=120
+)
+if result.returncode != 0:
+    print(f"onnx2tf error: {result.stderr}")
+    raise Exception("onnx2tf conversion failed")
+print(f"✓ Converted to TF SavedModel at {saved_model_dir}")
+
+# Step 3: Convert to TFLite
+import tensorflow as tf
+
+# Float32 TFLite (no quantization)
+converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+tflite_model = converter.convert()
+with open('model.tflite', 'wb') as f:
+    f.write(tflite_model)
+print("✓ Created float32 TFLite model")
+
+# Optional: INT8 quantization (smaller, faster, slight accuracy loss)
+# Requires representative dataset for calibration
+def representative_dataset():
+    # Provide 100-500 samples from your training data
+    for i in range(100):
+        sample = ...  # Get a sample from your dataset
+        yield [sample.astype(np.float32)]
+
+converter_quant = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+converter_quant.optimizations = [tf.lite.Optimize.DEFAULT]
+converter_quant.representative_dataset = representative_dataset
+tflite_quant_model = converter_quant.convert()
+with open('model_int8.tflite', 'wb') as f:
+    f.write(tflite_quant_model)
+print("✓ Created INT8 quantized TFLite model")
+```
+
+**TFLite conversion notes:**
+- **onnxsim is optional** (only needed to fix INT8 quantization issues with onnx2tf - NOT a PAI requirement)
+- Float32 TFLite: ~same size as ONNX, full accuracy, no simplification needed
+- INT8 quantized: ~4× smaller, faster on mobile/edge, slight accuracy drop (<1% typical)
+- For INT8, provide representative samples from your actual data distribution
+- These are **TFLite/onnx2tf workarounds**, not PAI-specific requirements
+
+---
+
+**Step 5: Export to TorchScript (optional, for C++ deployment)**
+
+If the user needs TorchScript (for C++ environments, PyTorch Serve):
+
+```python
+# After BPA + CPA cleanup
+model.eval()
+
+# Method 1: Tracing (recommended, usually works)
+example_input = torch.randn(1, 3, 224, 224)
+traced_model = torch.jit.trace(model, example_input)
+traced_model.save('model_traced.pt')
+print("✓ Exported TorchScript via tracing")
+
+# Method 2: Scripting (if tracing fails due to control flow)
+# Use this if your model has if/for statements in forward()
+try:
+    scripted_model = torch.jit.script(model)
+    scripted_model.save('model_scripted.pt')
+    print("✓ Exported TorchScript via scripting")
+except Exception as e:
+    print(f"Scripting failed: {e}")
+    print("Use tracing instead (Method 1)")
+```
+
+**Load in C++:**
+```cpp
+#include <torch/script.h>
+torch::jit::script::Module module = torch::jit::load("model_traced.pt");
+```
+
+---
+
+**Common Issues and Solutions**
+
+**Issue: "ONNX export fails with 'symbolic not implemented'"**
+- **PAI-related?** No - general PyTorch/ONNX issue
+- **Cause**: Your model uses an operator that doesn't have ONNX symbolic mapping
+- **Fix**: Check which layer is failing. Sometimes custom operations or very new PyTorch ops don't have ONNX support
+- **Workaround**: Rewrite the operation using supported ops, or use TorchScript instead
+
+**Issue: "TFLite quantization shows fully_quantize: 0"**
+- **PAI-related?** No - onnx2tf/TFLite issue
+- **Cause**: Model has standalone Constant tensors that onnx2tf generates
+- **Fix**: Run `onnxsim.simplify()` before `onnx2tf` to fold constants into consuming ops
+- **Verification**: Look for "fully_quantize: 1" in the conversion output
+
+**Issue: "MaxPool with ceil_mode produces PartitionedCall in TF"**
+- **PAI-related?** No - PyTorch to TFLite conversion issue
+- **Cause**: PyTorch `MaxPool(ceil_mode=True)` creates ops that TFLite can't trace through
+- **Fix**: Pad your input to even dimensions before MaxPool, then use `ceil_mode=False` and `stride=2`
+- **Example**: See lines 489-494 in [train.py](https://github.com/PerforatedAI/PerforatedAI/blob/main/examples/submitted_projects/perforated-impulse-nn-block/train.py)
+
+**Issue: "Exported model is much larger than PyTorch checkpoint"**
+- **PAI-related?** No - normal for all ONNX/TFLite exports
+- **Cause**: Normal - ONNX/TFLite store the full compute graph, not just weights
+- **Solution**: For smallest size, use INT8 quantized TFLite (typically 4× compression)
+
+**Issue: "Accuracy drops after export"**
+- **PAI-related?** Possibly - verify BPA/CPA were applied correctly
+- **Cause**: Usually quantization (INT8), sometimes numerical precision differences, rarely incomplete cleanup
+- **Fix**: 
+  - **First**: Verify BPA + CPA were applied (check model output matches before/after cleanup with same input)
+  - Compare float32 TFLite vs INT8 - if INT8 is the problem, adjust quantization or use float16
+  - For ONNX, try `opset_version=11` or higher
+
+**Issue: "Model with BatchNorm fails to export"**
+- **PAI-related?** No - general PyTorch export issue
+- **Cause**: BatchNorm in eval mode should fold into previous conv layer but sometimes doesn't
+- **Fix**: Call `model.eval()` before BPA/CPA cleanup. The cleanup folds BatchNorm automatically
+
+---
+
+**Reference Implementation**
+
+For a complete working example that exports to ONNX and TFLite (including INT8 quantization), see:
+- [examples/submitted_projects/perforated-impulse-nn-block/train.py](https://github.com/PerforatedAI/PerforatedAI/blob/main/examples/submitted_projects/perforated-impulse-nn-block/train.py) (lines 1006-1220)
+
+**What's PAI-specific in this example:**
+- BPA + CPA cleanup (lines 1006-1011) - **REQUIRED**
+
+**What's Edge Impulse/TFLite-specific (NOT PAI requirements):**
+- Output suppression - just keeps console clean
+- ONNX simplification (lines 1188-1192) - workaround for onnx2tf INT8 quantization
+- MaxPool padding tricks (lines 489-494, 523-529) - workaround for TFLite PartitionedCall issue
+- Dynamic batch size handling - Edge Impulse requirement
+- INT8 quantization with calibration - deployment optimization choice
+- ONNX simplification (lines 1188-1192)
+- TFLite conversion with INT8 quantization (lines 1195-1220)
+- Handling Edge Impulse deployment requirements
+
+---
+
+**Summary Checklist**
+
+**PAI-specific requirements (MUST do):**
+- ✅ Applied `BPA.blockwise_network()` 
+- ✅ Applied `CPA.refresh_net()`
+- ✅ Model in eval mode (`model.eval()`)
+
+**Standard PyTorch export practices (recommended):**
+- ✅ Model on CPU (`model.cpu()`) - optional, can export on GPU
+- ✅ Created dummy input with correct shape
+- ✅ Tested model output matches before/after cleanup (optional but helpful for debugging)
+
+**For ONNX:**
+- ✅ Set `opset_version=11` or higher (10 works too, just older)
+- ✅ Set `dynamo=False` to use legacy exporter (better compatibility)
+- ✅ Verified export with ONNX Runtime
+
+**For TFLite (onnx2tf workarounds, not PAI-specific):**
+- ✅ Ran `onnxsim.simplify()` on ONNX model (ONLY if doing INT8 quantization)
+- ✅ Converted with `onnx2tf`
+- ✅ Created float32 TFLite baseline (no simplification needed)
+- ✅ (Optional) Created INT8 quantized version with representative dataset
+
+**For TorchScript:**
+- ✅ Used `torch.jit.trace()` (or `script()` if tracing fails)
+- ✅ Saved `.pt` file for C++ loading
+
+---
+
 ## Core Concepts
 
 ### What are Artificial Dendrites?
@@ -1231,3 +1529,4 @@ In biological neurons, dendrites perform computation before signals reach the ce
 - Say **"Debug my perforated model"** to debug or optimize an existing integration  
 - Say **"Analyze my perforated results"** to review your training outputs and get optimization recommendations (uses perforatedai-analyze skill)
 - Say **"Load my perforated model for inference"** to deploy a trained model for inference or fine-tuning without dendrite additions
+- Say **"Export my perforated model"** to export a trained model to ONNX, TFLite, or TorchScript for deployment on non-PyTorch platforms

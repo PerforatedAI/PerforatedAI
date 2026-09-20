@@ -19,6 +19,7 @@ from perforatedai import tracker_perforatedai as TPA
 from perforatedai import clean_perforatedai as CL
 from perforatedai import blockwise_perforatedai as BPA
 from perforatedai import network_perforatedai as NPA
+from perforatedai import configure_perforatedai as CPA
 
 try:
     from dashboard_utils.event_emitter import emitter as _dashboard_emitter
@@ -48,11 +49,12 @@ def perforate_model(
     doing_pai=True,
     save_name="",
     making_graphs=True,
-    maximizing_score=True,
+    maximizing_score=None,
     num_classes=10000000000,
     values_per_train_epoch=-1,
     values_per_val_epoch=-1,
     zooming_graph=True,
+    config_file=None,
 ):
     """Main function to initialize the network to add dendrites
 
@@ -69,9 +71,11 @@ def perforate_model(
         The name to save the model under, by default "PAI"
     making_graphs : bool, optional
         Whether to create graphs during training, by default True
-    maximizing_score : bool, optional
-        Whether to maximize the score during training, by default True
-        setting to false is for when the score is a loss to be minimized
+    maximizing_score : bool or None, optional
+        Whether to maximize the score during training.
+        - None: use config value (defaults to True)
+        - bool: override config value for this run
+        Setting False is for when the score is a loss to be minimized.
     num_classes : int, optional
         The number of output classes, unused in current version
     values_per_train_epoch : int, optional
@@ -82,6 +86,8 @@ def perforate_model(
         during validation, by default -1 (all values).
     zooming_graph : bool, optional
         Whether to enable zooming on the graphs, by default True
+    config_file : str or None, optional
+        Optional local JSON config file path to load, by default None.
 
     Returns
     -------
@@ -116,13 +122,31 @@ def perforate_model(
         print("Warning: save_name became empty after sanitization. Using 'PAI'.")
         save_name = "PAI"
 
+    if config_file is not None:
+        GPA.pc.set_config_file(config_file)
+
+    GPA.pc.set_save_name(save_name)
+    GPA.pc.sync_config_sources()
+
+    if maximizing_score is None:
+        maximizing_score = GPA.pc.get_maximizing_score()
+    else:
+        # Programmatic perforate_model input must win over config-file values.
+        GPA.pc.set_maximizing_score(maximizing_score)
+
+    if not GPA.pc.get_configuration_confirmed():
+        CPA.set_perforation_targets(model)
+
     
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
-    GPA.pc.set_save_name(save_name)
     if _dashboard_emitter is not None:
         _dashboard_emitter.emit_run_start(GPA.pc, save_name)
+
+    # Get config outputs before tracker is initialized
+    GPA.pc.persist_config_outputs(overwrite_config_file=False)
+
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
@@ -134,12 +158,9 @@ def perforate_model(
         values_per_val_epoch=values_per_val_epoch,
         zooming_graph=zooming_graph,
     )
-    
-    # Save config after perforation
-    if not GPA.pc.get_testing_dendrite_capacity():
-        import os
-        GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
-    
+
+
+
     return model
 
 
@@ -389,6 +410,7 @@ def convert_module(
     converted_names_list,
     neuron_module_class,
     tracked_module_class,
+    config_setup=False,
 ):
     """Recursive function to do all conversion of modules to wrappers of modules
 
@@ -437,7 +459,7 @@ def convert_module(
         aliases_to_skip = [
             alias for alias in aliases.keys() if alias not in existing_not_save
         ]
-        if aliases_to_skip:
+        if aliases_to_skip and not config_setup:
             GPA.pc.append_module_names_to_not_save(aliases_to_skip)
             print(
                 "Auto-detected duplicate module aliases via named_modules; "
@@ -458,31 +480,40 @@ def convert_module(
                     print("Seq ID is in track IDs: %s" % sub_name)
                 if tracked_module_class is None:
                     continue
-                setattr(
-                    net,
-                    submodule_id,
-                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
-                )
+                if config_setup:
+                    net.get_submodule(submodule_id).pai_mode = "tracked"
+                else:
+                    setattr(
+                        net,
+                        submodule_id,
+                        tracked_module_class(net.get_submodule(submodule_id), sub_name),
+                    )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_perforate():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
-                setattr(
-                    net,
-                    submodule_id,
-                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
-                )
+                if config_setup:
+                    net.get_submodule(submodule_id).pai_mode = "perforated"
+                else:
+                    setattr(
+                        net,
+                        submodule_id,
+                        neuron_module_class(net.get_submodule(submodule_id), sub_name),
+                    )
                 continue
             if type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_replace():
                 if GPA.pc.get_verbose():
                     print(
                         "Seq sub is in replacement module so replacing: %s" % sub_name
                     )
-                setattr(
-                    net,
-                    submodule_id,
-                    replace_predefined_modules(net.get_submodule(submodule_id)),
-                )
+                if config_setup:
+                    net.get_submodule(submodule_id).pai_mode = "replaced"
+                else:
+                    setattr(
+                        net,
+                        submodule_id,
+                        replace_predefined_modules(net.get_submodule(submodule_id)),
+                    )
             if (
                 type(net.get_submodule(submodule_id)) in GPA.pc.get_modules_to_track()
             ) or (
@@ -496,11 +527,14 @@ def convert_module(
                     )
                 if tracked_module_class is None:
                     continue
-                setattr(
-                    net,
-                    submodule_id,
-                    tracked_module_class(net.get_submodule(submodule_id), sub_name),
-                )
+                if config_setup:
+                    net.get_submodule(submodule_id).pai_mode = "tracked"
+                else:
+                    setattr(
+                        net,
+                        submodule_id,
+                        tracked_module_class(net.get_submodule(submodule_id), sub_name),
+                    )
             elif (
                 type(net.get_submodule(submodule_id))
                 in GPA.pc.get_modules_to_perforate()
@@ -531,11 +565,14 @@ def convert_module(
                         "is not recommended: " + name_so_far
                     )
                     pdb.set_trace()
-                setattr(
-                    net,
-                    submodule_id,
-                    neuron_module_class(net.get_submodule(submodule_id), sub_name),
-                )
+                if config_setup:
+                    net.get_submodule(submodule_id).pai_mode = "perforated"
+                else:
+                    setattr(
+                        net,
+                        submodule_id,
+                        neuron_module_class(net.get_submodule(submodule_id), sub_name),
+                    )
             else:
                 if net != net.get_submodule(submodule_id):
                     converted_list += [id(net.get_submodule(submodule_id))]
@@ -557,6 +594,7 @@ def convert_module(
                             converted_names_list,
                             neuron_module_class,
                             tracked_module_class,
+                            config_setup,
                         ),
                     )
                 # else:
@@ -580,8 +618,11 @@ def convert_module(
                 if sub_name in GPA.pc.get_parameter_ids_to_track():
                     if GPA.pc.get_verbose():
                         print("tracking parameter by ID: %s" % sub_name)
-                    member_obj.parameter_type = "neuron"
-                    member_obj.wrapped = True
+                    if config_setup:
+                        member_obj.pai_mode = "tracked"
+                    else:
+                        member_obj.parameter_type = "neuron"
+                        member_obj.wrapped = True
                 continue
 
             # Track module object ids once at this level so duplicate aliases are
@@ -601,7 +642,8 @@ def convert_module(
                         "If you prefer to keep %s and skip %s, add %s to module_names_to_not_save before convert."
                         % (sub_name, original_sub_name, original_sub_name)
                     )
-                    GPA.pc.append_module_names_to_not_save([sub_name])
+                    if not config_setup:
+                        GPA.pc.append_module_names_to_not_save([sub_name])
                     continue
                 converted_list += [id(member_obj)]
                 converted_names_list += [sub_name]
@@ -610,16 +652,22 @@ def convert_module(
                     print("Seq ID is in track IDs: %s" % sub_name)
                 if tracked_module_class is None:
                     continue
-                setattr(
-                    net, member, tracked_module_class(getattr(net, member), sub_name)
-                )
+                if config_setup:
+                    getattr(net, member).pai_mode = "tracked"
+                else:
+                    setattr(
+                        net, member, tracked_module_class(getattr(net, member), sub_name)
+                    )
                 continue
             if sub_name in GPA.pc.get_module_ids_to_perforate():
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
-                setattr(
-                    net, member, neuron_module_class(getattr(net, member), sub_name)
-                )
+                if config_setup:
+                    getattr(net, member).pai_mode = "perforated"
+                else:
+                    setattr(
+                        net, member, neuron_module_class(getattr(net, member), sub_name)
+                    )
                 continue
             if id(getattr(net, member, None)) == id(net):
                 if GPA.pc.get_verbose():
@@ -639,9 +687,12 @@ def convert_module(
             if type(getattr(net, member, None)) in GPA.pc.get_modules_to_replace():
                 if GPA.pc.get_verbose():
                     print("sub is in replacement module so replacing: %s" % sub_name)
-                setattr(
-                    net, member, replace_predefined_modules(getattr(net, member, None))
-                )
+                if config_setup:
+                    getattr(net, member).pai_mode = "replaced"
+                else:
+                    setattr(
+                        net, member, replace_predefined_modules(getattr(net, member, None))
+                    )
             if (
                 type(getattr(net, member, None)) in GPA.pc.get_modules_to_track()
                 or type(getattr(net, member, None)).__name__
@@ -655,9 +706,12 @@ def convert_module(
                     )
                 if tracked_module_class is None:
                     continue
-                setattr(
-                    net, member, tracked_module_class(getattr(net, member), sub_name)
-                )
+                if config_setup:
+                    getattr(net, member).pai_mode = "tracked"
+                else:
+                    setattr(
+                        net, member, tracked_module_class(getattr(net, member), sub_name)
+                    )
             elif (
                 type(getattr(net, member, None)) in GPA.pc.get_modules_to_perforate()
                 or type(getattr(net, member, None)).__name__
@@ -668,11 +722,14 @@ def convert_module(
                     print(
                         "sub is in conversion list so initiating PAI for: %s" % sub_name
                     )
-                setattr(
-                    net,
-                    member,
-                    neuron_module_class(getattr(net, member), sub_name),
-                )
+                if config_setup:
+                    getattr(net, member).pai_mode = "perforated"
+                else:
+                    setattr(
+                        net,
+                        member,
+                        neuron_module_class(getattr(net, member), sub_name),
+                    )
             elif (
                 issubclass(type(getattr(net, member, None)), nn.Module)
                 or issubclass(type(getattr(net, member, None)), nn.Sequential)
@@ -695,6 +752,7 @@ def convert_module(
                             converted_names_list,
                             neuron_module_class,
                             tracked_module_class,
+                            config_setup,
                         ),
                     )
             if (
@@ -1603,75 +1661,56 @@ def load_net_from_dict(net, state_dict):
                 )
             except Exception as e:
                 print(e)
-                print(
-                    "This value is missing from the state dict\n"
-                    "When missing this value it typically means you\n"
-                    "converted a module but didn't actually use it in\n"
-                    "your forward and backward pass."
-                )
-                print("module was: %s" % module.name)
-                print("There are many reasons this can happen:")
-                print(
-                    "\n1 - check your model definition and forward function and "
-                    "ensure this module is being used properly"
-                )
-                print(
-                    "with GPA.pc.set_verbose(True) you can confirm this is the case if\n"
-                    'you do not see a "setting d shape for" this module at the first training batch.'
-                )
-                print(
-                    "If this is the case, and it is correct to not be passing data through it\n"
-                    "Set it to be a tracked module with:\n"
-                    'GPA.pc.append_module_ids_to_track(["%s"]) to leave it out '
-                    % module.name
-                )
-                print(
-                    "\n2 - This can happen if you adjusted your model "
-                    "definition after calling perforate_model"
-                )
-                print(
-                    "for example with torch.compile. If the module name "
-                    "printed above does not contain all modules leading "
-                    "to the main definition"
-                )
-                print(
-                    "this is likely the case for your problem. Fix by "
-                    "calling perforate_model after all other model "
-                    "initialization steps"
-                )
                 first_key = next(iter(state_dict.keys()))
-                print(
-                    "\n3 - This can happen is if the model where you called perforate_model\n"
-                    "and the model within add_validation_score are not the same. \n"
-                    "Check if the module above and .%s have the same prefix\n"
-                    % first_key
-                )
-                print(
-                    "if one starts with .model or .base etc and the other does not, this is the problem."
-                )
+                error_msg = f"""
+This value is missing from the state dict.
+When missing this value it typically means you converted a module but didn't
+actually use it in your forward and backward pass.
 
-                print(
-                    "\n4 - If you are using this module but then not actually including\n"
-                    "the correct output tensor in the forward.  For example\n"
-                    "if you are using an LSTM and forwarding hidden instead of otput\n"
-                    "but your processors are set up to work with output"
-                )
-                print(
-                    "\n5 - if you are not properly calling backward at all."
-                    " If this is the first module in your network it is more"
-                    "likely this is the problem."
-                    "One check in these cases is to make sure you do not call an initial validation score"
-                    "before the first backward call.\nIf you do this, while testing_dendrite_capacity is True"
-                    "this error will be triggered."
-                )
-                print(
-                    "\n6 - You have converted a module that is in a frozen"
-                    " part of the network and thus no gradients are flowing"
-                )
-                print(
-                    "\n7 - You are running multiple experiments at once with the same save_name."
-                    " When running concurrent trials be sure to add save_name=<unique_name> to perforate_model."
-                )
+Module was: {module.name}
+
+There are many reasons this can happen:
+
+1 - Check your model definition and forward function and ensure this module is 
+    being used properly.
+    
+    With GPA.pc.set_verbose(True) you can confirm this is the case if you do not 
+    see a "setting d shape for" this module at the first training batch.
+    
+    If this is the case, and it is correct to not be passing data through it,
+    set it to be a tracked module with:
+    GPA.pc.append_module_ids_to_track(["{module.name}"]) to leave it out
+
+2 - This can happen if you adjusted your model definition after calling 
+    perforate_model (for example with torch.compile). If the module name printed 
+    above does not contain all modules leading to the main definition, this is 
+    likely the case for your problem. Fix by calling perforate_model after all 
+    other model initialization steps.
+
+3 - This can happen if the model where you called perforate_model and the model 
+    within add_validation_score are not the same. Check if the module above and 
+    .{first_key} have the same prefix. If one starts with .model or .base etc 
+    and the other does not, this is the problem.
+
+4 - If you are using this module but then not actually including the correct 
+    output tensor in the forward. For example if you are using an LSTM and 
+    forwarding hidden instead of output but your processors are set up to work 
+    with output.
+
+5 - If you are not properly calling backward at all. If this is the first module 
+    in your network it is more likely this is the problem. One check in these 
+    cases is to make sure you do not call an initial validation score before the 
+    first backward call. If you do this, while testing_dendrite_capacity is True, 
+    this error will be triggered.
+
+6 - You have converted a module that is in a frozen part of the network and thus 
+    no gradients are flowing.
+
+7 - You are running multiple experiments at once with the same save_name. When 
+    running concurrent trials be sure to add save_name=<unique_name> to 
+    perforate_model.
+"""
+                print(error_msg)
                 import pdb # This needs to be here for cython for some reason.
                 pdb.set_trace()
 
@@ -1892,6 +1931,10 @@ def simulate_cycles(module, num_cycles, doing_pai):
     Simulate the back and forth processes of adding dendrites to build a
     pretrained dendrite model before loading weights.  Required for loading
     dendrite save files from non dendrite initial models.
+    
+    If calling this by hand to start off a network with dendrites added,
+    make sure to pass a single datapoint forward and backward through the network
+    so that array sizes are initialized.
 
     Parameters
     ----------
@@ -2759,7 +2802,6 @@ try:
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", force_download=force_download)
         state_dict = load_file(model_path)
-        wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
 

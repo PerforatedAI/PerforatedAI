@@ -104,7 +104,7 @@ jobs:
         python -m pip install cython auditwheel patchelf twine setuptools wheel
         rm -rf pai_module
         mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
-        cp perforatedai/* pai_module/perforatedai
+        cp perforatedai/*.py perforatedai/*.json pai_module/perforatedai
         cp dashboard_utils/*.py pai_module/dashboard_utils
         cp setupCython.py pai_module/setup.py
         cd pai_module
@@ -309,7 +309,7 @@ jobs:
         set -x
         rm -rf pai_module
         mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
-        cp perforatedai/* pai_module/perforatedai
+        cp perforatedai/*.py perforatedai/*.json pai_module/perforatedai
         cp dashboard_utils/*.py pai_module/dashboard_utils
         cp setupCython.py pai_module/setup.py
         cd pai_module
@@ -421,6 +421,8 @@ jobs:
         Copy-Item perforatedai\library_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\clean_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\blockwise_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\configure_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\configuration_descriptions.json pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
         Copy-Item dashboard_utils\__init__.py pai_module\dashboard_utils
         Copy-Item dashboard_utils\event_emitter.py pai_module\dashboard_utils
@@ -535,7 +537,7 @@ jobs:
           python -m pip install cython auditwheel patchelf twine setuptools wheel
           rm -rf pai_module
           mkdir pai_module && mkdir pai_module/perforatedai && mkdir pai_module/dashboard_utils
-          cp perforatedai/* pai_module/perforatedai
+          cp perforatedai/*.py perforatedai/*.json pai_module/perforatedai
           cp dashboard_utils/*.py pai_module/dashboard_utils
           cp setupCython.py pai_module/setup.py
           cd pai_module

@@ -59,8 +59,10 @@ else:
 
 setup(
     name="perforatedai",
-    version="3.2.6",
+    version="3.2.9",
     packages=find_packages(),
+    package_data={"perforatedai": ["*.json"]},
+    include_package_data=True,
     author="PerforatedAI",
     author_email="rorry@perforatedai.com",
     description="Official package for the artificial dendrite library for PyTorch, Perforated AI",
@@ -81,6 +83,7 @@ setup(
         "cryptography",
         "pyyaml",
         "safetensors",
+        "requests",
     ],
     # may need setuptools upgraded
 )
