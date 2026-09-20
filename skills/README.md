@@ -14,6 +14,7 @@ They teach your AI coding agent how to integrate [PerforatedAI](https://github.c
 | **[perforatedai-libraries-transformers](perforatedai-libraries-transformers/SKILL.md)** | Auto-loaded when your script uses the HuggingFace `Trainer`.                                                   |
 | **[perforatedai-wandb](perforatedai-wandb/SKILL.md)**                                   | When you want Weights & Biases sweeps/logging with PerforatedAI.                                               |
 | **[perforatedai-complex-methods](perforatedai-complex-methods/SKILL.md)**               | Edge cases such as AMP / `GradScaler` crashes in p mode.                                                       |
+| **[perforatedai-plot](perforatedai-plot/SKILL.md)**                                     | `"Make the PAI graph"` to draw score vs parameters from a sweep CSV, PAI run folders, or numbers.              |
 
 You normally only invoke **perforatedai**; it pulls in the others as needed.
 
