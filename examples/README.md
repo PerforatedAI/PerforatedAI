@@ -38,14 +38,6 @@ Using PAI inside popular training frameworks.
 | [TD3 (Cheetah)](reinforcementLearning/td3_cheetah) | TD3 continuous control on the DeepMind Control Suite. |
 | [DQN (MinAtar)](reinforcementLearning/dqn_minatar) | DQN on MinAtar's miniaturized Atari 2600 games.       |
 
-### Challenge Examples
-
-Larger or harder reproductions.
-
-| Example                              | What it shows                                   |
-| ------------------------------------ | ----------------------------------------------- |
-| [nanoGPT](challengeExamples/nanoGPT) | Reproducing Perforated AI's results on nanoGPT. |
-
 ### ImageNet
 
 | Example                                    | What it shows                                               |

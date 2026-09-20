@@ -951,12 +951,12 @@ def main(args):
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
         model = UPA.perforate_model(model, save_name=args.perforated_load_path)
-        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
+        initialize_variant_dendrite(synapses=clf0_in // 2, rf_mode='random', sparse=True)
         model = UPA.load_system(model, args.perforated_load_path, args.load_checkpoint_name, True)
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
         # Must be called after perforate_model so GPA.pai_tracker is initialized.
-        initialize_variant_dendrite(synapses=clf0_in // 4, rf_mode='random', sparse=True)
+        initialize_variant_dendrite(synapses=clf0_in // 2, rf_mode='random', sparse=True)
     model.to(device)
 
     if args.perforated_load_path == "":

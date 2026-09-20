@@ -2802,7 +2802,6 @@ try:
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", force_download=force_download)
         state_dict = load_file(model_path)
-        wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
 
