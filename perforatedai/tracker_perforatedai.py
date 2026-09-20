@@ -2676,15 +2676,13 @@ class PAINeuronModuleTracker:
 
         # Draw vertical lines for epochs where a dendrite switch occurred.
         # Colour by the phase being entered: dendrite/PAI phase -> teal,
-        # normal phase -> orange (not an alternating r/b).
+        # normal phase -> orange, alternating starting with dendrite.
         if GPA.pc.get_drawing_pai() and self.member_vars["doing_pai"]:
-            p_switches = set(self.member_vars["p_switch_epochs"])
             for i, switcher in enumerate(self.member_vars["switch_epochs"]):
-                if p_switches:
-                    entering_p = switcher in p_switches
-                else:
-                    # First switch enters the dendrite phase, then alternate.
-                    entering_p = (i % 2) == 0
+                # Mode always starts at "n" and switch_epochs alternates
+                # n->p->n->p..., so the first switch enters the dendrite
+                # phase and every other one alternates from there.
+                entering_p = (i % 2) == 0
                 plt.axvline(
                     x=switcher,
                     ymin=0,
