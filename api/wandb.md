@@ -380,12 +380,12 @@ To re-run specific configurations from successful sweep runs:
 
 ## Analyzing Sweep Results
 
-After your sweep completes, use `get_wandb_results.py` in the repository root to extract and analyze results from the WandB API.
+After your sweep completes, use `data_processing/get_wandb_results.py` to extract and analyze results from the WandB API.
 
 ### Basic Usage
 
 ```bash
-python get_wandb_results.py "https://wandb.ai/entity/project/sweeps/SWEEP_ID"
+python get_wandb_results.py --url "https://wandb.ai/entity/project/sweeps/SWEEP_ID"
 ```
 
 This downloads raw architecture progression data into a CSV file named `entity_project_sweep_arch_scores.csv`.
@@ -398,7 +398,7 @@ The script supports three modes via the `--mode` (or `-m`) argument:
 Downloads all raw log entries from the sweep:
 
 ```bash
-python get_wandb_results.py "URL"
+python get_wandb_results.py --url "URL"
 ```
 
 **Output**: `entity_project_sweep_arch_scores.csv`
@@ -411,7 +411,7 @@ python get_wandb_results.py "URL"
 Creates a pivot table for line graphs where each run is a separate line:
 
 ```bash
-python get_wandb_results.py "URL" -m gen-by-run
+python get_wandb_results.py --url "URL" -m gen-by-run
 ```
 
 **Output**: `entity_project_sweep_by_run.csv`
@@ -424,7 +424,7 @@ python get_wandb_results.py "URL" -m gen-by-run
 Creates scatter plot data grouped by dendrite count:
 
 ```bash
-python get_wandb_results.py "URL" -m by-dendrite
+python get_wandb_results.py --url "URL" -m by-dendrite
 ```
 
 **Output**: `entity_project_sweep_by_dendrite.csv`
@@ -439,7 +439,7 @@ python get_wandb_results.py "URL" -m by-dendrite
 Add final metrics (logged at training completion) to the output:
 
 ```bash
-python get_wandb_results.py "URL" --include-final
+python get_wandb_results.py --url "URL" --include-final
 ```
 
 Adds columns: `final_param_count`, `final_max_val`, `final_dendrite_count`
@@ -452,10 +452,10 @@ Specify starting dendrite counts for models that begin with dendrites already pr
 
 ```bash
 # Model with index 0 starts with 2 dendrites
-python get_wandb_results.py "URL" --dendrite-offset "0:2"
+python get_wandb_results.py --url "URL" --dendrite-offset "0:2"
 
 # Multiple models with different starting counts
-python get_wandb_results.py "URL" --dendrite-offset "0:2" "1:3"
+python get_wandb_results.py --url "URL" --dendrite-offset "0:2" "1:3"
 ```
 
 **Format**: `"model_index:count"`
@@ -473,21 +473,21 @@ When using `gen-by-run` or `by-dendrite` modes, the script automatically checks 
 **Workflow 1: Quick visualization**
 ```bash
 # Download and generate by-run comparison
-python get_wandb_results.py "URL" -m gen-by-run
+python get_wandb_results.py --url "URL" -m gen-by-run
 # Import entity_project_sweep_by_run.csv into Excel/Google Sheets for line graph
 ```
 
 **Workflow 2: Analyze dendrite progression**
 ```bash
 # Generate dendrite-focused data
-python get_wandb_results.py "URL" -m by-dendrite --dendrite-offset "0:2"
+python get_wandb_results.py --url "URL" -m by-dendrite --dendrite-offset "0:2"
 # Create scatter plot showing performance vs dendrite count
 ```
 
 **Workflow 3: Full verification**
 ```bash
 # Download with all metrics
-python get_wandb_results.py "URL" --include-final
+python get_wandb_results.py --url "URL" --include-final
 # Inspect CSV to verify final values match last arch values
 ```
 
@@ -498,3 +498,43 @@ python get_wandb_results.py "URL" --include-final
 **Final metrics** (`Final Max Val`, `Final Max Train`, `Final Param Count`, `Final Dendrite Count`): Logged once at training completion. Represents the overall best performance across all architectures.
 
 **Key insight**: For successful dendrite integration, `Final Max Val` should equal or exceed the best `Arch Max Val` values, and `Final Dendrite Count` should equal `num_dendrites_integrated` (successfully integrated dendrites, not just attempted).
+
+## Plotting Results
+
+Everything under `data_processing/` draws through one shared style module,
+`data_processing/pai_style.py`: the palette (teal, gray, dark blue, orange,
+then evenly spaced hues), a dotted grid, no top or right spine, a framed
+legend, and 200 dpi output. Import it rather than styling inline in any new
+plotting script.
+
+### Sweep summaries
+
+`process_csv_output.py` and `process_csv_output_data_percent.py` take a
+by-dendrite-separate CSV and write box plots, scatter plots, and stats CSVs
+into a folder beside it:
+
+```bash
+python data_processing/get_wandb_results.py --url "URL" -m by-dendrite-separate
+python data_processing/process_csv_output.py --csv entity_project_sweep_by_dendrite_separate.csv
+```
+
+The `data_percent` variant reads `data_percent_<N>`, `subj_<N>`, `samp_<M>`
+and `split_<x>` tokens from run names and draws score against parameters
+per data fraction, averaging repeats.
+
+### Single figures
+
+`plot_streams.py` renders one publication figure of score against
+parameter count from a JSON spec of literal numbers. `spec_from_csv.py`
+builds that spec from a sweep CSV (best score per dendrite column, one
+stream per model) or from PAI run folders (`--stream NAME:folder,folder`,
+best row of each `<save_name>_best_arch_scores.csv`):
+
+```bash
+python data_processing/spec_from_csv.py --csv sweep_by_dendrite_separate.csv \
+    --out my_figure --title "..." --y-label "mAP50-95"
+python data_processing/plot_streams.py my_figure.json --out-dir figures/
+```
+
+The `perforatedai-plot` skill in `skills/` walks through building and rendering a
+spec. See `data_processing/example_spec.json` for every optional field.

@@ -143,6 +143,10 @@ def perforate_model(
     )
     if _dashboard_emitter is not None:
         _dashboard_emitter.emit_run_start(GPA.pc, save_name)
+
+    # Get config outputs before tracker is initialized
+    GPA.pc.persist_config_outputs(overwrite_config_file=False)
+
     model = GPA.pai_tracker.initialize(
         model,
         doing_pai=doing_pai,
@@ -155,12 +159,7 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
 
-    # Persist the resolved configuration so Studio/dashboard tooling and resume
-    # flows can read {save_name}/{save_name}_config.json. The interactive TUI
-    # also writes this when used; doing it here covers the skip-TUI path
-    # (configuration_confirmed=True) and keeps the write unconditional.
-    if not GPA.pc.get_testing_dendrite_capacity():
-        GPA.pc.persist_config_outputs(overwrite_config_file=False)
+
 
     return model
 
@@ -2813,7 +2812,6 @@ try:
         # Download model files from HuggingFace
         model_path = hf_hub_download(repo_id=repo_id, filename="model.safetensors", force_download=force_download)
         state_dict = load_file(model_path)
-        wrapped_net = NPA.convert_network(wrapped_net)
         wrapped_net = NPA.load_pai_model_from_dict(wrapped_net, state_dict)
         return wrapped_net
 
