@@ -77,13 +77,14 @@ Need help with integration? See the [API documentation][api-docs] for full integ
 
 ## 🤖 AI Agent Skills
 
-Prefer to let your AI coding assistant do the integration? This repo ships a set of [**Agent Skills**][agent-skills] - portable `SKILL.md` workflows that work across **Claude Code, GitHub Copilot, Codex, and Cursor**. Install them into your own project, then just say _"Perforate my model"_:
-
-```bash
-# from your project root - choose your agent with -a; -s '*' installs all skills
-npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'   # or: github-copilot | codex | cursor
+Prefer to let your AI coding assistant do the integration? This repo ships a set of [**Agent Skills**][agent-skills] - portable `SKILL.md` workflows that work across **Claude Code, GitHub Copilot, Codex, and Cursor**. To install them, open a terminal in the root folder of the project you want to perforate and run the commands below. It uses `npx` (bundled with Node.js) to fetch and install the skills for you in a single line. Once the skills are installed, just say _"Perforate my model"_ to get started.
+ 
 ```
-
+pip install perforatedai   # install the package
+# Swap claude-code for your agent after -a. The -s '*' part installs every skill.
+npx skills add PerforatedAI/PerforatedAI -a claude-code -s '*'   # agent options: claude-code | github-copilot | codex | cursor
+```
+ 
 Your agent then analyzes your model, adds the ~10 lines of integration, and helps you debug and analyze results. See **[skills/README.md][agent-skills]** for the full skill list, manual-install steps, and trigger phrases.
 
 ## 💡 Examples

@@ -1,3 +1,0 @@
-perforatedai
-scipy
-huggingface_hub
