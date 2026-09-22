@@ -1,4 +1,5 @@
 import argparse
+import csv
 import logging
 import os
 import random
@@ -26,6 +27,28 @@ from perforatedai import utils_perforatedai as UPA
 dir_img = Path('./data/train_hq')
 dir_mask = Path('./data/train_masks')
 dir_checkpoint = Path('./checkpoints/')
+
+
+def print_dendrite_scores_summary():
+    scores_path = Path('PAI/PAI_best_arch_scores')
+    if not scores_path.exists():
+        scores_path = Path('PAI/PAI_best_arch_scores.csv')
+
+    if not scores_path.exists():
+        logging.warning('Could not find PAI/PAI_best_arch_scores or PAI/PAI_best_arch_scores.csv')
+        return
+
+    scores = []
+    with open(scores_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        next(reader, None)  # skip header row
+        for row in reader:
+            if len(row) >= 2:
+                scores.append(row[1])
+
+    print('this is the scores with each dendrite count')
+    for dendrite_count, score in enumerate(scores):
+        print(f'dendrite_count={dendrite_count}, score={score}')
 
 
 def train_model(
@@ -94,7 +117,7 @@ def train_model(
     grad_scaler = torch.cuda.amp.GradScaler(enabled=amp)
     criterion = nn.CrossEntropyLoss() if model.n_classes > 1 else nn.BCEWithLogitsLoss()
     global_step = 0
-
+    training_complete = False
     # 5. Begin training
     for epoch in range(1, epochs + 1):
         model.train()
@@ -180,7 +203,6 @@ def train_model(
                         model) # .module if its a parallel, 
                         model.to(memory_format=torch.channels_last)
                         model.to('cuda')
-                        
                         if(restructured):                             
                             optimArgs = {'params':model.parameters(),'lr':learning_rate, 'weight_decay':weight_decay, 'momentum':momentum}
                             schedArgs = {'mode':'max', 'patience': 5} 
@@ -192,6 +214,8 @@ def train_model(
             state_dict['mask_values'] = dataset.mask_values
             torch.save(state_dict, str(dir_checkpoint / 'checkpoint_epoch{}.pth'.format(epoch)))
             logging.info(f'Checkpoint {epoch} saved!')
+        if (training_complete):
+            break
 
 
 def get_args():
@@ -228,7 +252,7 @@ if __name__ == '__main__':
     GPA.pc.set_unwrapped_modules_confirmed(True)
     GPA.pc.set_weight_decay_accepted(True)
     GPA.pc.set_testing_dendrite_capacity(False)
-    GPA.pc.set_max_dendrites(2)
+    GPA.pc.set_max_dendrites(1)
     GPA.pc.append_module_names_to_track(['ConvTranspose2d'])
     GPA.pc.set_cap_at_n(True)
     # Change here to adapt to your data
@@ -278,3 +302,5 @@ if __name__ == '__main__':
             val_percent=args.val / 100,
             amp=args.amp
         )
+
+    print_dendrite_scores_summary()
