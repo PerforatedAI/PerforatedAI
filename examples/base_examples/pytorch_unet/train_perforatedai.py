@@ -48,7 +48,7 @@ def print_dendrite_scores_summary():
 
     print('this is the scores with each dendrite count')
     for dendrite_count, score in enumerate(scores):
-        print(f'dendrite_count={dendrite_count}, score={score}')
+        print(f'dendrite_count={dendrite_count}, score={float(score):.2f}')
 
 
 def train_model(
