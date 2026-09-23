@@ -147,7 +147,7 @@ This repository is the open-source version of Perforated AI under Apache 2.0 - t
 For larger performance gains and a smoother setup experience, we also offer a commercial version that adds:
 
 - **Perforated Backpropagation™** - our patented training algorithm (replaces standard backprop) that produces our headline accuracy, compression, and data-efficiency results
-- **[Perforated Studio](./Studio_Install/QUICKSTART.md)** - a GUI for configuring runs and inspecting results, so you can get up and running without hand-rolling the integration in code
+- **[Perforated Studio](./studio_install/QUICKSTART.md)** - a GUI for configuring runs and inspecting results, so you can get up and running without hand-rolling the integration in code
 
 [Get in touch][get-started] to learn more about the commercial version.
 
@@ -215,23 +215,23 @@ Not a Contribution. If you would like to get additional performance boosts from 
 [contact-us]: https://www.perforatedai.com/contact
 [customization-guide]: ./api/customization.md
 [discord]: https://discord.gg/Fgw3FG3Hzt
-[edge-impulse-example]: ./examples/hackathonProjects/perforated-impulse-nn-block/
+[edge-impulse-example]: ./examples/submitted_projects/perforated-impulse-nn-block
 [get-started]: https://www.perforatedai.com/get-started
 [github-issues]: https://github.com/PerforatedAI/PerforatedAI/issues
 [github-url]: https://github.com/PerforatedAI/PerforatedAI
-[hf-example]: ./examples/libraryExamples/huggingface
+[hf-example]: ./examples/library_examples/huggingface
 [huggingface]: https://huggingface.co/perforated-ai
 [huggingface-model]: https://huggingface.co/perforated-ai/resnet-18-perforated-cascor
 [imagenet-example]: ./examples/imagenet
 [license-url]: ./LICENSE
-[lightning-example]: ./examples/libraryExamples/pytorch_lightning
+[lightning-example]: ./examples/library_examples/pytorch_lightning
 [linkedin]: https://www.linkedin.com/company/perforated-ai
-[mcp-server]: https://github.com/PerforatedAI/PerforatedAI/blob/nn_customize/API/MCP_INSTALL.md
-[mnist-example]: ./examples/baseExamples/mnist
+[mcp-server]: https://github.com/PerforatedAI/PerforatedAI/blob/main/api/MCP_INSTALL.md
+[mnist-example]: ./examples/base_examples/mnist
 [newsletter]: https://www.perforatedai.com/contact
 [papers]: ./papers
 [pypi-url]: https://pypi.python.org/pypi/perforatedai
 [pytorch-landscape]: https://landscape.pytorch.org/
 [output-guide]: ./api/output.md
 [resources]: https://www.perforatedai.com/resources
-[td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/main/examples/reinforcementLearning/td3_cheetah
+[td3-example]: https://github.com/PerforatedAI/PerforatedAI/tree/main/examples/reinforcement_learning/td3_cheetah
