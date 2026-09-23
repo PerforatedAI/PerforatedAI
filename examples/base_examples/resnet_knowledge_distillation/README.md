@@ -92,7 +92,8 @@ CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet_KD.py \
   --auto-augment ta_wide \
   --dropout 0.2 \
   --use-kd \
-  --teacher-checkpoint teacher_resnet50_food101.pth
+  --teacher-checkpoint runs/food101_resnet18/teacher_resnet50_food101.pth
+
 ```
 
 Important:

@@ -1231,10 +1231,10 @@ def main(args):
 
     # Load from checkpoint if path provided, otherwise initialize new
     if args.perforated_load_path != "":
-        model = UPA.perforate_model(model, save_name=args.perforated_load_path)
+        model = UPA.perforate_model(model, save_name=args.perforated_load_path, config_file="PAI.json")
         model = UPA.load_system(model, args.perforated_load_path, "latest", True)
     else:
-        model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
+        model = UPA.perforate_model(model, save_name=save_name_with_timestamp, config_file="PAI.json")
 
     model.to(device)
 

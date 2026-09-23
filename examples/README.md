@@ -4,7 +4,7 @@ This folder contains working examples of how to add dendrites to existing PyTorc
 
 General instructions for adding PAI to a system can be found in the [API](https://github.com/PerforatedAI/PerforatedAI/tree/main/api) directory. The specific examples of where to put each function and how to use the customization functions can be found here to best implement the system into your own training program.
 
-> **New to Perforated?** Start with the [MNIST example](baseExamples/mnist) - it is the smallest end-to-end integration and doubles as the template for contributing new examples.
+> **New to Perforated?** Start with the [MNIST example](base_examples/mnist) - it is the smallest end-to-end integration and doubles as the template for contributing new examples.
 
 ## Index
 
