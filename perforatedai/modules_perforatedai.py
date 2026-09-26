@@ -72,8 +72,6 @@ def get_DENDRITE_TENSOR_VALUES():
             )
         else:
             _cached_dendrite_tensor_values = _DENDRITE_TENSOR_VALUES_BASE.copy()
-        if current_pb_state:
-            _cached_dendrite_tensor_values = _cached_dendrite_tensor_values + MPB._variant_tensor_values
 
     return _cached_dendrite_tensor_values
 
@@ -104,8 +102,6 @@ def get_DENDRITE_SINGLE_VALUES():
             )
         else:
             _cached_dendrite_single_values = _DENDRITE_SINGLE_VALUES_BASE.copy()
-        if current_pb_state:
-            _cached_dendrite_single_values = _cached_dendrite_single_values + MPB._variant_single_values
 
     return _cached_dendrite_single_values
 
@@ -273,23 +269,6 @@ def filter_backward(grad_out, values, module=None):
                 values[0].setup_arrays(storage_shape)
             # Flag that it has been setup (both the GPU tensor and the fast Python bool)
             values[0].current_d_init[0] = 1
-            # If fixed_input_sizes is enabled, populate the tuple caches now
-            # that val.shape is known. get_tuples_and_mult will read these on
-            # every subsequent call instead of recomputing.
-            if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
-                from perforatedbp import modules_pbp as _MPB
-                math_tuple, view_tuple, full_mult = _MPB.get_tuples_and_mult(val, values[0])
-                ndim = len(val.shape)
-                # math_tuple can be shorter than ndim (excludes this_node_index and
-                # retained dims). Pad with -1 sentinel to fill the ndim-length buffer.
-                padded_math = math_tuple + [-1] * (ndim - len(math_tuple))
-                values[0].math_tuple_cache.copy_(
-                    torch.tensor(padded_math, dtype=torch.long, device=val.device)
-                )
-                values[0].view_tuple_cache.copy_(
-                    torch.tensor(view_tuple, dtype=torch.long, device=val.device)
-                )
-                values[0].full_mult_cache[0] = full_mult
             if module is not None:
                 module._fb_init_done = True
                 # When PBP is disabled this hook has no further work to do.
@@ -1795,26 +1774,6 @@ class DendriteValueTracker(nn.Module):
             self.register_buffer(
                 val_name,
                 torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
-            )
-
-        # If fixed_input_sizes is enabled, register cache buffers now that the
-        # final ndim is known (output_dimensions may have been corrected after
-        # __init__ for Linear layers). Mirrors the pattern of this_output_dimensions
-        # — registered as buffers so they are saved and loaded automatically.
-        if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
-            ndim = len(storage_shape)
-            if not hasattr(self, 'math_tuple_cache'):
-                self.register_buffer(
-                    "math_tuple_cache",
-                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
-                )
-                self.register_buffer(
-                    "view_tuple_cache",
-                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
-                )
-                self.register_buffer(
-                    "full_mult_cache",
-                    torch.zeros(1, dtype=torch.long, device=GPA.pc.get_device()),
             )
 
     def reinitialize_for_pai(self):

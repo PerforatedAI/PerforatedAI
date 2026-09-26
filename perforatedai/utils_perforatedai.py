@@ -134,7 +134,18 @@ def perforate_model(
         values_per_val_epoch=values_per_val_epoch,
         zooming_graph=zooming_graph,
     )
-    
+
+    # When perforated backpropagation is enabled, register the epoch-boundary
+    # hooks so a dendrite loss class's on_epoch_* methods fire automatically,
+    # rather than requiring the application to call register_epoch_hooks() by
+    # hand before perforate_model. Imported at call time because
+    # dendrite_loss_events imports from perforatedbp at module load, which is
+    # only guaranteed present when perforated backpropagation is enabled.
+    if GPA.pc.get_perforated_backpropagation():
+        from perforatedai.dendrite_loss_events import register_epoch_hooks
+
+        register_epoch_hooks()
+
     # Save config after perforation
     if not GPA.pc.get_testing_dendrite_capacity():
         import os
