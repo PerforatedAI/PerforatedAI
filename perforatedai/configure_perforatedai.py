@@ -138,6 +138,40 @@ def get_parent_module_id(module_id):
     return "." + ".".join(parts[1:-1])
 
 
+def get_tied_parameters_map(entries):
+    """Return a map from module_id to a list of other full param ids sharing memory.
+
+    Detects weight tying by comparing data_ptr() across the direct (non-recursive)
+    parameters of every entry. Only cross-module ties are reported; intra-module
+    shared params are ignored.
+    """
+    ptr_to_params = {}
+    for entry in entries:
+        module_id = entry["id"]
+        for param_name, param in entry["module"].named_parameters(recurse=False):
+            ptr = param.data_ptr()
+            if ptr == 0:
+                continue
+            full_param_id = module_id + "." + param_name
+            if ptr not in ptr_to_params:
+                ptr_to_params[ptr] = []
+            ptr_to_params[ptr].append((full_param_id, module_id))
+
+    tied_map = {}
+    for param_list in ptr_to_params.values():
+        if len(param_list) <= 1:
+            continue
+        for full_param_id, module_id in param_list:
+            others = [fp for fp, mid in param_list if mid != module_id]
+            if others:
+                if module_id not in tied_map:
+                    tied_map[module_id] = []
+                for fp in others:
+                    if fp not in tied_map[module_id]:
+                        tied_map[module_id].append(fp)
+    return tied_map
+
+
 def resolve_entry_modes(entries):
     """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
@@ -1053,6 +1087,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
     """Header + tree + footer for the Targets screen, as a list of lines."""
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
+    tied_map = get_tied_parameters_map(entries)
 
     lines = [render_tab_bar("targets"), ""]
     lines.append(
@@ -1131,13 +1166,19 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         else:
             params = ""
 
+        tied_others = tied_map.get(entry["id"], [])
+        tie_warning = (
+            color_text("  ⚠ tied to " + ", ".join(tied_others), COLOR_ATTENTION)
+            if tied_others else ""
+        )
+
         lead = (
             2 + len(marker_plain) + 1 + len(indent) + len(entry["id"])
             + 2 + len(entry["type_name"]) + 2
         )
         gap = max(2, 46 - lead)
         return [
-            f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params
+            f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params + tie_warning
         ]
 
     body_lines = []

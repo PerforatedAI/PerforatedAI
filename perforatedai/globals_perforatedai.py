@@ -367,6 +367,8 @@ class PAIConfig:
         Automatically sweep learning rates when adding dendrites.
     dont_give_up_unless_learning_rate_lowered : bool
         Ensure search lowers learning rate at least once.
+    lr_binary_search_max_depth : int
+        Maximum binary search depth for LR sweep (default 4).
     max_dendrite_tries : int
         Maximum attempts to add dendrites with random initializations.
     max_dendrites : int
@@ -828,6 +830,13 @@ class PAIConfig:
                 self,
                 "dont_give_up_unless_learning_rate_lowered",
                 self.dont_give_up_unless_learning_rate_lowered,
+            )
+            # Maximum depth for binary search LR sweep. Limits total tests to O(log N).
+            self.lr_binary_search_max_depth = 4
+            add_pai_config_var_functions(
+                self,
+                "lr_binary_search_max_depth",
+                self.lr_binary_search_max_depth,
             )
             # Whether a higher validation score is better (True) or lower is better (False).
             self.maximizing_score = True

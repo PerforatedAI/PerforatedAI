@@ -82,6 +82,24 @@ _PAI_DENDRITE_CYCLE = [
     "#F2B807",
 ]
 
+# Binary search LR sweep state. Lives at module level (not in member_vars) so that
+# UPA.load_system reloads during the search don't wipe mid-search progress.
+_lr_search_state = {
+    "lr_step_budget": 0,    # LR steps per test: 2 * ceil(N / 2^depth)
+    "lr_steps_this_test": 0,  # LR steps elapsed in the current test
+    "best_score": None,     # best validation score found so far
+    "best_position": 0,     # skip position that achieved best_score
+    "best_label": "",       # save/load name used for the current best candidate
+    "lo": 0,                # current binary search lower bound
+    "hi": 0,                # current binary search upper bound
+    "phase": "baseline",    # "baseline" (testing skip=0) or "binary_search"
+    "test_index": 0,        # number of completed tests so far (for output filenames)
+}
+# True once _lr_search_state has been properly seeded this process (either by
+# _lr_search_initialize or by restoring from the first checkpoint load on restart).
+# Prevents subsequent in-search load_system calls from overwriting live state.
+_lr_search_session_initialized = False
+
 
 def _pai_grid(ax):
     """Apply the shared PAI grid styling to an axis."""
@@ -517,6 +535,246 @@ def process_final_network(net):
     return net
 
 
+def _lr_search_initialize():
+    """Set up binary search state at the start of a new LR search cycle."""
+    global _lr_search_session_initialized
+    N = GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]
+    # Budget in LR steps: 2 × granularity.  Computed now since N is already known.
+    # Works for any scheduler: the counter only ticks on LR value changes, not epochs.
+    if GPA.pc.get_find_best_lr() and N > 0:
+        max_depth = GPA.pc.get_lr_binary_search_max_depth()
+        granularity = math.ceil(N / (2 ** max_depth))
+        _lr_search_state["lr_step_budget"] = 2 * max(1, granularity)
+    else:
+        _lr_search_state["lr_step_budget"] = 0
+    _lr_search_state["lr_steps_this_test"] = 0
+    _lr_search_state["best_score"] = None
+    _lr_search_state["best_position"] = 0
+    _lr_search_state["best_label"] = ""
+    _lr_search_state["lo"] = 0
+    _lr_search_state["hi"] = N
+    _lr_search_state["phase"] = "baseline"
+    _lr_search_state["test_index"] = 0
+    _lr_search_session_initialized = True
+
+
+def _lr_search_is_eligible():
+    """True when binary search LR optimization should be active this cycle."""
+    return (
+        GPA.pc.get_find_best_lr()
+        and GPA.pai_tracker.member_vars["scheduler"] is not None
+        and not GPA.pai_tracker.member_vars["committed_to_initial_rate"]
+        and GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] > 0
+        and (
+            GPA.pai_tracker.member_vars["mode"] == "n"
+            or GPA.pc.get_learn_dendrites_live()
+        )
+    )
+
+
+def _lr_search_try_set_budget():
+    """No-op: budget is now computed in LR steps inside _lr_search_initialize()."""
+    pass
+
+
+def _lr_search_current_test_complete():
+    """True when the current test has run its full epoch budget."""
+    return (
+        _lr_search_state["lr_step_budget"] > 0
+        and _lr_search_state["lr_steps_this_test"] >= _lr_search_state["lr_step_budget"]
+    )
+
+
+def _lr_search_score_beats_best(score):
+    """True if score is better than the best found so far."""
+    best = _lr_search_state["best_score"]
+    if best is None:
+        return True  # anything beats an unset best
+    if GPA.pc.get_maximizing_score():
+        return score > best
+    return score < best
+
+
+def _lr_search_start_test_at_position(net, position):
+    """Reload from the switch checkpoint with the scheduler fast-forwarded to position.
+
+    Each binary search test starts fresh from the switch point so comparisons are fair.
+    Returns net after loading.
+    """
+    GPA.pai_tracker.clear_optimizer_and_scheduler()
+    GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = position
+    _lr_search_state["lr_steps_this_test"] = 0
+    net = UPA.load_system(
+        net,
+        GPA.pc.get_save_name(),
+        f'switch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}',
+        switch_call=True,
+    )
+    # Reset per-cycle score so this test's peak is measured independently
+    GPA.pai_tracker.member_vars["current_best_validation_score"] = 0
+    # Re-apply position after load (load restores the checkpoint's value)
+    GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = position
+    return net
+
+
+def _lr_search_save_candidate(net, position):
+    """Save a checkpoint, PNGs, and CSVs for this position."""
+    idx = _lr_search_state["test_index"]
+    d = GPA.pai_tracker.member_vars["num_dendrites_added"]
+    label = f'lr_search_d{d}_{idx}_pos_{position}'
+    if GPA.pc.get_test_saves():
+        UPA.save_system(net, GPA.pc.get_save_name(), label)
+    GPA.pai_tracker.save_graphs(f'_{label}')
+    _lr_search_state["best_label"] = label
+    _lr_search_state["test_index"] += 1
+
+
+def _lr_search_commit_to_best(net):
+    """Load the best candidate, mark search complete, and return net."""
+    best_pos = _lr_search_state["best_position"]
+    best_score = _lr_search_state["best_score"]
+    if not GPA.pc.get_silent():
+        print(
+            f"LR binary search complete. "
+            f"Committing to skip position {best_pos} "
+            f"(score {best_score:.4f})."
+        )
+    GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+    # Use initial_lr_test_epoch_count (= warmup steps for one cycle, derived from the
+    # baseline run at skip=0) rather than current_step_count (which is test_position + N,
+    # inflating last_max by the skip offset of the final test).
+    GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
+        GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"]
+    )
+    # Read LR before clearing — optimizer is valid here; after the load it is an
+    # empty-array placeholder until the caller reinitializes it.
+    for pg in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
+        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = pg["lr"]
+        break
+    GPA.pai_tracker.clear_optimizer_and_scheduler()
+    GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = best_pos
+    if GPA.pc.get_test_saves():
+        net = UPA.load_system(
+            net,
+            GPA.pc.get_save_name(),
+            _lr_search_state["best_label"],
+            switch_call=True,
+        )
+        # Re-apply fields that the checkpoint restored to their pre-commit values
+        GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = best_pos
+        GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+        d = GPA.pai_tracker.member_vars["num_dendrites_added"]
+        idx = _lr_search_state["test_index"]
+        GPA.pai_tracker.save_graphs(f'_lr_search_d{d}_{idx}_pos_{best_pos}_chosen')
+    else:
+        # Saves disabled: restart from switch point and fast-forward scheduler to best position
+        net = _lr_search_start_test_at_position(net, best_pos)
+        GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+    return net
+
+
+def _lr_search_complete_baseline(net):
+    """Baseline (skip=0) test finished. Record score and advance to first binary search midpoint.
+
+    Returns (did_restructure, net).
+    """
+    baseline_score = GPA.pai_tracker.member_vars["current_best_validation_score"]
+    N = _lr_search_state["hi"]
+
+    _lr_search_save_candidate(net, 0)
+    _lr_search_state["best_score"] = baseline_score
+    _lr_search_state["best_position"] = 0
+
+    if not GPA.pc.get_silent():
+        print(
+            f"LR search: baseline score at pos=0 is {baseline_score:.4f}. "
+            f"Starting binary search over {N} steps."
+        )
+
+    if N <= 1:
+        net = _lr_search_commit_to_best(net)
+        return True, net
+
+    _lr_search_state["phase"] = "binary_search"
+    first_mid = (_lr_search_state["lo"] + _lr_search_state["hi"]) // 2
+    if not GPA.pc.get_silent():
+        print(
+            f"LR search: testing midpoint {first_mid} "
+            f'(range [{_lr_search_state["lo"]}, {_lr_search_state["hi"]}]).'
+        )
+    net = _lr_search_start_test_at_position(net, first_mid)
+    return True, net
+
+
+def _lr_search_complete_binary_step(net):
+    """One binary search step finished. Update range and either commit or continue.
+
+    Returns (did_restructure, net).
+    """
+    current_score = GPA.pai_tracker.member_vars["current_best_validation_score"]
+    mid = GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]
+
+    if _lr_search_score_beats_best(current_score):
+        _lr_search_state["best_score"] = current_score
+        _lr_search_state["best_position"] = mid
+        _lr_search_save_candidate(net, mid)
+        _lr_search_state["lo"] = mid
+        if not GPA.pc.get_silent():
+            print(
+                f"LR search: pos {mid} improved score to {current_score:.4f}. "
+                f'Searching right [{_lr_search_state["lo"]}, {_lr_search_state["hi"]}].'
+            )
+    else:
+        _lr_search_state["hi"] = mid
+        if not GPA.pc.get_silent():
+            print(
+                f"LR search: pos {mid} score {current_score:.4f} did not beat "
+                f'{_lr_search_state["best_score"]:.4f}. '
+                f'Searching left [{_lr_search_state["lo"]}, {_lr_search_state["hi"]}].'
+            )
+        d = GPA.pai_tracker.member_vars["num_dendrites_added"]
+        idx = _lr_search_state["test_index"]
+        GPA.pai_tracker.save_graphs(f'_lr_search_d{d}_{idx}_pos_{mid}')
+        _lr_search_state["test_index"] += 1
+
+    if _lr_search_state["hi"] - _lr_search_state["lo"] <= 1:
+        net = _lr_search_commit_to_best(net)
+        return True, net
+
+    new_mid = (_lr_search_state["lo"] + _lr_search_state["hi"]) // 2
+    if not GPA.pc.get_silent():
+        print(
+            f"LR search: testing midpoint {new_mid} "
+            f'(range [{_lr_search_state["lo"]}, {_lr_search_state["hi"]}]).'
+        )
+    net = _lr_search_start_test_at_position(net, new_mid)
+    return True, net
+
+
+def _handle_lr_binary_search(net, stepped):
+    """Per-epoch driver for binary search LR optimization.
+
+    Called every epoch while search is eligible. Counts LR steps (not wall-clock
+    epochs), triggers evaluation when the LR-step budget is exhausted, and advances
+    the search.  Works correctly for any scheduler type: ReduceLROnPlateau (infrequent
+    steps), cosine/OneCycleLR (one step per epoch), etc.
+
+    Returns (did_restructure, net). did_restructure is True when the optimizer
+    was reset (test transition or commit).
+    """
+    if stepped:
+        _lr_search_state["lr_steps_this_test"] += 1
+
+    if not _lr_search_current_test_complete():
+        return False, net
+
+    phase = _lr_search_state["phase"]
+    if phase == "baseline":
+        return _lr_search_complete_baseline(net)
+    else:
+        return _lr_search_complete_binary_step(net)
+
+
 def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     """Updates the scheduler
 
@@ -525,12 +783,12 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     this function also triggers the network at addition time to
     try the next value.
 
-    Process for finding best initial learning rate for dendrites:
-    1. Start at default rate
-    2. Learn at that rate until scheduler increments twice
-    3. Save that version, start dendrites at LR current increment - 1
-    4. Repeat 2 and 3 until version has worse final score at set LR
-    5. Load previous model with best accuracy at that LR as initial rate
+    Process for finding best initial learning rate for dendrites (binary search):
+    1. Test skip=0 (initial LR) for lr_step_budget LR steps — establishes the baseline
+    2. Binary search [0, N]: test midpoint, compare to best score
+    3. If midpoint improves: update best, search the right half (lower starting LR)
+    4. If midpoint does not improve: search the left half (higher starting LR)
+    5. When the range narrows to 1: commit to the best position found
 
     Parameters
     ----------
@@ -670,14 +928,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                     f'{GPA.pai_tracker.member_vars["current_step_count"]} '
                     f"steps is the max of the last switch mode"
                 )
-            # Set it when 1->2 gets to 2, not when 0->1 hits 2 as stopping point
-            if (
-                GPA.pai_tracker.member_vars["current_step_count"]
-                - GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-                == 1
-            ):
+            if GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] <= 0:
                 GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = (
                     epochs_since_cycle_switch
                 )
@@ -693,287 +944,47 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
             f'steps or rate {GPA.pai_tracker.member_vars["last_max_learning_rate_value"]:.8f}'
         )
 
-    # If learning rate just stepped, check restart at lower rate
+    # First cycle: no LR history yet — commit to the initial rate on the first step
     if (
-        (GPA.pai_tracker.member_vars["scheduler"] is not None)
-        and
-        # If potentially might have higher accuracy
-        (
-            (GPA.pai_tracker.member_vars["mode"] == "n")
+        stepped
+        and GPA.pai_tracker.member_vars["scheduler"] is not None
+        and (
+            GPA.pai_tracker.member_vars["mode"] == "n"
             or GPA.pc.get_learn_dendrites_live()
         )
-        and
-        # And learning rate just stepped
-        (stepped or at_last_count)
+        and not GPA.pai_tracker.member_vars["committed_to_initial_rate"]
+        and GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] == 0
     ):
+        if GPA.pc.get_verbose():
+            print("First LR cycle: committing to initial rate immediately.")
+        GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+        GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
+            GPA.pai_tracker.member_vars["current_step_count"]
+        )
+        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = learning_rate2
 
-        # If this is the first dendrite addition (last_max_learning_rate_steps == 0),
-        # immediately commit to the initial rate without searching
-        if GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] == 0:
-            if GPA.pc.get_verbose():
-                print(
-                    f"First dendrite addition detected (last_max_learning_rate_steps == 0), "
-                    f"immediately committing to initial rate without search"
-                )
-            GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
-            GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
-                GPA.pai_tracker.member_vars["current_step_count"]
+    # Binary search LR sweep — runs every epoch, but budget counter ticks on LR steps only
+    elif _lr_search_is_eligible():
+        restructured, net = _handle_lr_binary_search(net, stepped)
+
+    # After committing: keep last_max tracking in sync with current step count
+    elif (
+        stepped
+        and GPA.pai_tracker.member_vars["committed_to_initial_rate"]
+        and GPA.pai_tracker.member_vars["scheduler"] is not None
+        and (
+            GPA.pai_tracker.member_vars["mode"] == "n"
+            or GPA.pc.get_learn_dendrites_live()
+        )
+    ):
+        if GPA.pc.get_verbose():
+            print(
+                f"Advancing last_max_learning_rate_steps to "
+                f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] + 1} '
+                f"at lr {learning_rate2:.8e}"
             )
-            GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
-                learning_rate2
-            )
-
-        # If hasn't committed to a learning rate for this cycle yet
-        if not GPA.pai_tracker.member_vars["committed_to_initial_rate"]:
-            best_score_so_far = GPA.pai_tracker.member_vars[
-                "global_best_validation_score"
-            ]
-
-            if GPA.pc.get_verbose():
-                print(
-                    f"In statements to check next learning rate with "
-                    f"stepped {stepped} and max count {at_last_count}"
-                )
-
-            # If no scores saved for this dendrite and initial LR test did second step
-            if len(
-                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]
-            ) == 0 and (
-                GPA.pai_tracker.member_vars["current_step_count"]
-                - GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-                == 2
-                or at_last_count
-            ):
-
-                restructured = True
-                GPA.pai_tracker.clear_optimizer_and_scheduler()
-
-                # Save system for this initial condition
-                old_global = GPA.pai_tracker.member_vars["global_best_validation_score"]
-                old_accuracy = GPA.pai_tracker.member_vars[
-                    "current_best_validation_score"
-                ]
-                old_counts = GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"]
-                skip1 = GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ]
-
-                now = datetime.now()
-                dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
-
-                GPA.pai_tracker.save_graphs(
-                    f'{dt_string}_PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
-                )
-
-                if GPA.pc.get_test_saves():
-                    UPA.save_system(
-                        net,
-                        GPA.pc.get_save_name(),
-                        f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}',
-                    )
-
-                if GPA.pc.get_verbose():
-                    print(
-                        f"Saving with initial steps: {dt_string}_PBCount_"
-                        f'{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
-                        f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
-                        f"with current best {old_accuracy}"
-                    )
-
-                # Load back at start and try with lower initial learning rate
-                net = UPA.load_system(
-                    net,
-                    GPA.pc.get_save_name(),
-                    f'switch_{len(GPA.pai_tracker.member_vars["switch_epochs"])}',
-                    switch_call=True,
-                )
-                GPA.pai_tracker.member_vars[
-                    "current_n_learning_rate_initial_skip_steps"
-                ] = (skip1 + 1)
-                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"].append(
-                    old_accuracy
-                )
-                GPA.pai_tracker.member_vars["global_best_validation_score"] = old_global
-                GPA.pai_tracker.member_vars["initial_lr_test_epoch_count"] = old_counts
-
-            # If there is one score already, this is first step at next score
-            elif len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 1:
-                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"].append(
-                    GPA.pai_tracker.member_vars["current_best_validation_score"]
-                )
-
-                # If this LR's score was worse than last LR's score
-                lr_score_worse = False
-                if GPA.pai_tracker.member_vars["maximizing_score"]:
-                    lr_score_worse = (
-                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
-                        > GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
-                    )
-                else:
-                    lr_score_worse = (
-                        GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]
-                        < GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]
-                    )
-
-                if lr_score_worse:
-                    restructured = True
-                    GPA.pai_tracker.clear_optimizer_and_scheduler()
-
-                    if GPA.pc.get_verbose():
-                        print(
-                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1} '
-                            f'step score {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]} '
-                            f'and {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
-                            f'score at step {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]} '
-                            f"so loading old score"
-                        )
-
-                    prior_best = GPA.pai_tracker.member_vars[
-                        "current_cycle_lr_max_scores"
-                    ][0]
-
-                    now = datetime.now()
-                    dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
-
-                    GPA.pai_tracker.save_graphs(
-                        f'{dt_string}_PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
-                    )
-
-                    if GPA.pc.get_test_saves():
-                        UPA.save_system(
-                            net,
-                            GPA.pc.get_save_name(),
-                            f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}',
-                        )
-
-                    if GPA.pc.get_verbose():
-                        print(
-                            f"Saving with initial steps: {dt_string}_PBCount_"
-                            f'{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
-                            f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
-                        )
-
-                    if GPA.pc.get_test_saves():
-                        net = UPA.load_system(
-                            net,
-                            GPA.pc.get_save_name(),
-                            f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1}',
-                            switch_call=True,
-                        )
-
-                    # Save graphs for chosen one
-                    now = datetime.now()
-                    dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
-
-                    GPA.pai_tracker.save_graphs(
-                        f'{dt_string}_PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED'
-                    )
-
-                    if GPA.pc.get_test_saves():
-                        UPA.save_system(
-                            net,
-                            GPA.pc.get_save_name(),
-                            f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}',
-                        )
-
-                    if GPA.pc.get_verbose():
-                        print(
-                            f"Saving with initial steps: {dt_string}_PBCount_"
-                            f'{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
-                            f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
-                        )
-
-                    GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
-                    GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
-                        GPA.pai_tracker.member_vars["current_step_count"]
-                    )
-                    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
-                        learning_rate2
-                    )
-                    GPA.pai_tracker.member_vars["current_best_validation_score"] = (
-                        prior_best
-                    )
-
-                    if GPA.pc.get_verbose():
-                        print(
-                            f"Setting last max steps to "
-                            f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]} '
-                            f'and lr {GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
-                        )
-
-                else:  # Current LR score is better
-                    if GPA.pc.get_verbose():
-                        print(
-                            f'Got initial {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]-1} '
-                            f'step score {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][0]} '
-                            f'and {GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]} '
-                            f'score at step {GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"][1]} '
-                            f"so NOT loading old score and continuing with this score"
-                        )
-
-                    if at_last_count:  # If this is the last one, set it to be picked
-                        restructured = True
-                        GPA.pai_tracker.clear_optimizer_and_scheduler()
-
-                        now = datetime.now()
-                        dt_string = now.strftime("_%d.%m.%Y.%H.%M.%S")
-
-                        GPA.pai_tracker.save_graphs(
-                            f'{dt_string}_PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}PICKED'
-                        )
-
-                        if GPA.pc.get_test_saves():
-                            UPA.save_system(
-                                net,
-                                GPA.pc.get_save_name(),
-                                f'PBCount_{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}',
-                            )
-
-                        if GPA.pc.get_verbose():
-                            print(
-                                f"Saving with initial steps: {dt_string}_PBCount_"
-                                f'{GPA.pai_tracker.member_vars["num_dendrites_added"]}_startSteps_'
-                                f'{GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"]}'
-                            )
-
-                        GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
-                        GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = (
-                            GPA.pai_tracker.member_vars["current_step_count"]
-                        )
-                        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
-                            learning_rate2
-                        )
-
-                        if GPA.pc.get_verbose():
-                            print(
-                                f"Setting last max steps to "
-                                f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]} '
-                                f'and lr {GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
-                            )
-
-                GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
-
-            elif len(GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"]) == 2:
-                print(
-                    "Should never be here. Please let Perforated AI know if this happened."
-                )
-                pdb.set_trace()
-
-            GPA.pai_tracker.member_vars["global_best_validation_score"] = (
-                best_score_so_far
-            )
-
-        else:
-            if GPA.pc.get_verbose():
-                print(
-                    f"Setting last max steps to "
-                    f'{GPA.pai_tracker.member_vars["last_max_learning_rate_steps"]} '
-                    f'and lr {GPA.pai_tracker.member_vars["last_max_learning_rate_value"]}'
-                )
-            GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] += 1
-            GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = learning_rate2
+        GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] += 1
+        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = learning_rate2
     if restructured:
         return NETWORK_RESTRUCTURED, net
     else:
@@ -1228,6 +1239,28 @@ class PAINeuronModuleTracker:
         self.member_vars["best_mean_score_improved_this_epoch"] = 0
         self.member_var_types["best_mean_score_improved_this_epoch"] = "int"
 
+        # Persisted mirror of _lr_search_state so process restarts resume mid-search
+        self.member_vars["lr_search_lr_step_budget"] = 0
+        self.member_var_types["lr_search_lr_step_budget"] = "int"
+        self.member_vars["lr_search_lr_steps_this_test"] = 0
+        self.member_var_types["lr_search_lr_steps_this_test"] = "int"
+        self.member_vars["lr_search_best_score_unset"] = True
+        self.member_var_types["lr_search_best_score_unset"] = "bool"
+        self.member_vars["lr_search_best_score"] = 0.0
+        self.member_var_types["lr_search_best_score"] = "float"
+        self.member_vars["lr_search_best_position"] = 0
+        self.member_var_types["lr_search_best_position"] = "int"
+        self.member_vars["lr_search_best_label"] = ""
+        self.member_var_types["lr_search_best_label"] = "string"
+        self.member_vars["lr_search_lo"] = 0
+        self.member_var_types["lr_search_lo"] = "int"
+        self.member_vars["lr_search_hi"] = 0
+        self.member_var_types["lr_search_hi"] = "int"
+        self.member_vars["lr_search_phase"] = "baseline"
+        self.member_var_types["lr_search_phase"] = "string"
+        self.member_vars["lr_search_test_index"] = 0
+        self.member_var_types["lr_search_test_index"] = "int"
+
         # Flag for if current dendrite achieved highest global score
         self.member_vars["current_n_set_global_best"] = True
         self.member_var_types["current_n_set_global_best"] = "bool"
@@ -1262,6 +1295,22 @@ class PAINeuronModuleTracker:
         str
             Serialized tracker state suitable for storage in a safetensors field.
         """
+
+        if GPA.pc.get_find_best_lr():
+            self.member_vars["lr_search_lr_step_budget"] = _lr_search_state["lr_step_budget"]
+            self.member_vars["lr_search_lr_steps_this_test"] = _lr_search_state["lr_steps_this_test"]
+            self.member_vars["lr_search_best_score_unset"] = _lr_search_state["best_score"] is None
+            self.member_vars["lr_search_best_score"] = (
+                _lr_search_state["best_score"]
+                if _lr_search_state["best_score"] is not None
+                else 0.0
+            )
+            self.member_vars["lr_search_best_position"] = _lr_search_state["best_position"]
+            self.member_vars["lr_search_best_label"] = _lr_search_state["best_label"]
+            self.member_vars["lr_search_lo"] = _lr_search_state["lo"]
+            self.member_vars["lr_search_hi"] = _lr_search_state["hi"]
+            self.member_vars["lr_search_phase"] = _lr_search_state["phase"]
+            self.member_vars["lr_search_test_index"] = _lr_search_state["test_index"]
 
         full_string = ""
         for var in self.member_vars:
@@ -1442,6 +1491,26 @@ class PAINeuronModuleTracker:
                 print("Did not find a member variable")
 
                 pdb.set_trace()
+
+        global _lr_search_session_initialized
+        if not _lr_search_session_initialized:
+            # First checkpoint load of this process — restore search state saved before restart.
+            # Subsequent loads (switch checkpoints, candidate checkpoints loaded mid-search)
+            # must NOT overwrite the live _lr_search_state.
+            _lr_search_session_initialized = True
+            _lr_search_state["lr_step_budget"] = self.member_vars["lr_search_lr_step_budget"]
+            _lr_search_state["lr_steps_this_test"] = self.member_vars["lr_search_lr_steps_this_test"]
+            _lr_search_state["best_score"] = (
+                None
+                if self.member_vars["lr_search_best_score_unset"]
+                else self.member_vars["lr_search_best_score"]
+            )
+            _lr_search_state["best_position"] = self.member_vars["lr_search_best_position"]
+            _lr_search_state["best_label"] = self.member_vars["lr_search_best_label"]
+            _lr_search_state["lo"] = self.member_vars["lr_search_lo"]
+            _lr_search_state["hi"] = self.member_vars["lr_search_hi"]
+            _lr_search_state["phase"] = self.member_vars["lr_search_phase"]
+            _lr_search_state["test_index"] = self.member_vars["lr_search_test_index"]
 
     def from_string_debug(self, string):
         """Debug function to print tracker values from string without loading them.
@@ -2015,36 +2084,35 @@ class PAINeuronModuleTracker:
                 print("Returning True - switching every time")
             return True
 
-        # Check if we're in the middle of learning rate optimization
-        # If so, block ALL switch triggers until committed
+        # Block mode switches while binary search LR sweep is in progress
         if GPA.pc.get_verbose():
-            print("=== LR Optimization Check ===")
+            print("=== LR Binary Search Check ===")
             print(f'  mode == "n": {self.member_vars["mode"] == "n"}')
             print(f"  get_learn_dendrites_live(): {GPA.pc.get_learn_dendrites_live()}")
             print(f'  committed_to_initial_rate: {GPA.pai_tracker.member_vars["committed_to_initial_rate"]}')
             print(f"  get_dont_give_up_unless_learning_rate_lowered(): {GPA.pc.get_dont_give_up_unless_learning_rate_lowered()}")
-            print(f'  current_n_learning_rate_initial_skip_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"]}')
-            print(f'  last_max_learning_rate_steps: {self.member_vars["last_max_learning_rate_steps"]}')
-            print(f'  skip_steps < max_steps: {self.member_vars["current_n_learning_rate_initial_skip_steps"] < self.member_vars["last_max_learning_rate_steps"]}')
-            print(f'  scheduler is not None: {self.member_vars["scheduler"] is not None}')
-            print("=============================")
-        
-        if (
-            ((self.member_vars["mode"] == "n") or GPA.pc.get_learn_dendrites_live())
-            and (GPA.pai_tracker.member_vars["committed_to_initial_rate"] is False)
-            and (GPA.pc.get_dont_give_up_unless_learning_rate_lowered())
-            and (
-                self.member_vars["current_n_learning_rate_initial_skip_steps"]
-                <= self.member_vars["last_max_learning_rate_steps"]
+            print(f'  lr_search phase: {_lr_search_state["phase"]}')
+            print(f'  lr_search best_position: {_lr_search_state["best_position"]}')
+            _N = self.member_vars["last_max_learning_rate_steps"]
+            _depth = GPA.pc.get_lr_binary_search_max_depth()
+            _gran = math.ceil(_N / (2 ** _depth)) if _N > 0 else 0
+            print(
+                f'  lr_search lr_steps_this_test / lr_step_budget: '
+                f'{_lr_search_state["lr_steps_this_test"]} / {_lr_search_state["lr_step_budget"]}'
             )
-            and self.member_vars["scheduler"] is not None
-        ):
+            print(
+                f"  budget formula: 2 * max(1, ceil(N({_N}) / 2^depth({_depth})={2**_depth})={_gran})"
+                f" = {_lr_search_state['lr_step_budget']}"
+            )
+            print("==============================")
+
+        if _lr_search_is_eligible():
             if not GPA.pc.get_silent():
                 print(
-                    f"Returning False - learning rate optimization in progress. "
-                    f"Not committed yet. Comparing "
-                    f'initial {self.member_vars["current_n_learning_rate_initial_skip_steps"]} '
-                    f'to last max {self.member_vars["last_max_learning_rate_steps"]}'
+                    f"Returning False - LR binary search in progress. "
+                    f'Phase: {_lr_search_state["phase"]}, '
+                    f'best pos so far: {_lr_search_state["best_position"]}, '
+                    f'lr_step {_lr_search_state["lr_steps_this_test"]} of {_lr_search_state["lr_step_budget"]}.'
                 )
             return False
 
@@ -2273,6 +2341,9 @@ class PAINeuronModuleTracker:
             "current_step_count"
         ]
 
+        if GPA.pc.get_find_best_lr():
+            _lr_search_initialize()
+
         GPA.pai_tracker.member_vars["current_cycle_lr_max_scores"] = []
         GPA.pai_tracker.member_vars["num_cycles"] += 1
 
@@ -2304,6 +2375,10 @@ class PAINeuronModuleTracker:
             self.member_vars["last_max_learning_rate_steps"] = self.member_vars[
                 "current_step_count"
             ]
+
+        if GPA.pc.get_find_best_lr():
+            _lr_search_initialize()
+
         GPA.pai_tracker.member_vars["num_cycles"] += 1
 
         if GPA.pc.get_reset_best_score_on_switch():
