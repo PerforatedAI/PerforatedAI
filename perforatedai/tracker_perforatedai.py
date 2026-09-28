@@ -572,11 +572,6 @@ def _lr_search_is_eligible():
     )
 
 
-def _lr_search_try_set_budget():
-    """No-op: budget is now computed in LR steps inside _lr_search_initialize()."""
-    pass
-
-
 def _lr_search_current_test_complete():
     """True when the current test has run its full epoch budget."""
     return (
