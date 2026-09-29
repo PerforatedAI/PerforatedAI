@@ -2029,13 +2029,16 @@ class PAINeuronModuleTracker:
 
         switch_phrase = "No mode, this should never be the case."
         switch_number = GPA.pc.get_n_epochs_to_switch()
+        p_switch_number = GPA.pc.get_p_epochs_to_switch() if GPA.pc.get_perforated_backpropagation() else None
         if self.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME:
             switch_phrase = "DOING_SWITCH_EVERY_TIME"
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_HISTORY:
             switch_phrase = "DOING_HISTORY"
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_FIXED_SWITCH:
             switch_phrase = "DOING_FIXED_SWITCH"
-            switch_number = GPA.pc.get_fixed_switch_num()
+            switch_number = GPA.pc.get_n_fixed_switch_num()
+            if GPA.pc.get_perforated_backpropagation():
+                p_switch_number = GPA.pc.get_p_fixed_switch_num()
         elif self.member_vars["switch_mode"] == GPA.pc.DOING_NO_SWITCH:
             switch_phrase = "DOING_NO_SWITCH"
         else:
@@ -2049,8 +2052,9 @@ class PAINeuronModuleTracker:
                     f'Checking PAI switch with mode {self.member_vars["mode"]}, '
                     f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
                     f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'last switch epoch {self.member_vars["last_switch"]}, '
                     f'total epochs {self.member_vars["total_epochs_run"]}, '
-                    f'n: {switch_number}, p: {GPA.pc.get_p_epochs_to_switch()}, '
+                    f'n: {switch_number}, p: {p_switch_number}, '
                     f'num_cycles: {self.member_vars["num_cycles"]}'
                 )
             else:
@@ -2058,6 +2062,7 @@ class PAINeuronModuleTracker:
                     f'Checking PAI switch with mode {self.member_vars["mode"]}, '
                     f'switch mode {switch_phrase}, epoch {self.member_vars["num_epochs_run"]}, '
                     f'last improved epoch {self.member_vars["epoch_last_improved"]}, '
+                    f'last switch epoch {self.member_vars["last_switch"]}, '
                     f'total epochs {self.member_vars["total_epochs_run"]}, '
                     f'n: {switch_number}, num_cycles: {self.member_vars["num_cycles"]}'
                 )
@@ -2143,11 +2148,12 @@ class PAINeuronModuleTracker:
 
         if self.member_vars["switch_mode"] == GPA.pc.DOING_FIXED_SWITCH and (
             (
-                self.member_vars["total_epochs_run"] % GPA.pc.get_fixed_switch_num()
-                == GPA.pc.get_fixed_switch_num() - 1
+                (self.member_vars["mode"] == "n")
+                and this_count >= GPA.pc.get_n_fixed_switch_num()
+                and self.member_vars["num_epochs_run"]
+                >= GPA.pc.get_first_fixed_switch_num() - 1
             )
-            and self.member_vars["num_epochs_run"]
-            >= GPA.pc.get_first_fixed_switch_num() - 1
+            or (GPA.pc.get_perforated_backpropagation() and TPB.fixed_switch(self, this_count))
         ):
             if not GPA.pc.get_silent():
                 print("Returning True - Fixed switch number is hit")

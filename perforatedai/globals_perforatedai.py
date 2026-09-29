@@ -345,8 +345,8 @@ class PAIConfig:
         Epochs to wait after adding dendrites before beggining checks.
     DOING_FIXED_SWITCH : int
         Constant for switch mode: add dendrites at fixed intervals.
-    fixed_switch_num : int
-        Number of epochs between fixed switches.
+    n_fixed_switch_num : int
+        Number of epochs between fixed switches (neuron mode).
     first_fixed_switch_num : int
         Number of epochs before first switch (for pretraining).
     DOING_NO_SWITCH : int
@@ -458,7 +458,7 @@ class PAIConfig:
                 "n_epochs_to_switch",
                 "history_lookback",
                 "initial_history_after_switches",
-                "fixed_switch_num",
+                "n_fixed_switch_num",
                 "first_fixed_switch_num",
                 "switch_mode",
                 "max_dendrite_tries",
@@ -771,10 +771,10 @@ class PAIConfig:
 
             # Switch after a fixed number of epochs
             self.DOING_FIXED_SWITCH = 2
-            # Number of epochs to complete before switching
-            self.fixed_switch_num = 250
+            # Number of epochs to complete before switching (neuron mode)
+            self.n_fixed_switch_num = 250
             add_pai_config_var_functions(
-                self, "fixed_switch_num", self.fixed_switch_num
+                self, "n_fixed_switch_num", self.n_fixed_switch_num
             )
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than

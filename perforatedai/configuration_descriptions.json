@@ -44,12 +44,12 @@
           "description": "This defines the averaging window used by history-based switching logic.  When set to 1, only the most recent epoch is considered for switching decisions, otherwise a running average over the specified number of epochs is used.",
           "label": "impactful"
         },
-        "fixed_switch_num": {
-          "description": "In fixed-switch mode, this sets the interval in epochs between switches.",
+        "n_fixed_switch_num": {
+          "description": "In fixed-switch mode, this sets the interval in epochs between switches (neuron mode).",
           "label": "impactful"
         },
         "first_fixed_switch_num": {
-          "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number is ignored unless it is > fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
+          "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number is ignored unless it is > n_fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
           "label": "impactful"
         },
         "initial_history_after_switches": {

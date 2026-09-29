@@ -717,12 +717,12 @@ If yes, add these lines to the PAI configuration block (before `perforate_model`
 
 ```python
 GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
+GPA.pc.set_n_fixed_switch_num(30)     # epochs between each subsequent switch (neuron mode)
 GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
 ```
 
 - `set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)` — enable fixed-interval switching mode
-- `set_fixed_switch_num` — how many epochs between each switch after the first
+- `set_n_fixed_switch_num` — how many epochs between each switch after the first (neuron mode)
 - `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
 
 Set both to the same value for uniform switching throughout training.

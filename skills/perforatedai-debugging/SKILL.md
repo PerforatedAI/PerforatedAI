@@ -325,7 +325,7 @@ use the mode to switch on fixed epoch counts rather than waiting for a plateau. 
 
     # Use fixed-epoch switch mode: add dendrites every 80 epochs
     GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-    GPA.pc.set_fixed_switch_num(original count)
+    GPA.pc.set_n_fixed_switch_num(original count)
     GPA.pc.set_first_fixed_switch_num(original count)
 
 ## Size mismatch
