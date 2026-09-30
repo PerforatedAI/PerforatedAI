@@ -9,14 +9,17 @@ They teach your AI coding agent how to integrate [PerforatedAI](https://github.c
 | Skill                                                                                   | Say / when it triggers                                                                                         |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **[perforatedai](perforatedai/SKILL.md)**                                               | `"Perforate my model"` to start setup, `"Debug my perforated model"` to debug, `"Load my perforated model for inference"` to deploy, or `"Export my perforated model"` for ONNX/TFLite/TorchScript. The main entry point - start here. |
+| **[perforatedai-pilot](perforatedai-pilot/SKILL.md)**                                   | `"Run a perforated pilot"` for a controlled two-run study: your baseline as it stands, then the same script plus dendrites and nothing else changed. Deliberately does no tuning. |
 | **[perforatedai-analyze](perforatedai-analyze/SKILL.md)**                               | `"Analyze my perforated results"` after training completes. Reviews CSV outputs and recommends config changes. |
+| **[perforatedai-debugging](perforatedai-debugging/SKILL.md)**                           | `"Debug my perforated model"`, or any PAI crash. Triage workflow plus an error-by-error reference for every known failure mode. |
+| **[perforatedai-deploy](perforatedai-deploy/SKILL.md)**                                 | `"Load my perforated model for inference"` or `"Export my perforated model"` to ONNX / TFLite / TorchScript, after training is done. |
 | **[perforatedai-distributed](perforatedai-distributed/SKILL.md)**                       | Auto-loaded by the main skill when DataParallel / DDP multi-GPU training is detected.                          |
 | **[perforatedai-libraries-transformers](perforatedai-libraries-transformers/SKILL.md)** | Auto-loaded when your script uses the HuggingFace `Trainer`.                                                   |
 | **[perforatedai-wandb](perforatedai-wandb/SKILL.md)**                                   | When you want Weights & Biases sweeps/logging with PerforatedAI.                                               |
 | **[perforatedai-complex-methods](perforatedai-complex-methods/SKILL.md)**               | Edge cases such as AMP / `GradScaler` crashes in p mode.                                                       |
 | **[perforatedai-plot](perforatedai-plot/SKILL.md)**                                     | `"Make the PAI graph"` to draw score vs parameters from a sweep CSV, PAI run folders, or numbers.              |
 
-You normally only invoke **perforatedai**; it pulls in the others as needed.
+You normally only invoke **perforatedai**; it pulls in the others as needed. The exception is **perforatedai-pilot** - invoke that one directly when you want a clean before/after measurement rather than an optimization pass.
 
 ## Prerequisite
 

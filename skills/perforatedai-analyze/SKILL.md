@@ -1,6 +1,6 @@
 ---
 name: perforatedai-analyze
-description: "Analyze PerforatedAI training results and provide optimization recommendations. Trigger: 'Analyze my perforated results' (after training completes). Reviews CSV outputs, identifies performance patterns, recommends configuration improvements. For initial setup or debugging, use the perforatedai skill instead."
+description: "Analyze PerforatedAI training results and provide optimization recommendations. Trigger: 'Analyze my perforated results' (after training completes). Reviews CSV outputs, identifies performance patterns, recommends configuration improvements. For initial setup or debugging, use the perforatedai skill instead. Do not use during a perforatedai-pilot run - its recommendations are what a pilot defers until after the comparison is reported."
 ---
 
 # PerforatedAI Results Analysis Skill
@@ -135,9 +135,18 @@ Tell them: "Training visualizations have been automatically generated at `{save_
 
 ### Step 5: Next Steps
 
-Based on the analysis results:
+**First, anchor the result to the user's baseline.** The CSVs only show the PAI run compared to itself. "Dendrites improved performance" means improved over what the model scored *without* dendrites - which is a number that does not appear in any of these files.
 
-**If training went well (dendrites improved performance):**
+Ask, if you don't already have it: "What did this model score before dendrites were added?"
+
+- **If they have a baseline number:** lead with the comparison - baseline vs best dendritic score, and the parameter cost. That is the headline. The analysis below is supporting detail.
+- **If they don't:** say so plainly rather than glossing over it. "I can see the run improved from X to Y across dendrite additions, but without a no-dendrite baseline I can't tell you how much of that is the dendrites versus the extra training epochs PAI adds." Then recommend they capture one - it is usually a single rerun of the original script and it makes every number here interpretable.
+
+The dendrite-count-0 row in `_best_arch_scores.csv` is the closest proxy, but it reflects PAI's training schedule rather than their original one. Use it as a sanity check, not as the baseline.
+
+Then, based on the analysis results:
+
+**If training went well (dendrites improved on the baseline):**
 
 Say: "Your dendritic training was successful! Here's what I found worked well and recommendations for optimization."
 
@@ -170,10 +179,11 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
   - **To control/minimize training time with infinite loop:**
     - Use `GPA.pc.set_max_dendrites(N)` to limit how many dendrites are added (e.g., `set_max_dendrites(3)` stops after 3 dendrites)
     - Training will complete faster since fewer dendrite phases are needed
-    - Optionally use `FIXED_SWITCH_MODE` for more consistent/predictable training time:
+    - Optionally use fixed switch mode for more consistent/predictable training time:
       ```python
-      GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
-      GPA.pc.set_n_epochs_to_switch(20)  # Adds dendrite every 20 epochs
+      GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
+      GPA.pc.set_fixed_switch_num(20)        # epochs between each switch after the first
+      GPA.pc.set_first_fixed_switch_num(20)  # epochs before the very first switch
       ```
     - With FIXED mode, you know exactly when dendrites are added, making total training time predictable
   
@@ -193,6 +203,12 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
 ---
 
 ## Optimization Recommendations
+
+🚨 **Prerequisite: the user has a completed run and knows how it compares to their baseline (Step 5).** Do not open this section before that comparison exists. Recommending config changes against an unmeasured starting point spends the user's GPU hours on guesses and leaves them unable to tell whether any of it helped.
+
+**Skip this section entirely during a pilot study (the perforatedai-pilot skill)** - a pilot reports its comparison and stops. These recommendations are what it defers.
+
+Offer these one or two at a time, highest-expected-value first, rather than presenting the whole menu. The user does not need nine directions at once.
 
 When dendritic training has successfully improved performance, provide targeted recommendations based on the analysis:
 

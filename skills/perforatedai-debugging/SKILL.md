@@ -1,8 +1,134 @@
-# Perforated AI — Debugging Reference
+---
+name: perforatedai-debugging
+description: "Debug a PerforatedAI integration: triage workflow plus a full error-by-error reference (symptom, cause, fix) for dimension mismatches, module conversion failures, DDP gradient errors, device and dtype errors, optimizer and scheduler errors, memory leaks, and dendrites never being added. Triggers: 'debug my perforated model', any PAI crash or traceback, dendrites not being added, or dendrites added but performance got worse. For initial setup use the perforatedai skill; for tuning a working run use perforatedai-analyze."
+---
 
-Full error-by-error reference. Find your error in the index in `../SKILL.md`, then
-jump to the matching section below. Every section follows: **symptom / error string →
-cause → fix**.
+# PerforatedAI Debugging
+
+When the user says **"Debug my perforated model"**, or brings you a PAI crash, start with the
+[Triage Workflow](SKILL.md#triage-workflow). Once you have the actual error text, jump to the matching
+section of the [Error Reference](SKILL.md#error-reference).
+
+## Triage Workflow
+
+When the user says **"Debug my perforated model"**, help them debug or optimize an existing PerforatedAI integration.
+
+---
+
+**🚨 CRITICAL RULE: DO NOT RUN THE USER'S TRAINING SCRIPT 🚨**
+
+**You are FORBIDDEN from:**
+- Executing their training script (do not use run_in_terminal on training scripts)
+- Running any Python scripts that train models
+- Executing their code to "test" or "check for errors"
+
+**You are ONLY allowed to:**
+- Read their code files
+- Analyze their code
+- Make edits to their code
+- Instruct the user to run commands in their terminal
+- Ask them to run the script and provide output/errors
+
+**If you need to see errors:** INSTRUCT THE USER TO RUN THE SCRIPT and ask them to copy-paste the error to you.
+
+---
+
+**Step 1: Get their training script and the issue**
+
+Ask: "What's the path to your training script, and what issue are you experiencing? If you're getting a crash or error, please copy-paste the full error message/traceback."
+
+**Wait for their response. Do NOT run their script to find the issue yourself.**
+
+Read the script and analyze the current PAI setup.
+
+**Step 2: Check integration completeness**
+
+Verify all required components are present:
+- ✅ Imports (GPA, UPA)
+- ✅ Configuration (set_testing_dendrite_capacity, set_max_dendrites, etc.)
+- ✅ Model initialization (UPA.perforate_model)
+- ✅ Optimizer setup (setup_optimizer or set_optimizer_instance)
+- ✅ Training loop (add_validation_score)
+
+Report any missing components and offer to add them.
+
+**Step 3: Enable debug mode if needed**
+
+Check if `set_testing_dendrite_capacity` is currently set to `False` in their script.
+
+**If set to False:**
+- Ask: "I see you have `set_testing_dendrite_capacity(False)`. Does the crash/issue still occur when you set it to `True`?"
+
+**Based on their answer:**
+- **If they say "yes" or "not sure":** Change it to `True` in their script and tell them:
+  > "I've temporarily set `testing_dendrite_capacity=True` for debugging. This runs a simplified 7-epoch test which helps isolate issues. We'll set it back to `False` after fixing the problem."
+  
+- **If they say "no, it works fine with True":** Tell them:
+  > "The issue only occurs with `testing_dendrite_capacity=False`. This suggests the problem is related to full training mode. Let's debug with it set to `False` to reproduce the actual issue."
+  > Keep it set to `False` for debugging.
+
+**If already set to True:**
+- Proceed with debugging - no changes needed
+
+**Step 4: Analyze the issue**
+
+**If the user hasn't provided the error/issue yet**, ask: "What specific issue are you experiencing? If you're getting a crash or error, please copy-paste the full error message/traceback."
+
+**🚨 DO NOT run their script to find the error yourself. Wait for them to provide it. 🚨**
+
+Once you have the error/issue description, analyze it:
+
+Common scenarios:
+
+**A. "Training errors / crashes"**
+- Once you have the error traceback, analyze it for common issues:
+  - Dimension mismatches in `set_output_dimensions()`
+  - Wrong module names in `set_module_names_to_perforate()`
+  - Device placement issues (model not on correct device after restructuring)
+  - Optimizer not reinitialized after restructuring
+- Find the error in the [Error Reference](SKILL.md#error-reference) below - it covers every known PAI failure mode by symptom. [api/debugging.md](https://github.com/PerforatedAI/PerforatedAI/blob/main/api/debugging.md) has further detail.
+
+**B. "Dendrites not being added"**
+- Verify based on n_epochs_to_switch, improvement_threshold, and save_name_scores.csv that enough epochs have passed such that dendrites should have been added
+- Check improvement_threshold - may be too strict
+- Check epoch count that enough epochs have passed
+- Verify validation scores are being passed to `add_validation_score()`
+
+**C. "Dendrites added but performance worse"**
+- Check if `maximizing_score` matches their metric (True for accuracy, False for loss)
+- Verify they're passing the raw score value (not negated)
+
+**Step 5: Make fixes**
+
+Based on the identified issue, make the necessary code changes directly in their script.
+
+**Step 6: Verification and restore settings**
+
+After fixes, tell them what was changed and **ask them to run the training script**.
+
+Say: "Please run your training script now and let me know:
+- Does it run without errors?
+- What output do you see?"
+
+**Do not run the script yourself - wait for the user to run it and report back.**
+
+**If you changed `testing_dendrite_capacity` to True in Step 3:**
+- Tell them: "First, run a quick test with `testing_dendrite_capacity=True` to verify the fix works in debug mode."
+- After they confirm it works, change it back to `False` and tell them:
+  > "Great! I've set `testing_dendrite_capacity=False` back for full training. Run your training again to confirm everything works in production mode."
+
+**If it was already True or you kept it False:**
+- Just tell them what to look for when they run training with current settings
+
+---
+
+
+---
+
+## Error Reference
+
+Full error-by-error reference. Find the user's error in the index below and jump to the
+matching section. Every section follows: **symptom / error string → cause → fix**.
 
 Cross-references to "customization" (e.g. "section 3 from customization", "1.2 from
 customization", "the DataParallel section") point to the separate Perforated AI
@@ -408,7 +534,7 @@ always a pain to debug, but here are some we have caught:
   you are forwarding a module but not calling backwards, even though this won't cause a leak
   without PAI in the same model. We have seen a handful of models which calculate values but
   then never actually use them for anything that goes towards calculating loss, so avoid that.
-  To check for this you can use: `GPA.pc.set_debugging_memory_leak(True)`
+  To find it, check every module you forward for a corresponding backward pass.
 - Check whether you are using `model.zero_grad` rather than `optimizer.zero_grad`. The current
   system requires optimizer.
 - If this is happening in the validation/test loop after safely completing the train loop,
@@ -469,7 +595,7 @@ an issue with the shared memory inside the docker container. Run with the additi
     -TypeError: __init__() got an unexpected keyword argument 'momentum'
 
 This can happen if you are using more than one optimizer in your program. If you are, call
-`GPA.pai_tracker.setOptimizer()` again when you switch to the second optimizer, and also call
+`GPA.pai_tracker.set_optimizer()` again when you switch to the second optimizer, and also call
 it as the first line in the `if(restructured)` block for adding validation scores.
 
 ## Debugging Docker installation
