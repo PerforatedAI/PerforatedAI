@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import traceback
 
+from dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
@@ -38,10 +39,15 @@ DENDRITE_INIT_VALUES = ["initialized", "current_d_init"]
 _VALUE_TRACKER_ARRAYS_BASE = ["dendrite_outs"]
 
 # Cached values to avoid recomputation (each tracks its own state)
+# The tensor/single caches also track the selected loss class, because their contents
+# come from methods on that class; the loss-class companion fields let the guard rebuild
+# when the class changes, not only when Perforated Backpropagation is toggled.
 _cached_dendrite_tensor_values = None
 _cached_dendrite_tensor_pb_state = None
+_cached_dendrite_tensor_loss_class = None
 _cached_dendrite_single_values = None
 _cached_dendrite_single_pb_state = None
+_cached_dendrite_single_loss_class = None
 _cached_value_tracker_arrays = None
 _cached_value_tracker_pb_state = None
 
@@ -58,14 +64,20 @@ def get_DENDRITE_TENSOR_VALUES():
     list[str]
         Names of tensor attributes used for dendrite state handling.
     """
-    global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state
+    global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state, _cached_dendrite_tensor_loss_class
     current_pb_state = GPA.pc.get_perforated_backpropagation()
+    # The loss class is only relevant, and only readable, when PB is enabled. Read it
+    # through the accessor (single-writer invariant); it is a class object, so the guard
+    # compares it by identity below.
+    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_tensor_values is None
         or _cached_dendrite_tensor_pb_state != current_pb_state
+        or _cached_dendrite_tensor_loss_class is not current_loss_class
     ):
         _cached_dendrite_tensor_pb_state = current_pb_state
+        _cached_dendrite_tensor_loss_class = current_loss_class
         if current_pb_state:
             _cached_dendrite_tensor_values = MPB.update_dendrite_tensor_values(
                 _DENDRITE_TENSOR_VALUES_BASE.copy()
@@ -88,14 +100,20 @@ def get_DENDRITE_SINGLE_VALUES():
     list[str]
         Names of scalar attributes used for dendrite state handling.
     """
-    global _cached_dendrite_single_values, _cached_dendrite_single_pb_state
+    global _cached_dendrite_single_values, _cached_dendrite_single_pb_state, _cached_dendrite_single_loss_class
     current_pb_state = GPA.pc.get_perforated_backpropagation()
+    # The loss class is only relevant, and only readable, when PB is enabled. Read it
+    # through the accessor (single-writer invariant); it is a class object, so the guard
+    # compares it by identity below.
+    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_single_values is None
         or _cached_dendrite_single_pb_state != current_pb_state
+        or _cached_dendrite_single_loss_class is not current_loss_class
     ):
         _cached_dendrite_single_pb_state = current_pb_state
+        _cached_dendrite_single_loss_class = current_loss_class
         if current_pb_state:
             _cached_dendrite_single_values = MPB.update_dendrite_single_values(
                 _DENDRITE_SINGLE_VALUES_BASE.copy()
@@ -1187,9 +1205,14 @@ class PAIDendriteModule(nn.Module):
                 )
             )
         if GPA.pc.get_perforated_backpropagation():
-            self.dendrite_loss = MPB.dendrite_loss_class()
+            self.dendrite_loss = self.set_dendrite_loss_class()
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
+
+    def set_dendrite_loss_class(self) -> 'DendriteLoss':
+        # TODO currently every PAIDendriteModule has the same loss class, should instead have more customizability
+        loss_class = MPB.get_global_dendrite_loss_class()
+        return loss_class()
 
     def __getstate__(self):
         """Tell pickle what to save when this object is serialized (e.g. torch.save).

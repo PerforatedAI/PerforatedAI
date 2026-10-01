@@ -116,7 +116,23 @@ def perforate_model(
         print("Warning: save_name became empty after sanitization. Using 'PAI'.")
         save_name = "PAI"
 
-    
+    # Install the default dendrite loss mode before any code reads the selected loss
+    # class through MPB.get_global_dendrite_loss_class(). The underlying private global
+    # now starts as None (its former import-time default was removed so that
+    # setup_new_global_dendrite_mode is the only writer); initialize() below constructs
+    # the dendrite modules and value trackers that perform the first reads, so the
+    # installer must run ahead of it.
+    # The call is idempotent: a user who called setup_new_global_dendrite_mode
+    # themselves before perforate_model keeps their own choice. It is reached only
+    # when Perforated Backpropagation is enabled, which guarantees perforatedbp is
+    # importable (the enable flag is set only after that import succeeds), and by
+    # the time perforate_model runs every module has finished importing, so this
+    # runtime import cannot create a cycle.
+    if GPA.pc.get_perforated_backpropagation():
+        import perforatedbp.tracker_pbp as TPB
+
+        TPB.install_global_default_dendrite_mode()
+
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
