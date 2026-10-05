@@ -167,6 +167,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 for module_id in value:
                     _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
+            if not self.__dict__.get("_loading_config_values", False):
+                self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
                 'New list value of "{}": {}'.format(
                     private_name, getattr(self, private_name)
