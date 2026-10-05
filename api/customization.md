@@ -446,3 +446,29 @@ If you would like to upload a model to huggingface the following command has bee
 Similarly loading can be called with the following function:
 
     model = UPA.from_hf_pretrained(model, hf_repo_id)
+
+## 11 Demo Mode
+Demo mode adds one dendrite to your model with a single call and no other PAI code: no `setup_optimizer`, `set_optimizer_instance` or `add_validation_score`. Call it after creating the model and **before** creating the optimizer and scheduler, then run twice your usual number of epochs:
+
+    model = UPA.perforate_model(model, demo_mode=True, demo_phase_steps=EPOCHS * len(train_loader),
+                                demo_sample_input=next(iter(train_loader))[0])
+
+`demo_phase_steps` is the number of optimizer steps in your usual training run: the epochs your training actually runs (where early stopping usually stops, if you use it) times the optimizer steps per epoch. Divide by your gradient accumulation steps if you only call `optimizer.step()` every few batches. `demo_sample_input` is one batch of exactly what your training loop passes to `model(...)`, so call `perforate_model` after creating your data loader; it is run through the model once to create the dendrite, and `model(demo_sample_input)` must return a tensor. `examples/base_examples/mnist/mnist_perforatedai_demo.py` shows the full change to PyTorch's MNIST example.
+
+What happens:
+
+- One `nn.Linear` or `nn.Conv2d` layer gets a dendrite: the output layer, or the layer before it if the output layer holds 25% or more of the model's parameters (for example a large vocabulary head). Every other module with parameters is tracked.
+- Phase 1 (`demo_phase_steps` optimizer steps) is your normal training run. The dendrite already exists but is frozen, and its output weights are zero, so the model computes exactly what it did before.
+- Then the dendrite starts training, and your optimizer and every scheduler on it restart: the scheduler state is rewound to before the first step and the learning rates restart at 0.25x their starting values, so phase 2 replays your original learning rate schedule at a quarter of the learning rate. Keep your `scheduler.step()` calls as they are.
+- Compare your validation score at the end of phase 1 with the score at the end of training. For an honest comparison, also run with `doing_pai=False` added to the same call: identical phases and restarts, no dendrite.
+
+Demo mode uses the open source dendrites (Perforated Backpropagation is turned off for the run) and needs PyTorch 2.0 or newer. Its default save name is `PAI_demo`, so its settings are not loaded by a later normal run that uses the default `PAI` folder. It does not support multiple optimizers for the model, Muon, EMA or averaged model copies, DataParallel/DDP, or code that sets the learning rate by hand each step. It switches after a fixed number of steps rather than on validation scores, so if your model is already overfitting, the dendrite adds capacity and can make validation worse. If you use early stopping, use the epoch where it usually stops for `demo_phase_steps` and remove the early stopping `break`, since stopping during phase 1 ends the run before the dendrite turns on.
+
+Demo mode is a one-off trial. When you are done, revert your script to its original code and follow the full integration in [README.md](README.md), or say "Perforate my model" to the perforatedai skill.
+
+### 11.1 Starting With Dendrites Already Added
+`initialize_dendrites` adds dendrites to every perforated module right away instead of waiting for a switch. New dendrites start with zero output weights, so the model's outputs do not change until they train. Call it after `perforate_model`:
+
+    model = UPA.initialize_dendrites(model, sample_input=example_batch, num_dendrites=1)
+
+`sample_input` is one batch of inputs, and `model(sample_input)` must return a tensor. It is run forward and backward once, in eval mode and with no optimizer step, so each perforated module can record its output shape.

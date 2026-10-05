@@ -16,6 +16,8 @@ Feel free to reference these when helping users debug or understand implementati
 
 ## Entry Points
 
+If the user only wants a quick one-line trial ("Run the perforatedai demo"), load the sibling skill **perforatedai-demo** instead of the steps below.
+
 ### 1. "Perforate my model" - Interactive Setup
 
 When the user says **"Perforate my model"**, start the interactive setup process.
@@ -30,6 +32,8 @@ Ask for their training script path, then read it and check for:
 - Model initialization: `UPA.perforate_model()` call
 - Optimizer setup: `GPA.pai_tracker.setup_optimizer()` or `set_optimizer_instance()`
 - Training loop: `GPA.pai_tracker.add_validation_score()` call
+
+If the only PAI code is a `perforate_model(..., demo_mode=True, ...)` call, that is a finished demo (see the perforatedai-demo skill), not a partial integration. Revert the demo edits first (that call and its import, the doubled epoch count, and any removed early stopping) so the script is back to its original code, then start from Step 1.
 
 **If PAI integration is already present:**
 

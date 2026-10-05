@@ -35,6 +35,12 @@ Run dendritic model with:
 
     python mnist_perforatedai.py
 
+Run the one-line demo (demo mode, see [customization.md](../../../api/customization.md#11-demo-mode)) with:
+
+    python mnist_perforatedai_demo.py
+
+mnist_perforatedai_demo.py changes mnist.py in only three places: the import, one `perforate_model(model, demo_mode=True, ...)` call, and running twice the epochs. The first 14 epochs are the original run; then one dendrite turns on and the learning rate schedule restarts at 0.25x.
+
 ## Outcomes:
 
 Validation scores of original and dendrite optimized networks:

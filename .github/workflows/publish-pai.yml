@@ -422,6 +422,7 @@ jobs:
         Copy-Item perforatedai\clean_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\blockwise_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\configure_perforatedai.py pai_module\perforatedai
+        Copy-Item perforatedai\demo_perforatedai.py pai_module\perforatedai
         Copy-Item perforatedai\configuration_descriptions.json pai_module\perforatedai
         Copy-Item perforatedai\__init__.py pai_module\perforatedai
         Copy-Item dashboard_utils\__init__.py pai_module\dashboard_utils

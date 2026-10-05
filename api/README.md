@@ -26,6 +26,17 @@
    - **"Analyze my perforated results"** - Review training outputs and get recommendations
    
 
+## Demo Mode: One Line
+
+To try a dendrite on your own training script with a single line, call `perforate_model` with `demo_mode=True` after creating your model and before creating your optimizer and scheduler, then run twice your usual number of epochs:
+
+    from perforatedai import utils_perforatedai as UPA
+
+    model = UPA.perforate_model(model, demo_mode=True, demo_phase_steps=EPOCHS * len(train_loader),
+                                demo_sample_input=next(iter(train_loader))[0])
+
+`demo_phase_steps` is the number of optimizer steps in your usual training run, and `demo_sample_input` is one batch of what your loop passes to `model(...)`, so the call goes after your data loader is created. Demo mode adds one dendrite to a layer near the output and keeps it frozen for that many steps, so the first half of the run is your normal training. Then the dendrite starts training and your optimizer and scheduler restart at 0.25x their starting learning rate. Compare your validation score before and after the switch. No other PAI calls are needed. Details and limitations are in [customization.md](customization.md#11-demo-mode), and the "Run the perforatedai demo" [skill](../skills/perforatedai-demo/SKILL.md) can make the change for you. When you are done with the demo, revert to your original code and follow the full integration below.
+
 ## Manual Integration Guide
 
 This README provides a walkthrough for how to add dendrites to your code.  When starting a new project first just add the sections from this README. Once they have been added you can run your code and it will give you errors and warnings about if any "customization" coding is required for your architecture.  The ways to fix these are in [customization.md](customization.md).  Additionally the customization README begins by describing alternative options to the recommended settings here.  After running your pipeline you can view the graphs in the PB that show the correlation values and experiment with the other settings in customization.md that may help get better results. [output.md](output.md) describes what you're seeing in the graphs.

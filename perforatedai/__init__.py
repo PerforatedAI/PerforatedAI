@@ -26,6 +26,9 @@ Modules
   converted networks.
 - `perforatedai.clean_perforatedai` — Utilities for exporting a trained
   PAI model to a cleaned-up, scaffold-free form.
+- `perforatedai.demo_perforatedai` — Demo mode
+  (`perforate_model(model, demo_mode=True, ...)`): adds one dendrite with
+  no other PAI calls in the training script.
 
 See the [README](https://github.com/PerforatedAI/PerforatedAI) for
 installation, examples, and key results.

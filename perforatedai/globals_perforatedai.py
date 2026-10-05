@@ -409,6 +409,8 @@ class PAIConfig:
         Module names to exclude from saving.
     perforated_backpropagation : bool
         Whether Perforated Backpropagation is enabled.
+    demo_mode : bool
+        Whether perforate_model was called with demo_mode=True (see demo_perforatedai.py).
     """
 
     # Explicit type map for every config variable — used by load_config to coerce JSON values.
@@ -446,6 +448,7 @@ class PAIConfig:
                 "weight_tying_experimental",
                 "dashboard_events_enabled",
                 "dashboard_debug",
+                "demo_mode",
             )
         },
         **{
@@ -980,6 +983,10 @@ class PAIConfig:
             add_pai_config_var_functions(
                 self, "perforated_backpropagation", self.perforated_backpropagation
             )
+
+            # Set by perforate_model(demo_mode=True); see demo_perforatedai.py
+            self.demo_mode = False
+            add_pai_config_var_functions(self, "demo_mode", self.demo_mode)
 
             # This is specifically a workaround for weight tying
             # Not to be used for a duplicate pointer that isn't actually run twice

@@ -20,6 +20,7 @@ from perforatedai import clean_perforatedai as CL
 from perforatedai import blockwise_perforatedai as BPA
 from perforatedai import network_perforatedai as NPA
 from perforatedai import configure_perforatedai as CPA
+from perforatedai import demo_perforatedai as DPA
 
 try:
     from dashboard_utils.event_emitter import emitter as _dashboard_emitter
@@ -55,6 +56,9 @@ def perforate_model(
     values_per_val_epoch=-1,
     zooming_graph=True,
     config_file=None,
+    demo_mode=False,
+    demo_phase_steps=None,
+    demo_sample_input=None,
 ):
     """Main function to initialize the network to add dendrites
 
@@ -88,6 +92,17 @@ def perforate_model(
         Whether to enable zooming on the graphs, by default True
     config_file : str or None, optional
         Optional local JSON config file path to load, by default None.
+    demo_mode : bool, optional
+        Add one dendrite with this call as the only PAI call in the training
+        script, by default False. See demo_perforatedai.py.
+    demo_phase_steps : int or None, optional
+        Required with demo_mode: the number of optimizer steps in your usual
+        training run (epochs actually run times optimizer steps per epoch).
+        The dendrite starts training after this many steps.
+    demo_sample_input : torch.Tensor or None, optional
+        Required with demo_mode: one batch of the model's inputs, e.g.
+        next(iter(train_loader))[0]. It is run through the model once to
+        create the dendrite. model(demo_sample_input) must return a tensor.
 
     Returns
     -------
@@ -95,6 +110,10 @@ def perforate_model(
         The modified model with dendrite scaffolding added if doing_pai is True
 
     """
+
+    if demo_mode and save_name == "" and GPA.pc.get_save_name() == "":
+        # Keep demo settings out of the "PAI" run config used by normal runs
+        save_name = "PAI_demo"
 
     if save_name == "":
         if GPA.pc.get_save_name() == "":
@@ -134,10 +153,13 @@ def perforate_model(
         # Programmatic perforate_model input must win over config-file values.
         GPA.pc.set_maximizing_score(maximizing_score)
 
+    GPA.pc.set_demo_mode(demo_mode)
+    if demo_mode:
+        DPA.setup_demo_mode(model, demo_phase_steps, demo_sample_input)
+
     if not GPA.pc.get_configuration_confirmed():
         CPA.set_perforation_targets(model)
 
-    
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
@@ -159,7 +181,8 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
 
-
+    if demo_mode:
+        DPA.start_demo_mode(model, demo_sample_input)
 
     return model
 
@@ -1931,10 +1954,10 @@ def simulate_cycles(module, num_cycles, doing_pai):
     Simulate the back and forth processes of adding dendrites to build a
     pretrained dendrite model before loading weights.  Required for loading
     dendrite save files from non dendrite initial models.
-    
+
     If calling this by hand to start off a network with dendrites added,
     make sure to pass a single datapoint forward and backward through the network
-    so that array sizes are initialized.
+    so that array sizes are initialized. initialize_dendrites does all of this.
 
     Parameters
     ----------
@@ -1965,6 +1988,44 @@ def simulate_cycles(module, num_cycles, doing_pai):
             module.set_mode("n")
             mode = "n"
     GPA.pc.set_checked_skipped_modules(check_skipped)
+
+
+def initialize_dendrites(model, sample_input, num_dendrites=1):
+    """Add dendrites to every perforated module now, before any training.
+
+    sample_input is run forward and backward once, with no optimizer step, so
+    filter_backward records each perforated module's output shape. Then
+    simulate_cycles adds the dendrites (each n -> p -> n cycle adds one). New
+    dendrites start with zero output weights, so the model's outputs do not
+    change until they are trained.
+
+    Parameters
+    ----------
+    model : nn.Module
+        A model that has already been through perforate_model.
+    sample_input : torch.Tensor
+        One batch of inputs. model(sample_input) must return a tensor.
+    num_dendrites : int, optional
+        How many dendrites to add to each perforated module, by default 1.
+
+    Returns
+    -------
+    nn.Module
+        The same model with dendrites added.
+
+    """
+    was_training = model.training
+    # Eval mode keeps the sample batch out of BatchNorm running statistics
+    model.eval()
+    model(sample_input.to(next(model.parameters()).device)).sum().backward()
+    model.zero_grad()
+    model.train(was_training)
+    for module in get_pai_modules(model, 0):
+        simulate_cycles(module, 2 * num_dendrites, doing_pai=True)
+    # simulate_cycles only changes the modules, so keep the tracker's counts in step
+    GPA.pai_tracker.member_vars["num_cycles"] += 2 * num_dendrites
+    GPA.pai_tracker.member_vars["num_dendrites_added"] += num_dendrites
+    return model
 
 
 def count_params(net):
