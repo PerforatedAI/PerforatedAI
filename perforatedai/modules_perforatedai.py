@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import traceback
 
+from dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
@@ -38,10 +39,15 @@ DENDRITE_INIT_VALUES = ["initialized", "current_d_init"]
 _VALUE_TRACKER_ARRAYS_BASE = ["dendrite_outs"]
 
 # Cached values to avoid recomputation (each tracks its own state)
+# The tensor/single caches also track the selected loss class, because their contents
+# come from methods on that class; the loss-class companion fields let the guard rebuild
+# when the class changes, not only when Perforated Backpropagation is toggled.
 _cached_dendrite_tensor_values = None
 _cached_dendrite_tensor_pb_state = None
+_cached_dendrite_tensor_loss_class = None
 _cached_dendrite_single_values = None
 _cached_dendrite_single_pb_state = None
+_cached_dendrite_single_loss_class = None
 _cached_value_tracker_arrays = None
 _cached_value_tracker_pb_state = None
 
@@ -58,22 +64,26 @@ def get_DENDRITE_TENSOR_VALUES():
     list[str]
         Names of tensor attributes used for dendrite state handling.
     """
-    global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state
+    global _cached_dendrite_tensor_values, _cached_dendrite_tensor_pb_state, _cached_dendrite_tensor_loss_class
     current_pb_state = GPA.pc.get_perforated_backpropagation()
+    # The loss class is only relevant, and only readable, when PB is enabled. Read it
+    # through the accessor (single-writer invariant); it is a class object, so the guard
+    # compares it by identity below.
+    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_tensor_values is None
         or _cached_dendrite_tensor_pb_state != current_pb_state
+        or _cached_dendrite_tensor_loss_class is not current_loss_class
     ):
         _cached_dendrite_tensor_pb_state = current_pb_state
+        _cached_dendrite_tensor_loss_class = current_loss_class
         if current_pb_state:
             _cached_dendrite_tensor_values = MPB.update_dendrite_tensor_values(
                 _DENDRITE_TENSOR_VALUES_BASE.copy()
             )
         else:
             _cached_dendrite_tensor_values = _DENDRITE_TENSOR_VALUES_BASE.copy()
-        if current_pb_state:
-            _cached_dendrite_tensor_values = _cached_dendrite_tensor_values + MPB._variant_tensor_values
 
     return _cached_dendrite_tensor_values
 
@@ -90,22 +100,26 @@ def get_DENDRITE_SINGLE_VALUES():
     list[str]
         Names of scalar attributes used for dendrite state handling.
     """
-    global _cached_dendrite_single_values, _cached_dendrite_single_pb_state
+    global _cached_dendrite_single_values, _cached_dendrite_single_pb_state, _cached_dendrite_single_loss_class
     current_pb_state = GPA.pc.get_perforated_backpropagation()
+    # The loss class is only relevant, and only readable, when PB is enabled. Read it
+    # through the accessor (single-writer invariant); it is a class object, so the guard
+    # compares it by identity below.
+    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_single_values is None
         or _cached_dendrite_single_pb_state != current_pb_state
+        or _cached_dendrite_single_loss_class is not current_loss_class
     ):
         _cached_dendrite_single_pb_state = current_pb_state
+        _cached_dendrite_single_loss_class = current_loss_class
         if current_pb_state:
             _cached_dendrite_single_values = MPB.update_dendrite_single_values(
                 _DENDRITE_SINGLE_VALUES_BASE.copy()
             )
         else:
             _cached_dendrite_single_values = _DENDRITE_SINGLE_VALUES_BASE.copy()
-        if current_pb_state:
-            _cached_dendrite_single_values = _cached_dendrite_single_values + MPB._variant_single_values
 
     return _cached_dendrite_single_values
 
@@ -232,13 +246,14 @@ def filter_backward(grad_out, values, module=None):
                     return
             # Make sure that the input dimensions are correct
             for i in range(len(values[0].this_output_dimensions)):
-                if values[0].this_output_dimensions[i] == 0:
+                if values[0].this_output_dimensions[i] == GPA.NODE_AXIS:
                     continue
-                # Make sure all input dimensions are either -1 (reduce), 1 (retain), or exact values (old format)
+                # Make sure all input dimensions are either REDUCE_AXIS (reduce),
+                # NOT_REDUCE_OR_NODE_AXIS (retain), or exact values (old format)
                 if (
                     not (grad_out.shape[i] == values[0].this_output_dimensions[i])
-                    and not values[0].this_output_dimensions[i] == -1
-                    and not values[0].this_output_dimensions[i] == 1
+                    and not values[0].this_output_dimensions[i] == GPA.REDUCE_AXIS
+                    and not values[0].this_output_dimensions[i] == GPA.NOT_REDUCE_OR_NODE_AXIS
                 ):
                     print(
                         "The following module has not properly set this_output_dimensions with this incorrect shape"
@@ -267,29 +282,12 @@ def filter_backward(grad_out, values, module=None):
                 ndim = len(values[0].this_output_dimensions)
                 storage_shape = [1] * ndim
                 for _i in range(ndim):
-                    if values[0].this_output_dimensions[_i] == 1:
+                    if values[0].this_output_dimensions[_i] == GPA.NOT_REDUCE_OR_NODE_AXIS:
                         storage_shape[_i] = val.shape[_i]
                 storage_shape[values[0].this_node_index.item()] = values[0].out_channels
                 values[0].setup_arrays(storage_shape)
             # Flag that it has been setup (both the GPU tensor and the fast Python bool)
             values[0].current_d_init[0] = 1
-            # If fixed_input_sizes is enabled, populate the tuple caches now
-            # that val.shape is known. get_tuples_and_mult will read these on
-            # every subsequent call instead of recomputing.
-            if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
-                from perforatedbp import modules_pbp as _MPB
-                math_tuple, view_tuple, full_mult = _MPB.get_tuples_and_mult(val, values[0])
-                ndim = len(val.shape)
-                # math_tuple can be shorter than ndim (excludes this_node_index and
-                # retained dims). Pad with -1 sentinel to fill the ndim-length buffer.
-                padded_math = math_tuple + [-1] * (ndim - len(math_tuple))
-                values[0].math_tuple_cache.copy_(
-                    torch.tensor(padded_math, dtype=torch.long, device=val.device)
-                )
-                values[0].view_tuple_cache.copy_(
-                    torch.tensor(view_tuple, dtype=torch.long, device=val.device)
-                )
-                values[0].full_mult_cache[0] = full_mult
             if module is not None:
                 module._fb_init_done = True
                 # When PBP is disabled this hook has no further work to do.
@@ -411,13 +409,13 @@ class PAINeuronModule(nn.Module):
             "this_output_dimensions",
             (torch.tensor(self.module_config.get_output_dimensions())),
         )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"5 Need exactly one 0 in the input dimensions: {self.name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
             "this_node_index",
-            torch.tensor(self.module_config.get_output_dimensions().index(0)),
+            torch.tensor(self.module_config.get_output_dimensions().index(GPA.NODE_AXIS)),
         )
         self.dendrite_modules_added = 0
 
@@ -441,8 +439,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Linear)
             )
         ) and (
-            np.array(self.this_output_dimensions)[2:] == -1
-        ).all():  # Everything past 2 is a negative 1
+            np.array(self.this_output_dimensions)[2:] == GPA.REDUCE_AXIS
+        ).all():  # Everything past 2 is a REDUCE_AXIS
             self.set_this_output_dimensions(self.this_output_dimensions[0:2])
         if (
             issubclass(type(start_module), nn.Conv1d)
@@ -451,8 +449,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Conv1d)
             )
         ) and (
-            np.array(self.this_output_dimensions)[3:] == -1
-        ).all():  # Everything past 2 is a negative 1
+            np.array(self.this_output_dimensions)[3:] == GPA.REDUCE_AXIS
+        ).all():  # Everything past 3 is a REDUCE_AXIS
             self.set_this_output_dimensions(self.this_output_dimensions[0:3])
         # Apply per-module output_dimensions override from config if present
         _custom_dims = self.module_config.__dict__.get("_output_dimensions")
@@ -630,11 +628,11 @@ class PAINeuronModule(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"6 need exactly one 0 in the input dimensions: {self.name}")
             print(new_output_dimensions)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
         self.dendrite_module.set_this_output_dimensions(new_output_dimensions)
 
@@ -1180,12 +1178,13 @@ class PAIDendriteModule(nn.Module):
             self.register_buffer(
                 "this_output_dimensions", output_dimensions.detach().clone()
             )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"1 need exactly one 0 in the input dimensions: {self.name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
+            "this_node_index",
+            torch.tensor(GPA.pc.get_output_dimensions().index(GPA.NODE_AXIS)),
         )
 
         # Initialize dendrite to dendrite connections
@@ -1207,8 +1206,14 @@ class PAIDendriteModule(nn.Module):
                 )
             )
         if GPA.pc.get_perforated_backpropagation():
+            self.dendrite_loss = self.set_dendrite_loss_class()
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
+
+    def set_dendrite_loss_class(self) -> 'DendriteLoss':
+        # TODO currently every PAIDendriteModule has the same loss class, should instead have more customizability
+        loss_class = MPB.get_global_dendrite_loss_class()
+        return loss_class()
 
     def __getstate__(self):
         """Tell pickle what to save when this object is serialized (e.g. torch.save).
@@ -1235,9 +1240,9 @@ class PAIDendriteModule(nn.Module):
         self.__dict__.update(saved_state)
 
         # Re-attach the PBP bound methods that were stripped by __getstate__.
-        # dendrite_loss_fn being present on the saved state means PBP was active
+        # dendrite_loss being present on the saved state means PBP was active
         # when the checkpoint was saved.
-        if "dendrite_loss_fn" in saved_state:
+        if "dendrite_loss" in saved_state:
             import perforatedbp.modules_pbp as MPB
             self.apply_pb_grads = MPB.apply_pb_grads.__get__(self, type(self))
             self.apply_pb_zero = MPB.apply_pb_zero.__get__(self, type(self))
@@ -1303,12 +1308,12 @@ class PAIDendriteModule(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"2 Need exactly one 0 in the input dimensions: {self.name}")
             print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
         for j in range(0, GPA.pc.get_global_candidates()):
             self.dendrite_values[j].set_this_output_dimensions(new_output_dimensions)
@@ -1659,17 +1664,18 @@ class DendriteValueTracker(nn.Module):
         self.register_buffer(
             "this_output_dimensions", output_dimensions.clone().detach()
         )
-        if (self.this_output_dimensions == 0).sum() != 1:
+        if (self.this_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"3 need exactly one 0 in the input dimensions: {self.layer_name}")
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", (output_dimensions == 0).nonzero(as_tuple=True)[0]
+            "this_node_index",
+            (output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0],
         )
         if out_channels != -1:
             ndim = len(output_dimensions)
             init_shape = [1] * ndim
-            init_shape[(output_dimensions == 0).nonzero(as_tuple=True)[0].item()] = out_channels
+            init_shape[(output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0].item()] = out_channels
             self.setup_arrays(init_shape)
         else:
             self.out_channels = -1
@@ -1719,12 +1725,12 @@ class DendriteValueTracker(nn.Module):
         self.register_buffer(
             "this_output_dimensions", new_output_dimensions.detach().clone()
         )
-        if (new_output_dimensions == 0).sum() != 1:
+        if (new_output_dimensions == GPA.NODE_AXIS).sum() != 1:
             print(f"4 need exactly one 0 in the input dimensions: {self.layer_name}")
             print(new_output_dimensions)
             sys.exit(-1)
         self.this_node_index.copy_(
-            (new_output_dimensions == 0).nonzero(as_tuple=True)[0][0]
+            (new_output_dimensions == GPA.NODE_AXIS).nonzero(as_tuple=True)[0][0]
         )
 
     def set_out_channels(self, shape_values):
@@ -1739,6 +1745,13 @@ class DendriteValueTracker(nn.Module):
         -------
         None
         """
+        # DESIGN ASSUMPTION (spatially resolved covariance): each target layer is
+        # assumed to emit a fixed H x W on every batch. The spatially resolved
+        # covariance buffers (shape N x H x W) are sized once, from the H and W read
+        # off this same shape_values at setup time, and are never resized afterward.
+        # A layer whose spatial size varies across batches would therefore fail to
+        # broadcast against these fixed-size buffers; supporting variable spatial
+        # sizes would require a mismatch policy here and in setup_arrays.
         if type(shape_values) == torch.Size:
             self.out_channels = int(shape_values[self.this_node_index])
         else:
@@ -1785,26 +1798,6 @@ class DendriteValueTracker(nn.Module):
             self.register_buffer(
                 val_name,
                 torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
-            )
-
-        # If fixed_input_sizes is enabled, register cache buffers now that the
-        # final ndim is known (output_dimensions may have been corrected after
-        # __init__ for Linear layers). Mirrors the pattern of this_output_dimensions
-        # — registered as buffers so they are saved and loaded automatically.
-        if GPA.pc.get_perforated_backpropagation() and GPA.pc.get_fixed_input_sizes():
-            ndim = len(storage_shape)
-            if not hasattr(self, 'math_tuple_cache'):
-                self.register_buffer(
-                    "math_tuple_cache",
-                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
-                )
-                self.register_buffer(
-                    "view_tuple_cache",
-                    torch.zeros(ndim, dtype=torch.long, device=GPA.pc.get_device()),
-                )
-                self.register_buffer(
-                    "full_mult_cache",
-                    torch.zeros(1, dtype=torch.long, device=GPA.pc.get_device()),
             )
 
     def reinitialize_for_pai(self):

@@ -137,7 +137,24 @@ def perforate_model(
     if not GPA.pc.get_configuration_confirmed():
         CPA.set_perforation_targets(model)
 
-    
+
+    # Install the default dendrite loss mode before any code reads the selected loss
+    # class through MPB.get_global_dendrite_loss_class(). The underlying private global
+    # now starts as None (its former import-time default was removed so that
+    # setup_new_global_dendrite_mode is the only writer); initialize() below constructs
+    # the dendrite modules and value trackers that perform the first reads, so the
+    # installer must run ahead of it.
+    # The call is idempotent: a user who called setup_new_global_dendrite_mode
+    # themselves before perforate_model keeps their own choice. It is reached only
+    # when Perforated Backpropagation is enabled, which guarantees perforatedbp is
+    # importable (the enable flag is set only after that import succeeds), and by
+    # the time perforate_model runs every module has finished importing, so this
+    # runtime import cannot create a cycle.
+    if GPA.pc.get_perforated_backpropagation():
+        import perforatedbp.tracker_pbp as TPB
+
+        TPB.install_global_default_dendrite_mode()
+
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
@@ -159,8 +176,22 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
 
+    # When perforated backpropagation is enabled, register the epoch-boundary
+    # hooks so a dendrite loss class's on_epoch_* methods fire automatically,
+    # rather than requiring the application to call register_epoch_hooks() by
+    # hand before perforate_model. Imported at call time because
+    # dendrite_loss_events imports from perforatedbp at module load, which is
+    # only guaranteed present when perforated backpropagation is enabled.
+    if GPA.pc.get_perforated_backpropagation():
+        from perforatedai.dendrite_loss_events import register_epoch_hooks
 
+        register_epoch_hooks()
 
+    # Save config after perforation
+    if not GPA.pc.get_testing_dendrite_capacity():
+        import os
+        GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
+    
     return model
 
 
@@ -1931,7 +1962,7 @@ def simulate_cycles(module, num_cycles, doing_pai):
     Simulate the back and forth processes of adding dendrites to build a
     pretrained dendrite model before loading weights.  Required for loading
     dendrite save files from non dendrite initial models.
-    
+
     If calling this by hand to start off a network with dendrites added,
     make sure to pass a single datapoint forward and backward through the network
     so that array sizes are initialized.

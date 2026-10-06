@@ -31,6 +31,15 @@ except ImportError as e:
 
 
 def _pai_log(level, message):
+    """Emit a tracker log message to dashboard or stdout.
+
+    Parameters
+    ----------
+    level : str
+        Log level such as ``info``, ``warning``, or ``error``.
+    message : str
+        Message text to emit.
+    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -317,8 +326,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"\n\nGot score of {accuracy:.10f} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1-GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 - GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 - GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 - GPA.pc.get_improvement_threshold())}) '
                     f'which is higher than {GPA.pai_tracker.member_vars["current_best_validation_score"]:.10f} '
                     f"by {GPA.pc.get_improvement_threshold_raw()} so setting epoch to "
                     f'{GPA.pai_tracker.member_vars["num_epochs_run"]}\n\n'
@@ -453,8 +462,8 @@ def process_no_improvement(net):
     )
 
     if (
-        GPA.pai_tracker.member_vars["num_dendrite_tries"]
-        < GPA.pc.get_max_dendrite_tries() -1
+            GPA.pai_tracker.member_vars["num_dendrite_tries"]
+            < GPA.pc.get_max_dendrite_tries() - 1
     ):
         _pai_log(
             "info",
@@ -1620,7 +1629,10 @@ class PAINeuronModuleTracker:
             channels[parts[0]] = [int(s) for s in parts[1:]]
         for layer in self.neuron_module_vector:
             dv = layer.dendrite_module.dendrite_values[0]
-            dv.setup_arrays(channels[layer.name])
+            ndim = len(dv.this_output_dimensions)
+            shape = [1] * ndim
+            shape[dv.this_node_index.item()] = channels[layer.name]
+            dv.setup_arrays(shape)
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
@@ -2919,7 +2931,7 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict
+        dict[str, Any]
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
 
@@ -3058,11 +3070,12 @@ class PAINeuronModuleTracker:
                         "Epochs": np.arange(
                             len(self.member_vars["current_scores"][layer_id])
                         ),
-                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}": self.member_vars[
-                            "current_scores"
-                        ][
-                            layer_id
-                        ],
+                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}":
+                            self.member_vars[
+                                "current_scores"
+                            ][
+                                layer_id
+                            ],
                     }
                 )
                 pd1 = pd.concat([pd1, pd.DataFrame(pd2)], ignore_index=True)
@@ -3685,7 +3698,7 @@ class PAINeuronModuleTracker:
                         f'len(accuracies)={len(GPA.pai_tracker.member_vars["accuracies"])} '
                         f'num_epochs_run={GPA.pai_tracker.member_vars["num_epochs_run"]}',
                     )
-                
+
                 # Now increment after change_learning_modes has loaded the best model
                 # This ensures the increment persists and doesn't get overwritten
                 if should_increment_integrated:
@@ -3852,11 +3865,6 @@ class PAINeuronModuleTracker:
         """Call set_create_dendrite(fn) on every tracked PAINeuronModule."""
         for module in self.neuron_module_vector:
             module.set_create_dendrite(fn)
-
-    def set_dendrite_loss_fn_global(self, fn):
-        """Set the global dendrite loss function used by all dendrite modules."""
-        from perforatedbp import modules_pbp as MPB
-        MPB.dendrite_loss_fn = fn
 
     def apply_pb_grads(self):
         """Apply perforated backpropagation gradients to all modules.
