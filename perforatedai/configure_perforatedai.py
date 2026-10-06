@@ -37,6 +37,33 @@ def dedupe_list(values):
     return unique
 
 
+def python_supplied_owner(var_names, item):
+    """The first list in ``var_names`` whose script-supplied items include ``item``."""
+    for var_name in var_names:
+        if item in (GPA.pc.get_python_supplied(var_name) or []):
+            return var_name
+    return None
+
+
+def python_owned_message(label, var_name):
+    return (
+        f"{label} is set by a Python call ({var_name}) — change it in your script; "
+        "the CLI can't override it."
+    )
+
+
+def id_python_owner(module_id):
+    return python_supplied_owner(
+        ("module_ids_to_perforate", "module_ids_to_track"), module_id
+    )
+
+
+def type_python_owner(type_name):
+    return python_supplied_owner(
+        ("module_names_to_perforate", "module_names_to_track"), type_name
+    )
+
+
 def normalize_selection_conflicts():
     """Normalize id and name selection lists and remove direct conflicts."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
@@ -85,6 +112,12 @@ def get_module_entries(model):
                 ),
                 "tree_param_count": sum(
                     param.numel()
+                    for _param_name, param in module.named_parameters(recurse=True)
+                ),
+                # Trainable: this module or any submodule has a requires_grad
+                # parameter. Only trainable modules may be perforated.
+                "trainable": any(
+                    param.requires_grad
                     for _param_name, param in module.named_parameters(recurse=True)
                 ),
             }
@@ -500,7 +533,8 @@ def _clear_tracked_params_for_module_id(module_id):
     """Remove parameter_ids_to_track entries that belong directly to this module."""
     prefix = module_id + "."
     current = GPA.pc.get_parameter_ids_to_track()
-    updated = [p for p in current if not p.startswith(prefix)]
+    kept = GPA.pc.get_python_supplied("parameter_ids_to_track") or []
+    updated = [p for p in current if p in kept or not p.startswith(prefix)]
     if len(updated) != len(current):
         GPA.pc.set_parameter_ids_to_track(updated)
 
@@ -564,8 +598,12 @@ def set_all_types_to_tracking(entries):
     track every type present. A quick way to start from "track everything"
     before manually perforating the head/last layer.
     """
-    GPA.pc.set_module_ids_to_perforate([])
-    GPA.pc.set_module_names_to_perforate([])
+    GPA.pc.set_module_ids_to_perforate(
+        GPA.pc.get_python_supplied("module_ids_to_perforate") or []
+    )
+    GPA.pc.set_module_names_to_perforate(
+        GPA.pc.get_python_supplied("module_names_to_perforate") or []
+    )
     all_type_names = dedupe_list(entry["type_name"] for entry in entries)
     GPA.pc.set_module_names_to_track(all_type_names)
 
@@ -626,6 +664,9 @@ def clear_module_mode(entry):
         module_id in GPA.pc.get_module_ids_to_perforate()
         or module_id in GPA.pc.get_module_ids_to_track()
     ):
+        owner = id_python_owner(module_id)
+        if owner:
+            return python_owned_message(module_id, owner)
         GPA.pc.set_module_ids_to_perforate(ids_perforate)
         GPA.pc.set_module_ids_to_track(ids_track)
         return f"cleared {module_id}"
@@ -634,6 +675,9 @@ def clear_module_mode(entry):
         type_name in GPA.pc.get_module_names_to_perforate()
         or type_name in GPA.pc.get_module_names_to_track()
     ):
+        owner = type_python_owner(type_name)
+        if owner:
+            return python_owned_message(f"the {type_name} type rule", owner)
         GPA.pc.set_module_names_to_perforate(
             [v for v in GPA.pc.get_module_names_to_perforate() if v != type_name]
         )
@@ -692,7 +736,7 @@ def build_budget_line(entries, resolved):
                 seen_total.add(pid)
                 total_model_params += parameter.numel()
 
-        if resolved[entry["id"]]["eff"] == "perforated":
+        if resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]:
             for _name, parameter in entry["module"].named_parameters(recurse=False):
                 pid = id(parameter)
                 if pid not in seen_added:
@@ -1136,6 +1180,10 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     mode = record["eff"]
+    if not entry["trainable"] and (mode == "perforated" or entry["tree_param_count"] > 0):
+        # Ineligible for perforation; takes precedence over a stale perforate mark.
+        if mode != "tracked":
+            return dim("∅") + "    ", "∅    "
     if mode is None:
         if entry["direct_param_count"] > 0:
             if entries is not None and resolved is not None and _would_auto_track_params(entry, entries, resolved):
@@ -1578,6 +1626,8 @@ def render_legend_overlay():
         f"   * {perf}     mode set directly on this module (by id)",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
+        "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
+        "             can be tracked but not perforated",
         f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
@@ -1743,6 +1793,7 @@ def set_perforation_targets(model):
     require_interactive_session()
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
+    GPA.pc.__dict__["_tui_editing"] = True
     entered_alt_screen = False
     quit_requested = False
 
@@ -2069,6 +2120,15 @@ def set_perforation_targets(model):
                 elif is_depth_key(key):
                     target_depth_baseline = int(key)
                     target_expanded_overrides.clear()
+                elif key == "p" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("p", "t") and id_python_owner(entry["id"]):
+                    status_message = python_owned_message(
+                        entry["id"], id_python_owner(entry["id"])
+                    )
                 elif key in ("p", "t"):
                     if entry["is_replaced_root"] or entry["in_replaced"]:
                         status_message = (
@@ -2080,6 +2140,16 @@ def set_perforation_targets(model):
                         set_module_id_mode(
                             entry["id"], "perforated" if key == "p" else "tracked"
                         )
+                elif key == "P" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("P", "T") and type_python_owner(entry["type_name"]):
+                    status_message = python_owned_message(
+                        f"the {entry['type_name']} type rule",
+                        type_python_owner(entry["type_name"]),
+                    )
                 elif key in ("P", "T"):
                     if entry["is_replaced_root"]:
                         status_message = (
@@ -2168,6 +2238,7 @@ def set_perforation_targets(model):
         if entered_alt_screen:
             exit_alternate_screen()
         GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist
+        GPA.pc.__dict__["_tui_editing"] = False
 
     if quit_requested:
         print("Configuration cancelled — training did not start.")
