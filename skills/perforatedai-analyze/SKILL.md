@@ -172,7 +172,7 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
     - Training will complete faster since fewer dendrite phases are needed
     - Optionally use `FIXED_SWITCH_MODE` for more consistent/predictable training time:
       ```python
-      GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+      GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
       GPA.pc.set_n_epochs_to_switch(20)  # Adds dendrite every 20 epochs
       ```
     - With FIXED mode, you know exactly when dendrites are added, making total training time predictable

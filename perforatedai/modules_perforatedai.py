@@ -1439,8 +1439,6 @@ class PAIDendriteModule(nn.Module):
         self.mode = mode
         self.num_cycles += 1
         if GPA.pc.get_verbose():
-            print(f"PAI calling set mode {mode} : {self.num_cycles}")
-        if not GPA.pc.get_silent():
             print(f"Module {self.name} calling set mode {mode} : {self.num_cycles}")
         # When switching back to neuron training mode convert candidates modules into accepted modules
         if mode == "n":

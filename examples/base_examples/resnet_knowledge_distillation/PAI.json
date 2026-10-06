@@ -31,7 +31,7 @@
   "find_best_lr": true,
   "first_fixed_switch_num": -1,
   "fixed_input_sizes": false,
-  "fixed_switch_num": 250,
+  "n_fixed_switch_num": 250,
   "global_candidates": 1,
   "grad_sum_first": true,
   "graphing_current_scores": false,

@@ -159,7 +159,8 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
 
-
+    for param in model.parameters():
+        param.data = param.data.contiguous()
 
     return model
 
@@ -1335,6 +1336,35 @@ def load_model_with_weight_tying(model, filepath):
     return model
 
 
+def _save_file_deduped(state_dict, filepath):
+    """Save a state dict via safetensors, deduplicating shared-memory tensors.
+
+    Shared-memory tensors (weight-tied parameters) are detected by data_ptr().
+    Only the alphabetically-first key is written to disk; the rest are recorded
+    in the file's metadata so they can be restored transparently on load.
+    """
+    tensor_to_keys = defaultdict(list)
+    for key, tensor in state_dict.items():
+        tensor_id = tensor.data_ptr()
+        tensor_to_keys[tensor_id].append(key)
+
+    tied_weights = {}
+    keys_to_remove = set()
+    for tensor_id, keys in tensor_to_keys.items():
+        if len(keys) > 1 and tensor_id != 0:
+            sorted_keys = sorted(keys)
+            primary_key = sorted_keys[0]
+            for secondary_key in sorted_keys[1:]:
+                tied_weights[secondary_key] = primary_key
+                keys_to_remove.add(secondary_key)
+
+    filtered = {k: v for k, v in state_dict.items() if k not in keys_to_remove}
+    if tied_weights:
+        save_file(filtered, filepath, metadata={"weight_tying": json.dumps(tied_weights)})
+    else:
+        save_file(filtered, filepath)
+
+
 def save_net(net, folder, name):
     """Save the network
 
@@ -1367,14 +1397,11 @@ def save_net(net, folder, name):
     for param in net.parameters():
         param.data = param.data.contiguous()
     if GPA.pc.get_using_safe_tensors():
-        if GPA.pc.get_weight_tying_experimental():
-            save_model_with_weight_tying(net, save_point + name + ".pt")
-        else:
-            # Strip the . so that the naming is the same for everywhere but it works with state_dict naming
-            not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
-            state_dict = {k: v for k, v in net.state_dict().items()
-                          if not any(k.startswith(ns) for ns in not_save)}
-            save_file(state_dict, save_point + name + ".pt")
+        # Strip the . so that the naming is the same for everywhere but it works with state_dict naming
+        not_save = [ns.lstrip('.') for ns in GPA.pc.get_module_names_to_not_save()]
+        state_dict = {k: v for k, v in net.state_dict().items()
+                      if not any(k.startswith(ns) for ns in not_save)}
+        _save_file_deduped(state_dict, save_point + name + ".pt")
     else:
         torch.save(net, save_point + name + ".pt")
 
@@ -1415,10 +1442,7 @@ def save_pai_net(net, folder, name):
         os.mkdir(save_point)
 
     if GPA.pc.get_using_safe_tensors():
-        if GPA.pc.get_weight_tying_experimental():
-            save_model_with_weight_tying(net, save_point + name + "_pai.pt")
-        else:
-            save_file(net.state_dict(), save_point + name + "_pai.pt")
+        _save_file_deduped(net.state_dict(), save_point + name + "_pai.pt")
     else:
         torch.save(net, save_point + name + "_pai.pt")
 
@@ -1459,10 +1483,7 @@ def save_pai_net(net, folder, name):
         os.mkdir(save_point)
 
     if GPA.pc.get_using_safe_tensors():
-        if GPA.pc.get_weight_tying_experimental():
-            save_model_with_weight_tying(net, save_point + name + "_pai.pt")
-        else:
-            save_file(net.state_dict(), save_point + name + "_pai.pt")
+        _save_file_deduped(net.state_dict(), save_point + name + "_pai.pt")
     else:
         torch.save(net, save_point + name + "_pai.pt")
 
@@ -1529,17 +1550,17 @@ def load_net(net, folder, name):
     save_point = folder + "/"
     if GPA.pc.get_using_safe_tensors():
         model_path = save_point + name + ".pt"
-        if GPA.pc.get_weight_tying_experimental():
-            return load_model_with_weight_tying(net, model_path)
-        else:
-            try:
-                with safe_open(model_path, framework="pt") as f:
-                    metadata = f.metadata()
-                if metadata and "weight_tying" in metadata:
-                    return load_model_with_weight_tying(net, model_path)
-            except Exception:
-                pass
-            state_dict = load_file(model_path)
+        state_dict = load_file(model_path)
+        try:
+            with safe_open(model_path, framework="pt") as f:
+                metadata = f.metadata()
+            if metadata and "weight_tying" in metadata:
+                tied_weights = json.loads(metadata["weight_tying"])
+                for secondary_key, primary_key in tied_weights.items():
+                    if primary_key in state_dict:
+                        state_dict[secondary_key] = state_dict[primary_key]
+        except Exception:
+            pass
     else:
         # Try three different torch.load call signatures for compatibility across
         # different PyTorch versions.  All three are attempted before giving up so

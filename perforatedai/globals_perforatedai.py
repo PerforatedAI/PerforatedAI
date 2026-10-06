@@ -167,6 +167,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 for module_id in value:
                     _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
+            if not self.__dict__.get("_loading_config_values", False):
+                self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
                 'New list value of "{}": {}'.format(
                     private_name, getattr(self, private_name)
@@ -345,8 +347,8 @@ class PAIConfig:
         Epochs to wait after adding dendrites before beggining checks.
     DOING_FIXED_SWITCH : int
         Constant for switch mode: add dendrites at fixed intervals.
-    fixed_switch_num : int
-        Number of epochs between fixed switches.
+    n_fixed_switch_num : int
+        Number of epochs between fixed switches (neuron mode).
     first_fixed_switch_num : int
         Number of epochs before first switch (for pretraining).
     DOING_NO_SWITCH : int
@@ -367,6 +369,8 @@ class PAIConfig:
         Automatically sweep learning rates when adding dendrites.
     dont_give_up_unless_learning_rate_lowered : bool
         Ensure search lowers learning rate at least once.
+    lr_binary_search_max_depth : int
+        Maximum binary search depth for LR sweep (default 4).
     max_dendrite_tries : int
         Maximum attempts to add dendrites with random initializations.
     max_dendrites : int
@@ -456,7 +460,7 @@ class PAIConfig:
                 "n_epochs_to_switch",
                 "history_lookback",
                 "initial_history_after_switches",
-                "fixed_switch_num",
+                "n_fixed_switch_num",
                 "first_fixed_switch_num",
                 "switch_mode",
                 "max_dendrite_tries",
@@ -769,10 +773,10 @@ class PAIConfig:
 
             # Switch after a fixed number of epochs
             self.DOING_FIXED_SWITCH = 2
-            # Number of epochs to complete before switching
-            self.fixed_switch_num = 250
+            # Number of epochs to complete before switching (neuron mode)
+            self.n_fixed_switch_num = 250
             add_pai_config_var_functions(
-                self, "fixed_switch_num", self.fixed_switch_num
+                self, "n_fixed_switch_num", self.n_fixed_switch_num
             )
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than
@@ -828,6 +832,13 @@ class PAIConfig:
                 self,
                 "dont_give_up_unless_learning_rate_lowered",
                 self.dont_give_up_unless_learning_rate_lowered,
+            )
+            # Maximum depth for binary search LR sweep. Limits total tests to O(log N).
+            self.lr_binary_search_max_depth = 4
+            add_pai_config_var_functions(
+                self,
+                "lr_binary_search_max_depth",
+                self.lr_binary_search_max_depth,
             )
             # Whether a higher validation score is better (True) or lower is better (False).
             self.maximizing_score = True

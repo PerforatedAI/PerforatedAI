@@ -1,0 +1,10 @@
+torch
+torchvision
+perforatedai
+opencv-python
+numpy
+matplotlib
+tqdm
+tensorboard
+torchsummary
+timm

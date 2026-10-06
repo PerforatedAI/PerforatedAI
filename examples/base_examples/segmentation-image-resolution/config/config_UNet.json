@@ -1,0 +1,83 @@
+{
+	"name": "HumanSeg",
+	"n_gpu": 1,
+	"arch": {
+		"type": "UNet",
+		"args": {
+			"backbone": "mobilenetv2",
+			"num_classes": 2,
+			"pretrained_backbone": null
+		}
+	},
+	"train_loader": {
+		"type": "SegmentationDataLoader",
+		"args": {
+			"pairs_file": "dataset/train_supervisely.txt",
+			"color_channel": "RGB",
+			"resize": 320,
+			"padding_value": 0,
+			"is_training": true,
+			"noise_std": 3,
+			"crop_range": [
+				0.90,
+				1.0
+			],
+			"flip_hor": 0.5,
+			"rotate": 0.0,
+			"angle": 10,
+			"normalize": true,
+			"one_hot": false,
+			"shuffle": true,
+			"batch_size": 16,
+			"n_workers": 24,
+			"pin_memory": true
+		}
+	},
+	"valid_loader": {
+		"type": "SegmentationDataLoader",
+		"args": {
+			"pairs_file": "dataset/valid_supervisely.txt",
+			"color_channel": "RGB",
+			"resize": 320,
+			"padding_value": 0,
+			"is_training": false,
+			"normalize": true,
+			"one_hot": false,
+			"shuffle": false,
+			"batch_size": 16,
+			"n_workers": 24,
+			"pin_memory": true
+		}
+	},
+	"optimizer": {
+		"type": "SGD",
+		"args": {
+			"lr": 1e-2,
+			"momentum": 0.9,
+			"weight_decay": 1e-8
+		}
+	},
+	"loss": "dice_loss",
+	"metrics": [
+		"miou"
+	],
+	"lr_scheduler": {
+		"type": "StepLR",
+		"args": {
+			"step_size": 100,
+			"gamma": 1.0
+		}
+	},
+	"trainer": {
+		"epochs": 80,
+		"save_dir": "checkpoints/",
+		"save_freq": null,
+		"verbosity": 2,
+		"monitor": "valid_loss",
+		"monitor_mode": "min"
+	},
+	"visualization": {
+		"tensorboardX": true,
+		"log_dir": "checkpoints/"
+	}
+}

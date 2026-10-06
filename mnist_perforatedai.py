@@ -179,7 +179,7 @@ def main():
     parser.add_argument(
         "--log-interval",
         type=int,
-        default=10,
+        default=250,
         metavar="N",
         help="how many batches to wait before logging training status",
     )
@@ -267,7 +267,7 @@ def main():
     GPA.pc.set_verbose(False)
     model = Net(num_classes, args.width).to(device)
 
-    model = UPA.perforate_model(model)
+    model = UPA.perforate_model(model, save_name = args.save_name)
 
     # Setup the optimizer and scheduler
     GPA.pai_tracker.set_optimizer(optim.Adadelta)

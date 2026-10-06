@@ -357,21 +357,39 @@ Explain your reasoning for each choice based on what you saw in their model when
 
 #### Important: Module ID Naming Convention
 
-🚨 **CRITICAL:** When using `set_module_ids_to_track()` or `append_module_ids_to_track()`, all module IDs **MUST start with a "." (dot)**.
+🚨 **CRITICAL:** PAI module IDs must be the **exact full path** of the module as it appears in `model.named_modules()`, prefixed with a `.` (dot). Partial suffix names like `.fc1` or `.se.fc2` will **not** match — you must supply the full path like `.stages.2.blocks.0.mlp.fc1`.
 
 **Correct:**
 ```python
-GPA.pc.set_module_ids_to_track([".layer1", ".conv1", ".bn1", ".output_projection"])
-GPA.pc.append_module_ids_to_track([".layer2", ".fc"])
+GPA.pc.append_module_ids_to_perforate('.stages.2.blocks.0.mlp.fc1')
+GPA.pc.append_module_ids_to_track('.stem.conv1')
 ```
 
 **Incorrect (will not work):**
 ```python
-GPA.pc.set_module_ids_to_track(["layer1", "conv1", "bn1"])  # ❌ Missing dots
-GPA.pc.append_module_ids_to_track(["layer2", "fc"])  # ❌ Missing dots
+GPA.pc.append_module_ids_to_perforate('.mlp.fc1')   # ❌ Suffix only — PAI won't find it
+GPA.pc.append_module_ids_to_track('stem.conv1')     # ❌ Missing leading dot
 ```
 
-The dot prefix is required because PAI uses these as substring matches against the full module path. For example, ".layer1" will match modules like "model.layer1.conv1", "model.layer1.0.bn1", etc.
+**When you want to target all layers matching a name pattern** (e.g., all `fc1` layers across every transformer block), you must create the model first and generate the full paths with a loop:
+
+```python
+model = YourModel(...)
+
+for name, mod in model.named_modules():
+    if isinstance(mod, torch.nn.Linear):
+        if name.endswith('.mlp.fc1'):        # transformer expanding layer
+            GPA.pc.append_module_ids_to_perforate('.' + name)
+        elif name.endswith('.se.fc2'):       # SE restoring layer
+            GPA.pc.append_module_ids_to_perforate('.' + name)
+
+# Track remaining Linear layers without dendrites
+GPA.pc.append_module_names_to_track(['Linear'])
+
+model = UPA.perforate_model(model, ...)
+```
+
+Note on SE block naming: in squeeze-excitation blocks `fc1` *reduces* (C → C/r) and `fc2` *restores* (C/r → C) — the opposite of transformer MLP convention where `fc1` is the expanding layer.
 
 **→ Next: Proceed to Step 4.**
 
@@ -717,12 +735,12 @@ If yes, add these lines to the PAI configuration block (before `perforate_model`
 
 ```python
 GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
+GPA.pc.set_n_fixed_switch_num(30)     # epochs between each subsequent switch (neuron mode)
 GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
 ```
 
 - `set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)` — enable fixed-interval switching mode
-- `set_fixed_switch_num` — how many epochs between each switch after the first
+- `set_n_fixed_switch_num` — how many epochs between each switch after the first (neuron mode)
 - `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
 
 Set both to the same value for uniform switching throughout training.

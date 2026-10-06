@@ -145,6 +145,40 @@ def get_parent_module_id(module_id):
     return "." + ".".join(parts[1:-1])
 
 
+def get_tied_parameters_map(entries):
+    """Return a map from module_id to a list of other full param ids sharing memory.
+
+    Detects weight tying by comparing data_ptr() across the direct (non-recursive)
+    parameters of every entry. Only cross-module ties are reported; intra-module
+    shared params are ignored.
+    """
+    ptr_to_params = {}
+    for entry in entries:
+        module_id = entry["id"]
+        for param_name, param in entry["module"].named_parameters(recurse=False):
+            ptr = param.data_ptr()
+            if ptr == 0:
+                continue
+            full_param_id = module_id + "." + param_name
+            if ptr not in ptr_to_params:
+                ptr_to_params[ptr] = []
+            ptr_to_params[ptr].append((full_param_id, module_id))
+
+    tied_map = {}
+    for param_list in ptr_to_params.values():
+        if len(param_list) <= 1:
+            continue
+        for full_param_id, module_id in param_list:
+            others = [fp for fp, mid in param_list if mid != module_id]
+            if others:
+                if module_id not in tied_map:
+                    tied_map[module_id] = []
+                for fp in others:
+                    if fp not in tied_map[module_id]:
+                        tied_map[module_id].append(fp)
+    return tied_map
+
+
 def resolve_entry_modes(entries):
     """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
@@ -462,6 +496,15 @@ def is_entry_visible(entry, entries_by_id, depth_baseline, expanded_overrides):
 # ---------------------------------------------------------------------------
 # Mode setters
 # ---------------------------------------------------------------------------
+def _clear_tracked_params_for_module_id(module_id):
+    """Remove parameter_ids_to_track entries that belong directly to this module."""
+    prefix = module_id + "."
+    current = GPA.pc.get_parameter_ids_to_track()
+    updated = [p for p in current if not p.startswith(prefix)]
+    if len(updated) != len(current):
+        GPA.pc.set_parameter_ids_to_track(updated)
+
+
 def set_module_id_mode(module_id, mode):
     """Set (or toggle off) an id-based mode, enforcing id-list exclusivity."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
@@ -473,18 +516,20 @@ def set_module_id_mode(module_id, mode):
         else:
             ids_perforate.append(module_id)
             ids_track = [value for value in ids_track if value != module_id]
+            _clear_tracked_params_for_module_id(module_id)
     elif mode == "tracked":
         if module_id in ids_track:
             ids_track = [value for value in ids_track if value != module_id]
         else:
             ids_track.append(module_id)
             ids_perforate = [value for value in ids_perforate if value != module_id]
+            _clear_tracked_params_for_module_id(module_id)
 
     GPA.pc.set_module_ids_to_perforate(ids_perforate)
     GPA.pc.set_module_ids_to_track(ids_track)
 
 
-def set_module_name_mode(module_type_name, mode):
+def set_module_name_mode(module_type_name, mode, entries=None):
     """Set (or toggle off) a type-name-based mode, enforcing name-list exclusivity."""
     names_perforate = dedupe_list(GPA.pc.get_module_names_to_perforate())
     names_track = dedupe_list(GPA.pc.get_module_names_to_track())
@@ -495,12 +540,20 @@ def set_module_name_mode(module_type_name, mode):
         else:
             names_perforate.append(module_type_name)
             names_track = [v for v in names_track if v != module_type_name]
+            if entries is not None:
+                for entry in entries:
+                    if entry["type_name"] == module_type_name:
+                        _clear_tracked_params_for_module_id(entry["id"])
     elif mode == "tracked":
         if module_type_name in names_track:
             names_track = [v for v in names_track if v != module_type_name]
         else:
             names_track.append(module_type_name)
             names_perforate = [v for v in names_perforate if v != module_type_name]
+            if entries is not None:
+                for entry in entries:
+                    if entry["type_name"] == module_type_name:
+                        _clear_tracked_params_for_module_id(entry["id"])
 
     GPA.pc.set_module_names_to_perforate(names_perforate)
     GPA.pc.set_module_names_to_track(names_track)
@@ -515,6 +568,48 @@ def set_all_types_to_tracking(entries):
     GPA.pc.set_module_names_to_perforate([])
     all_type_names = dedupe_list(entry["type_name"] for entry in entries)
     GPA.pc.set_module_names_to_track(all_type_names)
+
+
+def _would_auto_track_params(entry, entries, resolved):
+    """True if this module's direct params qualify for auto-tracking.
+
+    Conditions: has direct params, no module mode, and every descendant
+    module that has direct params already has a resolved mode.
+    """
+    if entry["direct_param_count"] <= 0 or resolved[entry["id"]]["eff"] is not None:
+        return False
+    module_id = entry["id"]
+    descendants_with_params = [
+        e for e in entries
+        if e["id"].startswith(module_id + ".") and e["direct_param_count"] > 0
+    ]
+    if not descendants_with_params:
+        return False  # leaf modules must be explicitly assigned a mode
+    return all(
+        resolved[desc["id"]]["eff"] is not None or _would_auto_track_params(desc, entries, resolved)
+        for desc in descendants_with_params
+    )
+
+
+def auto_track_unset_direct_params(entries, resolved):
+    """Auto-track direct params for modules whose all child-module params are covered."""
+    param_ids = list(GPA.pc.get_parameter_ids_to_track())
+    changed = False
+
+    for entry in entries:
+        if entry["in_replaced"] or entry["is_replaced_root"]:
+            continue
+        if not _would_auto_track_params(entry, entries, resolved):
+            continue
+        module_id = entry["id"]
+        for param_name, _ in entry["module"].named_parameters(recurse=False):
+            param_id = module_id + "." + param_name
+            if param_id not in param_ids:
+                param_ids.append(param_id)
+                changed = True
+
+    if changed:
+        GPA.pc.set_parameter_ids_to_track(param_ids)
 
 
 def clear_module_mode(entry):
@@ -570,7 +665,7 @@ def type_rule_entries(entries):
 
 
 def unset_module_entries(entries, resolved):
-    """Entries that own parameters but have no resolved mode (need attention)."""
+    """Entries that own parameters, have no resolved mode, and are not auto-trackable."""
     unset = []
     for entry in entries:
         if entry["in_replaced"] or entry["is_replaced_root"]:
@@ -578,7 +673,8 @@ def unset_module_entries(entries, resolved):
         if entry["direct_param_count"] <= 0:
             continue
         if resolved[entry["id"]]["eff"] is None:
-            unset.append(entry)
+            if not _would_auto_track_params(entry, entries, resolved):
+                unset.append(entry)
     return unset
 
 
@@ -1034,14 +1130,17 @@ def mode_verb(mode):
     return MODE_VERB.get(mode, str(mode))
 
 
-def make_target_marker(entry, record):
-    """(display, plain) marker for one target row, per D8."""
+def make_target_marker(entry, record, entries=None, resolved=None):
+    """(display, plain) marker for one target row."""
     if entry["in_replaced"]:
         return "     ", "     "
 
     mode = record["eff"]
     if mode is None:
         if entry["direct_param_count"] > 0:
+            if entries is not None and resolved is not None and _would_auto_track_params(entry, entries, resolved):
+                block_display = color_text("██", COLOR_TRACK)
+                return f"~ {block_display} ", "~ ██ "
             glyph_display = color_text("!", COLOR_ATTENTION)
             block_display = color_text("██", COLOR_ATTENTION)
             return f"{glyph_display} {block_display} ", "! ██ "
@@ -1067,6 +1166,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
     """
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
+    tied_map = get_tied_parameters_map(entries)
 
     lines = [render_tab_bar("targets"), ""]
     lines.append(
@@ -1117,7 +1217,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
             collapse_glyph_plain = "▾ " if is_open else "▸ "
             collapse_glyph = color_text(collapse_glyph_plain.strip(), COLOR_ACCENT) + " "
 
-        marker_display, marker_plain = make_target_marker(entry, record)
+        marker_display, marker_plain = make_target_marker(entry, record, entries, resolved)
 
         if entry["in_replaced"]:
             id_part = dim(f"{entry['id']}  [{entry['type_name']}] (id stale)")
@@ -1136,12 +1236,26 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
                         f"  — your {mode_verb(record['overridden']['mode'])} here is ignored"
                     )
         elif entry["direct_param_count"] > 0:
-            tail = color_text("needs a mode", COLOR_ATTENTION)
+            if _would_auto_track_params(entry, entries, resolved):
+                tail = color_text("mode=params_tracked", COLOR_TRACK)
+            else:
+                tail = color_text("needs a mode", COLOR_ATTENTION)
 
-        params = (
-            dim(f"   params={format_human_count(entry['direct_param_count'])}")
-            if entry["direct_param_count"] > 0
-            else ""
+        _direct = entry["direct_param_count"]
+        _child = entry["tree_param_count"] - entry["direct_param_count"]
+        if _direct > 0 and _child > 0:
+            params = dim(f"   params={format_human_count(_direct)}   child-params={format_human_count(_child)}")
+        elif _direct > 0:
+            params = dim(f"   params={format_human_count(_direct)}")
+        elif _child > 0:
+            params = dim(f"   child-params={format_human_count(_child)}")
+        else:
+            params = ""
+
+        tied_others = tied_map.get(entry["id"], [])
+        tie_warning = (
+            color_text("  ⚠ tied to " + ", ".join(tied_others), COLOR_ATTENTION)
+            if tied_others else ""
         )
 
         lead = (
@@ -1151,7 +1265,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
         gap = max(2, 46 - lead)
         return [
             f"{cursor}{marker_display} {indent}{collapse_glyph}{id_part}"
-            + " " * gap + tail + params
+            + " " * gap + tail + params + tie_warning
         ]
 
     body_lines = []
@@ -1422,7 +1536,7 @@ def render_help_overlay():
         "   → / ←     expand / collapse a module that will be restructured (↯)",
         "   y         show / hide the type-rules list",
         "   h         show the marker & colour legend",
-        "   Enter     open Overrides for a perforated module",
+        "   Enter     open overrides for a perforated module",
         "",
         dim("  Run settings screen"),
         "   → / ←     expand / collapse a bucket",
@@ -1460,10 +1574,11 @@ def render_legend_overlay():
         + " — no dendrites, the parameters are just counted",
         "",
         dim("  Marker prefixes"),
-        f"   * {perf}     mode set directly on this module (by id)",
         f"     {perf}     set by type name — every module of this class",
+        f"   * {perf}     mode set directly on this module (by id)",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
+        f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
         "   (none)    structural container with no parameters of its own",
@@ -1669,6 +1784,7 @@ def set_perforation_targets(model):
         list_editor_state = None
 
         def finalize_save(choice_index):
+            auto_track_unset_direct_params(entries, resolved)
             if choice_index == 0:
                 GPA.pc.persist_config_outputs(overwrite_config_file=False)
                 persist_module_settings_updates(
@@ -1972,7 +2088,7 @@ def set_perforation_targets(model):
                         )
                     else:
                         set_module_name_mode(
-                            entry["type_name"], "perforated" if key == "P" else "tracked"
+                            entry["type_name"], "perforated" if key == "P" else "tracked", entries
                         )
                 elif key == "x":
                     status_message = clear_module_mode(entry)

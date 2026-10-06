@@ -1,0 +1,90 @@
+{
+	"name": "HumanSeg",
+	"n_gpu": 1,
+	
+	"arch": {
+		"type": "DeepLabV3Plus",
+		"args": {
+			"backbone": "resnet18",
+			"output_stride": 16,
+			"num_classes": 2,
+			"freeze_bn": false,
+			"pretrained_backbone": "/workspace/pretrain/resnet18.pth"
+		}
+	},
+
+	"train_loader": {
+		"type": "SegmentationDataLoader",
+		"args":{
+			"pairs_file": "dataset/train_mask.txt",
+			"color_channel": "RGB",
+			"resize": 320,
+			"padding_value": 0,
+			"is_training": true,
+			"noise_std": 3,
+			"crop_range": [0.90, 1.0],
+			"flip_hor": 0.5,
+			"rotate": 0.0,
+			"angle": 10,
+			"normalize": true,
+			"one_hot": false,
+			"shuffle": true,
+			"batch_size": 16,
+			"n_workers": 24,
+			"pin_memory": true
+		}
+	},
+
+	"valid_loader": {
+		"type": "SegmentationDataLoader",
+		"args":{
+			"pairs_file": "dataset/valid_mask.txt",
+			"color_channel": "RGB",
+			"resize": 320,
+			"padding_value": 0,
+			"is_training": false,
+			"normalize": true,
+			"one_hot": false,
+			"shuffle": false,
+			"batch_size": 16,
+			"n_workers": 24,
+			"pin_memory": true
+		}
+	},
+
+	"optimizer": {
+		"type": "SGD",
+		"args":{
+			"lr": 1e-2,
+			"momentum": 0.9,
+			"weight_decay": 1e-8
+		}
+	},
+
+	"loss": "ce_loss",
+	"metrics": [
+		"miou"
+	],
+
+	"lr_scheduler": {
+		"type":"StepLR",
+		"args":{
+			"step_size": 100,
+			"gamma": 1.0
+		}
+	},
+
+	"trainer": {
+		"epochs": 80,
+		"save_dir": "/workspace/checkpoints/",
+		"save_freq": 1,
+		"verbosity": 2,
+		"monitor": "valid_loss",
+		"monitor_mode": "min"
+	},
+
+	"visualization":{
+		"tensorboardX": true,
+		"log_dir": "/workspace/checkpoints/"
+	}
+}
