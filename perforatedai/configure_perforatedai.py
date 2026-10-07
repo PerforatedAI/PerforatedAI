@@ -593,6 +593,107 @@ def set_module_name_mode(module_type_name, mode, entries=None):
     GPA.pc.set_module_names_to_track(names_track)
 
 
+# ---------------------------------------------------------------------------
+# Fused pairs
+# ---------------------------------------------------------------------------
+def get_fused_pair_map():
+    """Map each fused module id to its role and partner: id -> (role, partner_id)."""
+    fused = {}
+    for head_id, norm_id in GPA.pc.get_modules_to_fuse():
+        fused[head_id] = ("head", norm_id)
+        fused[norm_id] = ("norm", head_id)
+    return fused
+
+
+def get_previous_sibling_entry(entry, entries):
+    """The module registered just before this one in the same parent, or None."""
+    parent_id = get_parent_module_id(entry["id"])
+    previous = None
+    for other in entries:
+        if other["id"] == entry["id"]:
+            return previous
+        if get_parent_module_id(other["id"]) == parent_id:
+            previous = other
+    return None
+
+
+def unfuse_pair(module_id, entries):
+    """Remove the pair containing this module and track both of its modules."""
+    pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
+    pair = next(p for p in pairs if module_id in p)
+    if pair in (GPA.pc.get_python_supplied("modules_to_fuse") or []):
+        return (
+            f"{pair[0]} + {pair[1]} is fused by a Python call (modules_to_fuse) — "
+            "change it in your script; the CLI can't override it."
+        )
+    GPA.pc.set_modules_to_fuse([p for p in pairs if p != pair])
+    by_id = {entry["id"]: entry for entry in entries}
+    for member_id in pair:
+        entry = by_id.get(member_id)
+        if entry is None or not entry["trainable"] or id_python_owner(member_id):
+            continue
+        if member_id not in GPA.pc.get_module_ids_to_track():
+            set_module_id_mode(member_id, "tracked")
+    return f"un-fused {pair[0]} + {pair[1]}; both are now tracked"
+
+
+def fuse_with_previous(entry, entries, resolved):
+    """Fuse this module (the norm) with the module before it (the head).
+
+    Returns a short message describing what happened or why nothing did.
+    """
+    norm_id = entry["id"]
+    head = get_previous_sibling_entry(entry, entries)
+    if head is None:
+        return f"{norm_id} has no module before it in its parent to fuse with."
+    head_id = head["id"]
+    if any(e["is_replaced_root"] or e["in_replaced"] for e in (entry, head)):
+        return (
+            f"{norm_id} is inside a module that will be restructured — its id "
+            "won't exist at training time, so it can't be fused."
+        )
+    if not head["trainable"]:
+        return (
+            f"{head_id} is not trainable, so it can't be the head of a fused "
+            f"pair. Fuse {norm_id} with a trainable module before it."
+        )
+    fused = get_fused_pair_map()
+    for module_id in (head_id, norm_id):
+        if module_id in fused:
+            return f"{module_id} is already fused with {fused[module_id][1]}."
+        for other_id in fused:
+            if other_id.startswith(module_id + ".") or module_id.startswith(
+                other_id + "."
+            ):
+                return f"{module_id} overlaps {other_id}, which is already fused."
+    module_counts = {}
+    for e in entries:
+        module_counts[id(e["module"])] = module_counts.get(id(e["module"]), 0) + 1
+    for e in (head, entry):
+        if module_counts[id(e["module"])] > 1:
+            return f"{e['id']} is used in more than one place, so it can't be fused."
+    if id_python_owner(head_id) == "module_ids_to_track":
+        return python_owned_message(head_id, "module_ids_to_track")
+    if resolved[head_id]["source"] == "inherited":
+        return (
+            f"{head_id} gets its mode from {resolved[head_id]['origin_id']}; "
+            "clear that first so the head can be perforated on its own."
+        )
+    pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
+    pairs.append([head_id, norm_id])
+    GPA.pc.set_modules_to_fuse(pairs)
+    if head_id not in GPA.pc.get_module_ids_to_perforate():
+        set_module_id_mode(head_id, "perforated")
+    return f"fused {head_id} (head) with {norm_id} (norm); head is perforated"
+
+
+def toggle_fuse(entry, entries, resolved):
+    """The `f` key: un-fuse a fused module, otherwise fuse it with the one before."""
+    if entry["id"] in get_fused_pair_map():
+        return unfuse_pair(entry["id"], entries)
+    return fuse_with_previous(entry, entries, resolved)
+
+
 def set_all_types_to_tracking(entries):
     """Reset every module to tracked: clear id/type perforate marks, then
     track every type present. A quick way to start from "track everything"
@@ -711,10 +812,13 @@ def type_rule_entries(entries):
 def unset_module_entries(entries, resolved):
     """Entries that own parameters, have no resolved mode, and are not auto-trackable."""
     unset = []
+    fused = get_fused_pair_map()
     for entry in entries:
         if entry["in_replaced"] or entry["is_replaced_root"]:
             continue
         if entry["direct_param_count"] <= 0:
+            continue
+        if fused.get(entry["id"], (None,))[0] == "norm":
             continue
         if resolved[entry["id"]]["eff"] is None:
             if not _would_auto_track_params(entry, entries, resolved):
@@ -728,6 +832,7 @@ def build_budget_line(entries, resolved):
     total_model_params = 0
     seen_added = set()
     seen_total = set()
+    fused = get_fused_pair_map()
 
     for entry in entries:
         for _name, parameter in entry["module"].named_parameters(recurse=False):
@@ -736,7 +841,15 @@ def build_budget_line(entries, resolved):
                 seen_total.add(pid)
                 total_model_params += parameter.numel()
 
-        if resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]:
+        fused_role = fused.get(entry["id"])
+        norm_of_perforated_head = (
+            fused_role is not None
+            and fused_role[0] == "norm"
+            and resolved[fused_role[1]]["eff"] == "perforated"
+        )
+        if norm_of_perforated_head or (
+            resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]
+        ):
             for _name, parameter in entry["module"].named_parameters(recurse=False):
                 pid = id(parameter)
                 if pid not in seen_added:
@@ -1180,6 +1293,8 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     mode = record["eff"]
+    if get_fused_pair_map().get(entry["id"], (None,))[0] == "norm":
+        return dim("└─") + "   ", "└─   "
     if not entry["trainable"] and (mode == "perforated" or entry["tree_param_count"] > 0):
         # Ineligible for perforation; takes precedence over a stale perforate mark.
         if mode != "tracked":
@@ -1215,6 +1330,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
     tied_map = get_tied_parameters_map(entries)
+    fused_map = get_fused_pair_map()
 
     lines = [render_tab_bar("targets"), ""]
     lines.append(
@@ -1289,6 +1405,12 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
             else:
                 tail = color_text("needs a mode", COLOR_ATTENTION)
 
+        fuse_role = fused_map.get(entry["id"])
+        if fuse_role is not None and fuse_role[0] == "norm":
+            tail = color_text(f"fused into {fuse_role[1]}", COLOR_ACCENT)
+        elif fuse_role is not None:
+            tail += "  " + color_text(f"fused with {fuse_role[1]}", COLOR_ACCENT)
+
         _direct = entry["direct_param_count"]
         _child = entry["tree_param_count"] - entry["direct_param_count"]
         if _direct > 0 and _child > 0:
@@ -1330,7 +1452,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
-            "A track all   ←/→ collapse·expand   0-9 collapse depth   "
+            "f fuse·unfuse with previous   A track all   ←/→ collapse·expand   0-9 collapse depth   "
             "h legend   ↑↓/jk move   s start"
         ),
     ]
@@ -1581,6 +1703,8 @@ def render_help_overlay():
         "   p / t     perforate / track this module",
         "   P / T     perforate / track every module of this type",
         "   x         clear this module (falls back to its type rule)",
+        "   f         fuse this module (the norm) with the one before it (the head),",
+        "             or un-fuse it if it is already part of a fused pair",
         "   → / ←     expand / collapse a module that will be restructured (↯)",
         "   y         show / hide the type-rules list",
         "   h         show the marker & colour legend",
@@ -1626,9 +1750,12 @@ def render_legend_overlay():
         f"   * {perf}     mode set directly on this module (by id)",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
+        "   └─        fused norm: runs inside the head before it, needs no mode",
         "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
         "             can be tracked but not perforated",
         f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
+        "   fused     a head and the norm after it are perforated as one block;",
+        "             the head is perforated, the norm just runs inside it",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
         "   (none)    structural container with no parameters of its own",
@@ -2160,6 +2287,8 @@ def set_perforation_targets(model):
                         set_module_name_mode(
                             entry["type_name"], "perforated" if key == "P" else "tracked", entries
                         )
+                elif key == "f":
+                    status_message = toggle_fuse(entry, entries, resolved)
                 elif key == "x":
                     status_message = clear_module_mode(entry)
                 elif key == "A":

@@ -137,7 +137,8 @@ def perforate_model(
     if not GPA.pc.get_configuration_confirmed():
         CPA.set_perforation_targets(model)
 
-    
+    fused_pairs = apply_fused_pairs(model) if doing_pai else []
+
     GPA.pai_tracker = TPA.PAINeuronModuleTracker(
         doing_pai=doing_pai, save_name=save_name
     )
@@ -159,10 +160,156 @@ def perforate_model(
         zooming_graph=zooming_graph,
     )
 
+    if fused_pairs:
+        install_fuse_checks(model, fused_pairs)
+
     for param in model.parameters():
         param.data = param.data.contiguous()
 
     return model
+
+
+def _split_module_id(module_id):
+    """Split a module id like '.block.linear' into ('block', 'linear')."""
+    path = module_id[1:] if module_id.startswith(".") else module_id
+    parent_path, _, attr = path.rpartition(".")
+    return parent_path, attr
+
+
+def fuse_modules(model, pairs):
+    """Fuse each head with the norm that follows it.
+
+    For every (head_id, norm_id) the head's attribute becomes a PAISequential
+    holding the head and the norm, and the norm's attribute becomes a
+    FusedNormIdentity. The model's forward() does not need to change. Must be
+    called before convert_network, and before load_system.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model to modify in place.
+    pairs : list of (str, str)
+        Module ids (like '.block.linear') of each head and its norm.
+
+    Returns
+    -------
+    nn.Module
+        The same model, with the pairs fused.
+    """
+    if not pairs:
+        return model
+    pairs = [tuple(pair) for pair in pairs]
+
+    occurrences = {}
+    for _name, module in model.named_modules(remove_duplicate=False):
+        occurrences[id(module)] = occurrences.get(id(module), 0) + 1
+
+    seen_ids = []
+    for head_id, norm_id in pairs:
+        for role, module_id in (("head", head_id), ("norm", norm_id)):
+            try:
+                module = model.get_submodule(module_id.lstrip("."))
+            except AttributeError:
+                raise ValueError(
+                    "Cannot fuse: %s %s does not exist in the model." % (role, module_id)
+                )
+            if module_id.lstrip(".") == "":
+                raise ValueError("Cannot fuse the whole model.")
+            if module_id in seen_ids:
+                raise ValueError(
+                    "Cannot fuse: %s is in more than one fused pair." % module_id
+                )
+            seen_ids.append(module_id)
+            if occurrences[id(module)] > 1:
+                raise ValueError(
+                    "Cannot fuse: %s is used in more than one place in the model."
+                    % module_id
+                )
+        head = model.get_submodule(head_id.lstrip("."))
+        if not any(param.requires_grad for param in head.parameters()):
+            raise ValueError(
+                "Cannot fuse: head %s is not trainable. Only trainable modules "
+                "can be the head of a fused pair." % head_id
+            )
+    for first in seen_ids:
+        for second in seen_ids:
+            if first != second and second.startswith(first + "."):
+                raise ValueError(
+                    "Cannot fuse: %s is inside %s, which is also fused."
+                    % (second, first)
+                )
+
+    for head_id, norm_id in pairs:
+        head = model.get_submodule(head_id.lstrip("."))
+        norm = model.get_submodule(norm_id.lstrip("."))
+        head_parent, head_attr = _split_module_id(head_id)
+        norm_parent, norm_attr = _split_module_id(norm_id)
+        model.get_submodule(head_parent)._modules[head_attr] = GPA.PAISequential(
+            [head, norm]
+        )
+        model.get_submodule(norm_parent)._modules[norm_attr] = GPA.FusedNormIdentity(
+            head_id, norm_id
+        )
+    return model
+
+
+def install_fuse_checks(model, pairs):
+    """Make each fused norm stand-in verify its input on the first forward.
+
+    Must be called after convert_network, because by then the head's attribute
+    holds a PAINeuronModule whose output (not the raw PAISequential's) is what
+    the stand-in receives.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model after fuse_modules and convert_network.
+    pairs : list of (str, str)
+        The same pairs passed to fuse_modules.
+    """
+    for head_id, norm_id in pairs:
+        head = model.get_submodule(head_id.lstrip("."))
+        stand_in = model.get_submodule(norm_id.lstrip("."))
+        head.register_forward_hook(
+            lambda _module, _inputs, output, stand_in=stand_in: stand_in.record_head_output(
+                output
+            )
+        )
+
+
+def apply_fused_pairs(model):
+    """Fuse the configured pairs and mark each head for perforation.
+
+    Reads modules_to_fuse from the config. A head that is also set to be
+    tracked is rejected, since fusing exists to perforate it.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model to modify in place.
+
+    Returns
+    -------
+    list
+        The pairs that were fused, as [head_id, norm_id] lists.
+    """
+    pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
+    if not pairs:
+        return []
+    tracked = set(GPA.pc.get_module_ids_to_track())
+    for head_id, norm_id in pairs:
+        if head_id in tracked:
+            raise ValueError(
+                "Cannot fuse %s with %s: %s is set to be tracked. Remove it "
+                "from the tracked modules or un-fuse the pair." % (head_id, norm_id, head_id)
+            )
+    fuse_modules(model, pairs)
+    perforated = list(GPA.pc.get_module_ids_to_perforate())
+    for head_id, _norm_id in pairs:
+        if head_id not in perforated:
+            perforated.append(head_id)
+    GPA.pc.set_module_ids_to_perforate(perforated)
+    return pairs
 
 
 def get_pai_modules(net, depth, seen_ids=None):
