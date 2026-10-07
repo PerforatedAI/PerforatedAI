@@ -30,6 +30,46 @@ def _validate_module_id(module_id):
         )
 
 
+# Unordered id/name lists that both Python calls and the config CLI edit. For
+# these, a Python set_/append_ call is merged with the JSON rather than
+# replacing it. Class lists feed the name lists via their short class names.
+SELECTION_LIST_VARS = (
+    "module_ids_to_perforate",
+    "module_ids_to_track",
+    "module_names_to_perforate",
+    "module_names_to_track",
+    "parameter_ids_to_track",
+)
+_CLASS_LIST_FEEDS = {
+    "modules_to_perforate": "module_names_to_perforate",
+    "modules_to_track": "module_names_to_track",
+}
+_SELECTION_CONFLICT_PAIRS = (
+    ("module_ids_to_perforate", "module_ids_to_track"),
+    ("module_names_to_perforate", "module_names_to_track"),
+)
+
+
+def _record_python_supplied(obj, var_name, value, replace):
+    """Remember items a user script supplied for a selection list.
+
+    Kept in memory only (never saved to JSON). Calls made by the config CLI
+    itself are ignored so the CLI cannot lock its own edits.
+    """
+    if var_name not in SELECTION_LIST_VARS and var_name not in _CLASS_LIST_FEEDS:
+        return
+    if obj.__dict__.get("_loading_config_values", False) or obj.__dict__.get(
+        "_tui_editing", False
+    ):
+        return
+    supplied = obj.__dict__.setdefault("_python_supplied", {})
+    items = list(value)
+    if replace:
+        supplied[var_name] = items
+    else:
+        supplied[var_name] = supplied.get(var_name, []) + items
+
+
 def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     """Dynamically add a property with getter and setter to an object.
 
@@ -140,6 +180,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             for module_id in value:
                 _validate_module_id(module_id)
         setattr(self, private_name, value)
+        if isinstance(value, (list, tuple)):
+            _record_python_supplied(self, var_name, value, replace=True)
         if not self.__dict__.get("_loading_config_values", False):
             self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             if var_name == "config_file":
@@ -167,6 +209,7 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 for module_id in value:
                     _validate_module_id(module_id)
             setattr(self, private_name, getattr(self, private_name) + value)
+            _record_python_supplied(self, var_name, value, replace=False)
             if not self.__dict__.get("_loading_config_values", False):
                 self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
@@ -1124,13 +1167,17 @@ class PAIConfig:
 
     # ------------------------------------------------------------------
 
-    def save_config(self, filename):
+    def save_config(self, filename, include_confirmed=True):
         """Save the current PAIConfig state to a JSON file.
 
         Parameters
         ----------
         filename : str
             Destination file path (created or overwritten).
+        include_confirmed : bool
+            When False, ``configuration_confirmed`` is left out of the file.
+            Run configs use this so a one-off confirmation is not replayed on
+            later runs.
 
         Notes
         -----
@@ -1161,9 +1208,13 @@ class PAIConfig:
                 "_manually_set_keys",
                 "_loading_config_values",
                 "_auto_persist_config",
+                "_python_supplied",
+                "_tui_editing",
             ):
                 continue
             clean_key = key[1:]
+            if clean_key == "configuration_confirmed" and not include_confirmed:
+                continue
             # Keep callable config fields (e.g. pai_forward_function) but skip
             # any other private callable values that are not typed as callable.
             if callable(val) and PAIConfig._TYPES.get(clean_key) is not callable:
@@ -1181,6 +1232,8 @@ class PAIConfig:
                 # Keep config_file runtime-only: do not persist pointer paths in
                 # saved JSON snapshots.
                 if key == "config_file":
+                    continue
+                if key == "configuration_confirmed" and not include_confirmed:
                     continue
                 try:
                     config_dict[key] = _serialize_pai_value(val)
@@ -1380,7 +1433,14 @@ class PAIConfig:
         if self.__dict__.get("_module_name") is not None:
             return
 
-        skip_keys = self.__dict__.get("_manually_set_keys", set())
+        # Selection lists a script has set are merged with the JSON instead of
+        # being skipped, so CLI additions survive; see _merge_python_supplied.
+        merge_keys = [
+            k for k in SELECTION_LIST_VARS if self.get_python_supplied(k) is not None
+        ]
+        skip_keys = set(self.__dict__.get("_manually_set_keys", set())) - set(
+            merge_keys
+        )
         config_file = self.__dict__.get("_config_file")
         run_config = self.get_run_config_path()
 
@@ -1388,6 +1448,51 @@ class PAIConfig:
             self.load_config(config_file, skip_keys=skip_keys)
         if run_config and os.path.exists(run_config):
             self.load_config(run_config, skip_keys=skip_keys)
+        self._merge_python_supplied(merge_keys)
+
+    def get_python_supplied(self, var_name):
+        """Items a user script supplied for a selection list, or None.
+
+        Class lists (``modules_to_perforate`` / ``modules_to_track``) count
+        toward the matching ``module_names_*`` list via their short names.
+        Returns None when the script never set or appended to the list.
+        """
+        supplied = self.__dict__.get("_python_supplied", {})
+        items = None
+        if var_name in supplied:
+            items = list(supplied[var_name])
+        for class_var, names_var in _CLASS_LIST_FEEDS.items():
+            if names_var == var_name and class_var in supplied:
+                names = [
+                    c.__name__ for c in supplied[class_var] if isinstance(c, type)
+                ]
+                items = (items or []) + [n for n in names if n not in (items or [])]
+        return items
+
+    def _merge_python_supplied(self, merge_keys):
+        """Union script-supplied items with JSON values; script wins conflicts."""
+        for key in merge_keys:
+            supplied = self.get_python_supplied(key)
+            current = list(self.__dict__.get(f"_{key}", []))
+            merged = supplied + [v for v in current if v not in supplied]
+            setattr(self, f"_{key}", merged)
+        for perforate_var, track_var in _SELECTION_CONFLICT_PAIRS:
+            sup_p = self.get_python_supplied(perforate_var) or []
+            sup_t = self.get_python_supplied(track_var) or []
+            if not sup_p and not sup_t:
+                continue
+            cur_p = list(self.__dict__.get(f"_{perforate_var}", []))
+            cur_t = list(self.__dict__.get(f"_{track_var}", []))
+            setattr(
+                self,
+                f"_{perforate_var}",
+                [v for v in cur_p if v in sup_p or v not in sup_t],
+            )
+            setattr(
+                self,
+                f"_{track_var}",
+                [v for v in cur_t if v in sup_t or v not in sup_p],
+            )
 
     def persist_config_outputs(self, overwrite_config_file=False):
         """Persist current config state to local JSON outputs.
@@ -1402,7 +1507,7 @@ class PAIConfig:
 
         run_config = self.get_run_config_path()
         if run_config:
-            self.save_config(run_config)
+            self.save_config(run_config, include_confirmed=False)
 
         if overwrite_config_file:
             config_file = self.__dict__.get("_config_file")

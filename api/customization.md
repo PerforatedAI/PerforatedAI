@@ -89,6 +89,8 @@ Or the final option is to add specific modules by their path in the model.  This
 
     GPA.pc.append_module_ids_to_perforate()['.layer1.0.conv1'])
 
+These selection lists (`module_ids_*`, `module_names_*`, `parameter_ids_to_track`) are combined with the saved config. Anything your script sets or appends is always kept, and entries the configuration CLI added to the saved JSON are added to them. If your script and the JSON disagree about a module, such as tracking it versus perforating it, the script wins. Entries set from a script cannot be changed in the configuration CLI; edit them in the script instead.
+
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
     GPA.pc.PAISequential([normalLayer, normalizationLayer])

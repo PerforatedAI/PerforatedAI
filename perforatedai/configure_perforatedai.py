@@ -37,6 +37,33 @@ def dedupe_list(values):
     return unique
 
 
+def python_supplied_owner(var_names, item):
+    """The first list in ``var_names`` whose script-supplied items include ``item``."""
+    for var_name in var_names:
+        if item in (GPA.pc.get_python_supplied(var_name) or []):
+            return var_name
+    return None
+
+
+def python_owned_message(label, var_name):
+    return (
+        f"{label} is set by a Python call ({var_name}) — change it in your script; "
+        "the CLI can't override it."
+    )
+
+
+def id_python_owner(module_id):
+    return python_supplied_owner(
+        ("module_ids_to_perforate", "module_ids_to_track"), module_id
+    )
+
+
+def type_python_owner(type_name):
+    return python_supplied_owner(
+        ("module_names_to_perforate", "module_names_to_track"), type_name
+    )
+
+
 def normalize_selection_conflicts():
     """Normalize id and name selection lists and remove direct conflicts."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
@@ -87,7 +114,20 @@ def get_module_entries(model):
                     param.numel()
                     for _param_name, param in module.named_parameters(recurse=True)
                 ),
+                # Trainable: this module or any submodule has a requires_grad
+                # parameter. Only trainable modules may be perforated.
+                "trainable": any(
+                    param.requires_grad
+                    for _param_name, param in module.named_parameters(recurse=True)
+                ),
             }
+        )
+
+    # named_modules() is a DFS pre-order traversal, so a module's children
+    # (if any) always immediately follow it in `entries`.
+    for i, entry in enumerate(entries):
+        entry["has_children"] = i + 1 < len(entries) and entries[i + 1]["id"].startswith(
+            entry["id"] + "."
         )
 
     replace_classes = tuple(GPA.pc.get_modules_to_replace())
@@ -405,10 +445,20 @@ def is_right_key(key):
 
 
 def is_page_up_key(key):
+    if key in ("K",):
+        return True
+    if key == "\x1b[1;2A":
+        # Shift+Up (laptop-friendly alias; no PgUp key without Fn).
+        return True
     return key == "\x1b[5~" or (key.startswith("\x1b[") and "[5" in key and key.endswith("~"))
 
 
 def is_page_down_key(key):
+    if key in ("J",):
+        return True
+    if key == "\x1b[1;2B":
+        # Shift+Down (laptop-friendly alias; no PgDn key without Fn).
+        return True
     return key == "\x1b[6~" or (key.startswith("\x1b[") and "[6" in key and key.endswith("~"))
 
 
@@ -429,6 +479,53 @@ def is_select_key(key):
     return key in (" ", "\r", "\n")
 
 
+def is_depth_key(key):
+    return key in tuple("0123456789")
+
+
+# ---------------------------------------------------------------------------
+# Targets tree collapse/expand
+# ---------------------------------------------------------------------------
+def entry_default_expanded(entry, depth_baseline):
+    """Whether an entry's children show when there is no explicit manual
+    override for it.
+
+    ``depth_baseline`` is None before any digit key has been pressed this
+    session (only replaced-root containers start collapsed); otherwise it's
+    the last digit (0-9) pressed: 0 expands everything, N in 1-9 shows
+    through depth N-1 and collapses anything deeper.
+    """
+    if depth_baseline is None:
+        return not entry["is_replaced_root"]
+    if depth_baseline == 0:
+        return True
+    return entry["depth"] < depth_baseline - 1
+
+
+def is_entry_expanded(entry, depth_baseline, expanded_overrides):
+    """Effective expand state: a manual ←/→ override, else the baseline."""
+    if entry["id"] in expanded_overrides:
+        return expanded_overrides[entry["id"]]
+    return entry_default_expanded(entry, depth_baseline)
+
+
+def is_entry_visible(entry, entries_by_id, depth_baseline, expanded_overrides):
+    """False if any ancestor of ``entry`` is currently collapsed."""
+    ancestor_id = entry["id"]
+    while True:
+        split_at = ancestor_id.rfind(".")
+        if split_at <= 0:
+            return True
+        ancestor_id = ancestor_id[:split_at]
+        ancestor = entries_by_id.get(ancestor_id)
+        if (
+            ancestor is not None
+            and ancestor["has_children"]
+            and not is_entry_expanded(ancestor, depth_baseline, expanded_overrides)
+        ):
+            return False
+
+
 # ---------------------------------------------------------------------------
 # Mode setters
 # ---------------------------------------------------------------------------
@@ -436,7 +533,8 @@ def _clear_tracked_params_for_module_id(module_id):
     """Remove parameter_ids_to_track entries that belong directly to this module."""
     prefix = module_id + "."
     current = GPA.pc.get_parameter_ids_to_track()
-    updated = [p for p in current if not p.startswith(prefix)]
+    kept = GPA.pc.get_python_supplied("parameter_ids_to_track") or []
+    updated = [p for p in current if p in kept or not p.startswith(prefix)]
     if len(updated) != len(current):
         GPA.pc.set_parameter_ids_to_track(updated)
 
@@ -495,6 +593,21 @@ def set_module_name_mode(module_type_name, mode, entries=None):
     GPA.pc.set_module_names_to_track(names_track)
 
 
+def set_all_types_to_tracking(entries):
+    """Reset every module to tracked: clear id/type perforate marks, then
+    track every type present. A quick way to start from "track everything"
+    before manually perforating the head/last layer.
+    """
+    GPA.pc.set_module_ids_to_perforate(
+        GPA.pc.get_python_supplied("module_ids_to_perforate") or []
+    )
+    GPA.pc.set_module_names_to_perforate(
+        GPA.pc.get_python_supplied("module_names_to_perforate") or []
+    )
+    all_type_names = dedupe_list(entry["type_name"] for entry in entries)
+    GPA.pc.set_module_names_to_track(all_type_names)
+
+
 def _would_auto_track_params(entry, entries, resolved):
     """True if this module's direct params qualify for auto-tracking.
 
@@ -551,6 +664,9 @@ def clear_module_mode(entry):
         module_id in GPA.pc.get_module_ids_to_perforate()
         or module_id in GPA.pc.get_module_ids_to_track()
     ):
+        owner = id_python_owner(module_id)
+        if owner:
+            return python_owned_message(module_id, owner)
         GPA.pc.set_module_ids_to_perforate(ids_perforate)
         GPA.pc.set_module_ids_to_track(ids_track)
         return f"cleared {module_id}"
@@ -559,6 +675,9 @@ def clear_module_mode(entry):
         type_name in GPA.pc.get_module_names_to_perforate()
         or type_name in GPA.pc.get_module_names_to_track()
     ):
+        owner = type_python_owner(type_name)
+        if owner:
+            return python_owned_message(f"the {type_name} type rule", owner)
         GPA.pc.set_module_names_to_perforate(
             [v for v in GPA.pc.get_module_names_to_perforate() if v != type_name]
         )
@@ -617,7 +736,7 @@ def build_budget_line(entries, resolved):
                 seen_total.add(pid)
                 total_model_params += parameter.numel()
 
-        if resolved[entry["id"]]["eff"] == "perforated":
+        if resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]:
             for _name, parameter in entry["module"].named_parameters(recurse=False):
                 pid = id(parameter)
                 if pid not in seen_added:
@@ -1061,6 +1180,10 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     mode = record["eff"]
+    if not entry["trainable"] and (mode == "perforated" or entry["tree_param_count"] > 0):
+        # Ineligible for perforation; takes precedence over a stale perforate mark.
+        if mode != "tracked":
+            return dim("∅") + "    ", "∅    "
     if mode is None:
         if entry["direct_param_count"] > 0:
             if entries is not None and resolved is not None and _would_auto_track_params(entry, entries, resolved):
@@ -1083,8 +1206,12 @@ def make_block(mode):
     return color_text("██", get_color_hex_for_mode(mode))
 
 
-def render_targets_lines(entries, visible_entries, selected_index, resolved, expanded_replaced):
-    """Header + tree + footer for the Targets screen, as a list of lines."""
+def render_targets_lines(entries, visible_entries, selected_index, resolved, is_expanded_fn):
+    """Header + tree + footer for the Targets screen, as a list of lines.
+
+    ``is_expanded_fn(entry) -> bool`` reports the current expand state of a
+    collapsible (``has_children``) entry.
+    """
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
     tied_map = get_tied_parameters_map(entries)
@@ -1117,7 +1244,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         if entry["is_replaced_root"]:
             child_count = sum(1 for e in entries if e["replaced_root"] == entry["id"])
             glyph = color_text("↯", COLOR_ACCENT)
-            is_open = expanded_replaced.get(entry["id"], False)
+            is_open = is_expanded_fn(entry)
             toggle = "[← collapse]" if is_open else "[→ expand]"
             return [
                 f"{cursor}{glyph}   {indent}{entry['id']}  "
@@ -1131,11 +1258,18 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
                 + color_text(toggle, COLOR_ACCENT),
             ]
 
+        collapse_glyph_plain = ""
+        collapse_glyph = ""
+        if entry["has_children"]:
+            is_open = is_expanded_fn(entry)
+            collapse_glyph_plain = "▾ " if is_open else "▸ "
+            collapse_glyph = color_text(collapse_glyph_plain.strip(), COLOR_ACCENT) + " "
+
         marker_display, marker_plain = make_target_marker(entry, record, entries, resolved)
 
         if entry["in_replaced"]:
             id_part = dim(f"{entry['id']}  [{entry['type_name']}] (id stale)")
-            return [f"{cursor}{marker_display} {indent}{id_part}"]
+            return [f"{cursor}{marker_display} {indent}{collapse_glyph}{id_part}"]
 
         id_part = f"{entry['id']}  {dim('[' + entry['type_name'] + ']')}"
 
@@ -1173,12 +1307,13 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         )
 
         lead = (
-            2 + len(marker_plain) + 1 + len(indent) + len(entry["id"])
-            + 2 + len(entry["type_name"]) + 2
+            2 + len(marker_plain) + 1 + len(indent) + len(collapse_glyph_plain)
+            + len(entry["id"]) + 2 + len(entry["type_name"]) + 2
         )
         gap = max(2, 46 - lead)
         return [
-            f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params + tie_warning
+            f"{cursor}{marker_display} {indent}{collapse_glyph}{id_part}"
+            + " " * gap + tail + params + tie_warning
         ]
 
     body_lines = []
@@ -1195,6 +1330,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
+            "A track all   ←/→ collapse·expand   0-9 collapse depth   "
             "h legend   ↑↓/jk move   s start"
         ),
     ]
@@ -1490,6 +1626,8 @@ def render_legend_overlay():
         f"   * {perf}     mode set directly on this module (by id)",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
+        "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
+        "             can be tracked but not perforated",
         f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
@@ -1655,6 +1793,7 @@ def set_perforation_targets(model):
     require_interactive_session()
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
+    GPA.pc.__dict__["_tui_editing"] = True
     entered_alt_screen = False
     quit_requested = False
 
@@ -1669,6 +1808,7 @@ def set_perforation_targets(model):
             input("Press Enter to confirm perforation targets...")
             GPA.pc.set_configuration_confirmed(True)
             return
+        entries_by_id = {entry["id"]: entry for entry in entries}
 
         active_screen = "targets"
         overlay = None
@@ -1676,11 +1816,12 @@ def set_perforation_targets(model):
 
         target_selected_index = 0
         target_window_start = 0
-        expanded_replaced = {}
+        target_depth_baseline = None
+        target_expanded_overrides = {}
 
         run_selected_index = 0
         run_window_start = 0
-        expanded_buckets = {}
+        expanded_buckets = {"Run basics": True}
         describe_name = ""
 
         ov_scope = None
@@ -1718,12 +1859,11 @@ def set_perforation_targets(model):
                     f"'{relative_config_name}' to skip this screen next time without "
                     "changing your perforate_model call."
                 )
-                while True:
-                    filename = input("Config filename/path: ").strip()
-                    if filename:
-                        GPA.pc.__dict__["_config_file"] = filename
-                        break
-                    print("A filename is required to save a default configuration.")
+                filename = input(
+                    f"Config filename/path [{relative_config_name}] "
+                    "(blank accepts default): "
+                ).strip()
+                GPA.pc.__dict__["_config_file"] = filename or relative_config_name
                 enter_alternate_screen()
 
             GPA.pc.persist_config_outputs(overwrite_config_file=True)
@@ -1731,11 +1871,14 @@ def set_perforation_targets(model):
                 module_settings_overrides, overwrite_config_file=True
             )
 
+        def is_target_expanded(entry):
+            return is_entry_expanded(entry, target_depth_baseline, target_expanded_overrides)
+
         def visible_targets():
             out = []
             for entry in entries:
-                if entry["in_replaced"] and not expanded_replaced.get(
-                    entry["replaced_root"], False
+                if not is_entry_visible(
+                    entry, entries_by_id, target_depth_baseline, target_expanded_overrides
                 ):
                     continue
                 out.append(entry)
@@ -1796,7 +1939,7 @@ def set_perforation_targets(model):
                 if target_selected_index >= len(vis):
                     target_selected_index = max(0, len(vis) - 1)
                 header, body, footer, focus = render_targets_lines(
-                    entries, vis, target_selected_index, resolved, expanded_replaced
+                    entries, vis, target_selected_index, resolved, is_target_expanded
                 )
                 if overlay == "typerules":
                     header = header + [""] + render_type_rules_overlay(entries) + [""]
@@ -1959,21 +2102,33 @@ def set_perforation_targets(model):
                 entry = vis[target_selected_index]
                 record = resolved[entry["id"]]
 
-                if is_up_key(key):
-                    target_selected_index = _move(target_selected_index, -1, len(vis))
-                elif is_down_key(key):
-                    target_selected_index = _move(target_selected_index, 1, len(vis))
-                elif is_page_up_key(key):
+                if is_page_up_key(key):
                     target_selected_index = _move(target_selected_index, -10, len(vis))
                 elif is_page_down_key(key):
                     target_selected_index = _move(target_selected_index, 10, len(vis))
+                elif is_up_key(key):
+                    target_selected_index = _move(target_selected_index, -1, len(vis))
+                elif is_down_key(key):
+                    target_selected_index = _move(target_selected_index, 1, len(vis))
                 elif key == "y":
                     overlay = "typerules"
                 elif key == "h":
                     overlay = "legend"
                 elif is_right_key(key) or is_left_key(key):
-                    if entry["is_replaced_root"]:
-                        expanded_replaced[entry["id"]] = is_right_key(key)
+                    if entry["has_children"]:
+                        target_expanded_overrides[entry["id"]] = is_right_key(key)
+                elif is_depth_key(key):
+                    target_depth_baseline = int(key)
+                    target_expanded_overrides.clear()
+                elif key == "p" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("p", "t") and id_python_owner(entry["id"]):
+                    status_message = python_owned_message(
+                        entry["id"], id_python_owner(entry["id"])
+                    )
                 elif key in ("p", "t"):
                     if entry["is_replaced_root"] or entry["in_replaced"]:
                         status_message = (
@@ -1985,6 +2140,16 @@ def set_perforation_targets(model):
                         set_module_id_mode(
                             entry["id"], "perforated" if key == "p" else "tracked"
                         )
+                elif key == "P" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("P", "T") and type_python_owner(entry["type_name"]):
+                    status_message = python_owned_message(
+                        f"the {entry['type_name']} type rule",
+                        type_python_owner(entry["type_name"]),
+                    )
                 elif key in ("P", "T"):
                     if entry["is_replaced_root"]:
                         status_message = (
@@ -1997,6 +2162,9 @@ def set_perforation_targets(model):
                         )
                 elif key == "x":
                     status_message = clear_module_mode(entry)
+                elif key == "A":
+                    set_all_types_to_tracking(entries)
+                    status_message = "all modules set to tracked"
                 elif is_enter_key(key):
                     scope, reason = get_override_scope_for_entry(entry, resolved)
                     if scope is None:
@@ -2016,7 +2184,11 @@ def set_perforation_targets(model):
                 run_selected_index = len(items) - 1
             item = items[run_selected_index]
 
-            if is_up_key(key) or is_down_key(key):
+            if is_page_up_key(key):
+                run_selected_index = _move(run_selected_index, -10, len(items))
+            elif is_page_down_key(key):
+                run_selected_index = _move(run_selected_index, 10, len(items))
+            elif is_up_key(key) or is_down_key(key):
                 step = -1 if is_up_key(key) else 1
                 run_selected_index = _move(run_selected_index, step, len(items))
                 while (
@@ -2025,10 +2197,6 @@ def set_perforation_targets(model):
                 ):
                     run_selected_index = _move(run_selected_index, step, len(items))
                 describe_name = ""
-            elif is_page_up_key(key):
-                run_selected_index = _move(run_selected_index, -10, len(items))
-            elif is_page_down_key(key):
-                run_selected_index = _move(run_selected_index, 10, len(items))
             elif is_right_key(key):
                 if item["type"] == "bucket":
                     expanded_buckets[item["bucket"]] = True
@@ -2070,6 +2238,7 @@ def set_perforation_targets(model):
         if entered_alt_screen:
             exit_alternate_screen()
         GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist
+        GPA.pc.__dict__["_tui_editing"] = False
 
     if quit_requested:
         print("Configuration cancelled — training did not start.")
