@@ -371,7 +371,21 @@ GPA.pc.append_module_ids_to_perforate('.mlp.fc1')   # ❌ Suffix only — PAI wo
 GPA.pc.append_module_ids_to_track('stem.conv1')     # ❌ Missing leading dot
 ```
 
-**When you want to target all layers matching a name pattern** (e.g., all `fc1` layers across every transformer block), you must create the model first and generate the full paths with a loop:
+**When you want the same layer inside every instance of a repeated block** (e.g., only `conv2` in every ResNet `BasicBlock`, or `mlp.fc1` in every transformer layer), use a block rule instead of listing every id. A block is a module class that has submodules and occurs more than once; the rule names the class and a path relative to it:
+
+```python
+GPA.pc.append_block_rules([
+    {"block": "BasicBlock", "path": ".conv2", "mode": "perforated"},
+    {"block": "BasicBlock", "path": ".conv1", "mode": "tracked"},
+])
+```
+
+- `block` is the class name, `path` starts with `.` and is relative to the block, and `mode` is `"perforated"` or `"tracked"`.
+- The rule applies wherever the path exists, so blocks that lack it are skipped. If it matches nothing, `perforate_model` prints a warning.
+- A mode set directly by id (`append_module_ids_to_perforate` / `_track`) beats a block rule, so use an id to carve out an exception such as the last block. A block rule beats a type rule (`append_module_names_to_*`).
+- Users can also set block rules in the config CLI: press `e` on a block row.
+
+**When you want to target all layers matching a name pattern** that is not tied to a repeated block, you must create the model first and generate the full paths with a loop:
 
 ```python
 model = YourModel(...)

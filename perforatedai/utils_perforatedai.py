@@ -403,6 +403,68 @@ def scan_module_aliases(net):
     return aliases
 
 
+# Block rules are resolved lazily while convert_module descends: reaching a
+# module whose class is a rule's block registers that instance's rule ids, so
+# they also apply inside modules that were just replaced. Explicit ids are
+# always checked first, and a wrapped ancestor is never descended into.
+_block_rule_state = {"ids": {"perforated": {}, "tracked": {}}, "hits": {}}
+
+
+def _reset_block_rule_state():
+    _block_rule_state["ids"] = {"perforated": {}, "tracked": {}}
+    _block_rule_state["hits"] = {}
+
+
+def _register_block_rule_ids(net, name_so_far):
+    """Register each matching block rule's absolute id for this block instance."""
+    rules = GPA.pc.get_block_rules()
+    if not rules:
+        return
+    block = type(net).__name__
+    for index, rule in enumerate(rules):
+        if rule["block"] == block:
+            _block_rule_state["ids"][rule["mode"]].setdefault(
+                name_so_far + rule["path"], index
+            )
+
+
+def _block_rule_hit(sub_name, mode):
+    index = _block_rule_state["ids"][mode].get(sub_name)
+    if index is None:
+        return False
+    _block_rule_state["hits"][index] = _block_rule_state["hits"].get(index, 0) + 1
+    return True
+
+
+def _id_to_track(sub_name):
+    """True if this id is tracked by an explicit id or, failing that, a block rule."""
+    if sub_name in GPA.pc.get_module_ids_to_track():
+        return True
+    if sub_name in GPA.pc.get_module_ids_to_perforate():
+        return False
+    return _block_rule_hit(sub_name, "tracked")
+
+
+def _id_to_perforate(sub_name):
+    """True if this id is perforated by an explicit id or, failing that, a block rule."""
+    if sub_name in GPA.pc.get_module_ids_to_perforate():
+        return True
+    if sub_name in GPA.pc.get_module_ids_to_track():
+        return False
+    return _block_rule_hit(sub_name, "perforated")
+
+
+def _warn_unused_block_rules():
+    for index, rule in enumerate(GPA.pc.get_block_rules()):
+        if _block_rule_state["hits"].get(index, 0) == 0:
+            print(
+                "Warning: block rule %s %s (%s) did not apply to any module. "
+                "Check that a %s with that path exists in the model and that it "
+                "is not inside a module that is perforated or tracked as a whole."
+                % (rule["block"], rule["path"], rule["mode"], rule["block"])
+            )
+
+
 def convert_module(
     net,
     depth,
@@ -468,6 +530,9 @@ def convert_module(
             )
             for alias in aliases_to_skip:
                 print(" - %s (keeps %s)" % (alias, aliases[alias]))
+    if depth == 0 and name_so_far == "":
+        _reset_block_rule_state()
+    _register_block_rule_ids(net, name_so_far)
     all_members = net.__dir__()
     if GPA.pc.get_extra_verbose():
         print("all members:")
@@ -476,7 +541,7 @@ def convert_module(
     if issubclass(type(net), nn.Sequential) or issubclass(type(net), nn.ModuleList):
         for submodule_id, layer in net.named_children():
             sub_name = name_so_far + "." + str(submodule_id)
-            if sub_name in GPA.pc.get_module_ids_to_track():
+            if _id_to_track(sub_name):
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
                 if tracked_module_class is None:
@@ -490,7 +555,7 @@ def convert_module(
                         tracked_module_class(net.get_submodule(submodule_id), sub_name),
                     )
                 continue
-            if sub_name in GPA.pc.get_module_ids_to_perforate():
+            if _id_to_perforate(sub_name):
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
                 if config_setup:
@@ -648,7 +713,7 @@ def convert_module(
                     continue
                 converted_list += [id(member_obj)]
                 converted_names_list += [sub_name]
-            if sub_name in GPA.pc.get_module_ids_to_track():
+            if _id_to_track(sub_name):
                 if GPA.pc.get_verbose():
                     print("Seq ID is in track IDs: %s" % sub_name)
                 if tracked_module_class is None:
@@ -660,7 +725,7 @@ def convert_module(
                         net, member, tracked_module_class(getattr(net, member), sub_name)
                     )
                 continue
-            if sub_name in GPA.pc.get_module_ids_to_perforate():
+            if _id_to_perforate(sub_name):
                 if GPA.pc.get_verbose():
                     print("Seq ID is in convert IDs: %s" % sub_name)
                 if config_setup:
@@ -841,6 +906,7 @@ def convert_network(net, layer_name=""):
         net = convert_module(
             net, 0, "", [], [], PA.PAINeuronModule, PA.TrackedNeuronModule
         )
+        _warn_unused_block_rules()
     if GPA.pai_tracker.member_vars["doing_pai"]:
         missed_ones = []
         tracked_ones = []

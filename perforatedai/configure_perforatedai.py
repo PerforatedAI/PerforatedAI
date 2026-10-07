@@ -212,6 +212,134 @@ def get_tied_parameters_map(entries):
     return tied_map
 
 
+# ---------------------------------------------------------------------------
+# Block rules
+# ---------------------------------------------------------------------------
+def get_block_types(entries):
+    """Class names of blocks: modules with children that occur more than once."""
+    counts = {}
+    for entry in entries:
+        if entry["has_children"] and not entry["in_replaced"] and not entry["is_replaced_root"]:
+            counts[entry["type_name"]] = counts.get(entry["type_name"], 0) + 1
+    return {name for name, count in counts.items() if count > 1}
+
+
+def get_block_instances(entries, block):
+    """Every live instance of a block, in model order."""
+    return [
+        entry
+        for entry in entries
+        if entry["type_name"] == block
+        and entry["has_children"]
+        and not entry["in_replaced"]
+        and not entry["is_replaced_root"]
+    ]
+
+
+def get_block_rule_for_entry(entry, entries_by_id):
+    """The nearest enclosing block's rule that targets this module, with that block.
+
+    Returns (rule, block_instance_id), or (None, None).
+    """
+    rules = GPA.pc.get_block_rules()
+    if not rules:
+        return None, None
+    ancestor_id = entry["id"]
+    while True:
+        split_at = ancestor_id.rfind(".")
+        if split_at <= 0:
+            return None, None
+        ancestor_id = ancestor_id[:split_at]
+        ancestor = entries_by_id.get(ancestor_id)
+        if ancestor is None:
+            continue
+        for rule in rules:
+            if (
+                rule["block"] == ancestor["type_name"]
+                and entry["id"] == ancestor_id + rule["path"]
+            ):
+                return rule, ancestor_id
+
+
+def get_block_rule_targets(entries, rule):
+    """Ids of the modules a block rule hits in the CLI's view of the model."""
+    ids = {entry["id"] for entry in entries}
+    return [
+        entry["id"] + rule["path"]
+        for entry in get_block_instances(entries, rule["block"])
+        if entry["id"] + rule["path"] in ids
+    ]
+
+
+def find_block_rule(block, path):
+    for rule in GPA.pc.get_block_rules():
+        if rule["block"] == block and rule["path"] == path:
+            return rule
+    return None
+
+
+def block_rule_python_owned(rule):
+    return rule in (GPA.pc.get_python_supplied("block_rules") or [])
+
+
+def block_rule_scope_text(entries, rule):
+    return "%d of %d %s modules" % (
+        len(get_block_rule_targets(entries, rule)),
+        len(get_block_instances(entries, rule["block"])),
+        rule["block"],
+    )
+
+
+def set_block_rule(block, path, mode, entries):
+    """Set (or toggle off) a block rule; returns a short message."""
+    existing = find_block_rule(block, path)
+    if existing is not None and block_rule_python_owned(existing):
+        return python_owned_message(f"the {block} {path} block rule", "block_rules")
+    rules = [
+        dict(rule)
+        for rule in GPA.pc.get_block_rules()
+        if not (rule["block"] == block and rule["path"] == path)
+    ]
+    if existing is not None and existing["mode"] == mode:
+        GPA.pc.set_block_rules(rules)
+        return f"removed block rule {block} {path}"
+    rule = {"block": block, "path": path, "mode": mode}
+    rules.append(rule)
+    GPA.pc.set_block_rules(rules)
+    return f"{block} {path}: {mode_verb(mode)} ({block_rule_scope_text(entries, rule)})"
+
+
+def remove_block_rule(block, path, entries):
+    """Remove a block rule; returns a short message."""
+    existing = find_block_rule(block, path)
+    if existing is None:
+        return f"there is no block rule on {block} {path}"
+    if block_rule_python_owned(existing):
+        return python_owned_message(f"the {block} {path} block rule", "block_rules")
+    scope = block_rule_scope_text(entries, existing)
+    GPA.pc.set_block_rules(
+        [dict(rule) for rule in GPA.pc.get_block_rules() if rule != existing]
+    )
+    return f"removed block rule {block} {path} ({scope})"
+
+
+def block_mode_refusal(entry, block_types):
+    """Why block mode can't open on this module, or None if it can."""
+    if entry["is_replaced_root"] or entry["in_replaced"]:
+        return (
+            f"{entry['id']} is inside a module that will be restructured — its "
+            "structure isn't known until training, so it can't be edited as a block."
+        )
+    if entry["type_name"] not in block_types:
+        if not entry["has_children"]:
+            return f"{entry['id']} has no submodules, so it is not a block."
+        return (
+            f"{entry['type_name']} occurs only once, so it is not a block. "
+            "Use p/t on its children by id."
+        )
+    return None
+
+
 def resolve_entry_modes(entries):
     """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
@@ -229,15 +357,23 @@ def resolve_entry_modes(entries):
         parent = resolved.get(parent_id) if parent_id in by_id else None
 
         own_id_mode = get_id_mode(module_id)
+        block_rule, _block_id = get_block_rule_for_entry(entry, by_id)
+        own_block_mode = block_rule["mode"] if block_rule is not None else None
         own_type_mode = get_name_mode(entry["type_name"])
-        own_mode = own_id_mode or own_type_mode
-        own_source = "id" if own_id_mode else ("type" if own_type_mode else None)
+        own_mode = own_id_mode or own_block_mode or own_type_mode
+        if own_id_mode:
+            own_source = "id"
+        elif own_block_mode:
+            own_source = "block"
+        else:
+            own_source = "type" if own_type_mode else None
 
         record = {
             "eff": None,
             "source": None,
             "origin_id": module_id,
             "overridden": None,
+            "block_rule": None,
         }
         if parent is not None and parent["eff"] is not None:
             record["eff"] = parent["eff"]
@@ -249,6 +385,8 @@ def resolve_entry_modes(entries):
             record["eff"] = own_mode
             record["source"] = own_source
             record["origin_id"] = module_id
+            if own_source == "block":
+                record["block_rule"] = block_rule
         resolved[module_id] = record
     return resolved
 
@@ -1199,6 +1337,8 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return f"↳ {block_display} ", "↳ ██ "
     if record["source"] == "id":
         return f"* {block_display} ", "* ██ "
+    if record["source"] == "block":
+        return f"▤ {block_display} ", "▤ ██ "
     return f"  {block_display} ", "  ██ "
 
 
@@ -1277,6 +1417,9 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
         if record["eff"] is not None:
             mode_color = get_color_hex_for_mode(record["eff"])
             tail = color_text(f"mode={mode_verb(record['eff'])}", mode_color)
+            if record["source"] == "block":
+                rule = record["block_rule"]
+                tail += dim(f"  (via {rule['block']} {rule['path']})")
             if record["source"] == "inherited":
                 tail += dim(f"  (via {record['origin_id']})")
                 if record["overridden"] is not None:
@@ -1330,11 +1473,89 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
+            "e edit block   "
             "A track all   ←/→ collapse·expand   0-9 collapse depth   "
             "h legend   ↑↓/jk move   s start"
         ),
     ]
     return lines, body_lines, footer, focus
+
+
+def render_block_mode_lines(entries, visible_entries, selected_index, block, template_id, is_expanded_fn):
+    """Header + subtree + footer for block mode, shaped like render_targets_lines."""
+    template_depth = next(e for e in entries if e["id"] == template_id)["depth"]
+    instances = get_block_instances(entries, block)
+    lines = [render_tab_bar("targets"), ""]
+    lines.append(
+        color_text(f"  Editing all {len(instances)} {block} modules", COLOR_ACCENT)
+        + dim(f"   (showing {template_id} as the example)")
+    )
+    lines.append(
+        dim("  A block rule applies to the same path inside every instance of the block.")
+    )
+    lines.append(HR)
+
+    body_lines = []
+    focus = (0, 1)
+    for i, entry in enumerate(visible_entries):
+        selected = i == selected_index
+        cursor = color_text("> ", "E8EEEC") if selected else "  "
+        indent = "  " * (entry["depth"] - template_depth)
+        glyph = ""
+        if entry["has_children"] and entry["id"] != template_id:
+            glyph = color_text("▾" if is_expanded_fn(entry) else "▸", COLOR_ACCENT) + " "
+        if entry["id"] == template_id:
+            label = f"{dim('(' + block + ')')}"
+            row = f"{cursor}     {label}   {dim('the block itself — use P/T to set a whole type')}"
+        else:
+            path = entry["id"][len(template_id):]
+            rule = find_block_rule(block, path)
+            label = f"{path}  {dim('[' + entry['type_name'] + ']')}"
+            if rule is not None:
+                marker = "▤ " + make_block(rule["mode"]) + " "
+                tail = color_text(f"mode={mode_verb(rule['mode'])}", get_color_hex_for_mode(rule["mode"]))
+                tail += dim(f"  applies to {block_rule_scope_text(entries, rule)}")
+                if block_rule_python_owned(rule):
+                    tail += dim("  (set in your script)")
+            else:
+                marker = "     "
+                tail = dim("no block rule")
+            if not entry["trainable"] and entry["tree_param_count"] > 0:
+                marker = dim("∅") + "    "
+            row = f"{cursor}{marker}{indent}{glyph}{label}   {tail}"
+        if selected:
+            focus = (len(body_lines), len(body_lines) + 1)
+        body_lines.append(row)
+
+    footer = [
+        HR,
+        "",
+        dim(
+            "p/t perforate·track this path in every block   x remove the rule   "
+            "←/→ collapse·expand   ↑↓/jk move   Esc done"
+        ),
+    ]
+    return lines, body_lines, footer, focus
+
+
+def render_blockrule_overlay(entry, rule, key, choices, selected_index):
+    """Modal shown when editing a module whose mode comes from a block rule."""
+    action = {"p": "perforate", "t": "track", "x": "clear"}[key]
+    lines = [
+        "",
+        "",
+        "  " + color_text(f"{entry['id']} is set by a block rule", "E8EEEC"),
+        "",
+        dim(f"  {rule['block']} {rule['path']}: {mode_verb(rule['mode'])}"
+            " — it applies to every block of that type,"),
+        dim(f"  so you can't {action} just this module from here."),
+        "",
+    ]
+    for index, (_name, label) in enumerate(choices):
+        cursor = color_text("▸ ", COLOR_ACCENT) if index == selected_index else "  "
+        lines.append(f"  {cursor}{label}")
+    lines += ["", color_text("  ↑↓/jk move · Enter choose · Esc cancel", COLOR_ACCENT)]
+    return lines
 
 
 def render_run_settings_lines(items, selected_index, describe_name):
@@ -1581,6 +1802,8 @@ def render_help_overlay():
         "   p / t     perforate / track this module",
         "   P / T     perforate / track every module of this type",
         "   x         clear this module (falls back to its type rule)",
+        "   e         edit a block: set a rule for the same path in every instance",
+        "             (on a module set by a block rule, p/t/x offer to edit the block)",
         "   → / ←     expand / collapse a module that will be restructured (↯)",
         "   y         show / hide the type-rules list",
         "   h         show the marker & colour legend",
@@ -1624,6 +1847,7 @@ def render_legend_overlay():
         dim("  Marker prefixes"),
         f"     {perf}     set by type name — every module of this class",
         f"   * {perf}     mode set directly on this module (by id)",
+        f"   ▤ {perf}     set by a block rule — the same path in every instance of a block",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
         "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
@@ -1638,8 +1862,9 @@ def render_legend_overlay():
         "      subtree; a mode set directly on a descendant is ignored",
         "      while the ancestor's mode is in effect",
         "   2. by id — a mode set on this exact module",
-        "   3. by type — a mode set on the module's class name",
-        "   So: inherited  >  by id  >  by type.",
+        "   3. by block rule — the same path inside every instance of a block",
+        "   4. by type — a mode set on the module's class name",
+        "   So: inherited  >  by id  >  by block rule  >  by type.",
         "",
         color_text("  h or Esc to close", COLOR_ACCENT),
     ]
@@ -1834,6 +2059,13 @@ def set_perforation_targets(model):
         scalar_editor_state = None
         list_editor_state = None
 
+        # Block mode edits the same path inside every instance of one block.
+        block_mode = None  # {"block": class name, "template_id": example instance}
+        block_selected_index = 0
+        block_window_start = 0
+        block_expanded_overrides = {}
+        block_modal = None  # set while the "set by a block rule" modal is open
+
         def finalize_save(choice_index):
             auto_track_unset_direct_params(entries, resolved)
             if choice_index == 0:
@@ -1873,6 +2105,27 @@ def set_perforation_targets(model):
 
         def is_target_expanded(entry):
             return is_entry_expanded(entry, target_depth_baseline, target_expanded_overrides)
+
+        def visible_block_entries():
+            template_id = block_mode["template_id"]
+            subtree = [
+                e
+                for e in entries
+                if e["id"] == template_id or e["id"].startswith(template_id + ".")
+            ]
+            subtree_by_id = {e["id"]: e for e in subtree}
+            return [
+                e
+                for e in subtree
+                if is_entry_visible(e, subtree_by_id, None, block_expanded_overrides)
+            ]
+
+        def blockrule_choices(key):
+            choices = [("edit", "Edit the block  (change or remove the rule for every instance)")]
+            if key in ("p", "t"):
+                choices.append(("this", "Change this module only  (set it by id as an exception)"))
+            choices.append(("cancel", "Cancel"))
+            return choices
 
         def visible_targets():
             out = []
@@ -1934,6 +2187,33 @@ def set_perforation_targets(model):
                         describe_name,
                     )
                 )
+            elif overlay == "blockrule":
+                screen_text = render_static_overlay(
+                    render_blockrule_overlay(
+                        entries_by_id[block_modal["entry_id"]],
+                        block_modal["rule"],
+                        block_modal["key"],
+                        blockrule_choices(block_modal["key"]),
+                        block_modal["selected"],
+                    )
+                )
+            elif active_screen == "targets" and block_mode is not None:
+                vis = visible_block_entries()
+                if block_selected_index >= len(vis):
+                    block_selected_index = max(0, len(vis) - 1)
+                header, body, footer, focus = render_block_mode_lines(
+                    entries,
+                    vis,
+                    block_selected_index,
+                    block_mode["block"],
+                    block_mode["template_id"],
+                    lambda e: is_entry_expanded(e, None, block_expanded_overrides),
+                )
+                if status_message:
+                    footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
+                screen_text, block_window_start = compose_scrolling_screen(
+                    header, body, footer, block_window_start, focus
+                )
             elif active_screen == "targets":
                 vis = visible_targets()
                 if target_selected_index >= len(vis):
@@ -1981,6 +2261,40 @@ def set_perforation_targets(model):
                     break
                 if key in ("n", "N") or key == "\x1b":
                     overlay = None
+                continue
+
+            if overlay == "blockrule":
+                choices = blockrule_choices(block_modal["key"])
+                if is_up_key(key):
+                    block_modal["selected"] = _move(block_modal["selected"], -1, len(choices))
+                elif is_down_key(key):
+                    block_modal["selected"] = _move(block_modal["selected"], 1, len(choices))
+                elif key == "\x1b":
+                    overlay = None
+                    block_modal = None
+                elif is_enter_key(key):
+                    choice = choices[block_modal["selected"]][0]
+                    modal_entry = entries_by_id[block_modal["entry_id"]]
+                    if choice == "edit":
+                        block_mode = {
+                            "block": block_modal["rule"]["block"],
+                            "template_id": block_modal["block_id"],
+                        }
+                        block_selected_index = 0
+                        block_window_start = 0
+                        block_expanded_overrides.clear()
+                    elif choice == "this":
+                        if id_python_owner(modal_entry["id"]):
+                            status_message = python_owned_message(
+                                modal_entry["id"], id_python_owner(modal_entry["id"])
+                            )
+                        else:
+                            set_module_id_mode(
+                                modal_entry["id"],
+                                "perforated" if block_modal["key"] == "p" else "tracked",
+                            )
+                    overlay = None
+                    block_modal = None
                 continue
 
             if overlay == "typerules":
@@ -2093,6 +2407,48 @@ def set_perforation_targets(model):
 
             status_message = ""
 
+            if active_screen == "targets" and block_mode is not None:
+                vis = visible_block_entries()
+                if block_selected_index >= len(vis):
+                    block_selected_index = max(0, len(vis) - 1)
+                entry = vis[block_selected_index]
+                block_name = block_mode["block"]
+                block_path = entry["id"][len(block_mode["template_id"]):]
+
+                if key == "\x1b":
+                    block_mode = None
+                elif is_page_up_key(key):
+                    block_selected_index = _move(block_selected_index, -10, len(vis))
+                elif is_page_down_key(key):
+                    block_selected_index = _move(block_selected_index, 10, len(vis))
+                elif is_up_key(key):
+                    block_selected_index = _move(block_selected_index, -1, len(vis))
+                elif is_down_key(key):
+                    block_selected_index = _move(block_selected_index, 1, len(vis))
+                elif is_right_key(key) or is_left_key(key):
+                    if entry["has_children"] and block_path != "":
+                        block_expanded_overrides[entry["id"]] = is_right_key(key)
+                elif key in ("p", "t", "x") and block_path == "":
+                    status_message = (
+                        f"This is the {block_name} itself. Press Esc, then P/T "
+                        "to set a mode for the whole type."
+                    )
+                elif key == "p" and not entry["trainable"]:
+                    status_message = (
+                        f"{block_path} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("p", "t"):
+                    status_message = set_block_rule(
+                        block_name,
+                        block_path,
+                        "perforated" if key == "p" else "tracked",
+                        entries,
+                    )
+                elif key == "x":
+                    status_message = remove_block_rule(block_name, block_path, entries)
+                continue
+
             if active_screen == "targets":
                 vis = visible_targets()
                 if not vis:
@@ -2120,6 +2476,28 @@ def set_perforation_targets(model):
                 elif is_depth_key(key):
                     target_depth_baseline = int(key)
                     target_expanded_overrides.clear()
+                elif key in ("p", "t", "x") and record["source"] == "block":
+                    block_rule, block_instance_id = get_block_rule_for_entry(
+                        entry, entries_by_id
+                    )
+                    block_modal = {
+                        "key": key,
+                        "entry_id": entry["id"],
+                        "rule": block_rule,
+                        "block_id": block_instance_id,
+                        "selected": 0,
+                    }
+                    overlay = "blockrule"
+                elif key == "e":
+                    status_message = block_mode_refusal(entry, get_block_types(entries))
+                    if not status_message:
+                        block_mode = {
+                            "block": entry["type_name"],
+                            "template_id": entry["id"],
+                        }
+                        block_selected_index = 0
+                        block_window_start = 0
+                        block_expanded_overrides.clear()
                 elif key == "p" and not entry["trainable"]:
                     status_message = (
                         f"{entry['id']} is not trainable: no parameters require grad, "

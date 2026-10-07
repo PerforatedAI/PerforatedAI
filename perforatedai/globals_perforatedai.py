@@ -39,6 +39,7 @@ SELECTION_LIST_VARS = (
     "module_names_to_perforate",
     "module_names_to_track",
     "parameter_ids_to_track",
+    "block_rules",
 )
 _CLASS_LIST_FEEDS = {
     "modules_to_perforate": "module_names_to_perforate",
@@ -48,6 +49,42 @@ _SELECTION_CONFLICT_PAIRS = (
     ("module_ids_to_perforate", "module_ids_to_track"),
     ("module_names_to_perforate", "module_names_to_track"),
 )
+
+
+BLOCK_RULE_MODES = ("perforated", "tracked")
+
+
+def _normalize_block_rules(value):
+    """Return block rules as validated {block, path, mode} dicts.
+
+    A later rule for the same block and path replaces an earlier one.
+    """
+    rules = {}
+    for rule in value:
+        if not isinstance(rule, dict) or set(rule) != {"block", "path", "mode"}:
+            raise ValueError(
+                "block_rules entries must be {'block', 'path', 'mode'} dicts, "
+                "got %r" % (rule,)
+            )
+        block, path, mode = rule["block"], rule["path"], rule["mode"]
+        if not isinstance(block, str) or block == "":
+            raise ValueError("block rule needs a block class name, got %r" % (block,))
+        if not isinstance(path, str) or not path.startswith(".") or len(path) < 2:
+            raise ValueError(
+                "block rule path must be a relative path like '.conv2', got %r"
+                % (path,)
+            )
+        if "[" in path or "]" in path:
+            raise ValueError(
+                "Block rule path '%s' must not contain '[' or ']'. "
+                "Use dot notation instead, e.g. '.layers.1.module'" % path
+            )
+        if mode not in BLOCK_RULE_MODES:
+            raise ValueError(
+                "block rule mode must be one of %s, got %r" % (BLOCK_RULE_MODES, mode)
+            )
+        rules[(block, path)] = {"block": block, "path": path, "mode": mode}
+    return list(rules.values())
 
 
 def _record_python_supplied(obj, var_name, value, replace):
@@ -66,6 +103,14 @@ def _record_python_supplied(obj, var_name, value, replace):
     items = list(value)
     if replace:
         supplied[var_name] = items
+    elif var_name == "block_rules":
+        new_keys = {(r["block"], r["path"]) for r in items}
+        kept = [
+            r
+            for r in supplied.get(var_name, [])
+            if (r["block"], r["path"]) not in new_keys
+        ]
+        supplied[var_name] = kept + items
     else:
         supplied[var_name] = supplied.get(var_name, []) + items
 
@@ -179,6 +224,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         ):
             for module_id in value:
                 _validate_module_id(module_id)
+        if var_name == "block_rules":
+            value = _normalize_block_rules(value)
         setattr(self, private_name, value)
         if isinstance(value, (list, tuple)):
             _record_python_supplied(self, var_name, value, replace=True)
@@ -208,8 +255,19 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             ):
                 for module_id in value:
                     _validate_module_id(module_id)
-            setattr(self, private_name, getattr(self, private_name) + value)
-            _record_python_supplied(self, var_name, value, replace=False)
+            if var_name == "block_rules":
+                new_rules = _normalize_block_rules(value)
+                new_keys = {(r["block"], r["path"]) for r in new_rules}
+                kept = [
+                    rule
+                    for rule in getattr(self, private_name)
+                    if (rule["block"], rule["path"]) not in new_keys
+                ]
+                setattr(self, private_name, kept + new_rules)
+                _record_python_supplied(self, var_name, new_rules, replace=False)
+            else:
+                setattr(self, private_name, getattr(self, private_name) + value)
+                _record_python_supplied(self, var_name, value, replace=False)
             if not self.__dict__.get("_loading_config_values", False):
                 self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
@@ -297,6 +355,8 @@ def _serialize_pai_value(val):
         return str(val)
     if isinstance(val, list):
         return [_serialize_pai_value(v) for v in val]
+    if isinstance(val, dict):
+        return {str(k): _serialize_pai_value(v) for k, v in val.items()}
     if isinstance(val, type):
         mod = getattr(val, "__module__", "") or ""
         return f"{mod}.{val.__name__}" if mod else val.__name__
@@ -434,6 +494,9 @@ class PAIConfig:
         Module names to convert to PAI modules for perforation.
     module_ids_to_perforate : list
         Specific module IDs to convert to PAI modules for perforation.
+    block_rules : list
+        {"block", "path", "mode"} entries applied inside every instance of a
+        block class (a module type with children that occurs more than once).
     modules_to_track : list
         Module types to track but not convert.
     module_names_to_track : list
@@ -539,6 +602,7 @@ class PAIConfig:
                 "module_names_to_track",
                 "module_ids_to_track",
                 "parameter_ids_to_track",
+                "block_rules",
                 "module_names_with_processing",
                 "module_names_to_not_save",
                 "library_extra_scores",
@@ -956,6 +1020,15 @@ class PAIConfig:
             self.module_ids_to_track = []
             add_pai_config_var_functions(
                 self, "module_ids_to_track", self.module_ids_to_track, list_type=True
+            )
+
+            # Block rules: {"block": class name, "path": relative path, "mode"}
+            # entries applied inside every instance of that block class, e.g.
+            # {"block": "BasicBlock", "path": ".conv2", "mode": "perforated"}.
+            # A mode set directly by id wins; a block rule wins over a type rule.
+            self.block_rules = []
+            add_pai_config_var_functions(
+                self, "block_rules", self.block_rules, list_type=True
             )
 
             # Parameter IDs to track as neuron parameters without recursive behavior
@@ -1396,6 +1469,11 @@ class PAIConfig:
                         loaded += 1
                     except Exception:
                         skipped += 1
+            try:
+                self._block_rules = _normalize_block_rules(self._block_rules)
+            except ValueError as exc:
+                print(f"[PAI Config] Warning: ignoring invalid block_rules: {exc}")
+                self._block_rules = []
         finally:
             self.__dict__["_loading_config_values"] = False
 
@@ -1474,6 +1552,12 @@ class PAIConfig:
         for key in merge_keys:
             supplied = self.get_python_supplied(key)
             current = list(self.__dict__.get(f"_{key}", []))
+            if key == "block_rules":
+                # A script rule replaces a JSON rule for the same block and path.
+                supplied_keys = {(r["block"], r["path"]) for r in supplied}
+                current = [
+                    r for r in current if (r["block"], r["path"]) not in supplied_keys
+                ]
             merged = supplied + [v for v in current if v not in supplied]
             setattr(self, f"_{key}", merged)
         for perforate_var, track_var in _SELECTION_CONFLICT_PAIRS:
