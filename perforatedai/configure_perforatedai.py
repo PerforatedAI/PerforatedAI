@@ -283,11 +283,25 @@ def block_rule_python_owned(rule):
 
 
 def block_rule_scope_text(entries, rule):
-    return "%d of %d %s modules" % (
-        len(get_block_rule_targets(entries, rule)),
+    """How many blocks a rule really applies to, and why any are ignored."""
+    targets = get_block_rule_targets(entries, rule)
+    resolved = resolve_entry_modes(entries)
+    applied = [
+        target
+        for target in targets
+        if resolved[target]["source"] == "block" and resolved[target]["block_rule"] == rule
+    ]
+    text = "%d of %d %s modules" % (
+        len(applied),
         len(get_block_instances(entries, rule["block"])),
         rule["block"],
     )
+    ignored = len(targets) - len(applied)
+    if ignored:
+        text += (
+            f", {ignored} ignored: a mode on an enclosing module or set by id wins"
+        )
+    return text
 
 
 def set_block_rule(block, path, mode, entries):
@@ -733,8 +747,8 @@ def set_module_name_mode(module_type_name, mode, entries=None):
 
 def set_all_types_to_tracking(entries):
     """Reset every module to tracked: clear id/type perforate marks, then
-    track every type present. A quick way to start from "track everything"
-    before manually perforating the head/last layer.
+    track every type that owns parameters directly. A quick way to start from
+    "track everything" before manually perforating the head/last layer.
     """
     GPA.pc.set_module_ids_to_perforate(
         GPA.pc.get_python_supplied("module_ids_to_perforate") or []
@@ -742,7 +756,11 @@ def set_all_types_to_tracking(entries):
     GPA.pc.set_module_names_to_perforate(
         GPA.pc.get_python_supplied("module_names_to_perforate") or []
     )
-    all_type_names = dedupe_list(entry["type_name"] for entry in entries)
+    # Only types that own parameters directly. Tracking a container would apply
+    # to everything inside it and make ids and block rules there unreachable.
+    all_type_names = dedupe_list(
+        entry["type_name"] for entry in entries if entry["direct_param_count"] > 0
+    )
     GPA.pc.set_module_names_to_track(all_type_names)
 
 
