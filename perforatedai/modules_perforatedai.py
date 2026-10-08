@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import traceback
 
-from dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
+from perforatedbp.dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
@@ -439,8 +439,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Linear)
             )
         ) and (
-            np.array(self.this_output_dimensions)[2:] == GPA.REDUCE_AXIS
-        ).all():  # Everything past 2 is a REDUCE_AXIS
+            np.array(self.this_output_dimensions)[2:] != GPA.NODE_AXIS
+        ).all():  # Everything past 2 is not the node axis
             self.set_this_output_dimensions(self.this_output_dimensions[0:2])
         if (
             issubclass(type(start_module), nn.Conv1d)
@@ -449,8 +449,8 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Conv1d)
             )
         ) and (
-            np.array(self.this_output_dimensions)[3:] == GPA.REDUCE_AXIS
-        ).all():  # Everything past 3 is a REDUCE_AXIS
+            np.array(self.this_output_dimensions)[3:] != GPA.NODE_AXIS
+        ).all():  # Everything past 3 is not the node axis
             self.set_this_output_dimensions(self.this_output_dimensions[0:3])
         # Apply per-module output_dimensions override from config if present
         _custom_dims = self.module_config.__dict__.get("_output_dimensions")

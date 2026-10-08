@@ -207,11 +207,11 @@ An alternative is to call convertNetwork after perforate_model but that still ne
     
 ### 4 - Set Input Dimensions
 
-To add dendrites the new modules must know which index of their output tensor corresponds to the neuron dimension.  This is done by setting the following global vector with all -1's and a single 0 in the neuron index. The following is the default to signify convolutional indexing of [batch size, neurons, x, y]
+To add dendrites the new modules must know which index of their output tensor corresponds to the neuron dimension.  This is done by setting the following global vector with a single 0 in the neuron index, -1 for each axis to reduce, and 1 for each additional axis to retain. The following is the default to signify convolutional indexing of [batch size, neurons, x, y], reducing the batch axis and retaining the x and y spatial axes
 
-    GPA.pc.set_output_dimensions([-1, 0, -1, -1])
+    GPA.pc.set_output_dimensions([-1, 0, 1, 1])
 
-Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of output_dimensions is not enough.  In these cases set output_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisoutput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear conversion is done automatically.
+Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of output_dimensions is not enough.  In these cases set output_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisoutput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear and Conv1d conversion is done automatically: starting from the four-axis default, a Linear layer is trimmed to [-1, 0] and a Conv1d layer is trimmed to [-1, 0, 1].
 
     model.onlyRecurrentModule.set_this_output_dimensions([-1,-1, 0])
     model.fullyConnectedOutputLayer.set_this_output_dimensions([-1, 0])

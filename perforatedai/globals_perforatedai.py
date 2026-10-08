@@ -1039,7 +1039,9 @@ class PAIConfig:
             # output_dimensions is [-1, 0, -1, -1].
             # if your format is, [batchsize, time index, nodes] output_dimensions is
             # [-1, -1, 0]
-            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, REDUCE_AXIS, REDUCE_AXIS]  # TODO consider changing from a single set here to a set for each type of module
+            # TODO consider changing from a single set here to a set for each type of module
+            # TODO should not set this value directly, should be a setter like set_this_output_dimensions in PAINeuronModule
+            self.output_dimensions = [REDUCE_AXIS, NODE_AXIS, NOT_REDUCE_OR_NODE_AXIS, NOT_REDUCE_OR_NODE_AXIS]
             add_pai_config_var_functions(
                 self, "output_dimensions", self.output_dimensions, list_type=True
             )
