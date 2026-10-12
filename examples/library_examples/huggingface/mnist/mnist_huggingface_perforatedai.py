@@ -16,9 +16,10 @@ from perforatedai import utils_perforatedai as UPA
 
 
 GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
-GPA.pc.set_n_epochs_to_switch(200)
+# Patience in epochs; keep well below num_train_epochs, which sets the LR schedule length
+GPA.pc.set_n_epochs_to_switch(3)
 # Only used if perforatedbp is installed
-# GPA.pc.set_p_epochs_to_switch(200)
+# GPA.pc.set_p_epochs_to_switch(3)
 
 GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 GPA.pc.set_history_lookback(1)
@@ -63,14 +64,16 @@ train_loader = torch.utils.data.DataLoader(train_dset, shuffle=True, batch_size=
 test_loader = torch.utils.data.DataLoader(test_dset, shuffle=False, batch_size=64)
 
 model = BasicNet()
-GPA.metric = "eval_accuracy"
-model = UPA.perforate_model(model)
+GPA.pc.set_library_validation_score("eval_accuracy")
+GPA.pc.set_library_extra_scores(["train_loss"])
+model = UPA.perforate_model(model, maximizing_score=True)
 
 training_args = TrainingArguments(
     "basic-trainer",
     per_device_train_batch_size=64,
     per_device_eval_batch_size=64,
-    num_train_epochs=100000,
+    # Length of the LR schedule; it restarts after every PAI restructure. PAI decides when training ends.
+    num_train_epochs=10,
     eval_strategy="epoch",
     remove_unused_columns=False,
     dataloader_drop_last=False,  # CRITICAL: Don't drop incomplete batches
@@ -132,7 +135,7 @@ trainer = MyTrainer(
     eval_dataset=test_dset,
     data_collator=collate_fn,
     compute_metrics=compute_metrics,
-    using_perforatedai=True,
+    perforate_model=True,
 )
 
 trainer.train()

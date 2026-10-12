@@ -1223,7 +1223,7 @@ class PAIConfig:
             os.makedirs(directory, exist_ok=True)
 
         with open(filename, "w") as f:
-            json.dump(config_dict, f, indent=2)
+                json.dump(config_dict, f, indent=2)
         print(f"[PAI Config] Saved {len(config_dict)} variables \u2192 {filename}")
 
     def load_config(self, filename, module_name=None, module_type=None, skip_keys=None):
