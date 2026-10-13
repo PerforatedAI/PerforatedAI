@@ -89,7 +89,13 @@ Or the final option is to add specific modules by their path in the model.  This
 
     GPA.pc.append_module_ids_to_perforate()['.layer1.0.conv1'])
 
-These selection lists (`module_ids_*`, `module_names_*`, `parameter_ids_to_track`) are combined with the saved config. Anything your script sets or appends is always kept, and entries the configuration CLI added to the saved JSON are added to them. If your script and the JSON disagree about a module, such as tracking it versus perforating it, the script wins. Entries set from a script cannot be changed in the configuration CLI; edit them in the script instead.
+To perforate the same layer inside every instance of a repeated block, such as only the second conv in each ResNet `BasicBlock`, add a block rule instead of listing every id. A block is a module class that has submodules and occurs more than once. The rule gives the class name, a path relative to the block, and a mode (`"perforated"` or `"tracked"`):
+
+    GPA.pc.append_block_rules([{"block": "BasicBlock", "path": ".conv2", "mode": "perforated"}])
+
+The rule applies wherever the path exists in a block, and `perforate_model` warns if it matches nothing. A mode set directly by id wins over a block rule, so an id is how you make an exception for one block, and a block rule wins over a type rule. In the configuration CLI, press `e` on a block row to edit the same path in every instance at once.
+
+These selection lists (`module_ids_*`, `module_names_*`, `parameter_ids_to_track`, `block_rules`) are combined with the saved config. Anything your script sets or appends is always kept, and entries the configuration CLI added to the saved JSON are added to them. If your script and the JSON disagree about a module, such as tracking it versus perforating it, the script wins. Entries set from a script cannot be changed in the configuration CLI; edit them in the script instead.
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
