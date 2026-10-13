@@ -2248,6 +2248,27 @@ def count_params(net):
     return sum(p.numel() for p in unique_params)
 
 
+_p_mode_note_printed = False
+
+
+def _p_mode_note(perforated_backpropagation):
+    """Suffix for the mode-switch prints in open source mode.
+
+    The first call explains why p mode is not retained; later calls are short.
+    Empty when perforated_backpropagation is on.
+    """
+    global _p_mode_note_printed
+    if perforated_backpropagation:
+        return ""
+    if _p_mode_note_printed:
+        return " (no p mode in open source)"
+    _p_mode_note_printed = True
+    return (
+        " (p mode is not retained: perforated_backpropagation is False, "
+        "which requires perforatedbp. This note prints once)"
+    )
+
+
 def change_learning_modes(net, folder, name, doing_pai):
     """Change between neuron and dendrite learning modes
 
@@ -2300,14 +2321,11 @@ def change_learning_modes(net, folder, name, doing_pai):
         the current best
         """
         if not GPA.pc.get_silent():
-            if GPA.pc.get_perforated_backpropagation():
-                print("Importing best Model for switch to PA...")
-            else:
-                print(
-                    "Importing best Model for switch to PA (p mode is not "
-                    "retained: perforated_backpropagation is False, which "
-                    "requires perforatedbp)..."
-                )
+            print(
+                "Importing best Model for switch to PA"
+                + _p_mode_note(GPA.pc.get_perforated_backpropagation())
+                + "..."
+            )
         net = load_system(net, folder, name, switch_call=True)
         GPA.pai_tracker.set_dendrite_training()
         GPA.pai_tracker.member_vars["overwritten_epochs"] = overwritten_epochs
@@ -2358,14 +2376,11 @@ def change_learning_modes(net, folder, name, doing_pai):
             net = change_learning_modes(net, folder, name, doing_pai)
     else:
         if not GPA.pc.get_silent():
-            if GPA.pc.get_perforated_backpropagation():
-                print("Switching back to N...")
-            else:
-                print(
-                    "Switching back to N (p mode is not retained: "
-                    "perforated_backpropagation is False, which requires "
-                    "perforatedbp)..."
-                )
+            print(
+                "Switching back to N"
+                + _p_mode_note(GPA.pc.get_perforated_backpropagation())
+                + "..."
+            )
         set_best = GPA.pai_tracker.member_vars["current_n_set_global_best"]
         GPA.pai_tracker.set_neuron_training()
         if len(GPA.pai_tracker.member_vars["p_switch_epochs"]) == 0:
