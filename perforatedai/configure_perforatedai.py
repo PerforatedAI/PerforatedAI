@@ -749,24 +749,15 @@ def set_module_name_mode(module_type_name, mode, entries=None):
 # Fused pairs
 # ---------------------------------------------------------------------------
 def get_fused_pair_map():
-    """Map each fused module id to its role and partner: id -> (role, partner_id)."""
+    """Map each fused module id to its role and partner: id -> (role, partner_id).
+
+    The role is "first" or "second", in data-flow order.
+    """
     fused = {}
-    for head_id, norm_id in GPA.pc.get_modules_to_fuse():
-        fused[head_id] = ("head", norm_id)
-        fused[norm_id] = ("norm", head_id)
+    for first_id, second_id in GPA.pc.get_modules_to_fuse():
+        fused[first_id] = ("first", second_id)
+        fused[second_id] = ("second", first_id)
     return fused
-
-
-def get_previous_sibling_entry(entry, entries):
-    """The module registered just before this one in the same parent, or None."""
-    parent_id = get_parent_module_id(entry["id"])
-    previous = None
-    for other in entries:
-        if other["id"] == entry["id"]:
-            return previous
-        if get_parent_module_id(other["id"]) == parent_id:
-            previous = other
-    return None
 
 
 def unfuse_pair(module_id, entries):
@@ -789,28 +780,29 @@ def unfuse_pair(module_id, entries):
     return f"un-fused {pair[0]} + {pair[1]}; both are now tracked"
 
 
-def fuse_with_previous(entry, entries, resolved):
-    """Fuse this module (the norm) with the module before it (the head).
+def make_fuse_checker(entries, resolved):
+    """Build the checks that decide which modules can be picked for a fused pair.
 
-    Returns a short message describing what happened or why nothing did.
+    Returns ``(start_problem, pick_problem)``. ``start_problem(entry)`` says why
+    a module cannot be the first pick, or None. ``pick_problem(pending, entry)``
+    says why ``entry`` cannot complete a pair with the pending module, or None.
+    The reasons are short messages shown in the status line.
     """
-    norm_id = entry["id"]
-    head = get_previous_sibling_entry(entry, entries)
-    if head is None:
-        return f"{norm_id} has no module before it in its parent to fuse with."
-    head_id = head["id"]
-    if any(e["is_replaced_root"] or e["in_replaced"] for e in (entry, head)):
-        return (
-            f"{norm_id} is inside a module that will be restructured — its id "
-            "won't exist at training time, so it can't be fused."
-        )
-    if not head["trainable"]:
-        return (
-            f"{head_id} is not trainable, so it can't be the head of a fused "
-            f"pair. Fuse {norm_id} with a trainable module before it."
+    positions = {entry["id"]: index for index, entry in enumerate(entries)}
+    module_counts = {}
+    for entry in entries:
+        module_counts[id(entry["module"])] = (
+            module_counts.get(id(entry["module"]), 0) + 1
         )
     fused = get_fused_pair_map()
-    for module_id in (head_id, norm_id):
+
+    def start_problem(entry):
+        module_id = entry["id"]
+        if entry["is_replaced_root"] or entry["in_replaced"]:
+            return (
+                f"{module_id} is inside a module that will be restructured — its "
+                "id won't exist at training time, so it can't be fused."
+            )
         if module_id in fused:
             return f"{module_id} is already fused with {fused[module_id][1]}."
         for other_id in fused:
@@ -818,32 +810,77 @@ def fuse_with_previous(entry, entries, resolved):
                 other_id + "."
             ):
                 return f"{module_id} overlaps {other_id}, which is already fused."
-    module_counts = {}
-    for e in entries:
-        module_counts[id(e["module"])] = module_counts.get(id(e["module"]), 0) + 1
-    for e in (head, entry):
-        if module_counts[id(e["module"])] > 1:
-            return f"{e['id']} is used in more than one place, so it can't be fused."
-    if id_python_owner(head_id) == "module_ids_to_track":
-        return python_owned_message(head_id, "module_ids_to_track")
-    if resolved[head_id]["source"] == "inherited":
+        if module_counts[id(entry["module"])] > 1:
+            return f"{module_id} is used in more than one place, so it can't be fused."
+        return None
+
+    def pick_problem(pending, entry):
+        problem = start_problem(entry)
+        if problem is not None:
+            return problem
+        pending_id, entry_id = pending["id"], entry["id"]
+        if pending_id == entry_id:
+            return f"{entry_id} is already the first pick."
+        if entry_id.startswith(pending_id + ".") or pending_id.startswith(
+            entry_id + "."
+        ):
+            return (
+                f"{entry_id} and {pending_id} contain one another, so they "
+                "can't be fused."
+            )
+        if not (pending["trainable"] or entry["trainable"]):
+            return (
+                f"Neither {pending_id} nor {entry_id} is trainable, so there is "
+                "nothing to perforate."
+            )
+        first, second = sorted((pending, entry), key=lambda e: positions[e["id"]])
+        if id_python_owner(first["id"]) == "module_ids_to_track":
+            return python_owned_message(first["id"], "module_ids_to_track")
+        if resolved[first["id"]]["source"] == "inherited":
+            return (
+                f"{first['id']} gets its mode from "
+                f"{resolved[first['id']]['origin_id']}; clear that first so the "
+                "pair can be perforated on its own."
+            )
+        return None
+
+    return start_problem, pick_problem
+
+
+def toggle_fuse(entry, entries, resolved, pending):
+    """The `f` key: pick the two modules of a pair, or un-fuse a fused module.
+
+    ``pending`` is the entry picked first, or None. Returns ``(message,
+    pending)``: a short status message and the pending entry afterwards.
+    """
+    start_problem, pick_problem = make_fuse_checker(entries, resolved)
+    if pending is None:
+        if entry["id"] in get_fused_pair_map():
+            return unfuse_pair(entry["id"], entries), None
+        problem = start_problem(entry)
+        if problem is not None:
+            return problem, None
         return (
-            f"{head_id} gets its mode from {resolved[head_id]['origin_id']}; "
-            "clear that first so the head can be perforated on its own."
+            f"fusing {entry['id']}: move to the other module and press f "
+            "(f on this module or Esc cancels)",
+            entry,
         )
+    if entry["id"] == pending["id"]:
+        return "fuse cancelled", None
+    problem = pick_problem(pending, entry)
+    if problem is not None:
+        return problem, pending
+    positions = {e["id"]: index for index, e in enumerate(entries)}
+    first, second = sorted((pending, entry), key=lambda e: positions[e["id"]])
     pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
-    pairs.append([head_id, norm_id])
+    pairs.append([first["id"], second["id"]])
     GPA.pc.set_modules_to_fuse(pairs)
-    if head_id not in GPA.pc.get_module_ids_to_perforate():
-        set_module_id_mode(head_id, "perforated")
-    return f"fused {head_id} (head) with {norm_id} (norm); head is perforated"
-
-
-def toggle_fuse(entry, entries, resolved):
-    """The `f` key: un-fuse a fused module, otherwise fuse it with the one before."""
-    if entry["id"] in get_fused_pair_map():
-        return unfuse_pair(entry["id"], entries)
-    return fuse_with_previous(entry, entries, resolved)
+    if first["id"] not in GPA.pc.get_module_ids_to_perforate():
+        set_module_id_mode(first["id"], "perforated")
+    return (
+        f"fused {first['id']} + {second['id']}; perforated through {first['id']}",
+        None,
+    )
 
 
 def set_all_types_to_tracking(entries):
@@ -974,7 +1011,7 @@ def unset_module_entries(entries, resolved):
             continue
         if entry["direct_param_count"] <= 0:
             continue
-        if fused.get(entry["id"], (None,))[0] == "norm":
+        if fused.get(entry["id"], (None,))[0] == "second":
             continue
         if resolved[entry["id"]]["eff"] is None:
             if not _would_auto_track_params(entry, entries, resolved):
@@ -998,12 +1035,12 @@ def build_budget_line(entries, resolved):
                 total_model_params += parameter.numel()
 
         fused_role = fused.get(entry["id"])
-        norm_of_perforated_head = (
+        second_of_perforated_first = (
             fused_role is not None
-            and fused_role[0] == "norm"
+            and fused_role[0] == "second"
             and resolved[fused_role[1]]["eff"] == "perforated"
         )
-        if norm_of_perforated_head or (
+        if second_of_perforated_first or (
             resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]
         ):
             for _name, parameter in entry["module"].named_parameters(recurse=False):
@@ -1449,7 +1486,7 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     mode = record["eff"]
-    if get_fused_pair_map().get(entry["id"], (None,))[0] == "norm":
+    if get_fused_pair_map().get(entry["id"], (None,))[0] == "second":
         return dim("└─") + "   ", "└─   "
     if not entry["trainable"] and (mode == "perforated" or entry["tree_param_count"] > 0):
         # Ineligible for perforation; takes precedence over a stale perforate mark.
@@ -1479,11 +1516,15 @@ def make_block(mode):
     return color_text("██", get_color_hex_for_mode(mode))
 
 
-def render_targets_lines(entries, visible_entries, selected_index, resolved, is_expanded_fn):
+def render_targets_lines(
+    entries, visible_entries, selected_index, resolved, is_expanded_fn, fuse_pending=None
+):
     """Header + tree + footer for the Targets screen, as a list of lines.
 
     ``is_expanded_fn(entry) -> bool`` reports the current expand state of a
-    collapsible (``has_children``) entry.
+    collapsible (``has_children``) entry. ``fuse_pending`` is the entry picked
+    first for a fused pair, or None; while it is set, modules that cannot be
+    the second pick are dimmed.
     """
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
@@ -1510,7 +1551,22 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
     lines.append(status + " " * pad + hint)
     lines.append(HR)
 
+    pick_problem = (
+        make_fuse_checker(entries, resolved)[1] if fuse_pending is not None else None
+    )
+
     def entry_lines(entry, selected):
+        rendered = plain_entry_lines(entry, selected)
+        if fuse_pending is None or entry["id"] == fuse_pending["id"]:
+            return rendered
+        if pick_problem(fuse_pending, entry) is None:
+            return rendered
+        cursor = color_text("> ", "E8EEEC") if selected else "  "
+        dimmed = [dim(strip_ansi(line)) for line in rendered]
+        dimmed[0] = cursor + dim(strip_ansi(rendered[0])[2:])
+        return dimmed
+
+    def plain_entry_lines(entry, selected):
         cursor = color_text("> ", "E8EEEC") if selected else "  "
         indent = "  " * entry["depth"]
         record = resolved[entry["id"]]
@@ -1567,10 +1623,12 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
                 tail = color_text("needs a mode", COLOR_ATTENTION)
 
         fuse_role = fused_map.get(entry["id"])
-        if fuse_role is not None and fuse_role[0] == "norm":
+        if fuse_role is not None and fuse_role[0] == "second":
             tail = color_text(f"fused into {fuse_role[1]}", COLOR_ACCENT)
         elif fuse_role is not None:
             tail += "  " + color_text(f"fused with {fuse_role[1]}", COLOR_ACCENT)
+        if fuse_pending is not None and entry["id"] == fuse_pending["id"]:
+            tail = color_text("fusing — press f on the other module", COLOR_ACCENT)
 
         _direct = entry["direct_param_count"]
         _child = entry["tree_param_count"] - entry["direct_param_count"]
@@ -1613,11 +1671,19 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, is_
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
-            "f fuse·unfuse with previous   e edit block   "
+            "f fuse two modules·unfuse   e edit block   "
             "A track all   ←/→ collapse·expand   0-9 collapse depth   "
             "h legend   ↑↓/jk move   s start"
         ),
     ]
+    if fuse_pending is not None:
+        footer.append(
+            color_text(
+                f"  fusing {fuse_pending['id']}: f on the other module completes "
+                "the pair · f on this one or Esc cancels",
+                COLOR_ACCENT,
+            )
+        )
     return lines, body_lines, footer, focus
 
 
@@ -1942,8 +2008,9 @@ def render_help_overlay():
         "   p / t     perforate / track this module",
         "   P / T     perforate / track every module of this type",
         "   x         clear this module (falls back to its type rule)",
-        "   f         fuse this module (the norm) with the one before it (the head),",
-        "             or un-fuse it if it is already part of a fused pair",
+        "   f         fuse two modules: press f on one, move, press f on the other",
+        "             (ordered by network position; Esc cancels), or un-fuse a",
+        "             module that is already part of a fused pair",
         "   e         edit a block: set a rule for the same path in every instance",
         "             (on a module set by a block rule, p/t/x offer to edit the block)",
         "   → / ←     expand / collapse a module that will be restructured (↯)",
@@ -1992,12 +2059,14 @@ def render_legend_overlay():
         f"   ▤ {perf}     set by a block rule — the same path in every instance of a block",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
-        "   └─        fused norm: runs inside the head before it, needs no mode",
+        "   └─        second module of a fused pair: runs inside the first, needs no mode",
         "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
         "             can be tracked but not perforated",
         f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
-        "   fused     a head and the norm after it are perforated as one block;",
-        "             the head is perforated, the norm just runs inside it",
+        "   fused     two adjacent modules are perforated as one unit;",
+        "             the first is perforated, the second just runs inside it",
+        "   fusing    first pick of a fused pair; other modules that can't be the",
+        "             second pick are dimmed",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
         "   (none)    structural container with no parameters of its own",
@@ -2184,6 +2253,7 @@ def set_perforation_targets(model):
         overlay = None
         status_message = ""
 
+        fuse_pending = None
         target_selected_index = 0
         target_window_start = 0
         target_depth_baseline = None
@@ -2364,7 +2434,12 @@ def set_perforation_targets(model):
                 if target_selected_index >= len(vis):
                     target_selected_index = max(0, len(vis) - 1)
                 header, body, footer, focus = render_targets_lines(
-                    entries, vis, target_selected_index, resolved, is_target_expanded
+                    entries,
+                    vis,
+                    target_selected_index,
+                    resolved,
+                    is_target_expanded,
+                    fuse_pending,
                 )
                 if overlay == "typerules":
                     header = header + [""] + render_type_rules_overlay(entries) + [""]
@@ -2603,6 +2678,14 @@ def set_perforation_targets(model):
                 entry = vis[target_selected_index]
                 record = resolved[entry["id"]]
 
+                if fuse_pending is not None:
+                    if key == "\x1b":
+                        fuse_pending = None
+                        status_message = "fuse cancelled"
+                        continue
+                    if key in ("p", "t", "x", "P", "T", "e", "A") or is_enter_key(key):
+                        fuse_pending = None
+
                 if is_page_up_key(key):
                     target_selected_index = _move(target_selected_index, -10, len(vis))
                 elif is_page_down_key(key):
@@ -2684,7 +2767,9 @@ def set_perforation_targets(model):
                             entry["type_name"], "perforated" if key == "P" else "tracked", entries
                         )
                 elif key == "f":
-                    status_message = toggle_fuse(entry, entries, resolved)
+                    status_message, fuse_pending = toggle_fuse(
+                        entry, entries, resolved, fuse_pending
+                    )
                 elif key == "x":
                     status_message = clear_module_mode(entry)
                 elif key == "A":

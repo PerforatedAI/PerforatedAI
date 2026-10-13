@@ -19,17 +19,20 @@ _Avoid_: "manual" (the CLI is also a manual edit)
 A module that is not trainable. It cannot be selected for perforation in the config CLI. Tracking is unaffected.
 
 **Fused pair**:
-A **head** and the **norm** that immediately follows it, treated as a single unit when dendrites are added so the data is normalized while dendrites train. The user's model code does not change; the pair behaves exactly as it did before.
-_Avoid_: "wrapped" (reserved for a module that has been given dendrites), "sequential" (a container, not the concept)
+Two modules adjacent in data flow, `[first, second]`, treated as a single unit when dendrites are added, so for example the data is normalized while dendrites train. The user's model code does not change; the pair behaves exactly as it did before. The pair is perforated as one unit, through the **first** module's id.
+_Avoid_: "wrapped" (reserved for a module that has been given dendrites), "sequential" (a container, not the concept), "head" and "norm" (the pair has no roles; either module may be the norm)
 
-**Head**:
-The first module of a **fused pair**. It must be a **trainable module**.
+**First**:
+The module of a **fused pair** that runs first. The pair's `PAISequential` takes its place in the model.
 
-**Norm**:
-The second module of a **fused pair**, the one whose input is exactly the head's output. Usually a normalization layer, but any module may be a norm.
+**Second**:
+The module of a **fused pair** that runs second, whose input is exactly the first's output. It is replaced by a **stand-in**. It may be in a different parent than the first, such as a linear that ends one block and a norm that begins the next.
+
+**Stand-in**:
+The identity module left where the second module used to be. On the first training forward it checks that its input is the first module's output.
 
 **Fuse**:
-To turn a head and a norm into a **fused pair**.
+To turn two adjacent modules into a **fused pair**. In the config CLI the user presses `f` on each module; the pair is ordered by position in the network, not by pick order.
 
 **Block**:
 A module type that has submodules and occurs more than once in the model, such as a ResNet `BasicBlock` or a transformer layer. Identified by class name, like a type rule.

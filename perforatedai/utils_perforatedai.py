@@ -14,6 +14,7 @@ import warnings
 from collections import defaultdict
 
 from perforatedai import globals_perforatedai as GPA
+from perforatedai import library_perforatedai as LPA
 from perforatedai import modules_perforatedai as PA
 from perforatedai import tracker_perforatedai as TPA
 from perforatedai import clean_perforatedai as CL
@@ -177,19 +178,21 @@ def _split_module_id(module_id):
 
 
 def fuse_modules(model, pairs):
-    """Fuse each head with the norm that follows it.
+    """Fuse each pair of adjacent modules into one unit.
 
-    For every (head_id, norm_id) the head's attribute becomes a PAISequential
-    holding the head and the norm, and the norm's attribute becomes a
-    FusedNormIdentity. The model's forward() does not need to change. Must be
-    called before convert_network, and before load_system.
+    For every (first_id, second_id), in data-flow order, the first module's
+    attribute becomes a PAISequential holding both modules, and the second
+    module's attribute becomes a FusedNormIdentity. The model's forward() does
+    not need to change. Must be called before convert_network, and before
+    load_system.
 
     Parameters
     ----------
     model : nn.Module
         The model to modify in place.
     pairs : list of (str, str)
-        Module ids (like '.block.linear') of each head and its norm.
+        Module ids (like '.block.linear') of each pair, first module to run
+        first. The two may be in different parents.
 
     Returns
     -------
@@ -205,16 +208,17 @@ def fuse_modules(model, pairs):
         occurrences[id(module)] = occurrences.get(id(module), 0) + 1
 
     seen_ids = []
-    for head_id, norm_id in pairs:
-        for role, module_id in (("head", head_id), ("norm", norm_id)):
+    for first_id, second_id in pairs:
+        for role, module_id in (("first", first_id), ("second", second_id)):
+            if module_id.lstrip(".") == "":
+                raise ValueError("Cannot fuse the whole model.")
             try:
                 module = model.get_submodule(module_id.lstrip("."))
             except AttributeError:
                 raise ValueError(
-                    "Cannot fuse: %s %s does not exist in the model." % (role, module_id)
+                    "Cannot fuse: %s module %s does not exist in the model."
+                    % (role, module_id)
                 )
-            if module_id.lstrip(".") == "":
-                raise ValueError("Cannot fuse the whole model.")
             if module_id in seen_ids:
                 raise ValueError(
                     "Cannot fuse: %s is in more than one fused pair." % module_id
@@ -225,40 +229,45 @@ def fuse_modules(model, pairs):
                     "Cannot fuse: %s is used in more than one place in the model."
                     % module_id
                 )
-        head = model.get_submodule(head_id.lstrip("."))
-        if not any(param.requires_grad for param in head.parameters()):
+        first = model.get_submodule(first_id.lstrip("."))
+        second = model.get_submodule(second_id.lstrip("."))
+        if not any(
+            param.requires_grad
+            for module in (first, second)
+            for param in module.parameters()
+        ):
             raise ValueError(
-                "Cannot fuse: head %s is not trainable. Only trainable modules "
-                "can be the head of a fused pair." % head_id
+                "Cannot fuse %s with %s: neither is trainable, so there is "
+                "nothing to perforate." % (first_id, second_id)
             )
-    for first in seen_ids:
-        for second in seen_ids:
-            if first != second and second.startswith(first + "."):
+    for outer in seen_ids:
+        for inner in seen_ids:
+            if outer != inner and inner.startswith(outer + "."):
                 raise ValueError(
                     "Cannot fuse: %s is inside %s, which is also fused."
-                    % (second, first)
+                    % (inner, outer)
                 )
 
-    for head_id, norm_id in pairs:
-        head = model.get_submodule(head_id.lstrip("."))
-        norm = model.get_submodule(norm_id.lstrip("."))
-        head_parent, head_attr = _split_module_id(head_id)
-        norm_parent, norm_attr = _split_module_id(norm_id)
-        model.get_submodule(head_parent)._modules[head_attr] = GPA.PAISequential(
-            [head, norm]
+    for first_id, second_id in pairs:
+        first = model.get_submodule(first_id.lstrip("."))
+        second = model.get_submodule(second_id.lstrip("."))
+        first_parent, first_attr = _split_module_id(first_id)
+        second_parent, second_attr = _split_module_id(second_id)
+        model.get_submodule(first_parent)._modules[first_attr] = GPA.PAISequential(
+            [first, second]
         )
-        model.get_submodule(norm_parent)._modules[norm_attr] = GPA.FusedNormIdentity(
-            head_id, norm_id
+        model.get_submodule(second_parent)._modules[second_attr] = (
+            LPA.FusedNormIdentity(first_id, second_id)
         )
     return model
 
 
 def install_fuse_checks(model, pairs):
-    """Make each fused norm stand-in verify its input on the first forward.
+    """Make each stand-in verify its input on the first forward.
 
-    Must be called after convert_network, because by then the head's attribute
-    holds a PAINeuronModule whose output (not the raw PAISequential's) is what
-    the stand-in receives.
+    Must be called after convert_network, because by then the first module's
+    attribute holds a PAINeuronModule whose output (not the raw PAISequential's)
+    is what the stand-in receives.
 
     Parameters
     ----------
@@ -267,21 +276,21 @@ def install_fuse_checks(model, pairs):
     pairs : list of (str, str)
         The same pairs passed to fuse_modules.
     """
-    for head_id, norm_id in pairs:
-        head = model.get_submodule(head_id.lstrip("."))
-        stand_in = model.get_submodule(norm_id.lstrip("."))
-        head.register_forward_hook(
-            lambda _module, _inputs, output, stand_in=stand_in: stand_in.record_head_output(
+    for first_id, second_id in pairs:
+        first = model.get_submodule(first_id.lstrip("."))
+        stand_in = model.get_submodule(second_id.lstrip("."))
+        first.register_forward_hook(
+            lambda _module, _inputs, output, stand_in=stand_in: stand_in.record_first_output(
                 output
             )
         )
 
 
 def apply_fused_pairs(model):
-    """Fuse the configured pairs and mark each head for perforation.
+    """Fuse the configured pairs and mark each pair for perforation.
 
-    Reads modules_to_fuse from the config. A head that is also set to be
-    tracked is rejected, since fusing exists to perforate it.
+    Reads modules_to_fuse from the config. A pair whose first module is also
+    set to be tracked is rejected, since fusing exists to perforate it.
 
     Parameters
     ----------
@@ -291,23 +300,24 @@ def apply_fused_pairs(model):
     Returns
     -------
     list
-        The pairs that were fused, as [head_id, norm_id] lists.
+        The pairs that were fused, as [first_id, second_id] lists.
     """
     pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
     if not pairs:
         return []
     tracked = set(GPA.pc.get_module_ids_to_track())
-    for head_id, norm_id in pairs:
-        if head_id in tracked:
+    for first_id, second_id in pairs:
+        if first_id in tracked:
             raise ValueError(
                 "Cannot fuse %s with %s: %s is set to be tracked. Remove it "
-                "from the tracked modules or un-fuse the pair." % (head_id, norm_id, head_id)
+                "from the tracked modules or un-fuse the pair."
+                % (first_id, second_id, first_id)
             )
     fuse_modules(model, pairs)
     perforated = list(GPA.pc.get_module_ids_to_perforate())
-    for head_id, _norm_id in pairs:
-        if head_id not in perforated:
-            perforated.append(head_id)
+    for first_id, _second_id in pairs:
+        if first_id not in perforated:
+            perforated.append(first_id)
     GPA.pc.set_module_ids_to_perforate(perforated)
     return pairs
 

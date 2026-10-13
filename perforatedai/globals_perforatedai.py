@@ -53,16 +53,20 @@ _SELECTION_CONFLICT_PAIRS = (
 
 
 def _normalize_fuse_pairs(value):
-    """Return fused pairs as a list of [head_id, norm_id] lists, validated."""
+    """Return fused pairs as a list of [first_id, second_id] lists, validated."""
     pairs = []
     for pair in value:
         if not isinstance(pair, (list, tuple)) or len(pair) != 2:
             raise ValueError(
-                "modules_to_fuse entries must be (head_id, norm_id) pairs, got %r"
+                "modules_to_fuse entries must be (first_id, second_id) pairs, got %r"
                 % (pair,)
             )
         for module_id in pair:
             _validate_module_id(module_id)
+        if pair[0] == pair[1]:
+            raise ValueError(
+                "modules_to_fuse cannot fuse a module with itself, got %r" % (pair,)
+            )
         pairs.append([pair[0], pair[1]])
     return pairs
 
@@ -515,7 +519,8 @@ class PAIConfig:
     module_ids_to_perforate : list
         Specific module IDs to convert to PAI modules for perforation.
     modules_to_fuse : list
-        Pairs of [head_id, norm_id] module ids to fuse into one block.
+        Pairs of [first_id, second_id] module ids, in data-flow order, to fuse
+        into one unit that is perforated together.
     block_rules : list
         {"block", "path", "mode"} entries applied inside every instance of a
         block class (a module type with children that occurs more than once).
@@ -1045,8 +1050,9 @@ class PAIConfig:
                 self, "module_ids_to_track", self.module_ids_to_track, list_type=True
             )
 
-            # Pairs of [head_id, norm_id] to fuse so the norm is trained with the
-            # head it follows; applied by fuse_modules before conversion
+            # Pairs of [first_id, second_id] of adjacent modules, in data-flow
+            # order, fused into one unit so they are perforated together;
+            # applied by fuse_modules before conversion
             self.modules_to_fuse = []
             add_pai_config_var_functions(
                 self, "modules_to_fuse", self.modules_to_fuse, list_type=True
@@ -1690,55 +1696,6 @@ class PAISequential(nn.Sequential):
             Output from the final layer in the sequence.
         """
         return self.model(*args, **kwargs)
-
-
-class FusedNormIdentity(nn.Module):
-    """Stand-in left where a norm used to be after it is fused into its head.
-
-    The norm now runs inside the head's PAISequential, so this module just
-    returns its input and the user's forward() can stay exactly as written.
-    On the first training forward it checks that its input is the head's
-    output; if the user's forward does anything between the head and the norm,
-    fusing would silently change the result, so it raises instead.
-
-    Parameters
-    ----------
-    head_id : str
-        Module id of the head, used in the error message.
-    norm_id : str
-        Module id of the original norm, used in the error message.
-    """
-
-    def __init__(self, head_id, norm_id):
-        super(FusedNormIdentity, self).__init__()
-        self.head_id = head_id
-        self.norm_id = norm_id
-        # Plain dict so the head output is not registered as a submodule.
-        self._check = {"head_output": None, "done": False}
-
-    def record_head_output(self, output):
-        """Remember the head's output so forward can compare against it."""
-        if not self._check["done"]:
-            self._check["head_output"] = output
-
-    def forward(self, x):
-        if not self._check["done"]:
-            if x is not self._check["head_output"]:
-                raise RuntimeError(
-                    "Cannot fuse %s with %s: the input to %s is not the output "
-                    "of %s. Something in forward() runs between them, so fusing "
-                    "would change the result. Remove this pair from the fused "
-                    "modules."
-                    % (
-                        self.head_id,
-                        self.norm_id,
-                        self.norm_id,
-                        self.head_id,
-                    )
-                )
-            self._check["done"] = True
-            self._check["head_output"] = None
-        return x
 
 
 ### Global objects and variables

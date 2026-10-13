@@ -843,3 +843,48 @@ class ResNetPAIPreFC(nn.Module):
             Output tensor from the network.
         """
         return self._forward_impl(x)
+
+
+class FusedNormIdentity(nn.Module):
+    """Stand-in left where the second module of a fused pair used to be.
+
+    The second module now runs inside the first module's PAISequential, so
+    this module just returns its input and the user's forward() can stay
+    exactly as written. On the first training forward it checks that its input
+    is the first module's output; if the user's forward does anything between
+    the two, fusing would silently change the result, so it raises instead.
+
+    Parameters
+    ----------
+    first_id : str
+        Module id of the first module, used in the error message.
+    second_id : str
+        Module id of the second module, used in the error message.
+    """
+
+    def __init__(self, first_id, second_id):
+        super(FusedNormIdentity, self).__init__()
+        self.first_id = first_id
+        self.second_id = second_id
+        # Plain dict so the first module's output is not registered as a submodule.
+        self._check = {"first_output": None, "done": False}
+
+    def record_first_output(self, output):
+        """Remember the first module's output so forward can compare against it."""
+        if not self._check["done"]:
+            self._check["first_output"] = output
+
+    def forward(self, x):
+        if not self._check["done"]:
+            if x is not self._check["first_output"]:
+                raise RuntimeError(
+                    "Cannot fuse %s with %s: the input to %s is not the output "
+                    "of %s. Something in forward() runs between them, or they "
+                    "run in the other order, so fusing would change the result. "
+                    "List the module that runs first before the other, or remove this pair "
+                    "from the fused modules."
+                    % (self.first_id, self.second_id, self.second_id, self.first_id)
+                )
+            self._check["done"] = True
+            self._check["first_output"] = None
+        return x
