@@ -2300,7 +2300,14 @@ def change_learning_modes(net, folder, name, doing_pai):
         the current best
         """
         if not GPA.pc.get_silent():
-            print("Importing best Model for switch to PA...")
+            if GPA.pc.get_perforated_backpropagation():
+                print("Importing best Model for switch to PA...")
+            else:
+                print(
+                    "Importing best Model for switch to PA (p mode is not "
+                    "retained: perforated_backpropagation is False, which "
+                    "requires perforatedbp)..."
+                )
         net = load_system(net, folder, name, switch_call=True)
         GPA.pai_tracker.set_dendrite_training()
         GPA.pai_tracker.member_vars["overwritten_epochs"] = overwritten_epochs
@@ -2351,7 +2358,14 @@ def change_learning_modes(net, folder, name, doing_pai):
             net = change_learning_modes(net, folder, name, doing_pai)
     else:
         if not GPA.pc.get_silent():
-            print("Switching back to N...")
+            if GPA.pc.get_perforated_backpropagation():
+                print("Switching back to N...")
+            else:
+                print(
+                    "Switching back to N (p mode is not retained: "
+                    "perforated_backpropagation is False, which requires "
+                    "perforatedbp)..."
+                )
         set_best = GPA.pai_tracker.member_vars["current_n_set_global_best"]
         GPA.pai_tracker.set_neuron_training()
         if len(GPA.pai_tracker.member_vars["p_switch_epochs"]) == 0:
