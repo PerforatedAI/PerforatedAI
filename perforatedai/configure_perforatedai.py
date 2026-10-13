@@ -812,6 +812,12 @@ def make_fuse_checker(entries, resolved):
                 return f"{module_id} overlaps {other_id}, which is already fused."
         if module_counts[id(entry["module"])] > 1:
             return f"{module_id} is used in more than one place, so it can't be fused."
+        if resolved[module_id]["source"] == "inherited":
+            return (
+                f"{module_id} gets its mode from "
+                f"{resolved[module_id]['origin_id']}; clear that first so it can "
+                "be fused on its own."
+            )
         return None
 
     def pick_problem(pending, entry):
@@ -835,12 +841,9 @@ def make_fuse_checker(entries, resolved):
             )
         first, second = sorted((pending, entry), key=lambda e: positions[e["id"]])
         if id_python_owner(first["id"]) == "module_ids_to_track":
-            return python_owned_message(first["id"], "module_ids_to_track")
-        if resolved[first["id"]]["source"] == "inherited":
             return (
-                f"{first['id']} gets its mode from "
-                f"{resolved[first['id']]['origin_id']}; clear that first so the "
-                "pair can be perforated on its own."
+                f"Can't fuse {first['id']} + {second['id']}: "
+                + python_owned_message(first["id"], "module_ids_to_track")
             )
         return None
 
