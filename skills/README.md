@@ -9,7 +9,7 @@ They teach your AI coding agent how to integrate [PerforatedAI](https://github.c
 | Skill                                                                                   | Say / when it triggers                                                                                         |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **[perforatedai](perforatedai/SKILL.md)**                                               | `"Perforate my model"` to start setup, `"Debug my perforated model"` to debug, `"Load my perforated model for inference"` to deploy, or `"Export my perforated model"` for ONNX/TFLite/TorchScript. The main entry point - start here. |
-| **[perforatedai-demo](perforatedai-demo/SKILL.md)**                                     | `"Run the perforatedai demo"` for a one-line trial: adds a single dendrite with `perforate_model(demo_mode=True)`. |
+| **[perforatedai-pilot](perforatedai-pilot/SKILL.md)**                                   | `"Run a perforatedai pilot"` for a simple comparison of your model as it stands against the same model with one dendrite, using `perforate_model(demo_mode=True)`. No other tuning. |
 | **[perforatedai-analyze](perforatedai-analyze/SKILL.md)**                               | `"Analyze my perforated results"` after training completes. Reviews CSV outputs and recommends config changes. |
 | **[perforatedai-distributed](perforatedai-distributed/SKILL.md)**                       | Auto-loaded by the main skill when DataParallel / DDP multi-GPU training is detected.                          |
 | **[perforatedai-libraries-transformers](perforatedai-libraries-transformers/SKILL.md)** | Auto-loaded when your script uses the HuggingFace `Trainer`.                                                   |
@@ -17,7 +17,7 @@ They teach your AI coding agent how to integrate [PerforatedAI](https://github.c
 | **[perforatedai-complex-methods](perforatedai-complex-methods/SKILL.md)**               | Edge cases such as AMP / `GradScaler` crashes in p mode.                                                       |
 | **[perforatedai-plot](perforatedai-plot/SKILL.md)**                                     | `"Make the PAI graph"` to draw score vs parameters from a sweep CSV, PAI run folders, or numbers.              |
 
-You normally only invoke **perforatedai**; it pulls in the others as needed.
+You normally only invoke **perforatedai**; it pulls in the others as needed. For a pilot or evaluation, invoke **perforatedai-pilot** instead: it only measures your current model with and without a dendrite and leaves everything else alone.
 
 ## Prerequisite
 
