@@ -1651,10 +1651,53 @@ def set_perforation_targets(model):
 
     Two screens (Tab to switch): Targets (the module tree) and Run settings.
     See the `?` overlay for the full key reference.
+
+    Under torch.distributed only rank 0 runs the TUI.  The other ranks wait for
+    it, then load the config rank 0 saved, or stop as well if rank 0 exited or
+    failed instead of confirming.
     """
+    import datetime
+    import torch.distributed as dist
+
+    if not (dist.is_available() and dist.is_initialized()):
+        _set_perforation_targets_interactive(model)
+        return
+
+    # A gloo group so waiting on a human doesn't hit the NCCL timeout or need a GPU
+    group = (
+        dist.new_group(backend="gloo", timeout=datetime.timedelta(days=1))
+        if dist.is_gloo_available()
+        else None
+    )
+    # [outcome, exit code]: outcome is "confirmed", "exit" or "error"
+    status = ["error", 1]
+    try:
+        if dist.get_rank() == 0:
+            try:
+                _set_perforation_targets_interactive(model)
+                status = ["confirmed", 0]
+            except SystemExit as e:
+                status = ["exit", e.code]
+                raise
+            finally:
+                dist.broadcast_object_list(status, src=0, group=group)
+            return
+        dist.broadcast_object_list(status, src=0, group=group)
+    finally:
+        if group is not None:
+            dist.destroy_process_group(group)
+
+    if status[0] == "exit":
+        sys.exit(status[1])
+    if status[0] != "confirmed":
+        raise RuntimeError("Rank 0 failed during perforation configuration; see its error above.")
+    # Load the configuration rank 0 saved
+    GPA.pc.sync_config_sources()
+    GPA.pc.set_configuration_confirmed(True)
+
+
+def _set_perforation_targets_interactive(model):
     require_interactive_session()
-    previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
-    GPA.pc.__dict__["_auto_persist_config"] = False
     entered_alt_screen = False
     quit_requested = False
 
@@ -2069,7 +2112,6 @@ def set_perforation_targets(model):
     finally:
         if entered_alt_screen:
             exit_alternate_screen()
-        GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist
 
     if quit_requested:
         print("Configuration cancelled — training did not start.")

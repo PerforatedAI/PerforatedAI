@@ -7,7 +7,7 @@ Single GPU default command (scaled from the original 8-GPU recipe):
 python train_perforated_mobilenetv3.py \
   --model mobilenet_v3_small --epochs 600 --opt rmsprop --batch-size 128 --lr 0.008 \
   --wd 0.00001 --lr-step-size 2 --lr-gamma 0.973 --auto-augment imagenet --random-erase 0.2 \
-  --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
+  --full-dataset --data-path /path/to/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
   --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
@@ -929,7 +929,9 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+        )
         model_without_ddp = model.module
 
     model_ema = None
@@ -1072,10 +1074,8 @@ def main(args):
             print("Performing checkpoint averaging with PAI's checkpoint system...")
             print("="*60 + "\n")
             
-            # Average the top 3 checkpoints and load into model
-            model_without_ddp = checkpoint_tracker.average_and_load(model_without_ddp, device)
-            if args.distributed:
-                model.module = model_without_ddp
+            # Average the top 3 checkpoints into the restructured model (re-wrapped below)
+            model = checkpoint_tracker.average_and_load(model, device)
             
             # Log to wandb
             if run is not None:
@@ -1091,9 +1091,15 @@ def main(args):
 
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
+            # add_validation_score returns the unwrapped model after a restructure
             model.to(device)
+            model_without_ddp = model
+            if args.distributed:
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+                )
             optimizer, lr_scheduler = create_optimizer_and_scheduler(
-                model, args, custom_keys_weight_decay, epoch=epoch
+                model_without_ddp, args, custom_keys_weight_decay, epoch=epoch
             )
 
         if model_ema:

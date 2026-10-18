@@ -33,16 +33,16 @@ This means you set your input dimensions but it wasn't the proper -1s and a sing
 
 ## Input Dimensions
 
-    'pbValueTracker' object has no attribute 'out_channels'
+    'DendriteValueTracker' object has no attribute 'out_channels'
 
-Look at section 3 from customization.  This explains how to set input dimensions.
+Look at section 4 from customization.  This explains how to set input dimensions.
 
 ## Broadcast Shape
 
-    Values[0].normalPassAverageD += (val.sum(mathTuple) * 0.01) / fullMult
+    values.normal_pass_average_d.copy_(
     RuntimeError: output with shape [X] doesn't match the broadcast shape [Y]
     
-If you get this error it means input dimensions were not properly set.  Run again with pdb and when this error comes up print Values[0].layerName to see which layer the problem is with.  You can also print the shape of val to see what the dimensions are supposed to be.  This should be caught automatically so In our experience when this happens it means you have a layer that can accept tensors which have multiple dimensionalities without having problems.  This is not accounted for with our software currently so just wrap that layer in a module as required so you don't need to do that. 
+If you get this error it means input dimensions were not properly set.  Run again with pdb and when this error comes up print values.layer_name to see which layer the problem is with.  You can also print the shape of val to see what the dimensions are supposed to be.  This should be caught automatically so In our experience when this happens it means you have a layer that can accept tensors which have multiple dimensionalities without having problems.  This is not accounted for with our software currently so just wrap that layer in a module as required so you don't need to do that. 
 
 ## Errors in Forward
 These usually mean the processors were not set up correctly. Look at 1.2 from customization.
@@ -51,47 +51,28 @@ These usually mean the processors were not set up correctly. Look at 1.2 from cu
 
 This specifically is saying that you are returning a tuple of tensors rather than a single tensor.  Your processor needs to tell you how to handle this so the Dendrite only collaborates on one tensor with the neuron.
 
-Make sure that you put the GPA.pc.get_modules_with_processing() setup before the call to convertNetwork
+Make sure that you put the GPA.pc.get_modules_with_processing() setup before the call to perforate_model
 
 ## Exponential Moving Average (EMA)
 
 If you have any problems with EMA it is because EMA keeps a shadow copy of the model you are working with.  This has to be created after perforate_model has been called.  Also it must be reinitialized after each time restructured returns true.
 
-## Errors in filterBackward
-There are a couple errors that can happen in the filterBackward function
+## Errors in filter_backward
+There are a couple errors that can happen in the filter_backward function
 
     AttributeError: 'NoneType' object has no attribute 'detach'
 
 This also usually means the processors were not set up correctly. Look at 1.2 from customization. This means you are not using the tensor that is being passed to the dendrites.  For example if you are using the default LSTM processor but using hidden_state rather than output from "output, (hidden_state, cell_state)"
 
-    AttributeError: 'pbValueTracker' object has no attribute 'normalPassAverageD'
+    AttributeError: 'DendriteValueTracker' object has no attribute 'normal_pass_average_d'
 
-This means that the pbValueTracker was not properly initialized.  This can happen for two reasons. The first is if you are running on multiple GPUs.  With a single GPU pbValueTracker are setup automatically but when running on multiple GPUs this has to be setup by hand using the saveTrackerSettings and initializeTrackerSettings functions.  Look at the DataParallel section from the customization readme.
-
-The other reason this can happen is if you initialize a Dendrite layer, but then you don't actually use it.  I.e, it is not being called in the forward and backwards pass of the network.  In these cases look into your forward functions and try to track down why the layer is not properly being used. This same effect can take place if you try to add a set of dendrites before performing any training, with our system you should not run initial validation epochs before starting training, or if you do, make sure to not add Dendrites during those cycles.
+This means that the DendriteValueTracker was not properly initialized.  Trackers are set up automatically on the first backward pass, so this usually happens if you initialize a Dendrite layer, but then you don't actually use it.  I.e, it is not being called in the forward and backwards pass of the network.  In these cases look into your forward functions and try to track down why the layer is not properly being used. This same effect can take place if you try to add a set of dendrites before performing any training, with our system you should not run initial validation epochs before starting training, or if you do, make sure to not add Dendrites during those cycles.
 
 ## DDP Gradient Errors
 
     RuntimeError: Encountered gradient which is undefined, but still allreduced by DDP reducer.
 
-This error occurs when using DistributedDataParallel (DDP) with PerforatedAI. It happens because PerforatedAI's selective training (Cascade Correlation) means some parameters don't receive gradients during backward(), but DDP expects all parameters to have gradients for allreduce.
-
-**Fix:** Pre-initialize all parameter gradients to zeros AFTER `optimizer.zero_grad()` and BEFORE `loss.backward()`:
-
-```python
-optimizer.zero_grad()
-
-# Pre-initialize gradients for DDP compatibility
-if args.distributed:
-    for param in model.parameters():
-        if param.requires_grad and param.grad is None:
-            param.grad = torch.zeros_like(param)
-
-loss.backward()
-optimizer.step()
-```
-
-This ensures DDP's allreduce doesn't encounter None gradients while still allowing PerforatedAI's selective training to work correctly.
+PerforatedAI's selective training means some parameters (for example dendrite candidates, which learn from a separate loss) don't receive gradients from the main backward().  PerforatedAI handles these parameters under DDP itself.  If this error appears, check that the model is wrapped with `find_unused_parameters=True` (and `broadcast_buffers=False`, the tested configuration), and that the optimizer is registered with `GPA.pai_tracker.setup_optimizer(...)` or `GPA.pai_tracker.set_optimizer_instance(optimizer)`, including after every restructure.  That registration installs the optimizer hooks that prepare candidate gradients for DDP.
     
 ## dype Errors
 
@@ -134,12 +115,12 @@ We have also seen this happen if gradient checkpointing is enabled.  Please turn
 
 ## Attribute Error:
     
-    AttributeError: 'PAINeuronLayer' object has no attribute 'SOMEVARIABLE'
+    AttributeError: 'PAINeuronModule' object has no attribute 'some_variable'
 
-This is the error you will get if you need to access an attribute of a module that is now wrapped as a PAINeuronLayer.  All you have to do in this case is the following change.
+This is the error you will get if you need to access an attribute of a module that is now wrapped as a PAINeuronModule.  All you have to do in this case is the following change.
 
-    #model.yourModule.SOMEVARIABLE
-    model.yourModule.mainModule.SOMEVARIABLE
+    #model.your_module.some_variable
+    model.your_module.main_module.some_variable
     
 This is done automatically for most variables.  But for special varialbes and functions that start with a _ python does not do it for you.  In these cases if the above is not easily accessible because it is in the backend of a library you are working with, you can also do the following after perforate_model
 
@@ -155,13 +136,13 @@ This means the pai_tracker was not initialized.  This generally only happens if 
 
     TypeError: stat: path should be string, bytes, os.PathLike or integer, not NoneType
     
-This means you entered None for the saveName, likely args.saveName did not have a default value.
+This means you entered None for the save_name, likely args.save_name did not have a default value.
 
-## setupOptimizer Error
+## setup_optimizer Error
     
     TypeError: 'list' object is not callable
     
-If you get this error in setupOptimizer it means you called setupOptimizer but you did not call setOptimizer.  Be sure to call that first.
+If you get this error in setup_optimizer it means you called setup_optimizer but you did not call set_optimizer.  Be sure to call that first.
 
 ## Learning_Rate Error
 
@@ -187,7 +168,7 @@ If running on XLA, this can also be caused if the model is perforated before mov
 
 ## Unpacking a Non-Existing Scheduler
 
-        optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optimArgs, None)
+        optimizer, _ = GPA.pai_tracker.setup_optimizer(model, optim_args, None)
             ^^^^^^^^^^^^
         TypeError: cannot unpack non-iterable _____ object
 
@@ -203,7 +184,7 @@ This can come up for some schedulers when the loop actually goes longer than the
 
     # Use fixed-epoch switch mode: add dendrites every 80 epochs
     GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-    GPA.pc.set_fixed_switch_num(original count)
+    GPA.pc.set_n_fixed_switch_num(original count)
     GPA.pc.set_first_fixed_switch_num(original count)
 
 
@@ -219,18 +200,18 @@ If you get this error it means your neurons are not correctly matched in setoutp
     File "perforatedai/pb_layer.py" ... perforatedai.pb_layer.pb_neuron_layer.__init__
     IndexError: list index out of range
     
-This means you did something wrong with the processing classes.  We have seen this before when moduleNamesWithProcessing and moduleByNameProcessingClasses don't line up.  Remember they need to be added in order in both arrays, and if the module is "by name" the processor also has to be added to the "by name" array.
+This means you did something wrong with the processing classes.  We have seen this before when module_names_with_processing and module_by_name_processing_classes don't line up.  Remember they need to be added in order in both arrays, and if the module is "by name" the processor also has to be added to the "by name" array.
 
-## Index Out of Range in saveGraphs
+## Index Out of Range in save_graphs
 
-    perforatedai.pb_neuron_layer_tracker.pb_neuron_layer_tracker.saveGraphs
+    perforatedai.tracker_perforatedai.PAINeuronModuleTracker.save_graphs
     IndexError: list index out of range
 
 This error likely means that you added the validation score before the test score.  Test scores must be added before the validation score since graphs are generated when the validation score is added and the tracker must have access to the test scores at that time.
 
     [rank0]: IndexError: list index out of range
 
-Similarly if you are getting the same error, especially within a DDP system, it can be cause when a switch has just happened but 'latest' is loaded instead of switch_x.  'latest' currently has a bug where it does not have correct records for that single epoch.
+Similarly, when manually resuming a run after a crash, this can be caused by loading 'latest' right after a switch instead of switch_x.  'latest' currently has a bug where it does not have correct records for that single epoch.  Restructures during a normal DDP run don't load 'latest', so this only applies to manual resumes.
 
 ## Things not Getting Converted
 The conversion script runs by going through all member variables and determining all member variables that inherit from nn.Module.  If you have any lists or non nn.Module variables that then have nn.Modules in them it will miss them.  If you have a list just put that list into a nn.ModuleList and it will then find everything.  If you do this, make sure you replace the original variable name because that is what will be used. If you use the "add_module" function this is a sign you might cause this sort of problem.  Do not currently have a workaround for non-module objects that contain module objects, just let us know if that is a situation you are in and there is a reason the top object can't also be a module.
@@ -312,10 +293,10 @@ If you are running with a docker container and you were not using docker before 
 
 ## Optimizer Initialization Error
 
-    -optimizer = self.member_vars['optimizer'](**optArgs)
+    -optimizer = self.member_vars["optimizer"](**opt_args)
     -TypeError: __init__() got an unexpected keyword argument 'momentum'
 
-This can happen if you are using more than one optimizer in your program.  If you are, be sure to call GPA.pai_tracker.setOptimizer() again when you switch to the second optimizer and also call it as the first line in the if(restructured) block for adding validation scores.
+This can happen if you are using more than one optimizer in your program.  If you are, be sure to call GPA.pai_tracker.set_optimizer() again when you switch to the second optimizer and also call it as the first line in the if(restructured) block for adding validation scores.
 
 
 ## Debugging Docker Installation
@@ -330,7 +311,7 @@ This can happen if you are using more than one optimizer in your program.  If yo
 
     RuntimeError: Serialization of parametrized modules is only supported through state_dict()
 
-If this is happening it means you have a parameterized module.  You can track down what it is by running in pdb and then calling torch.save on each module of your model recursively until you get to the smallest module which flags the error.  Whatever that one is will have to be changed so you can call torch.save.  We have seen this happen before in a model that used to work because of an updated version of pytorch so downgrading to a pre 2.0 torch version may fix it.  Using safeTensors should resolve this as this error only seems to come up when using_safe_tensors is equal to False.
+If this is happening it means you have a parameterized module.  You can track down what it is by running in pdb and then calling torch.save on each module of your model recursively until you get to the smallest module which flags the error.  Whatever that one is will have to be changed so you can call torch.save.  We have seen this happen before in a model that used to work because of an updated version of pytorch so downgrading to a pre 2.0 torch version may fix it.  Using safetensors should resolve this as this error only seems to come up when using_safe_tensors is equal to False.
 
 ### Pickle Errors
 PAI saves the entire system rather than just your model.  If you run into issues with saving such as 
@@ -409,11 +390,11 @@ In some cases this is done intentionally with weight tying. Which is not just a 
 
 ### Other loading Errors
 
-    KeyError: 'moduleName.mainModule.numCycles'
+    KeyError: 'module_name.num_cycles'
 
 This error can be caused by a few different reasons:
-1 - Calling intializePB before loadPAIModel.  This function should be called on a baseline model not a PAIModel.
-2 - Your model definition or modules_to_perforate and moduleNamesToConvert lists are different between your training script and your inference script.
+1 - Calling perforate_model before load_pai_model.  load_pai_model should be called on a baseline model, not a perforated one.
+2 - Your model definition or modules_to_perforate and module_names_to_perforate lists are different between your training script and your inference script.
 
 
     Getting a warning with moudles not tracked or wrapped with main_module in the list
