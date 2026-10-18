@@ -407,9 +407,12 @@ class PAINeuronModule(nn.Module):
         self.activation_function_value = -1
         self.type = "neuron_module"
 
+        # On the wrapped layer's device: DDP's forward_sync_buffers broadcasts every
+        # buffer when wrapping, and NCCL can't send CPU tensors
+        device = next((p.device for p in self.main_module.parameters()), None)
         self.register_buffer(
             "this_output_dimensions",
-            (torch.tensor(self.module_config.get_output_dimensions())),
+            (torch.tensor(self.module_config.get_output_dimensions(), device=device)),
         )
         if (self.this_output_dimensions == 0).sum() != 1:
             print(f"5 Need exactly one 0 in the input dimensions: {self.name}")
@@ -417,7 +420,7 @@ class PAINeuronModule(nn.Module):
             sys.exit(-1)
         self.register_buffer(
             "this_node_index",
-            torch.tensor(self.module_config.get_output_dimensions().index(0)),
+            torch.tensor(self.module_config.get_output_dimensions().index(0), device=device),
         )
         self.dendrite_modules_added = 0
 
@@ -441,7 +444,7 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Linear)
             )
         ) and (
-            np.array(self.this_output_dimensions)[2:] == -1
+            self.this_output_dimensions[2:] == -1
         ).all():  # Everything past 2 is a negative 1
             self.set_this_output_dimensions(self.this_output_dimensions[0:2])
         if (
@@ -451,7 +454,7 @@ class PAINeuronModule(nn.Module):
                 and issubclass(type(start_module.model[0]), nn.Conv1d)
             )
         ) and (
-            np.array(self.this_output_dimensions)[3:] == -1
+            self.this_output_dimensions[3:] == -1
         ).all():  # Everything past 2 is a negative 1
             self.set_this_output_dimensions(self.this_output_dimensions[0:3])
         # Apply per-module output_dimensions override from config if present
@@ -626,9 +629,10 @@ class PAINeuronModule(nn.Module):
         """
         if type(new_output_dimensions) is list:
             new_output_dimensions = torch.tensor(new_output_dimensions)
+        device = self.this_output_dimensions.device
         delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_output_dimensions", new_output_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone().to(device)
         )
         if (new_output_dimensions == 0).sum() != 1:
             print(f"6 need exactly one 0 in the input dimensions: {self.name}")
@@ -1167,14 +1171,16 @@ class PAIDendriteModule(nn.Module):
         self.name = name
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
         self.parent_module = UPA.deep_copy_pai(initial_module)
+        self.parent_module.requires_grad_(False)
         if GPA.pc.get_perforated_backpropagation():
             MPB.set_ignored_parameters(self.parent_module)
         # Setup the input dimensions and node index for combining dendrite outputs
         if GPA.pc.get_perforated_backpropagation():
             MPB.create_extra_tensors(self)
+        device = next((p.device for p in initial_module.parameters()), None)
         if output_dimensions == []:
             self.register_buffer(
-                "this_output_dimensions", torch.tensor(GPA.pc.get_output_dimensions())
+                "this_output_dimensions", torch.tensor(GPA.pc.get_output_dimensions(), device=device)
             )
         else:
             self.register_buffer(
@@ -1185,7 +1191,7 @@ class PAIDendriteModule(nn.Module):
             print(self.this_output_dimensions)
             sys.exit(-1)
         self.register_buffer(
-            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0))
+            "this_node_index", torch.tensor(GPA.pc.get_output_dimensions().index(0), device=device)
         )
 
         # Initialize dendrite to dendrite connections
@@ -1299,9 +1305,10 @@ class PAIDendriteModule(nn.Module):
 
         if type(new_output_dimensions) is list:
             new_output_dimensions = torch.tensor(new_output_dimensions)
+        device = self.this_output_dimensions.device
         delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_output_dimensions", new_output_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone().to(device)
         )
         if (new_output_dimensions == 0).sum() != 1:
             print(f"2 Need exactly one 0 in the input dimensions: {self.name}")
@@ -1339,9 +1346,12 @@ class PAIDendriteModule(nn.Module):
             for i in range(0, GPA.pc.get_global_candidates()):
 
                 new_module = self.create_dendrite(self.parent_module)
+                new_module.requires_grad_(True)
                 init_params(new_module, neuron_main_module)
                 self.candidate_module.append(new_module)
-                self.best_candidate_module.append(self.create_dendrite(new_module))
+                best = self.create_dendrite(new_module)
+                best.requires_grad_(False)
+                self.best_candidate_module.append(best)
                 if type(self.parent_module) in GPA.pc.get_modules_with_processing():
                     module_index = GPA.pc.get_modules_with_processing().index(
                         type(self.parent_module)
@@ -1480,6 +1490,12 @@ class PAIDendriteModule(nn.Module):
                     UPA.deep_copy_pai(self.best_candidate_module[plane_max_index])
                 )
                 self.layers[self.num_dendrites].to(GPA.pc.get_device())
+                # Set explicitly: best_candidate_module's requires_grad differs between a live
+                # switch (deepcopy of a trainable candidate) and a checkpoint reload (frozen).
+                self.layers[self.num_dendrites].requires_grad_(
+                    (not GPA.pc.get_perforated_backpropagation())
+                    or GPA.pc.get_dendrite_update_mode()
+                )
                 if self.num_dendrites > 0:
                     self.dendrites_to_dendrites[self.num_dendrites].copy_(
                         self.best_dendrites_to_candidates_saved[plane_max_index]
@@ -1713,9 +1729,10 @@ class DendriteValueTracker(nn.Module):
         """
         if type(new_output_dimensions) is list:
             new_output_dimensions = torch.tensor(new_output_dimensions)
+        device = self.this_output_dimensions.device
         delattr(self, "this_output_dimensions")
         self.register_buffer(
-            "this_output_dimensions", new_output_dimensions.detach().clone()
+            "this_output_dimensions", new_output_dimensions.detach().clone().to(device)
         )
         if (new_output_dimensions == 0).sum() != 1:
             print(f"4 need exactly one 0 in the input dimensions: {self.layer_name}")

@@ -635,7 +635,6 @@ class PAIConfig:
         self.__dict__["_config_file"] = None
         self.__dict__["_manually_set_keys"] = set()
         self.__dict__["_loading_config_values"] = False
-        self.__dict__["_auto_persist_config"] = True
         # None = global config; any string = per-module config
         self.__dict__["_module_name"] = module_name
         # Short class name of the wrapped module (e.g. 'Conv2d'), used as
@@ -1160,7 +1159,6 @@ class PAIConfig:
                 "_module_type",
                 "_manually_set_keys",
                 "_loading_config_values",
-                "_auto_persist_config",
             ):
                 continue
             clean_key = key[1:]
@@ -1217,13 +1215,28 @@ class PAIConfig:
 
         # Ensure the directory exists before saving
         import os
+        import tempfile
 
         directory = os.path.dirname(filename)
         if directory:
             os.makedirs(directory, exist_ok=True)
 
-        with open(filename, "w") as f:
+        # Atomic write: never leave the file truncated (DDP ranks may read concurrently).
+        fd, tmp_path = tempfile.mkstemp(dir=directory or ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
                 json.dump(config_dict, f, indent=2)
+            # mkstemp creates the file owner-only; match what a plain open() would give
+            umask = os.umask(0)
+            os.umask(umask)
+            os.chmod(tmp_path, 0o666 & ~umask)
+            os.replace(tmp_path, filename)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
         print(f"[PAI Config] Saved {len(config_dict)} variables \u2192 {filename}")
 
     def load_config(self, filename, module_name=None, module_type=None, skip_keys=None):

@@ -246,9 +246,9 @@ not when `num_dendrites_added` increases (since added dendrites may not be succe
             max_params = 0
         
         # Reinitialize optimizer after restructuring
-        optimArgs = {"params": model.parameters(), "lr": lr, 
+        optim_args = {"params": model.parameters(), "lr": lr, 
                      "momentum": 0.9, "weight_decay": weight_decay}
-        optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+        optimizer = GPA.pai_tracker.setup_optimizer(model, optim_args)
     
     # When training completes
     if training_complete:

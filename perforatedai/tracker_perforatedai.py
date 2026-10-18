@@ -6,7 +6,6 @@ import os
 import shutil
 import sys
 import time
-import glob
 from datetime import datetime
 from pydoc import locate
 
@@ -56,6 +55,80 @@ TRAINING_COMPLETE = 2
 # Status constant for each batch
 STEP_CLEARED = 0
 STEP_CALLED = 1
+
+# Checkpoint rank 0 writes after a DDP restructure for every rank to load
+DDP_RESTRUCTURE_SYNC_LABEL = "ddp_restructure_sync"
+
+
+def _ddp_broadcast_optimizer_and_scheduler():
+    """Copy rank 0's optimizer hyperparameters and scheduler state to every rank.
+
+    Only rank 0 runs add_validation_score_internal, which is where the PAI
+    scheduler is stepped, so without this the other ranks keep a stale LR.
+    """
+    optimizer = GPA.pai_tracker.member_vars.get("optimizer_instance")
+    scheduler = GPA.pai_tracker.member_vars.get("scheduler_instance")
+    rank = torch.distributed.get_rank()
+    payload = [None, None]
+    if rank == 0:
+        if hasattr(optimizer, "param_groups"):
+            payload[0] = [
+                {key: value for key, value in group.items() if key != "params"}
+                for group in optimizer.param_groups
+            ]
+        if hasattr(scheduler, "state_dict"):
+            payload[1] = scheduler.state_dict()
+    torch.distributed.broadcast_object_list(payload, src=0)
+    if rank == 0:
+        return
+    if payload[0] is not None and hasattr(optimizer, "param_groups"):
+        for group, settings in zip(optimizer.param_groups, payload[0]):
+            for key, value in settings.items():
+                # Tensor hyperparameters (e.g. capturable lr) unpickle on rank 0's device
+                if isinstance(group.get(key), torch.Tensor) and isinstance(value, torch.Tensor):
+                    group[key].copy_(value)
+                else:
+                    group[key] = value
+    if payload[1] is not None and hasattr(scheduler, "load_state_dict"):
+        scheduler.load_state_dict(payload[1])
+
+
+def _ddp_check_ranks_in_sync(net, device):
+    """Raise on every rank if the model parameters differ between DDP ranks.
+
+    DDP keeps every rank's parameters identical, so a mismatch means training ran
+    without DDP synchronizing gradients, most often because the model was not
+    wrapped in DDP again after a restructure.  Buffers are skipped (BatchNorm
+    statistics legitimately differ with broadcast_buffers=False), and so is
+    best_candidate_module, which only rank 0 updates.
+    """
+    named = [(n, p) for n, p in net.named_parameters() if "best_candidate_module" not in n]
+    world_size = torch.distributed.get_world_size()
+    count = torch.tensor([len(named)], dtype=torch.long, device=device)
+    counts = [torch.zeros_like(count) for _ in range(world_size)]
+    torch.distributed.all_gather(counts, count)
+    if len({int(c.item()) for c in counts}) != 1:
+        raise RuntimeError(
+            "PerforatedAI: DDP ranks have different model architectures "
+            f"(parameter counts per rank: {[int(c.item()) for c in counts]})."
+        )
+    if not named:
+        return
+    with torch.no_grad():
+        sums = torch.stack([p.detach().sum(dtype=torch.float64) for _, p in named]).to(device)
+    gathered = [torch.zeros_like(sums) for _ in range(world_size)]
+    torch.distributed.all_gather(gathered, sums)
+    for rank in range(1, world_size):
+        mismatch = ~torch.isclose(gathered[rank], gathered[0], rtol=1e-5, atol=1e-6, equal_nan=True)
+        if mismatch.any():
+            name = named[int(mismatch.nonzero()[0])][0]
+            raise RuntimeError(
+                f"PerforatedAI: model parameters differ between DDP rank 0 and rank {rank} "
+                f"(first mismatch: {name}). Training ran without DDP keeping the ranks in sync. "
+                "The usual cause is not wrapping the model in DistributedDataParallel again after "
+                "a restructure: add_validation_score returns the unwrapped model when restructured "
+                "is True, so wrap it in DDP (with the same arguments) before training continues."
+            )
 
 # Shared palette for save_graphs PNGs so the local graphs read as the same
 # product as the dashboard charts. White background is kept intentionally -
@@ -192,11 +265,13 @@ def check_input_problems(net, accuracy):
 
     """
 
-    # Make sure you are passing in the model and not the dataparallel wrapper
     if issubclass(type(net), nn.DataParallel):
-        _pai_log("error", "Need to call .module when using add validation score")
-        pdb.set_trace()
-        sys.exit(-1)
+        raise TypeError(
+            "PerforatedAI does not support torch.nn.DataParallel; use "
+            "torch.nn.parallel.DistributedDataParallel instead. PyTorch itself recommends "
+            "DistributedDataParallel over DataParallel, even on a single machine: "
+            "https://docs.pytorch.org/docs/stable/generated/torch.nn.DataParallel.html"
+        )
 
     if "module" in net.__dir__():
         _pai_log("error", "Need to call .module when using add validation score")
@@ -1627,65 +1702,6 @@ class PAINeuronModuleTracker:
                 print(f"UNKNOWN TYPE: {self.member_var_types.get(var, 'NOT FOUND')}")
 
         print("\n=== END DEBUG ===")
-
-    def save_tracker_settings(self):
-        """Save tracker settings for DistributedDataParallel use.
-
-        Saves settings in save_name/array_dims.csv
-
-        Parameters
-        ----------
-        None
-        Returns
-        -------
-        None
-
-        -----
-        Instructions for use are in API customization.md
-        """
-        if not os.path.isdir(self.save_name):
-            os.makedirs(self.save_name)
-        f = open(self.save_name + "/array_dims.csv", "w")
-        for layer in self.neuron_module_vector:
-            dv = layer.dendrite_module.dendrite_values[0]
-            shape_str = ",".join(str(s) for s in dv.dendrite_storage_shape.tolist())
-            f.write(f"{layer.name},{shape_str}\n")
-        f.close()
-        if not GPA.pc.get_silent():
-            print("Tracker settings saved.")
-            print("You may now delete save_tracker_settings")
-
-    def initialize_tracker_settings(self):
-        """Initialize tracker settings from saved file.
-
-        This function loads tracker settings from a CSV file and applies them
-        to the layers the tracker is managing.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        channels = {}
-        if not os.path.exists(self.save_name + "/array_dims.csv"):
-            print(
-                "You must call save_tracker_settings before "
-                "initialize_tracker_settings"
-            )
-            print("Follow instructions in customization.md")
-            pdb.set_trace()
-        f = open(self.save_name + "/array_dims.csv", "r")
-        for line in f:
-            parts = line.strip().split(",")
-            channels[parts[0]] = [int(s) for s in parts[1:]]
-        for layer in self.neuron_module_vector:
-            dv = layer.dendrite_module.dendrite_values[0]
-            dv.setup_arrays(channels[layer.name])
 
     def set_optimizer_instance(self, optimizer_instance, additional_optimizers=[]):
         """Set optimizer instance directly.
@@ -3549,27 +3565,32 @@ class PAINeuronModuleTracker:
         net,
         force_switch=False,
         save_name=None,
-        find_unused_parameters=True,
     ):
         """DDP-aware wrapper around add_validation_score_internal.
-        Restructuring decisions in PerforatedAI are made by mutating a
-        single in-memory model object, which only ever happens on the rank
-        that calls add_validation_score_internal. Under DistributedDataParallel that
-        can only safely be rank 0 (calling it on every rank would let each
-        process make an independent, possibly divergent, decision). This
-        function does the rank-0-only evaluation, broadcasts the resulting
-        decision to every other rank, and -- if a restructure happened --
-        has the other ranks load the same switch_N.pt checkpoint rank 0 just
-        wrote so every rank ends up with an identical architecture, then
-        rebuilds the DistributedDataParallel wrapper on every rank. None of
-        that requires exiting or relaunching the process.
-        When torch.distributed is not initialized (single-GPU or
-        DataParallel), this just calls add_validation_score_internal directly, so the
-        same call site works unmodified across all three modes.
-        Callers are still responsible for rebuilding their optimizer (via
-        setup_optimizer) whenever `restructured` comes back True, exactly as
-        with the non-distributed path -- this function does not own
-        optimizer/scheduler state.
+
+        Restructuring decisions mutate a single in-memory model and tracker, so
+        under DistributedDataParallel only rank 0 calls
+        add_validation_score_internal; letting every rank decide independently
+        could diverge.  Rank 0 then broadcasts the restructured and
+        training_complete flags.  Before that, every rank checks that the
+        ranks still hold identical parameters and raises if not, which catches
+        a model that was not wrapped in DDP again after a restructure.
+
+        If nothing was restructured, rank 0's optimizer hyperparameters and
+        scheduler state are copied to every rank, since the PAI scheduler is
+        only stepped inside add_validation_score_internal.
+
+        If the model was restructured, rank 0 saves its exact post-call state
+        (model and tracker) as DDP_RESTRUCTURE_SYNC_LABEL and every rank,
+        including rank 0, loads it, so all ranks end up with an identical
+        architecture and tracker without relaunching the process.  As with the
+        single-GPU path, the caller must then re-wrap the model in DDP and
+        rebuild the optimizer and scheduler.
+
+        When torch.distributed is not initialized (single GPU), this just
+        calls add_validation_score_internal, so the same call site works in
+        both modes.
+
         Parameters
         ----------
         accuracy : float or int
@@ -3582,17 +3603,18 @@ class PAINeuronModuleTracker:
             Whether to force a switch, by default False. Only honored on
             rank 0.
         save_name : str, optional
-            Folder to read the restructured checkpoint from on non-zero
-            ranks. Defaults to GPA.pc.get_save_name().
-        find_unused_parameters : bool, optional
-            Passed through to the rebuilt DistributedDataParallel wrapper
-            after a restructure, by default True (required for
-            PerforatedAI's selective/dendrite training under DDP).
+            Folder the restructure sync checkpoint is written to and loaded
+            from. Defaults to GPA.pc.get_save_name().
+
         Returns
         -------
         net : nn.Module or nn.parallel.DistributedDataParallel
-            The (possibly restructured) network, wrapped in
-            DistributedDataParallel if and only if it was wrapped on input.
+            The (possibly restructured) network. When not restructured, it is
+            returned wrapped in DistributedDataParallel if and only if it was
+            wrapped on input. When restructured, the unwrapped inner model is
+            returned so the caller can re-wrap it with their own DDP kwargs;
+            the old wrapper's autograd hooks are removed first, because they
+            outlive the wrapper and would fire alongside the new wrapper's.
         restructured : bool
             Whether the model was restructured, agreed across all ranks.
         training_complete : bool
@@ -3608,11 +3630,17 @@ class PAINeuronModuleTracker:
         inner = net.module if is_ddp else net
         device = next(inner.parameters()).device
         save_name = save_name if save_name is not None else GPA.pc.get_save_name()
+        _ddp_check_ranks_in_sync(inner, device)
 
         if rank == 0:
             inner, restructured, training_complete = self.add_validation_score_internal(
                 accuracy, inner, force_switch=force_switch
             )
+            # Not every restructure path writes a switch_N.pt (LR search restarts,
+            # training complete), and switch_N.pt predates start_epoch and the
+            # post-switch tracker updates, so snapshot rank 0's exact final state.
+            if restructured:
+                UPA.save_system(inner, save_name, DDP_RESTRUCTURE_SYNC_LABEL)
         else:
             restructured, training_complete = False, False
 
@@ -3624,42 +3652,35 @@ class PAINeuronModuleTracker:
         training_complete = bool(flags[1].item())
 
         if not restructured:
+            _ddp_broadcast_optimizer_and_scheduler()
             inner = inner.to(device)
             if is_ddp:
                 net.module = inner
                 return net, restructured, training_complete
             return inner, restructured, training_complete
 
-        if rank != 0:
-            switch_files = glob.glob(os.path.join(save_name, "switch_*.pt"))
-            if not switch_files:
-                raise RuntimeError(
-                    f"Rank {rank} was told the model restructured, but no "
-                    f"switch_*.pt checkpoint was found in '{save_name}'. "
-                    "Rank 0 must be able to write to the same shared folder "
-                    "every other rank can read from."
-                )
-            switch_numbers = [
-                int(os.path.basename(f).split("switch_")[1].split(".pt")[0])
-                for f in switch_files
-                if os.path.basename(f).split("switch_")[1].split(".pt")[0].isdigit()
-            ]
-            inner = UPA.load_system(
-                inner, save_name, f"switch_{max(switch_numbers)}", True
-            )
-
-        # Every rank must have its model in its final restructured form
-        # before any rank starts constructing the new DDP wrapper.
+        # Barrier ensures rank 0 has finished writing the sync checkpoint before any rank reads it.
         torch.distributed.barrier()
-        inner = inner.to(device)
-        if is_ddp:
-            net = nn.parallel.DistributedDataParallel(
-                inner, find_unused_parameters=find_unused_parameters
-            )
-        else:
-            net = inner
 
-        return net, restructured, training_complete
+        # All ranks (including rank 0) load from the checkpoint so every rank has
+        # an identical architecture.  Rank 0's in-memory restructured model is
+        # intentionally discarded here — the checkpoint is the authoritative copy.
+        # switch_call=True: the snapshot was taken after start_epoch already ran.
+        inner = UPA.load_system(
+            inner, save_name, DDP_RESTRUCTURE_SYNC_LABEL, True, switch_call=True
+        )
+        inner = inner.to(device)
+        # Remove the old DDP reducer's C++ backward hooks from the parameters before
+        # returning. The reducer holds shared_ptrs inside AccumulateGrad hooks that
+        # survive Python GC — if we don't remove them explicitly, a new DDP wrapper
+        # created by the caller would register its own hooks on the same parameters,
+        # and both sets fire during the next backward, causing:
+        #   "Encountered gradient which is undefined, but still allreduced by DDP reducer"
+        if is_ddp:
+            net._remove_autograd_hooks()
+        # Return the unwrapped inner model when restructured so the caller can create
+        # a single DDP wrapper with their own device_ids / broadcast_buffers / etc.
+        return inner, restructured, training_complete
 
     def add_validation_score_internal(self, accuracy, net, force_switch=False):
         """Function to add the validation score.
@@ -3786,7 +3807,6 @@ class PAINeuronModuleTracker:
                         f'{GPA.pai_tracker.member_vars["num_dendrites_added"]},'
                         f'{GPA.pai_tracker.member_vars["num_dendrite_tries"]},'
                     )
-                import pdb; pdb.set_trace
                 # If the max number of dendrites has been hit, or not doing pai and cycle limit reached,
                 # then return rather than adding more
                 if (
@@ -3807,7 +3827,10 @@ class PAINeuronModuleTracker:
                     # Increment integrated if we have dendrites (means they're integrated)
                     if GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
                         GPA.pai_tracker.member_vars["num_dendrites_integrated"] += 1
-                        _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        if GPA.pai_tracker.member_vars["doing_pai"]:
+                            _pai_log("info", f"Final dendrites successfully integrated! Total integrated: {GPA.pai_tracker.member_vars['num_dendrites_integrated']}")
+                        else:
+                            _pai_log("info", "No dendrite run successfully complete.")
                         if _dashboard_emitter is not None:
                             _dashboard_emitter.emit_dendrite_added(
                                 GPA.pc,
