@@ -28,3 +28,15 @@ The path from one instance of a block down to a module inside it, such as `.conv
 **Block rule**:
 A mode (perforate or track) applied to a relative path inside every instance of a block. It outranks a type rule and is outranked by a mode set directly on that module by id.
 _Avoid_: "scoped rule", "template" (the instance shown while editing is only for display)
+**Fused pair**:
+A **head** and the **norm** that immediately follows it, treated as a single unit when dendrites are added so the data is normalized while dendrites train. The user's model code does not change; the pair behaves exactly as it did before.
+_Avoid_: "wrapped" (reserved for a module that has been given dendrites), "sequential" (a container, not the concept)
+
+**Head**:
+The first module of a **fused pair**. It must be a **trainable module**.
+
+**Norm**:
+The second module of a **fused pair**, the one whose input is exactly the head's output. Usually a normalization layer, but any module may be a norm.
+
+**Fuse**:
+To turn a head and a norm into a **fused pair**.

@@ -40,6 +40,7 @@ SELECTION_LIST_VARS = (
     "module_names_to_track",
     "parameter_ids_to_track",
     "block_rules",
+    "modules_to_fuse",
 )
 _CLASS_LIST_FEEDS = {
     "modules_to_perforate": "module_names_to_perforate",
@@ -85,6 +86,19 @@ def _normalize_block_rules(value):
             )
         rules[(block, path)] = {"block": block, "path": path, "mode": mode}
     return list(rules.values())
+def _normalize_fuse_pairs(value):
+    """Return fused pairs as a list of [head_id, norm_id] lists, validated."""
+    pairs = []
+    for pair in value:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError(
+                "modules_to_fuse entries must be (head_id, norm_id) pairs, got %r"
+                % (pair,)
+            )
+        for module_id in pair:
+            _validate_module_id(module_id)
+        pairs.append([pair[0], pair[1]])
+    return pairs
 
 
 def _record_python_supplied(obj, var_name, value, replace):
@@ -226,6 +240,8 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 _validate_module_id(module_id)
         if var_name == "block_rules":
             value = _normalize_block_rules(value)
+        if var_name == "modules_to_fuse":
+            value = _normalize_fuse_pairs(value)
         setattr(self, private_name, value)
         if isinstance(value, (list, tuple)):
             _record_python_supplied(self, var_name, value, replace=True)
@@ -268,6 +284,10 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             else:
                 setattr(self, private_name, getattr(self, private_name) + value)
                 _record_python_supplied(self, var_name, value, replace=False)
+            if var_name == "modules_to_fuse":
+                value = _normalize_fuse_pairs(value)
+            setattr(self, private_name, getattr(self, private_name) + value)
+            _record_python_supplied(self, var_name, value, replace=False)
             if not self.__dict__.get("_loading_config_values", False):
                 self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
@@ -497,6 +517,8 @@ class PAIConfig:
     block_rules : list
         {"block", "path", "mode"} entries applied inside every instance of a
         block class (a module type with children that occurs more than once).
+    modules_to_fuse : list
+        Pairs of [head_id, norm_id] module ids to fuse into one block.
     modules_to_track : list
         Module types to track but not convert.
     module_names_to_track : list
@@ -603,6 +625,7 @@ class PAIConfig:
                 "module_ids_to_track",
                 "parameter_ids_to_track",
                 "block_rules",
+                "modules_to_fuse",
                 "module_names_with_processing",
                 "module_names_to_not_save",
                 "library_extra_scores",
@@ -1029,6 +1052,12 @@ class PAIConfig:
             self.block_rules = []
             add_pai_config_var_functions(
                 self, "block_rules", self.block_rules, list_type=True
+            )
+            # Pairs of [head_id, norm_id] to fuse so the norm is trained with the
+            # head it follows; applied by fuse_modules before conversion
+            self.modules_to_fuse = []
+            add_pai_config_var_functions(
+                self, "modules_to_fuse", self.modules_to_fuse, list_type=True
             )
 
             # Parameter IDs to track as neuron parameters without recursive behavior
@@ -1560,6 +1589,14 @@ class PAIConfig:
                 ]
             merged = supplied + [v for v in current if v not in supplied]
             setattr(self, f"_{key}", merged)
+        sup_fuse = self.get_python_supplied("modules_to_fuse") or []
+        if sup_fuse:
+            sup_ids = {module_id for pair in sup_fuse for module_id in pair}
+            self._modules_to_fuse = [
+                pair
+                for pair in self._modules_to_fuse
+                if pair in sup_fuse or not (set(pair) & sup_ids)
+            ]
         for perforate_var, track_var in _SELECTION_CONFLICT_PAIRS:
             sup_p = self.get_python_supplied(perforate_var) or []
             sup_t = self.get_python_supplied(track_var) or []
@@ -1652,6 +1689,55 @@ class PAISequential(nn.Sequential):
             Output from the final layer in the sequence.
         """
         return self.model(*args, **kwargs)
+
+
+class FusedNormIdentity(nn.Module):
+    """Stand-in left where a norm used to be after it is fused into its head.
+
+    The norm now runs inside the head's PAISequential, so this module just
+    returns its input and the user's forward() can stay exactly as written.
+    On the first training forward it checks that its input is the head's
+    output; if the user's forward does anything between the head and the norm,
+    fusing would silently change the result, so it raises instead.
+
+    Parameters
+    ----------
+    head_id : str
+        Module id of the head, used in the error message.
+    norm_id : str
+        Module id of the original norm, used in the error message.
+    """
+
+    def __init__(self, head_id, norm_id):
+        super(FusedNormIdentity, self).__init__()
+        self.head_id = head_id
+        self.norm_id = norm_id
+        # Plain dict so the head output is not registered as a submodule.
+        self._check = {"head_output": None, "done": False}
+
+    def record_head_output(self, output):
+        """Remember the head's output so forward can compare against it."""
+        if not self._check["done"]:
+            self._check["head_output"] = output
+
+    def forward(self, x):
+        if not self._check["done"]:
+            if x is not self._check["head_output"]:
+                raise RuntimeError(
+                    "Cannot fuse %s with %s: the input to %s is not the output "
+                    "of %s. Something in forward() runs between them, so fusing "
+                    "would change the result. Remove this pair from the fused "
+                    "modules."
+                    % (
+                        self.head_id,
+                        self.norm_id,
+                        self.norm_id,
+                        self.head_id,
+                    )
+                )
+            self._check["done"] = True
+            self._check["head_output"] = None
+        return x
 
 
 ### Global objects and variables
