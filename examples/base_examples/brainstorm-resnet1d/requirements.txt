@@ -1,0 +1,7 @@
+perforatedai
+torch
+numpy
+pandas
+pyarrow
+scikit-learn
+huggingface-hub
