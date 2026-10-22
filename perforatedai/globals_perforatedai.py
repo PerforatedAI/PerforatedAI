@@ -258,6 +258,15 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             value = _normalize_block_rules(value)
         if var_name == "modules_to_fuse":
             value = _normalize_fuse_pairs(value)
+        if var_name == "perforated_backpropagation" and value:
+            try:
+                import perforatedbp  # noqa: F401
+            except ImportError:
+                raise ValueError(
+                    "perforated_backpropagation=True requires the 'perforatedbp' package, "
+                    "which is not installed. Install it separately or leave "
+                    "perforated_backpropagation=False (the default)."
+                )
         setattr(self, private_name, value)
         if isinstance(value, (list, tuple)):
             _record_python_supplied(self, var_name, value, replace=True)

@@ -1525,7 +1525,7 @@ def make_target_marker(entry, record, entries=None, resolved=None):
     fuse_role = get_fused_pair_map().get(entry["id"], (None,))[0]
     if fuse_role == "norm":
         return color_text("↑", COLOR_ACCENT) + "    ", "↑    "
-    if not entry["trainable"] and (mode == "perforated" or entry["tree_param_count"] > 0):
+    if not entry["trainable"] and record["source"] != "inherited" and (mode == "perforated" or entry["tree_param_count"] > 0):
         # Ineligible for perforation; takes precedence over a stale perforate mark.
         if mode != "tracked":
             return dim("∅") + "    ", "∅    "
@@ -1777,7 +1777,7 @@ def render_block_mode_lines(entries, visible_entries, selected_index, block, tem
         "",
         dim(
             "p/t perforate·track this path in every block   x remove the rule   "
-            "←/→ collapse·expand   ↑↓/jk move   Esc done"
+            "←/→ collapse·expand   ↑↓/jk move   e or Esc done"
         ),
     ]
     return lines, body_lines, footer, focus
@@ -2720,7 +2720,7 @@ def _set_perforation_targets_interactive(model):
                 block_name = block_mode["block"]
                 block_path = entry["id"][len(block_mode["template_id"]):]
 
-                if key == "\x1b":
+                if key in ("\x1b", "e"):
                     block_mode = None
                 elif is_page_up_key(key):
                     block_selected_index = _move(block_selected_index, -10, len(vis))
@@ -2735,7 +2735,7 @@ def _set_perforation_targets_interactive(model):
                         block_expanded_overrides[entry["id"]] = is_right_key(key)
                 elif key in ("p", "t", "x") and block_path == "":
                     status_message = (
-                        f"This is the {block_name} itself. Press Esc, then P/T "
+                        f"This is the {block_name} itself. Press e to leave, then P/T "
                         "to set a mode for the whole type."
                     )
                 elif key == "p" and not entry["trainable"]:
