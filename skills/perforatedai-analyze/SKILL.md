@@ -262,9 +262,9 @@ Based on `learning_rate.csv` and correlation with `scores.csv`:
 - Scores plateaued before dendrites could be fully optimized
 - **Recommend:** Increase scheduler patience or use slower decay
 - Examples:
-  - For ReduceLROnPlateau: `schedArgs = {'mode': 'max', 'patience': 10}` instead of 5
-  - For StepLR: `schedArgs = {'step_size': 10, 'gamma': 0.5}` instead of step_size=5
-  - For ExponentialLR: `schedArgs = {'gamma': 0.95}` instead of 0.9
+  - For ReduceLROnPlateau: `sched_args = {'mode': 'max', 'patience': 10}` instead of 5
+  - For StepLR: `sched_args = {'step_size': 10, 'gamma': 0.5}` instead of step_size=5
+  - For ExponentialLR: `sched_args = {'gamma': 0.95}` instead of 0.9
 
 **If learning rate stayed high too long:**
 - Training may have been unstable during dendrite additions

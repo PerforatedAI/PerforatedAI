@@ -484,7 +484,7 @@ Tell the user: "I searched your script for DataParallel/DDP usage and found: [NO
    - If NO: Skip the rest of this step and proceed to Step 6 (Setup Optimizer)
    - If YES: Continue with step 2 below
 
-2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]."
+2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]." If it is DataParallel, also tell them: "PerforatedAI doesn't support DataParallel; multi-GPU training needs DistributedDataParallel (DDP), which PyTorch also recommends over DataParallel, even on a single machine. The script has to be converted to DDP first." Convert it to DDP the standard PyTorch way if they want you to (or let them do it), then continue with step 3 once the script uses DDP.
 
 3. **IMMEDIATELY load the sibling skill perforatedai-distributed as your NEXT action** (it is installed alongside this one). If your agent cannot load it by name, read the entire file from:
    ```
@@ -506,7 +506,7 @@ Tell the user: "I searched your script for DataParallel/DDP usage and found: [NO
 
 ### Step 6: Setup Optimizer and Scheduler
 
-**⚠️ NOTE: If you handled DataParallel or DDP in Step 5, SKIP this step - the distributed skill already set up the optimizer. Only use this step for single-GPU setups.**
+**⚠️ NOTE: If you handled multi-GPU (DDP) in Step 5, SKIP this step - the distributed skill already set up the optimizer. Only use this step for single-GPU setups.**
 
 ---
 
@@ -529,9 +529,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
-schedArgs = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
+sched_args = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **Example 2 - User has Adadelta optimizer with StepLR scheduler:**
@@ -545,9 +545,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.Adadelta)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': args.lr}  # SAME args
-schedArgs = {'step_size': 1, 'gamma': args.gamma}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': args.lr}  # SAME args
+sched_args = {'step_size': 1, 'gamma': args.gamma}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **Example 3 - User has SGD optimizer with CosineAnnealingLR:**
@@ -561,9 +561,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.SGD)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4}  # SAME args
-schedArgs = {'T_max': 200}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4}  # SAME args
+sched_args = {'T_max': 200}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **MANDATORY RULES:**
@@ -571,7 +571,7 @@ optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedAr
 2. **DO NOT** change the scheduler type (keep StepLR/CosineAnnealingLR/ExponentialLR/etc. exactly as user had)
 3. **DO NOT** change optimizer arguments (preserve lr, weight_decay, momentum, betas, etc.)
 4. **DO NOT** change scheduler arguments (preserve step_size, gamma, T_max, patience, etc.)
-5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing schedArgs AND returning a scheduler from the function. If NOT using setup_optimizer with schedArgs, user must manage scheduler.step() themselves.
+5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing sched_args AND returning a scheduler from the function. If NOT using setup_optimizer with sched_args, user must manage scheduler.step() themselves.
 6. If user has NO scheduler, use `set_scheduler(None)` or omit the set_scheduler call
 
 **If their setup is complex (scattered across functions, custom classes, framework-managed, etc.):**
@@ -636,6 +636,8 @@ This prevents subtle divergence where the initial setup and restructured setup d
 
 Find their validation step in the training loop. You need to update it to use PAI's `add_validation_score` function.
 
+**Multi-GPU:** If you set up DDP in Step 5, use the `add_validation_score` block from the perforatedai-distributed skill instead of the patterns below (it re-wraps the model after a restructure), then continue with the training-loop changes further down this step.
+
 **Pattern 1 - If they used PAI optimizer setup (Step 6, first option):**
 
 Find where validation completes and they have a validation score. Add the PAI score tracking and restructuring logic.
@@ -659,15 +661,17 @@ if training_complete:
 
 elif restructured and not training_complete:
     # Model was restructured (dendrites added/incorporated)
-    # Reinitialize optimizer with EXACT SAME settings from Step 5
-    # Example: if Step 5 used Adadelta with StepLR:
-    optimArgs = {'params': model.parameters(), 'lr': args.lr}  # EXACT SAME as Step 5
-    schedArgs = {'step_size': 1, 'gamma': args.gamma}  # EXACT SAME as Step 5
-    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    # A DDP-wrapped model comes back unwrapped here: re-wrap it before
+    # rebuilding the optimizer (see the perforatedai-distributed skill)
+    # Reinitialize optimizer with EXACT SAME settings from Step 6
+    # Example: if Step 6 used Adadelta with StepLR:
+    optim_args = {'params': model.parameters(), 'lr': args.lr}  # EXACT SAME as Step 6
+    sched_args = {'step_size': 1, 'gamma': args.gamma}  # EXACT SAME as Step 6
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **🚨 CRITICAL:** 
-- Use the EXACT SAME optimArgs and schedArgs from Step 6
+- Use the EXACT SAME optim_args and sched_args from Step 6
 - If Step 6 used StepLR, use StepLR args here (step_size, gamma)
 - If Step 6 used CosineAnnealingLR, use those args here (T_max, etc.)
 - DO NOT change optimizer/scheduler types or arguments in the restructured block
@@ -691,6 +695,7 @@ if training_complete:
 
 elif restructured and not training_complete:
     # Model was restructured - reinitialize optimizer exactly as they had it
+    # (a DDP-wrapped model comes back unwrapped here: re-wrap it first)
     # Copy their ENTIRE original optimizer setup (including any complex initialization)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Their exact setup
     # If they had scheduler, recreate it too

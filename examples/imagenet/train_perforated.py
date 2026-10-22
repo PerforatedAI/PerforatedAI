@@ -1,11 +1,11 @@
 """
 usage:
-CUDA_VISIBLE_DEVICES=0 python -m pdb train_fast_perforatedai_from_config.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
+CUDA_VISIBLE_DEVICES=0 python train_perforated.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /path/to/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
 """
 
 
 """
-CUDA_VISIBLE_DEVICES=1 python -m pdb train_fast_perforatedai_from_config.py --model resnet50 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu --perforated-load-path resnet50_c0_wd0.0001_dmode1_20260128_174922
+CUDA_VISIBLE_DEVICES=1 python train_perforated.py --model resnet50 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /path/to/imagenet --convert-count 0 --dendrite-mode 1 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu --perforated-load-path <previous_run_folder>
 
 """
 
@@ -34,7 +34,7 @@ Test:  Acc@1 73.040 Acc@5 91.420
 Test:  Acc@1 61.660 Acc@5 85.200
 
 current command, maybe working?:
-CUDA_VISIBLE_DEVICES=0 python train_fast_perforatedai_from_config.py     --model resnet18     --batch-size 32     --lr 0.0125     --val-resize-size 256     --val-crop-size 224     --train-crop-size 224     --full-dataset     --data-path /home/rbrenner/Datasets/imagenet     --convert-count 0     --dendrite-mode 1     --improvement-threshold 0     --candidate-weight-init-mult 0.1     --pai-forward-function relu --perforated-load-path resnet18_c0_wd0.0001_dmode1_20260112_205006
+CUDA_VISIBLE_DEVICES=0 python train_perforated.py     --model resnet18     --batch-size 32     --lr 0.0125     --val-resize-size 256     --val-crop-size 224     --train-crop-size 224     --full-dataset     --data-path /path/to/imagenet     --convert-count 0     --dendrite-mode 1     --improvement-threshold 0     --candidate-weight-init-mult 0.1     --pai-forward-function relu --perforated-load-path <previous_run_folder>
 
 
 
@@ -637,8 +637,6 @@ def main(args):
     else:
         model = UPA.perforate_model(model, save_name=save_name_with_timestamp)
 
-    import pdb; pdb.set_trace()
-
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -660,7 +658,9 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+        )
         model_without_ddp = model.module
 
     model_ema = None
@@ -754,8 +754,14 @@ def main(args):
         
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
+            # add_validation_score returns the unwrapped model after a restructure
             model.to(device)
-            optimizer, lr_scheduler = create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=epoch)
+            model_without_ddp = model
+            if args.distributed:
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+                )
+            optimizer, lr_scheduler = create_optimizer_and_scheduler(model_without_ddp, args, custom_keys_weight_decay, epoch=epoch)
 
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")

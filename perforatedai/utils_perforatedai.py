@@ -1122,7 +1122,10 @@ def convert_network(net, layer_name=""):
 
                 pdb.set_trace()
                 print("confirmed")
-    net.register_buffer("tracker_string", torch.tensor([], dtype=torch.uint8))
+    net.register_buffer(
+        "tracker_string",
+        torch.tensor([], dtype=torch.uint8, device=next((p.device for p in net.parameters()), None)),
+    )
     return net
 
 

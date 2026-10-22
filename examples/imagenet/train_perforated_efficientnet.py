@@ -12,7 +12,7 @@ python train_perforated_efficientnet.py \
   --weight-decay 0.00002 --norm-weight-decay 0.0 \
   --train-crop-size 300 --val-crop-size 384 --val-resize-size 384 \
   --model-ema --ra-sampler --ra-reps 4 \
-  --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
+  --full-dataset --data-path /path/to/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
   --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
@@ -792,7 +792,9 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+        )
         model_without_ddp = model.module
 
     model_ema = None
@@ -913,9 +915,15 @@ def main(args):
 
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
+            # add_validation_score returns the unwrapped model after a restructure
             model.to(device)
+            model_without_ddp = model
+            if args.distributed:
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+                )
             optimizer, lr_scheduler = create_optimizer_and_scheduler(
-                model, args, custom_keys_weight_decay, epoch=epoch
+                model_without_ddp, args, custom_keys_weight_decay, epoch=epoch
             )
 
         if model_ema:

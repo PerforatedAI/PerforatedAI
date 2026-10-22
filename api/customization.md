@@ -11,7 +11,8 @@ The alternative switch mode is:
     
     GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH) # Switch on a fixed number of epochs rather than after improvement stops
 
-    GPA.pc.set_fixed_switch_num(10) # How many epochs to cause a switch
+    GPA.pc.set_n_fixed_switch_num(10) # How many neuron training epochs before switching to dendrite training
+    GPA.pc.set_p_fixed_switch_num(10) # How many dendrite training epochs before switching back (Perforated Backpropagation)
 
     # If you would like the first one to run longer since its your original training
     # you can set this value to be different
@@ -51,9 +52,9 @@ save_name is defaults to 'PAI' but if you run multiple experiments at once this 
     
 If there is no scheduler just leave it out of the call to setup_optimizer entirely. But as a warning, we have run some experiments where PAI does not work without a scheduler so if you choose to exclude one and PAI does not improve your system we would encourage you to include the ReduceLROnPlateau scheduler and try again.
     
-    optimizer = GPA.pai_tracker.setup_optimizer(model, optimArgs)
+    optimizer = GPA.pai_tracker.setup_optimizer(model, optim_args)
 
-NOTE: If you do not pass schedArgs to setup_optimizer or do not return a scheduler from it, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
+NOTE: If you do not pass sched_args to setup_optimizer or do not return a scheduler from it, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
     
 If your system is using a more complicated trainer where you can't just declare the optimizer outside of your system like this you are free to call the following instead of all of the above but it won't work quite as well.
 
@@ -61,7 +62,7 @@ If your system is using a more complicated trainer where you can't just declare 
 
 NOTE: If you use set_optimizer_instance, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
 
-If your system has multiple optimizers just pick one of them to use.  However, when you call addValidationScore you should also reinitialize the other optimizer if restructuring happens.
+If your system has multiple optimizers just pick one of them to use.  However, when you call add_validation_score you should also reinitialize the other optimizer if restructuring happens.
     
 If you are doing something separately with the scheduler or optimizer that is adjusting the learning rate based on epochs it is best if you can just define this internally in the scheduler rather than taking in epochs as a parameter to a function after the scheduler is initialized.
 
@@ -77,13 +78,13 @@ Network initialization is the most complicated part of this process that often r
 
 ### 2.1 - Setting Which Modules to Use for Dendrite Learning
 
-This is often the part that has some complexity.  If your network is all simple layers with linear or conv layers and nonlinearities, they will be converted automatically.  However, most networks have more complicated learning modules.  Performance is often better when these modules are grouped as a single PAI module as opposed to PAI-ifying each module within them.  To tell the system that it must convert modules add them with the following option.  It can be good to do some experimentation with what level of depth you want to block things off, i.e. many smaller modules or fewer large modules. They can be added with the function below before convertNetwork is called.
+This is often the part that has some complexity.  If your network is all simple layers with linear or conv layers and nonlinearities, they will be converted automatically.  However, most networks have more complicated learning modules.  Performance is often better when these modules are grouped as a single PAI module as opposed to PAI-ifying each module within them.  To tell the system that it must convert modules add them with the following option.  It can be good to do some experimentation with what level of depth you want to block things off, i.e. many smaller modules or fewer large modules. They can be added with the function below before perforate_model is called.
 
-    GPA.pc.append_module_names_to_perforate(['moduleName'])
+    GPA.pc.append_module_names_to_perforate(['YourModuleClass'])
 
-Using module_names_to_perforate does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now moduleType is the type and not a string.
+Using module_names_to_perforate does require all names to be unique and may not work properly if names have '.' in them or if there are multiple types with the same name, such as nn.Linear and lora.layer.Linear.  In these cases add the full type to a type based array isntead, now YourModuleClass is the class itself rather than a string.
 
-    GPA.pc.append_modules_to_perforate([moduleType])
+    GPA.pc.append_modules_to_perforate([YourModuleClass])
 
 Or the final option is to add specific modules by their path in the model.  This is for an example where you want to convert model.layer1[0].conv1
 
@@ -99,7 +100,7 @@ These selection lists (`module_ids_*`, `module_names_*`, `parameter_ids_to_track
 
 Along the same lines, all normalization layers should be contained in blocks.  This always improves performance so it is checked for in the initialization function.  If they are not in a module already, simply add them to a PBSequential with whatever is before them.  For example:
 
-    GPA.pc.PAISequential([normalLayer, normalizationLayer])
+    GPA.pc.PAISequential([normal_layer, normalization_layer])
     
 #### 2.1.1 - How to Tell Modules Which are not Tagged
 When you first call perforate_model the function will print a list of all parameters which have not been wrapped.  It is not required that all modules are wrapped, but any that are not wrapped will not benefit from dendritic optimization.  Wrapping everything usually generates the best results, but often the deeper layers of the network and encoding modules do not provide significant benefits.  These modules can be tracked instead of wrapped to not add dendrites.  The list will look like this:
@@ -188,16 +189,16 @@ This example is more generic, showing the intuition behind what is happening.
  
 #### A note about processors
 
-The clear_processor function is called each time the network is saved.  This includes automatic saves which happen during the addValidationScore stage or any calls to saveSystem.  It should not cause problems in the general case, but if you have reason to call these functions in the middle of training cycles where you don't want processors to be cleared problems could arise.
+The clear_processor function is called each time the network is saved.  This includes automatic saves which happen during the add_validation_score stage or any calls to save_system.  It should not cause problems in the general case, but if you have reason to call these functions in the middle of training cycles where you don't want processors to be cleared problems could arise.
         
 #### 3 Multiple Module Systems
 Some deep learning involves components which are not single pytorch Modules.  An example might be a GAN system where the discriminator and generator are separate.  If this is the case they still must be converted together.  This can be worked around simply by creating a class such as the following:
 
     class Pair(nn.Module):
-    def __init__(self, netG, netD):
+    def __init__(self, net_g, net_d):
         super(Pair, self).__init__()
-        self.netG = netG
-        self.netD = netD
+        self.net_g = net_g
+        self.net_d = net_d
         
 Once it is created simply create one of those objects and run as follows
 
@@ -209,9 +210,9 @@ Once it is created simply create one of those objects and run as follows
     model1 = model.net1
     model2 = model.net2
 
-Important note, if you do the above things, make sure to also add the same steps and adjustments to the addValidationScore section.
+Important note, if you do the above things, make sure to also add the same steps and adjustments to the add_validation_score section.
 
-An alternative is to call convertNetwork after perforate_model but that still needs to be tested more thoroughly.
+An alternative is to call UPA.convert_network after perforate_model but that still needs to be tested more thoroughly.
     
 ### 4 - Set Input Dimensions
 
@@ -219,10 +220,10 @@ To add dendrites the new modules must know which index of their output tensor co
 
     GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 
-Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of output_dimensions is not enough.  In these cases set output_dimensions to be the most typical case in your network.  You will then have to manually call module.setThisoutput_dimensions(new vector for module) for any modules that stray from this. This must be called after convertNetwork.  Some examples are below.  Linear conversion is done automatically.
+Some complex networks have different input dimensions for different internal modules during the process.  If yours does, just the setting of output_dimensions is not enough.  In these cases set output_dimensions to be the most typical case in your network.  You will then have to manually call module.set_this_output_dimensions(new vector for module) for any modules that stray from this. This must be called after perforate_model.  Some examples are below.  Linear conversion is done automatically.
 
-    model.onlyRecurrentModule.set_this_output_dimensions([-1,-1, 0])
-    model.fullyConnectedOutputLayer.set_this_output_dimensions([-1, 0])
+    model.only_recurrent_module.set_this_output_dimensions([-1,-1, 0])
+    model.fully_connected_output_layer.set_this_output_dimensions([-1, 0])
     model.3dConvLayer.set_this_output_dimensions([-1,-1,0,-1,-1])
     
 
@@ -234,10 +235,10 @@ We recommend setting this flag and if there are many problems change GPA.pc.get_
 
 ### 5 Using Pretrained Networks
 
-If you are working with a pretrained network but you need to make some of the changes above to the architecture, what you will have to do is define a new module that takes in the initial module in the __init__ and copies all the values over.  Once you define this module you can use it by adding to the following arrays before convertNetwork:
+If you are working with a pretrained network but you need to make some of the changes above to the architecture, what you will have to do is define a new module that takes in the initial module in the __init__ and copies all the values over.  Once you define this module you can use it by adding to the following arrays before perforate_model:
 
-    GPA.pc.append_modules_to_replace([pretrainedModule])
-    GPA.pc.append_replacement_modules([newPAIVersion])
+    GPA.pc.append_modules_to_replace([PretrainedModule])
+    GPA.pc.append_replacement_modules([NewPAIVersion])
     
 An example of this is ResNetPB in pb_models.  Keep in mind, if you want to replace the main module of the network, just do it at the top level in the main function and do not rely on the PAI conversion portion with these two lines of code. As an example for ResNets:
 
@@ -248,26 +249,39 @@ An example of this is ResNetPB in pb_models.  Keep in mind, if you want to repla
 
 Be aware this happens fully before the modules_to_perforate and track gets called. So be sure things are set up such that the internal modules will be properly converted.  Also, do not have the new module fully contain a pointer to the old module.  This can cause recursing problems.  Just like in the ResNet example each submodule should be replicated one at a time.
 
-## 6 - DataParallel
+## 6 - Multi-GPU Training
 
-For DataParallel to work with Perforated Backpropagation<sup>tm</sup> we leverage the same [idea](https://github.com/pytorch/pytorch/blob/main/torch/nn/parallel/data_parallel.py#L79) that allows for other modules with buffers to operate by just using the values from GPU:0.  However, one part under the hood of the way this code is able to function with such few modifications to your original pipelines causes issues on multiple GPUs.  We have created a simple, but necessary, two step process to get around these issues.
-
-First run your pipeline on a single GPU.  Settings for this run don't matter.  Adjust your training loop to have the following two lines after your call to loss.backward():
-    
-    loss.backward()
-    #This line sets up multiGPU
-    GPA.pai_tracker.save_tracker_settings()
-    exit(0) # exit this run after settings are saved.
-
-By calling this one function the required settings will be saved into the saveName folder you have specified when you initialized the pai_tracker.  Once the settings have been saved, delete these two lines to go back to your original training loop.  The second step is to initialize the tracker settings before you instantiate the DataParallel.  This should be done after your calls to UPA.convertNetwork and GPA.pai_tracker.initialize:
-    
-    GPA.pai_tracker.initialize_tracker_settings()
-    net = torch.nn.DataParallel(net, your other settings)
+Multi-GPU training is supported through DistributedDataParallel (section 6.1).  torch.nn.DataParallel is not supported; PyTorch recommends DistributedDataParallel over DataParallel even on a single machine, so convert DataParallel scripts to DDP.
 
 ## 6.1 - DistributedDataParallel
-    
-We are still debugging DistributedDataParallel.  But for now a workaround we beleive is effective is to exit the program every time restructured returns True, then rerun after loading the 'latest' model as follows
-    
+
+Launch training with torchrun as usual.  Dendrites are added during the run, and PerforatedAI keeps every rank in sync.
+
+Wrap the model in DDP after calling perforate_model and moving the model to its device.  find_unused_parameters=True is required because not every parameter receives a gradient in every phase, and broadcast_buffers=False is the tested configuration.  Keep the arguments in a dict, since the model is wrapped again after each restructure:
+
+    ddp_kwargs = dict(device_ids=[local_rank], find_unused_parameters=True, broadcast_buffers=False)
+    model = torch.nn.parallel.DistributedDataParallel(model, **ddp_kwargs)
+
+On PyTorch 2.13 and newer, broadcast_buffers is deprecated; use forward_sync_buffers=False instead, which works the same way with PerforatedAI.
+
+Call add_validation_score on every rank, not only rank 0, and pass it the DDP model.  Rank 0's score decides when dendrites are added, so if each rank validates a different shard of the data, average the metric across ranks first.  When the model is restructured, every rank gets the same new model back unwrapped; move it to its device, wrap it in DDP again and rebuild the optimizer:
+
+    model, restructured, training_complete = GPA.pai_tracker.add_validation_score(score, model)
+    if training_complete:
+        torch.distributed.barrier()
+        torch.distributed.destroy_process_group()
+        sys.exit(0)
+    elif restructured:
+        model = model.to(device)
+        model = torch.nn.parallel.DistributedDataParallel(model, **ddp_kwargs)
+        optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
+
+If the model isn't wrapped in DDP again after a restructure, the next add_validation_score call raises an error saying the model parameters differ between DDP ranks.
+
+Dendrite gradients and the optimizer and scheduler settings are kept in sync across ranks automatically.  The dendrite correlation statistics are computed on each rank and rank 0's are used, similar to BatchNorm without SyncBatchNorm.
+
+The interactive configuration screen can't run under torchrun, so confirm the configuration first: run perforate_model once as a single process in a terminal, or call GPA.pc.set_configuration_confirmed(True) before perforate_model if the settings are already specified.
+
 ## 7 Loading
     
 If you need to load a run after something stopped it in the middle you can call:
@@ -384,7 +398,7 @@ Additionally, if reducing loss is your main goal but the current system is overf
 
 - Make sure the scheduler was restarted properly.  If your learning rate is extremely low after the restructuring it may be using the epoch count as a variable and starting very low.
 
-- Make sure the optimizer, scheduler, and model are all the correct variables.  Sometimes these are updated within a function that doesn't return them or the real model is self.model but that is not overwritten by addValidationScore.
+- Make sure the optimizer, scheduler, and model are all the correct variables.  Sometimes these are updated within a function that doesn't return them or the real model is self.model but that is not overwritten by add_validation_score.
 
 - Make sure you didn't wrap something that requires specific output values for future math down the line.  Adding the Dendrite output to these values will mess up that math.  For example, If a module ends with a Softmax layer going into NLL loss, you need to make sure the Softmax layer is not being wrapped because the output of Softmax is supposed to be probabilities, so adding them to "dendrite probabilities" is wrong to do.  For this specific case you can also just remove it and use CrossEntropyLoss instead.
 
@@ -419,7 +433,7 @@ The following can be added if you want dendrite training cycles to be capped at 
 When this is its default of False you may still want to shorten Dendrite training time, while not completely stopping it while Dendrites are still improving.  To that end you can adjust the following settings:
 
     GPA.pc.set_pai_improvement_threshold(0.1)
-    GPA.pc.set_pai_improvement_thresholdRaw(1e-5)
+    GPA.pc.set_pai_improvement_threshold_raw(1e-5)
 
 These values specify how much the Dendrites must improve **within a single epoch** to reset the patience counter and continue training. The default settings check every epoch: if at least one Dendrite in the entire network has improved its correlation score by at least 10% AND at least 1e-5 during that epoch, then the patience counter resets and Dendrite training continues. After GPA.pc.get_p_epochs_to_switch() epochs without meeting these thresholds, Dendrite training ends and switches back to neuron training.
 
