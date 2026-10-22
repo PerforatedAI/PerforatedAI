@@ -56,16 +56,21 @@ BLOCK_RULE_MODES = ("perforated", "tracked")
 
 
 def _normalize_block_rules(value):
-    """Return block rules as validated {block, path, mode} dicts.
+    """Return block rules as validated {block, path, mode[, structure]} dicts.
 
     A later rule for the same block and path replaces an earlier one.
+    The optional 'structure' key is a sorted list of relative submodule paths
+    that identifies which instances the rule applies to; rules without it apply
+    to all instances that have the path (backward-compatible behaviour).
     """
     rules = {}
     for rule in value:
-        if not isinstance(rule, dict) or set(rule) != {"block", "path", "mode"}:
+        allowed = {"block", "path", "mode", "structure"}
+        required = {"block", "path", "mode"}
+        if not isinstance(rule, dict) or not required.issubset(set(rule)) or not set(rule).issubset(allowed):
             raise ValueError(
-                "block_rules entries must be {'block', 'path', 'mode'} dicts, "
-                "got %r" % (rule,)
+                "block_rules entries must be {'block', 'path', 'mode'} dicts "
+                "(optionally with 'structure'), got %r" % (rule,)
             )
         block, path, mode = rule["block"], rule["path"], rule["mode"]
         if not isinstance(block, str) or block == "":
@@ -84,7 +89,18 @@ def _normalize_block_rules(value):
             raise ValueError(
                 "block rule mode must be one of %s, got %r" % (BLOCK_RULE_MODES, mode)
             )
-        rules[(block, path)] = {"block": block, "path": path, "mode": mode}
+        normalised = {"block": block, "path": path, "mode": mode}
+        if "structure" in rule:
+            structure = rule["structure"]
+            if not isinstance(structure, list) or not all(isinstance(s, str) for s in structure):
+                raise ValueError(
+                    "block rule 'structure' must be a list of strings, got %r" % (structure,)
+                )
+            normalised["structure"] = structure
+        # Dedup key: include structure so different-structure instances can each
+        # have their own rule for the same path within the same block class.
+        dedup_key = (block, path, tuple(normalised.get("structure", [])))
+        rules[dedup_key] = normalised
     return list(rules.values())
 def _normalize_fuse_pairs(value):
     """Return fused pairs as a list of [head_id, norm_id] lists, validated."""
