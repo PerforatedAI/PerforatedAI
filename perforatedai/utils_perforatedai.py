@@ -2048,6 +2048,16 @@ def change_learning_modes(net, folder, name, doing_pai):
     # If not adding dendrites this just allows training to continue longer with flags
     # every time early stopping should be occurring
     if doing_pai is False:
+        if GPA.pc.get_verbose():
+            print(
+                f'Not doing PAI, cycle {GPA.pai_tracker.member_vars["num_dendrites_added"] + 1} '
+                f'of {GPA.pc.get_max_dendrites()}, resetting LR and continuing.'
+            )
+        GPA.pai_tracker.member_vars["num_dendrites_added"] += 1
+        # Record the switch to p and straight back to n, like the open source n-p-n switch
+        GPA.pai_tracker.member_vars["switch_epochs"].append(
+            GPA.pai_tracker.member_vars["num_epochs_run"]
+        )
         GPA.pai_tracker.member_vars["switch_epochs"].append(
             GPA.pai_tracker.member_vars["num_epochs_run"]
         )
@@ -2055,6 +2065,13 @@ def change_learning_modes(net, folder, name, doing_pai):
             "switch_epochs"
         ][-1]
         GPA.pai_tracker.reset_vals_for_score_reset()
+        # Start a new LR search like set_dendrite_training and set_neuron_training do
+        GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = 0
+        GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] = GPA.pai_tracker.member_vars[
+            "current_step_count"
+        ]
+        if GPA.pc.get_find_best_lr():
+            TPA._lr_search_initialize()
         return net
     if GPA.pai_tracker.member_vars["mode"] == "n":
         current_epoch = GPA.pai_tracker.member_vars["num_epochs_run"]

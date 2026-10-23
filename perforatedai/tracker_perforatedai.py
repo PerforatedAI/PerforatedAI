@@ -3854,25 +3854,6 @@ class PAINeuronModuleTracker:
                         )
                     return net, True, True
 
-                # If not doing pai but still have cycles remaining, reset LR and continue
-                elif GPA.pai_tracker.member_vars["doing_pai"] is False:
-                    if GPA.pc.get_verbose():
-                        print(
-                            f'Not doing PAI, cycle {GPA.pai_tracker.member_vars["num_dendrites_added"] + 1} '
-                            f'of {GPA.pc.get_max_dendrites()}, resetting LR and continuing.'
-                        )
-                    GPA.pai_tracker.member_vars["num_dendrite_tries"] = 0
-                    net = UPA.change_learning_modes(
-                        net,
-                        GPA.pc.get_save_name(),
-                        "best_model",
-                        False,
-                    )
-                    GPA.pai_tracker.member_vars["num_dendrites_added"] += 1
-                    restructuring_status_value = update_restructuring_status(
-                        restructuring_status_value, NETWORK_RESTRUCTURED
-                    )
-
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
                 # Check if we should increment integrated count BEFORE change_learning_modes loads old state
                 should_increment_integrated = False
