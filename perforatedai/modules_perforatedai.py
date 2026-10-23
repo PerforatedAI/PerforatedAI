@@ -13,12 +13,12 @@ import torch
 import torch.nn as nn
 import traceback
 
-from perforatedbp.dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
+    from perforatedbp.dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 except ModuleNotFoundError as e:
     # Only pass if perforatedbp package itself is missing
     if e.name == "perforatedbp":
