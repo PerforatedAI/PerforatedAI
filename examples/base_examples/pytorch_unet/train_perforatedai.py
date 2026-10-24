@@ -177,7 +177,7 @@ def train_model(
                         '''
                         
                         model, restructured, training_complete = GPA.pai_tracker.add_validation_score(val_score, 
-                        model) # .module if its a parallel, 
+                        model) # DDP models can be passed directly
                         model.to(memory_format=torch.channels_last)
                         model.to('cuda')
                         

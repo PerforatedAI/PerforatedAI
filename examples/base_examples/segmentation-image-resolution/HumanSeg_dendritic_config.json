@@ -16,7 +16,7 @@
   "extra_verbose": false,
   "find_best_lr": true,
   "first_fixed_switch_num": 80,
-  "fixed_switch_num": 80,
+  "n_fixed_switch_num": 80,
   "global_candidates": 1,
   "history_lookback": 1,
   "improvement_threshold": [

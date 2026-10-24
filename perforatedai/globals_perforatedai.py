@@ -39,6 +39,121 @@ def _validate_module_id(module_id):
         )
 
 
+# Unordered id/name lists that both Python calls and the config CLI edit. For
+# these, a Python set_/append_ call is merged with the JSON rather than
+# replacing it. Class lists feed the name lists via their short class names.
+SELECTION_LIST_VARS = (
+    "module_ids_to_perforate",
+    "module_ids_to_track",
+    "module_names_to_perforate",
+    "module_names_to_track",
+    "parameter_ids_to_track",
+    "block_rules",
+    "modules_to_fuse",
+)
+_CLASS_LIST_FEEDS = {
+    "modules_to_perforate": "module_names_to_perforate",
+    "modules_to_track": "module_names_to_track",
+}
+_SELECTION_CONFLICT_PAIRS = (
+    ("module_ids_to_perforate", "module_ids_to_track"),
+    ("module_names_to_perforate", "module_names_to_track"),
+)
+
+
+BLOCK_RULE_MODES = ("perforated", "tracked")
+
+
+def _normalize_block_rules(value):
+    """Return block rules as validated {block, path, mode[, structure]} dicts.
+
+    A later rule for the same block and path replaces an earlier one.
+    The optional 'structure' key is a sorted list of relative submodule paths
+    that identifies which instances the rule applies to; rules without it apply
+    to all instances that have the path (backward-compatible behaviour).
+    """
+    rules = {}
+    for rule in value:
+        allowed = {"block", "path", "mode", "structure"}
+        required = {"block", "path", "mode"}
+        if not isinstance(rule, dict) or not required.issubset(set(rule)) or not set(rule).issubset(allowed):
+            raise ValueError(
+                "block_rules entries must be {'block', 'path', 'mode'} dicts "
+                "(optionally with 'structure'), got %r" % (rule,)
+            )
+        block, path, mode = rule["block"], rule["path"], rule["mode"]
+        if not isinstance(block, str) or block == "":
+            raise ValueError("block rule needs a block class name, got %r" % (block,))
+        if not isinstance(path, str) or not path.startswith(".") or len(path) < 2:
+            raise ValueError(
+                "block rule path must be a relative path like '.conv2', got %r"
+                % (path,)
+            )
+        if "[" in path or "]" in path:
+            raise ValueError(
+                "Block rule path '%s' must not contain '[' or ']'. "
+                "Use dot notation instead, e.g. '.layers.1.module'" % path
+            )
+        if mode not in BLOCK_RULE_MODES:
+            raise ValueError(
+                "block rule mode must be one of %s, got %r" % (BLOCK_RULE_MODES, mode)
+            )
+        normalised = {"block": block, "path": path, "mode": mode}
+        if "structure" in rule:
+            structure = rule["structure"]
+            if not isinstance(structure, list) or not all(isinstance(s, str) for s in structure):
+                raise ValueError(
+                    "block rule 'structure' must be a list of strings, got %r" % (structure,)
+                )
+            normalised["structure"] = structure
+        # Dedup key: include structure so different-structure instances can each
+        # have their own rule for the same path within the same block class.
+        dedup_key = (block, path, tuple(normalised.get("structure", [])))
+        rules[dedup_key] = normalised
+    return list(rules.values())
+def _normalize_fuse_pairs(value):
+    """Return fused pairs as a list of [head_id, norm_id] lists, validated."""
+    pairs = []
+    for pair in value:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            raise ValueError(
+                "modules_to_fuse entries must be (head_id, norm_id) pairs, got %r"
+                % (pair,)
+            )
+        for module_id in pair:
+            _validate_module_id(module_id)
+        pairs.append([pair[0], pair[1]])
+    return pairs
+
+
+def _record_python_supplied(obj, var_name, value, replace):
+    """Remember items a user script supplied for a selection list.
+
+    Kept in memory only (never saved to JSON). Calls made by the config CLI
+    itself are ignored so the CLI cannot lock its own edits.
+    """
+    if var_name not in SELECTION_LIST_VARS and var_name not in _CLASS_LIST_FEEDS:
+        return
+    if obj.__dict__.get("_loading_config_values", False) or obj.__dict__.get(
+        "_tui_editing", False
+    ):
+        return
+    supplied = obj.__dict__.setdefault("_python_supplied", {})
+    items = list(value)
+    if replace:
+        supplied[var_name] = items
+    elif var_name == "block_rules":
+        new_keys = {(r["block"], r["path"]) for r in items}
+        kept = [
+            r
+            for r in supplied.get(var_name, [])
+            if (r["block"], r["path"]) not in new_keys
+        ]
+        supplied[var_name] = kept + items
+    else:
+        supplied[var_name] = supplied.get(var_name, []) + items
+
+
 def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
     """Dynamically add a property with getter and setter to an object.
 
@@ -148,7 +263,22 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
         ):
             for module_id in value:
                 _validate_module_id(module_id)
+        if var_name == "block_rules":
+            value = _normalize_block_rules(value)
+        if var_name == "modules_to_fuse":
+            value = _normalize_fuse_pairs(value)
+        if var_name == "perforated_backpropagation" and value:
+            try:
+                import perforatedbp  # noqa: F401
+            except ImportError:
+                raise ValueError(
+                    "perforated_backpropagation=True requires the 'perforatedbp' package, "
+                    "which is not installed. Install it separately or leave "
+                    "perforated_backpropagation=False (the default)."
+                )
         setattr(self, private_name, value)
+        if isinstance(value, (list, tuple)):
+            _record_python_supplied(self, var_name, value, replace=True)
         if not self.__dict__.get("_loading_config_values", False):
             self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             if var_name == "config_file":
@@ -175,7 +305,25 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
             ):
                 for module_id in value:
                     _validate_module_id(module_id)
+            if var_name == "block_rules":
+                new_rules = _normalize_block_rules(value)
+                new_keys = {(r["block"], r["path"]) for r in new_rules}
+                kept = [
+                    rule
+                    for rule in getattr(self, private_name)
+                    if (rule["block"], rule["path"]) not in new_keys
+                ]
+                setattr(self, private_name, kept + new_rules)
+                _record_python_supplied(self, var_name, new_rules, replace=False)
+            else:
+                setattr(self, private_name, getattr(self, private_name) + value)
+                _record_python_supplied(self, var_name, value, replace=False)
+            if var_name == "modules_to_fuse":
+                value = _normalize_fuse_pairs(value)
             setattr(self, private_name, getattr(self, private_name) + value)
+            _record_python_supplied(self, var_name, value, replace=False)
+            if not self.__dict__.get("_loading_config_values", False):
+                self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
                 'New list value of "{}": {}'.format(
                     private_name, getattr(self, private_name)
@@ -261,6 +409,8 @@ def _serialize_pai_value(val):
         return str(val)
     if isinstance(val, list):
         return [_serialize_pai_value(v) for v in val]
+    if isinstance(val, dict):
+        return {str(k): _serialize_pai_value(v) for k, v in val.items()}
     if isinstance(val, type):
         mod = getattr(val, "__module__", "") or ""
         return f"{mod}.{val.__name__}" if mod else val.__name__
@@ -354,8 +504,8 @@ class PAIConfig:
         Epochs to wait after adding dendrites before beggining checks.
     DOING_FIXED_SWITCH : int
         Constant for switch mode: add dendrites at fixed intervals.
-    fixed_switch_num : int
-        Number of epochs between fixed switches.
+    n_fixed_switch_num : int
+        Number of epochs between fixed switches (neuron mode).
     first_fixed_switch_num : int
         Number of epochs before first switch (for pretraining).
     DOING_NO_SWITCH : int
@@ -376,6 +526,8 @@ class PAIConfig:
         Automatically sweep learning rates when adding dendrites.
     dont_give_up_unless_learning_rate_lowered : bool
         Ensure search lowers learning rate at least once.
+    lr_binary_search_max_depth : int
+        Maximum binary search depth for LR sweep (default 4).
     max_dendrite_tries : int
         Maximum attempts to add dendrites with random initializations.
     max_dendrites : int
@@ -396,6 +548,11 @@ class PAIConfig:
         Module names to convert to PAI modules for perforation.
     module_ids_to_perforate : list
         Specific module IDs to convert to PAI modules for perforation.
+    block_rules : list
+        {"block", "path", "mode"} entries applied inside every instance of a
+        block class (a module type with children that occurs more than once).
+    modules_to_fuse : list
+        Pairs of [head_id, norm_id] module ids to fuse into one block.
     modules_to_track : list
         Module types to track but not convert.
     module_names_to_track : list
@@ -465,7 +622,7 @@ class PAIConfig:
                 "n_epochs_to_switch",
                 "history_lookback",
                 "initial_history_after_switches",
-                "fixed_switch_num",
+                "n_fixed_switch_num",
                 "first_fixed_switch_num",
                 "switch_mode",
                 "max_dendrite_tries",
@@ -501,6 +658,8 @@ class PAIConfig:
                 "module_names_to_track",
                 "module_ids_to_track",
                 "parameter_ids_to_track",
+                "block_rules",
+                "modules_to_fuse",
                 "module_names_with_processing",
                 "module_names_to_not_save",
                 "library_extra_scores",
@@ -640,7 +799,6 @@ class PAIConfig:
         self.__dict__["_config_file"] = None
         self.__dict__["_manually_set_keys"] = set()
         self.__dict__["_loading_config_values"] = False
-        self.__dict__["_auto_persist_config"] = True
         # None = global config; any string = per-module config
         self.__dict__["_module_name"] = module_name
         # Short class name of the wrapped module (e.g. 'Conv2d'), used as
@@ -778,10 +936,10 @@ class PAIConfig:
 
             # Switch after a fixed number of epochs
             self.DOING_FIXED_SWITCH = 2
-            # Number of epochs to complete before switching
-            self.fixed_switch_num = 250
+            # Number of epochs to complete before switching (neuron mode)
+            self.n_fixed_switch_num = 250
             add_pai_config_var_functions(
-                self, "fixed_switch_num", self.fixed_switch_num
+                self, "n_fixed_switch_num", self.n_fixed_switch_num
             )
             # An additional flag if you want your first switch to occur later than all the
             # rest for initial pretraining.  This is a new minimum, if its lower than
@@ -837,6 +995,13 @@ class PAIConfig:
                 self,
                 "dont_give_up_unless_learning_rate_lowered",
                 self.dont_give_up_unless_learning_rate_lowered,
+            )
+            # Maximum depth for binary search LR sweep. Limits total tests to O(log N).
+            self.lr_binary_search_max_depth = 4
+            add_pai_config_var_functions(
+                self,
+                "lr_binary_search_max_depth",
+                self.lr_binary_search_max_depth,
             )
             # Whether a higher validation score is better (True) or lower is better (False).
             self.maximizing_score = True
@@ -911,6 +1076,21 @@ class PAIConfig:
             self.module_ids_to_track = []
             add_pai_config_var_functions(
                 self, "module_ids_to_track", self.module_ids_to_track, list_type=True
+            )
+
+            # Block rules: {"block": class name, "path": relative path, "mode"}
+            # entries applied inside every instance of that block class, e.g.
+            # {"block": "BasicBlock", "path": ".conv2", "mode": "perforated"}.
+            # A mode set directly by id wins; a block rule wins over a type rule.
+            self.block_rules = []
+            add_pai_config_var_functions(
+                self, "block_rules", self.block_rules, list_type=True
+            )
+            # Pairs of [head_id, norm_id] to fuse so the norm is trained with the
+            # head it follows; applied by fuse_modules before conversion
+            self.modules_to_fuse = []
+            add_pai_config_var_functions(
+                self, "modules_to_fuse", self.modules_to_fuse, list_type=True
             )
 
             # Parameter IDs to track as neuron parameters without recursive behavior
@@ -1132,13 +1312,17 @@ class PAIConfig:
 
     # ------------------------------------------------------------------
 
-    def save_config(self, filename):
+    def save_config(self, filename, include_confirmed=True):
         """Save the current PAIConfig state to a JSON file.
 
         Parameters
         ----------
         filename : str
             Destination file path (created or overwritten).
+        include_confirmed : bool
+            When False, ``configuration_confirmed`` is left out of the file.
+            Run configs use this so a one-off confirmation is not replayed on
+            later runs.
 
         Notes
         -----
@@ -1171,9 +1355,13 @@ class PAIConfig:
                 "_manually_set_keys",
                 "_loading_config_values",
                 "_auto_persist_config",
+                "_python_supplied",
+                "_tui_editing",
             ):
                 continue
             clean_key = key[1:]
+            if clean_key == "configuration_confirmed" and not include_confirmed:
+                continue
             # Keep callable config fields (e.g. pai_forward_function) but skip
             # any other private callable values that are not typed as callable.
             if callable(val) and PAIConfig._TYPES.get(clean_key) is not callable:
@@ -1191,6 +1379,8 @@ class PAIConfig:
                 # Keep config_file runtime-only: do not persist pointer paths in
                 # saved JSON snapshots.
                 if key == "config_file":
+                    continue
+                if key == "configuration_confirmed" and not include_confirmed:
                     continue
                 try:
                     config_dict[key] = _serialize_pai_value(val)
@@ -1227,13 +1417,28 @@ class PAIConfig:
 
         # Ensure the directory exists before saving
         import os
+        import tempfile
 
         directory = os.path.dirname(filename)
         if directory:
             os.makedirs(directory, exist_ok=True)
 
-        with open(filename, "w") as f:
-            json.dump(config_dict, f, indent=2)
+        # Atomic write: never leave the file truncated (DDP ranks may read concurrently).
+        fd, tmp_path = tempfile.mkstemp(dir=directory or ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(config_dict, f, indent=2)
+            # mkstemp creates the file owner-only; match what a plain open() would give
+            umask = os.umask(0)
+            os.umask(umask)
+            os.chmod(tmp_path, 0o666 & ~umask)
+            os.replace(tmp_path, filename)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
         print(f"[PAI Config] Saved {len(config_dict)} variables \u2192 {filename}")
 
     def load_config(self, filename, module_name=None, module_type=None, skip_keys=None):
@@ -1353,6 +1558,11 @@ class PAIConfig:
                         loaded += 1
                     except Exception:
                         skipped += 1
+            try:
+                self._block_rules = _normalize_block_rules(self._block_rules)
+            except ValueError as exc:
+                print(f"[PAI Config] Warning: ignoring invalid block_rules: {exc}")
+                self._block_rules = []
         finally:
             self.__dict__["_loading_config_values"] = False
 
@@ -1390,7 +1600,14 @@ class PAIConfig:
         if self.__dict__.get("_module_name") is not None:
             return
 
-        skip_keys = self.__dict__.get("_manually_set_keys", set())
+        # Selection lists a script has set are merged with the JSON instead of
+        # being skipped, so CLI additions survive; see _merge_python_supplied.
+        merge_keys = [
+            k for k in SELECTION_LIST_VARS if self.get_python_supplied(k) is not None
+        ]
+        skip_keys = set(self.__dict__.get("_manually_set_keys", set())) - set(
+            merge_keys
+        )
         config_file = self.__dict__.get("_config_file")
         run_config = self.get_run_config_path()
 
@@ -1398,6 +1615,65 @@ class PAIConfig:
             self.load_config(config_file, skip_keys=skip_keys)
         if run_config and os.path.exists(run_config):
             self.load_config(run_config, skip_keys=skip_keys)
+        self._merge_python_supplied(merge_keys)
+
+    def get_python_supplied(self, var_name):
+        """Items a user script supplied for a selection list, or None.
+
+        Class lists (``modules_to_perforate`` / ``modules_to_track``) count
+        toward the matching ``module_names_*`` list via their short names.
+        Returns None when the script never set or appended to the list.
+        """
+        supplied = self.__dict__.get("_python_supplied", {})
+        items = None
+        if var_name in supplied:
+            items = list(supplied[var_name])
+        for class_var, names_var in _CLASS_LIST_FEEDS.items():
+            if names_var == var_name and class_var in supplied:
+                names = [
+                    c.__name__ for c in supplied[class_var] if isinstance(c, type)
+                ]
+                items = (items or []) + [n for n in names if n not in (items or [])]
+        return items
+
+    def _merge_python_supplied(self, merge_keys):
+        """Union script-supplied items with JSON values; script wins conflicts."""
+        for key in merge_keys:
+            supplied = self.get_python_supplied(key)
+            current = list(self.__dict__.get(f"_{key}", []))
+            if key == "block_rules":
+                # A script rule replaces a JSON rule for the same block and path.
+                supplied_keys = {(r["block"], r["path"]) for r in supplied}
+                current = [
+                    r for r in current if (r["block"], r["path"]) not in supplied_keys
+                ]
+            merged = supplied + [v for v in current if v not in supplied]
+            setattr(self, f"_{key}", merged)
+        sup_fuse = self.get_python_supplied("modules_to_fuse") or []
+        if sup_fuse:
+            sup_ids = {module_id for pair in sup_fuse for module_id in pair}
+            self._modules_to_fuse = [
+                pair
+                for pair in self._modules_to_fuse
+                if pair in sup_fuse or not (set(pair) & sup_ids)
+            ]
+        for perforate_var, track_var in _SELECTION_CONFLICT_PAIRS:
+            sup_p = self.get_python_supplied(perforate_var) or []
+            sup_t = self.get_python_supplied(track_var) or []
+            if not sup_p and not sup_t:
+                continue
+            cur_p = list(self.__dict__.get(f"_{perforate_var}", []))
+            cur_t = list(self.__dict__.get(f"_{track_var}", []))
+            setattr(
+                self,
+                f"_{perforate_var}",
+                [v for v in cur_p if v in sup_p or v not in sup_t],
+            )
+            setattr(
+                self,
+                f"_{track_var}",
+                [v for v in cur_t if v in sup_t or v not in sup_p],
+            )
 
     def persist_config_outputs(self, overwrite_config_file=False):
         """Persist current config state to local JSON outputs.
@@ -1412,7 +1688,7 @@ class PAIConfig:
 
         run_config = self.get_run_config_path()
         if run_config:
-            self.save_config(run_config)
+            self.save_config(run_config, include_confirmed=False)
 
         if overwrite_config_file:
             config_file = self.__dict__.get("_config_file")
@@ -1473,6 +1749,55 @@ class PAISequential(nn.Sequential):
             Output from the final layer in the sequence.
         """
         return self.model(*args, **kwargs)
+
+
+class FusedNormIdentity(nn.Module):
+    """Stand-in left where a norm used to be after it is fused into its head.
+
+    The norm now runs inside the head's PAISequential, so this module just
+    returns its input and the user's forward() can stay exactly as written.
+    On the first training forward it checks that its input is the head's
+    output; if the user's forward does anything between the head and the norm,
+    fusing would silently change the result, so it raises instead.
+
+    Parameters
+    ----------
+    head_id : str
+        Module id of the head, used in the error message.
+    norm_id : str
+        Module id of the original norm, used in the error message.
+    """
+
+    def __init__(self, head_id, norm_id):
+        super(FusedNormIdentity, self).__init__()
+        self.head_id = head_id
+        self.norm_id = norm_id
+        # Plain dict so the head output is not registered as a submodule.
+        self._check = {"head_output": None, "done": False}
+
+    def record_head_output(self, output):
+        """Remember the head's output so forward can compare against it."""
+        if not self._check["done"]:
+            self._check["head_output"] = output
+
+    def forward(self, x):
+        if not self._check["done"]:
+            if x is not self._check["head_output"]:
+                raise RuntimeError(
+                    "Cannot fuse %s with %s: the input to %s is not the output "
+                    "of %s. Something in forward() runs between them, so fusing "
+                    "would change the result. Remove this pair from the fused "
+                    "modules."
+                    % (
+                        self.head_id,
+                        self.norm_id,
+                        self.norm_id,
+                        self.head_id,
+                    )
+                )
+            self._check["done"] = True
+            self._check["head_output"] = None
+        return x
 
 
 ### Global objects and variables

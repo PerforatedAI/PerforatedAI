@@ -357,21 +357,53 @@ Explain your reasoning for each choice based on what you saw in their model when
 
 #### Important: Module ID Naming Convention
 
-🚨 **CRITICAL:** When using `set_module_ids_to_track()` or `append_module_ids_to_track()`, all module IDs **MUST start with a "." (dot)**.
+🚨 **CRITICAL:** PAI module IDs must be the **exact full path** of the module as it appears in `model.named_modules()`, prefixed with a `.` (dot). Partial suffix names like `.fc1` or `.se.fc2` will **not** match — you must supply the full path like `.stages.2.blocks.0.mlp.fc1`.
 
 **Correct:**
 ```python
-GPA.pc.set_module_ids_to_track([".layer1", ".conv1", ".bn1", ".output_projection"])
-GPA.pc.append_module_ids_to_track([".layer2", ".fc"])
+GPA.pc.append_module_ids_to_perforate('.stages.2.blocks.0.mlp.fc1')
+GPA.pc.append_module_ids_to_track('.stem.conv1')
 ```
 
 **Incorrect (will not work):**
 ```python
-GPA.pc.set_module_ids_to_track(["layer1", "conv1", "bn1"])  # ❌ Missing dots
-GPA.pc.append_module_ids_to_track(["layer2", "fc"])  # ❌ Missing dots
+GPA.pc.append_module_ids_to_perforate('.mlp.fc1')   # ❌ Suffix only — PAI won't find it
+GPA.pc.append_module_ids_to_track('stem.conv1')     # ❌ Missing leading dot
 ```
 
-The dot prefix is required because PAI uses these as substring matches against the full module path. For example, ".layer1" will match modules like "model.layer1.conv1", "model.layer1.0.bn1", etc.
+**When you want the same layer inside every instance of a repeated block** (e.g., only `conv2` in every ResNet `BasicBlock`, or `mlp.fc1` in every transformer layer), use a block rule instead of listing every id. A block is a module class that has submodules and occurs more than once; the rule names the class and a path relative to it:
+
+```python
+GPA.pc.append_block_rules([
+    {"block": "BasicBlock", "path": ".conv2", "mode": "perforated"},
+    {"block": "BasicBlock", "path": ".conv1", "mode": "tracked"},
+])
+```
+
+- `block` is the class name, `path` starts with `.` and is relative to the block, and `mode` is `"perforated"` or `"tracked"`.
+- The rule applies wherever the path exists, so blocks that lack it are skipped. If it matches nothing, `perforate_model` prints a warning.
+- A mode set directly by id (`append_module_ids_to_perforate` / `_track`) beats a block rule, so use an id to carve out an exception such as the last block. A block rule beats a type rule (`append_module_names_to_*`).
+- Users can also set block rules in the config CLI: press `e` on a block row.
+
+**When you want to target all layers matching a name pattern** that is not tied to a repeated block, you must create the model first and generate the full paths with a loop:
+
+```python
+model = YourModel(...)
+
+for name, mod in model.named_modules():
+    if isinstance(mod, torch.nn.Linear):
+        if name.endswith('.mlp.fc1'):        # transformer expanding layer
+            GPA.pc.append_module_ids_to_perforate('.' + name)
+        elif name.endswith('.se.fc2'):       # SE restoring layer
+            GPA.pc.append_module_ids_to_perforate('.' + name)
+
+# Track remaining Linear layers without dendrites
+GPA.pc.append_module_names_to_track(['Linear'])
+
+model = UPA.perforate_model(model, ...)
+```
+
+Note on SE block naming: in squeeze-excitation blocks `fc1` *reduces* (C → C/r) and `fc2` *restores* (C/r → C) — the opposite of transformer MLP convention where `fc1` is the expanding layer.
 
 **→ Next: Proceed to Step 4.**
 
@@ -452,7 +484,7 @@ Tell the user: "I searched your script for DataParallel/DDP usage and found: [NO
    - If NO: Skip the rest of this step and proceed to Step 6 (Setup Optimizer)
    - If YES: Continue with step 2 below
 
-2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]."
+2. **If hardcoded OR user confirmed YES:** Tell them "I see your script uses [DataParallel/DDP]." If it is DataParallel, also tell them: "PerforatedAI doesn't support DataParallel; multi-GPU training needs DistributedDataParallel (DDP), which PyTorch also recommends over DataParallel, even on a single machine. The script has to be converted to DDP first." Convert it to DDP the standard PyTorch way if they want you to (or let them do it), then continue with step 3 once the script uses DDP.
 
 3. **IMMEDIATELY load the sibling skill perforatedai-distributed as your NEXT action** (it is installed alongside this one). If your agent cannot load it by name, read the entire file from:
    ```
@@ -474,7 +506,7 @@ Tell the user: "I searched your script for DataParallel/DDP usage and found: [NO
 
 ### Step 6: Setup Optimizer and Scheduler
 
-**⚠️ NOTE: If you handled DataParallel or DDP in Step 5, SKIP this step - the distributed skill already set up the optimizer. Only use this step for single-GPU setups.**
+**⚠️ NOTE: If you handled multi-GPU (DDP) in Step 5, SKIP this step - the distributed skill already set up the optimizer. Only use this step for single-GPU setups.**
 
 ---
 
@@ -497,9 +529,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.Adam)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
-schedArgs = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': 0.001, 'weight_decay': 1e-4}  # SAME args
+sched_args = {'step_size': 30, 'gamma': 0.1}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **Example 2 - User has Adadelta optimizer with StepLR scheduler:**
@@ -513,9 +545,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.Adadelta)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.StepLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': args.lr}  # SAME args
-schedArgs = {'step_size': 1, 'gamma': args.gamma}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': args.lr}  # SAME args
+sched_args = {'step_size': 1, 'gamma': args.gamma}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **Example 3 - User has SGD optimizer with CosineAnnealingLR:**
@@ -529,9 +561,9 @@ Correct PAI conversion (PRESERVES their choices):
 ```python
 GPA.pai_tracker.set_optimizer(torch.optim.SGD)  # SAME optimizer type
 GPA.pai_tracker.set_scheduler(torch.optim.lr_scheduler.CosineAnnealingLR)  # SAME scheduler type
-optimArgs = {'params': model.parameters(), 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4}  # SAME args
-schedArgs = {'T_max': 200}  # SAME scheduler args
-optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+optim_args = {'params': model.parameters(), 'lr': 0.1, 'momentum': 0.9, 'weight_decay': 5e-4}  # SAME args
+sched_args = {'T_max': 200}  # SAME scheduler args
+optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **MANDATORY RULES:**
@@ -539,7 +571,7 @@ optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedAr
 2. **DO NOT** change the scheduler type (keep StepLR/CosineAnnealingLR/ExponentialLR/etc. exactly as user had)
 3. **DO NOT** change optimizer arguments (preserve lr, weight_decay, momentum, betas, etc.)
 4. **DO NOT** change scheduler arguments (preserve step_size, gamma, T_max, patience, etc.)
-5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing schedArgs AND returning a scheduler from the function. If NOT using setup_optimizer with schedArgs, user must manage scheduler.step() themselves.
+5. **DO** remove any `scheduler.step()` calls in their training loop - PAI handles this automatically **ONLY IF** you are initializing the scheduler within setup_optimizer by passing sched_args AND returning a scheduler from the function. If NOT using setup_optimizer with sched_args, user must manage scheduler.step() themselves.
 6. If user has NO scheduler, use `set_scheduler(None)` or omit the set_scheduler call
 
 **If their setup is complex (scattered across functions, custom classes, framework-managed, etc.):**
@@ -604,6 +636,8 @@ This prevents subtle divergence where the initial setup and restructured setup d
 
 Find their validation step in the training loop. You need to update it to use PAI's `add_validation_score` function.
 
+**Multi-GPU:** If you set up DDP in Step 5, use the `add_validation_score` block from the perforatedai-distributed skill instead of the patterns below (it re-wraps the model after a restructure), then continue with the training-loop changes further down this step.
+
 **Pattern 1 - If they used PAI optimizer setup (Step 6, first option):**
 
 Find where validation completes and they have a validation score. Add the PAI score tracking and restructuring logic.
@@ -627,15 +661,17 @@ if training_complete:
 
 elif restructured and not training_complete:
     # Model was restructured (dendrites added/incorporated)
-    # Reinitialize optimizer with EXACT SAME settings from Step 5
-    # Example: if Step 5 used Adadelta with StepLR:
-    optimArgs = {'params': model.parameters(), 'lr': args.lr}  # EXACT SAME as Step 5
-    schedArgs = {'step_size': 1, 'gamma': args.gamma}  # EXACT SAME as Step 5
-    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optimArgs, schedArgs)
+    # A DDP-wrapped model comes back unwrapped here: re-wrap it before
+    # rebuilding the optimizer (see the perforatedai-distributed skill)
+    # Reinitialize optimizer with EXACT SAME settings from Step 6
+    # Example: if Step 6 used Adadelta with StepLR:
+    optim_args = {'params': model.parameters(), 'lr': args.lr}  # EXACT SAME as Step 6
+    sched_args = {'step_size': 1, 'gamma': args.gamma}  # EXACT SAME as Step 6
+    optimizer, scheduler = GPA.pai_tracker.setup_optimizer(model, optim_args, sched_args)
 ```
 
 **🚨 CRITICAL:** 
-- Use the EXACT SAME optimArgs and schedArgs from Step 6
+- Use the EXACT SAME optim_args and sched_args from Step 6
 - If Step 6 used StepLR, use StepLR args here (step_size, gamma)
 - If Step 6 used CosineAnnealingLR, use those args here (T_max, etc.)
 - DO NOT change optimizer/scheduler types or arguments in the restructured block
@@ -659,6 +695,7 @@ if training_complete:
 
 elif restructured and not training_complete:
     # Model was restructured - reinitialize optimizer exactly as they had it
+    # (a DDP-wrapped model comes back unwrapped here: re-wrap it first)
     # Copy their ENTIRE original optimizer setup (including any complex initialization)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Their exact setup
     # If they had scheduler, recreate it too
@@ -717,12 +754,12 @@ If yes, add these lines to the PAI configuration block (before `perforate_model`
 
 ```python
 GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-GPA.pc.set_fixed_switch_num(30)       # epochs between each subsequent switch
+GPA.pc.set_n_fixed_switch_num(30)     # epochs between each subsequent switch (neuron mode)
 GPA.pc.set_first_fixed_switch_num(30) # epochs before the very first switch
 ```
 
 - `set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)` — enable fixed-interval switching mode
-- `set_fixed_switch_num` — how many epochs between each switch after the first
+- `set_n_fixed_switch_num` — how many epochs between each switch after the first (neuron mode)
 - `set_first_fixed_switch_num` — how many epochs to train before the first switch (can differ from subsequent switches if a longer warmup is desired)
 
 Set both to the same value for uniform switching throughout training.

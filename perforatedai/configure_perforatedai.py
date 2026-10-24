@@ -37,6 +37,33 @@ def dedupe_list(values):
     return unique
 
 
+def python_supplied_owner(var_names, item):
+    """The first list in ``var_names`` whose script-supplied items include ``item``."""
+    for var_name in var_names:
+        if item in (GPA.pc.get_python_supplied(var_name) or []):
+            return var_name
+    return None
+
+
+def python_owned_message(label, var_name):
+    return (
+        f"{label} is set by a Python call ({var_name}) — change it in your script; "
+        "the CLI can't override it."
+    )
+
+
+def id_python_owner(module_id):
+    return python_supplied_owner(
+        ("module_ids_to_perforate", "module_ids_to_track"), module_id
+    )
+
+
+def type_python_owner(type_name):
+    return python_supplied_owner(
+        ("module_names_to_perforate", "module_names_to_track"), type_name
+    )
+
+
 def normalize_selection_conflicts():
     """Normalize id and name selection lists and remove direct conflicts."""
     ids_perforate = dedupe_list(GPA.pc.get_module_ids_to_perforate())
@@ -87,7 +114,20 @@ def get_module_entries(model):
                     param.numel()
                     for _param_name, param in module.named_parameters(recurse=True)
                 ),
+                # Trainable: this module or any submodule has a requires_grad
+                # parameter. Only trainable modules may be perforated.
+                "trainable": any(
+                    param.requires_grad
+                    for _param_name, param in module.named_parameters(recurse=True)
+                ),
             }
+        )
+
+    # named_modules() is a DFS pre-order traversal, so a module's children
+    # (if any) always immediately follow it in `entries`.
+    for i, entry in enumerate(entries):
+        entry["has_children"] = i + 1 < len(entries) and entries[i + 1]["id"].startswith(
+            entry["id"] + "."
         )
 
     replace_classes = tuple(GPA.pc.get_modules_to_replace())
@@ -138,6 +178,238 @@ def get_parent_module_id(module_id):
     return "." + ".".join(parts[1:-1])
 
 
+def get_tied_parameters_map(entries):
+    """Return a map from module_id to a list of other full param ids sharing memory.
+
+    Detects weight tying by comparing data_ptr() across the direct (non-recursive)
+    parameters of every entry. Only cross-module ties are reported; intra-module
+    shared params are ignored.
+    """
+    ptr_to_params = {}
+    for entry in entries:
+        module_id = entry["id"]
+        for param_name, param in entry["module"].named_parameters(recurse=False):
+            ptr = param.data_ptr()
+            if ptr == 0:
+                continue
+            full_param_id = module_id + "." + param_name
+            if ptr not in ptr_to_params:
+                ptr_to_params[ptr] = []
+            ptr_to_params[ptr].append((full_param_id, module_id))
+
+    tied_map = {}
+    for param_list in ptr_to_params.values():
+        if len(param_list) <= 1:
+            continue
+        for full_param_id, module_id in param_list:
+            others = [fp for fp, mid in param_list if mid != module_id]
+            if others:
+                if module_id not in tied_map:
+                    tied_map[module_id] = []
+                for fp in others:
+                    if fp not in tied_map[module_id]:
+                        tied_map[module_id].append(fp)
+    return tied_map
+
+
+# ---------------------------------------------------------------------------
+# Block rules
+# ---------------------------------------------------------------------------
+def get_block_types(entries):
+    """Class names of blocks: modules with children that occur more than once."""
+    counts = {}
+    for entry in entries:
+        if entry["has_children"] and not entry["in_replaced"] and not entry["is_replaced_root"]:
+            counts[entry["type_name"]] = counts.get(entry["type_name"], 0) + 1
+    return {name for name, count in counts.items() if count > 1}
+
+
+def get_block_instances(entries, block):
+    """Every live instance of a block, in model order."""
+    return [
+        entry
+        for entry in entries
+        if entry["type_name"] == block
+        and entry["has_children"]
+        and not entry["in_replaced"]
+        and not entry["is_replaced_root"]
+    ]
+
+
+def get_block_rule_for_entry(entry, entries_by_id):
+    """The nearest enclosing block's rule that targets this module, with that block.
+
+    Returns (rule, block_instance_id), or (None, None).
+    """
+    rules = GPA.pc.get_block_rules()
+    if not rules:
+        return None, None
+    all_ids = set(entries_by_id.keys())
+    ancestor_id = entry["id"]
+    while True:
+        split_at = ancestor_id.rfind(".")
+        if split_at <= 0:
+            return None, None
+        ancestor_id = ancestor_id[:split_at]
+        ancestor = entries_by_id.get(ancestor_id)
+        if ancestor is None:
+            continue
+        for rule in rules:
+            if (
+                rule["block"] == ancestor["type_name"]
+                and entry["id"] == ancestor_id + rule["path"]
+            ):
+                rule_structure = rule.get("structure")
+                if rule_structure is not None:
+                    if _instance_structure_from_ids(all_ids, ancestor_id) != rule_structure:
+                        continue
+                return rule, ancestor_id
+
+
+def get_instance_structure(entries, instance_id):
+    """Sorted list of all relative submodule paths under instance_id."""
+    prefix = instance_id + "."
+    return sorted(e["id"][len(instance_id):] for e in entries if e["id"].startswith(prefix))
+
+
+def _instance_structure_from_ids(all_ids, instance_id):
+    """Same as get_instance_structure but works from a set of module ids."""
+    prefix = instance_id + "."
+    return sorted(mid[len(instance_id):] for mid in all_ids if mid.startswith(prefix))
+
+
+def get_block_rule_targets(entries, rule):
+    """Ids of the modules a block rule hits in the CLI's view of the model.
+
+    Only includes instances whose full internal structure matches the structure
+    stored in the rule. Rules without a stored structure (created before this
+    check was added) apply to all instances that have the path.
+    """
+    ids = {entry["id"] for entry in entries}
+    rule_structure = rule.get("structure")
+
+    def _structure_matches(inst_id):
+        if rule_structure is None:
+            return True
+        return _instance_structure_from_ids(ids, inst_id) == rule_structure
+
+    return [
+        entry["id"] + rule["path"]
+        for entry in get_block_instances(entries, rule["block"])
+        if entry["id"] + rule["path"] in ids and _structure_matches(entry["id"])
+    ]
+
+
+def find_block_rule(block, path, structure=None):
+    """Return the block rule for (block, path), optionally filtered by structure.
+
+    When structure is given, return the rule that has that exact structure (or a
+    rule with no stored structure for backward compat). When structure is None,
+    return the first matching rule regardless of structure.
+    """
+    for rule in GPA.pc.get_block_rules():
+        if rule["block"] == block and rule["path"] == path:
+            if structure is None:
+                return rule
+            if rule.get("structure") == structure:
+                return rule
+    return None
+
+
+def block_rule_python_owned(rule):
+    return rule in (GPA.pc.get_python_supplied("block_rules") or [])
+
+
+def block_rule_scope_text(entries, rule):
+    """How many blocks a rule really applies to, and why any are excluded."""
+    all_instances = get_block_instances(entries, rule["block"])
+    targets = get_block_rule_targets(entries, rule)
+    resolved = resolve_entry_modes(entries)
+    applied = [
+        target
+        for target in targets
+        if resolved[target]["source"] == "block" and resolved[target]["block_rule"] == rule
+    ]
+
+    rule_structure = rule.get("structure")
+    if rule_structure is not None:
+        ids = {entry["id"] for entry in entries}
+        structure_skipped = sum(
+            1 for inst in all_instances
+            if _instance_structure_from_ids(ids, inst["id"]) != rule_structure
+        )
+        matching_count = len(all_instances) - structure_skipped
+    else:
+        structure_skipped = 0
+        matching_count = len(all_instances)
+
+    text = "%d of %d %s modules" % (len(applied), matching_count, rule["block"])
+    if structure_skipped:
+        text += f" ({structure_skipped} different-structure {rule['block']}s skipped)"
+    ignored = len(targets) - len(applied)
+    if ignored:
+        text += f", {ignored} ignored: a mode on an enclosing module or set by id wins"
+    return text
+
+
+def set_block_rule(block, path, mode, entries, template_id=None):
+    """Set (or toggle off) a block rule; returns a short message."""
+    structure = get_instance_structure(entries, template_id) if template_id is not None else None
+    existing = find_block_rule(block, path, structure=structure)
+    if existing is not None and block_rule_python_owned(existing):
+        return python_owned_message(f"the {block} {path} block rule", "block_rules")
+    rules = [
+        dict(rule)
+        for rule in GPA.pc.get_block_rules()
+        if not (
+            rule["block"] == block
+            and rule["path"] == path
+            and rule.get("structure") == structure
+        )
+    ]
+    if existing is not None and existing["mode"] == mode:
+        GPA.pc.set_block_rules(rules)
+        return f"removed block rule {block} {path}"
+    rule = {"block": block, "path": path, "mode": mode}
+    if structure is not None:
+        rule["structure"] = structure
+    rules.append(rule)
+    GPA.pc.set_block_rules(rules)
+    return f"{block} {path}: {mode_verb(mode)} ({block_rule_scope_text(entries, rule)})"
+
+
+def remove_block_rule(block, path, entries, template_id=None):
+    """Remove a block rule; returns a short message."""
+    structure = get_instance_structure(entries, template_id) if template_id is not None else None
+    existing = find_block_rule(block, path, structure=structure)
+    if existing is None:
+        return f"there is no block rule on {block} {path}"
+    if block_rule_python_owned(existing):
+        return python_owned_message(f"the {block} {path} block rule", "block_rules")
+    scope = block_rule_scope_text(entries, existing)
+    GPA.pc.set_block_rules(
+        [dict(rule) for rule in GPA.pc.get_block_rules() if rule != existing]
+    )
+    return f"removed block rule {block} {path} ({scope})"
+
+
+def block_mode_refusal(entry, block_types):
+    """Why block mode can't open on this module, or None if it can."""
+    if entry["is_replaced_root"] or entry["in_replaced"]:
+        return (
+            f"{entry['id']} is inside a module that will be restructured — its "
+            "structure isn't known until training, so it can't be edited as a block."
+        )
+    if entry["type_name"] not in block_types:
+        if not entry["has_children"]:
+            return f"{entry['id']} has no submodules, so it is not a block."
+        return (
+            f"{entry['type_name']} occurs only once, so it is not a block. "
+            "Use p/t on its children by id."
+        )
+    return None
+
+
 def resolve_entry_modes(entries):
     """Resolve every entry's mode, source, and any overridden-by-ancestor state.
 
@@ -155,15 +427,23 @@ def resolve_entry_modes(entries):
         parent = resolved.get(parent_id) if parent_id in by_id else None
 
         own_id_mode = get_id_mode(module_id)
+        block_rule, _block_id = get_block_rule_for_entry(entry, by_id)
+        own_block_mode = block_rule["mode"] if block_rule is not None else None
         own_type_mode = get_name_mode(entry["type_name"])
-        own_mode = own_id_mode or own_type_mode
-        own_source = "id" if own_id_mode else ("type" if own_type_mode else None)
+        own_mode = own_id_mode or own_block_mode or own_type_mode
+        if own_id_mode:
+            own_source = "id"
+        elif own_block_mode:
+            own_source = "block"
+        else:
+            own_source = "type" if own_type_mode else None
 
         record = {
             "eff": None,
             "source": None,
             "origin_id": module_id,
             "overridden": None,
+            "block_rule": None,
         }
         if parent is not None and parent["eff"] is not None:
             record["eff"] = parent["eff"]
@@ -175,6 +455,8 @@ def resolve_entry_modes(entries):
             record["eff"] = own_mode
             record["source"] = own_source
             record["origin_id"] = module_id
+            if own_source == "block":
+                record["block_rule"] = block_rule
         resolved[module_id] = record
     return resolved
 
@@ -224,6 +506,13 @@ def color_text(text, hex_color):
     g = int(hex_color[2:4], 16)
     b = int(hex_color[4:6], 16)
     return f"\x1b[38;2;{r};{g};{b}m{text}\x1b[0m"
+
+
+def color_text_on_bg(text, fg_hex, bg_hex):
+    """Render text with an ANSI truecolor foreground and background."""
+    fr, fg, fb = int(fg_hex[0:2], 16), int(fg_hex[2:4], 16), int(fg_hex[4:6], 16)
+    br, bg, bb = int(bg_hex[0:2], 16), int(bg_hex[2:4], 16), int(bg_hex[4:6], 16)
+    return f"\x1b[38;2;{fr};{fg};{fb}m\x1b[48;2;{br};{bg};{bb}m{text}\x1b[0m"
 
 
 def make_color_square(hex_color):
@@ -371,10 +660,20 @@ def is_right_key(key):
 
 
 def is_page_up_key(key):
+    if key in ("K",):
+        return True
+    if key == "\x1b[1;2A":
+        # Shift+Up (laptop-friendly alias; no PgUp key without Fn).
+        return True
     return key == "\x1b[5~" or (key.startswith("\x1b[") and "[5" in key and key.endswith("~"))
 
 
 def is_page_down_key(key):
+    if key in ("J",):
+        return True
+    if key == "\x1b[1;2B":
+        # Shift+Down (laptop-friendly alias; no PgDn key without Fn).
+        return True
     return key == "\x1b[6~" or (key.startswith("\x1b[") and "[6" in key and key.endswith("~"))
 
 
@@ -395,6 +694,53 @@ def is_select_key(key):
     return key in (" ", "\r", "\n")
 
 
+def is_depth_key(key):
+    return key in tuple("0123456789")
+
+
+# ---------------------------------------------------------------------------
+# Targets tree collapse/expand
+# ---------------------------------------------------------------------------
+def entry_default_expanded(entry, depth_baseline):
+    """Whether an entry's children show when there is no explicit manual
+    override for it.
+
+    ``depth_baseline`` is None before any digit key has been pressed this
+    session (only replaced-root containers start collapsed); otherwise it's
+    the last digit (0-9) pressed: 0 expands everything, N in 1-9 shows
+    through depth N-1 and collapses anything deeper.
+    """
+    if depth_baseline is None:
+        return not entry["is_replaced_root"]
+    if depth_baseline == 0:
+        return True
+    return entry["depth"] < depth_baseline - 1
+
+
+def is_entry_expanded(entry, depth_baseline, expanded_overrides):
+    """Effective expand state: a manual ←/→ override, else the baseline."""
+    if entry["id"] in expanded_overrides:
+        return expanded_overrides[entry["id"]]
+    return entry_default_expanded(entry, depth_baseline)
+
+
+def is_entry_visible(entry, entries_by_id, depth_baseline, expanded_overrides):
+    """False if any ancestor of ``entry`` is currently collapsed."""
+    ancestor_id = entry["id"]
+    while True:
+        split_at = ancestor_id.rfind(".")
+        if split_at <= 0:
+            return True
+        ancestor_id = ancestor_id[:split_at]
+        ancestor = entries_by_id.get(ancestor_id)
+        if (
+            ancestor is not None
+            and ancestor["has_children"]
+            and not is_entry_expanded(ancestor, depth_baseline, expanded_overrides)
+        ):
+            return False
+
+
 # ---------------------------------------------------------------------------
 # Mode setters
 # ---------------------------------------------------------------------------
@@ -402,7 +748,8 @@ def _clear_tracked_params_for_module_id(module_id):
     """Remove parameter_ids_to_track entries that belong directly to this module."""
     prefix = module_id + "."
     current = GPA.pc.get_parameter_ids_to_track()
-    updated = [p for p in current if not p.startswith(prefix)]
+    kept = GPA.pc.get_python_supplied("parameter_ids_to_track") or []
+    updated = [p for p in current if p in kept or not p.startswith(prefix)]
     if len(updated) != len(current):
         GPA.pc.set_parameter_ids_to_track(updated)
 
@@ -461,6 +808,136 @@ def set_module_name_mode(module_type_name, mode, entries=None):
     GPA.pc.set_module_names_to_track(names_track)
 
 
+# ---------------------------------------------------------------------------
+# Fused pairs
+# ---------------------------------------------------------------------------
+def get_fused_pair_map():
+    """Map each fused module id to its role and partner: id -> (role, partner_id)."""
+    fused = {}
+    for head_id, norm_id in GPA.pc.get_modules_to_fuse():
+        fused[head_id] = ("head", norm_id)
+        fused[norm_id] = ("norm", head_id)
+    return fused
+
+
+def unfuse_pair(module_id, entries):
+    """Remove the pair containing this module and track both of its modules."""
+    pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
+    pair = next(p for p in pairs if module_id in p)
+    if pair in (GPA.pc.get_python_supplied("modules_to_fuse") or []):
+        return (
+            f"{pair[0]} + {pair[1]} is fused by a Python call (modules_to_fuse) — "
+            "change it in your script; the CLI can't override it."
+        )
+    GPA.pc.set_modules_to_fuse([p for p in pairs if p != pair])
+    by_id = {entry["id"]: entry for entry in entries}
+    for member_id in pair:
+        entry = by_id.get(member_id)
+        if entry is None or not entry["trainable"] or id_python_owner(member_id):
+            continue
+        if member_id not in GPA.pc.get_module_ids_to_track():
+            set_module_id_mode(member_id, "tracked")
+    return f"un-fused {pair[0]} + {pair[1]}; both are now tracked"
+
+
+def stage_as_fuse_head(entry):
+    """Validate that a module can be the head of a fused pair.
+
+    Returns (module_id, message) on success or (None, message) on failure.
+    """
+    if entry["is_replaced_root"] or entry["in_replaced"]:
+        return None, (
+            f"{entry['id']} is inside a module that will be restructured — its id "
+            "won't exist at training time, so it can't be fused."
+        )
+    if not entry["trainable"]:
+        return None, (
+            f"{entry['id']} is not trainable, so it can't be the head of a fused pair."
+        )
+    if entry["id"] in get_fused_pair_map():
+        return None, f"{entry['id']} is already fused."
+    return entry["id"], (
+        f"↓ {entry['id']} staged as head (runs first) — navigate to the norm and press f"
+    )
+
+
+def fuse_pair(head_entry, norm_entry, entries, resolved):
+    """Fuse head_entry with norm_entry.
+
+    Returns a short message describing what happened or why nothing did.
+    """
+    head_id = head_entry["id"]
+    norm_id = norm_entry["id"]
+    if head_id == norm_id:
+        return "Select two different modules to form a fused pair."
+    if any(e["is_replaced_root"] or e["in_replaced"] for e in (head_entry, norm_entry)):
+        return (
+            "One of the selected modules is inside a module that will be restructured "
+            "— its id won't exist at training time, so it can't be fused."
+        )
+    if not head_entry["trainable"]:
+        return (
+            f"{head_id} is not trainable, so it can't be the head of a fused pair. "
+            "Stage a trainable module as the head first."
+        )
+    fused = get_fused_pair_map()
+    for module_id in (head_id, norm_id):
+        if module_id in fused:
+            return f"{module_id} is already fused with {fused[module_id][1]}."
+        for other_id in fused:
+            if other_id.startswith(module_id + ".") or module_id.startswith(other_id + "."):
+                return f"{module_id} overlaps {other_id}, which is already fused."
+    module_counts = {}
+    for e in entries:
+        module_counts[id(e["module"])] = module_counts.get(id(e["module"]), 0) + 1
+    for e in (head_entry, norm_entry):
+        if module_counts[id(e["module"])] > 1:
+            return f"{e['id']} is used in more than one place, so it can't be fused."
+    if id_python_owner(head_id) == "module_ids_to_track":
+        return python_owned_message(head_id, "module_ids_to_track")
+    if resolved[head_id]["source"] == "inherited":
+        return (
+            f"{head_id} gets its mode from {resolved[head_id]['origin_id']}; "
+            "clear that first so the head can be perforated on its own."
+        )
+    pairs = [list(pair) for pair in GPA.pc.get_modules_to_fuse()]
+    pairs.append([head_id, norm_id])
+    GPA.pc.set_modules_to_fuse(pairs)
+    if head_id not in GPA.pc.get_module_ids_to_perforate():
+        set_module_id_mode(head_id, "perforated")
+    return f"fused {head_id} (head) with {norm_id} (norm); head is perforated"
+
+
+def _is_norm_type(type_name):
+    """True for BatchNorm*, LayerNorm, GroupNorm, InstanceNorm*, SyncBatchNorm, etc."""
+    return "norm" in type_name.lower()
+
+
+_NORM_DIRECT_WARNING = (
+    "⚠ norm layers work best fused (f) with their head, "
+    "or targeted via their parent — direct p/t may reduce effectiveness"
+)
+
+
+def set_all_types_to_tracking(entries):
+    """Reset every module to tracked: clear id/type perforate marks, then
+    track every type that owns parameters directly. A quick way to start from
+    "track everything" before manually perforating the head/last layer.
+    """
+    GPA.pc.set_module_ids_to_perforate(
+        GPA.pc.get_python_supplied("module_ids_to_perforate") or []
+    )
+    GPA.pc.set_module_names_to_perforate(
+        GPA.pc.get_python_supplied("module_names_to_perforate") or []
+    )
+    # Only types that own parameters directly. Tracking a container would apply
+    # to everything inside it and make ids and block rules there unreachable.
+    all_type_names = dedupe_list(
+        entry["type_name"] for entry in entries if entry["direct_param_count"] > 0
+    )
+    GPA.pc.set_module_names_to_track(all_type_names)
+
+
 def _would_auto_track_params(entry, entries, resolved):
     """True if this module's direct params qualify for auto-tracking.
 
@@ -517,6 +994,9 @@ def clear_module_mode(entry):
         module_id in GPA.pc.get_module_ids_to_perforate()
         or module_id in GPA.pc.get_module_ids_to_track()
     ):
+        owner = id_python_owner(module_id)
+        if owner:
+            return python_owned_message(module_id, owner)
         GPA.pc.set_module_ids_to_perforate(ids_perforate)
         GPA.pc.set_module_ids_to_track(ids_track)
         return f"cleared {module_id}"
@@ -525,6 +1005,9 @@ def clear_module_mode(entry):
         type_name in GPA.pc.get_module_names_to_perforate()
         or type_name in GPA.pc.get_module_names_to_track()
     ):
+        owner = type_python_owner(type_name)
+        if owner:
+            return python_owned_message(f"the {type_name} type rule", owner)
         GPA.pc.set_module_names_to_perforate(
             [v for v in GPA.pc.get_module_names_to_perforate() if v != type_name]
         )
@@ -558,10 +1041,13 @@ def type_rule_entries(entries):
 def unset_module_entries(entries, resolved):
     """Entries that own parameters, have no resolved mode, and are not auto-trackable."""
     unset = []
+    fused = get_fused_pair_map()
     for entry in entries:
         if entry["in_replaced"] or entry["is_replaced_root"]:
             continue
         if entry["direct_param_count"] <= 0:
+            continue
+        if fused.get(entry["id"], (None,))[0] == "norm":
             continue
         if resolved[entry["id"]]["eff"] is None:
             if not _would_auto_track_params(entry, entries, resolved):
@@ -575,6 +1061,7 @@ def build_budget_line(entries, resolved):
     total_model_params = 0
     seen_added = set()
     seen_total = set()
+    fused = get_fused_pair_map()
 
     for entry in entries:
         for _name, parameter in entry["module"].named_parameters(recurse=False):
@@ -583,7 +1070,15 @@ def build_budget_line(entries, resolved):
                 seen_total.add(pid)
                 total_model_params += parameter.numel()
 
-        if resolved[entry["id"]]["eff"] == "perforated":
+        fused_role = fused.get(entry["id"])
+        norm_of_perforated_head = (
+            fused_role is not None
+            and fused_role[0] == "norm"
+            and resolved[fused_role[1]]["eff"] == "perforated"
+        )
+        if norm_of_perforated_head or (
+            resolved[entry["id"]]["eff"] == "perforated" and entry["trainable"]
+        ):
             for _name, parameter in entry["module"].named_parameters(recurse=False):
                 pid = id(parameter)
                 if pid not in seen_added:
@@ -1027,6 +1522,13 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     mode = record["eff"]
+    fuse_role = get_fused_pair_map().get(entry["id"], (None,))[0]
+    if fuse_role == "norm":
+        return color_text("↑", COLOR_ACCENT) + "    ", "↑    "
+    if not entry["trainable"] and record["source"] != "inherited" and (mode == "perforated" or entry["tree_param_count"] > 0):
+        # Ineligible for perforation; takes precedence over a stale perforate mark.
+        if mode != "tracked":
+            return dim("∅") + "    ", "∅    "
     if mode is None:
         if entry["direct_param_count"] > 0:
             if entries is not None and resolved is not None and _would_auto_track_params(entry, entries, resolved):
@@ -1038,21 +1540,35 @@ def make_target_marker(entry, record, entries=None, resolved=None):
         return "     ", "     "
 
     block_display = make_block(mode)
+    if fuse_role == "head":
+        return color_text("↓", COLOR_ACCENT) + f" {block_display} ", "↓ ██ "
+    norm_direct = _is_norm_type(entry["type_name"]) and record["source"] != "inherited"
+    if norm_direct:
+        block_display = color_text_on_bg("⚠⚠", "000000", get_color_hex_for_mode(mode))
+    block_plain = "⚠█" if norm_direct else "██"
     if record["source"] == "inherited":
         return f"↳ {block_display} ", "↳ ██ "
     if record["source"] == "id":
-        return f"* {block_display} ", "* ██ "
-    return f"  {block_display} ", "  ██ "
+        return f"* {block_display} ", f"* {block_plain} "
+    if record["source"] == "block":
+        return f"▤ {block_display} ", f"▤ {block_plain} "
+    return f"  {block_display} ", f"  {block_plain} "
 
 
 def make_block(mode):
     return color_text("██", get_color_hex_for_mode(mode))
 
 
-def render_targets_lines(entries, visible_entries, selected_index, resolved, expanded_replaced):
-    """Header + tree + footer for the Targets screen, as a list of lines."""
+def render_targets_lines(entries, visible_entries, selected_index, resolved, is_expanded_fn, pending_fuse_id=None):
+    """Header + tree + footer for the Targets screen, as a list of lines.
+
+    ``is_expanded_fn(entry) -> bool`` reports the current expand state of a
+    collapsible (``has_children``) entry.
+    """
     need = len(unset_module_entries(entries, resolved))
     rules = type_rule_entries(entries)
+    tied_map = get_tied_parameters_map(entries)
+    fused_map = get_fused_pair_map()
 
     lines = [render_tab_bar("targets"), ""]
     lines.append(
@@ -1082,7 +1598,7 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         if entry["is_replaced_root"]:
             child_count = sum(1 for e in entries if e["replaced_root"] == entry["id"])
             glyph = color_text("↯", COLOR_ACCENT)
-            is_open = expanded_replaced.get(entry["id"], False)
+            is_open = is_expanded_fn(entry)
             toggle = "[← collapse]" if is_open else "[→ expand]"
             return [
                 f"{cursor}{glyph}   {indent}{entry['id']}  "
@@ -1096,11 +1612,18 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
                 + color_text(toggle, COLOR_ACCENT),
             ]
 
+        collapse_glyph_plain = ""
+        collapse_glyph = ""
+        if entry["has_children"]:
+            is_open = is_expanded_fn(entry)
+            collapse_glyph_plain = "▾ " if is_open else "▸ "
+            collapse_glyph = color_text(collapse_glyph_plain.strip(), COLOR_ACCENT) + " "
+
         marker_display, marker_plain = make_target_marker(entry, record, entries, resolved)
 
         if entry["in_replaced"]:
             id_part = dim(f"{entry['id']}  [{entry['type_name']}] (id stale)")
-            return [f"{cursor}{marker_display} {indent}{id_part}"]
+            return [f"{cursor}{marker_display} {indent}{collapse_glyph}{id_part}"]
 
         id_part = f"{entry['id']}  {dim('[' + entry['type_name'] + ']')}"
 
@@ -1108,6 +1631,9 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         if record["eff"] is not None:
             mode_color = get_color_hex_for_mode(record["eff"])
             tail = color_text(f"mode={mode_verb(record['eff'])}", mode_color)
+            if record["source"] == "block":
+                rule = record["block_rule"]
+                tail += dim(f"  (via {rule['block']} {rule['path']})")
             if record["source"] == "inherited":
                 tail += dim(f"  (via {record['origin_id']})")
                 if record["overridden"] is not None:
@@ -1120,6 +1646,21 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
             else:
                 tail = color_text("needs a mode", COLOR_ATTENTION)
 
+        fuse_role = fused_map.get(entry["id"])
+        if fuse_role is not None and fuse_role[0] == "norm":
+            tail = color_text(f"fused into {fuse_role[1]}", COLOR_ACCENT)
+        elif fuse_role is not None:
+            tail += "  " + color_text(f"fused with {fuse_role[1]}", COLOR_ACCENT)
+        elif entry["id"] == pending_fuse_id:
+            tail += "  " + color_text("↓ runs first", COLOR_ACCENT)
+        elif (
+            pending_fuse_id is not None
+            and selected
+            and fuse_role is None
+            and not (entry["is_replaced_root"] or entry["in_replaced"])
+        ):
+            tail += "  " + color_text("↑ this module runs second", COLOR_ACCENT)
+
         _direct = entry["direct_param_count"]
         _child = entry["tree_param_count"] - entry["direct_param_count"]
         if _direct > 0 and _child > 0:
@@ -1131,13 +1672,20 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         else:
             params = ""
 
+        tied_others = tied_map.get(entry["id"], [])
+        tie_warning = (
+            color_text("  ⚠ tied to " + ", ".join(tied_others), COLOR_ATTENTION)
+            if tied_others else ""
+        )
+
         lead = (
-            2 + len(marker_plain) + 1 + len(indent) + len(entry["id"])
-            + 2 + len(entry["type_name"]) + 2
+            2 + len(marker_plain) + 1 + len(indent) + len(collapse_glyph_plain)
+            + len(entry["id"]) + 2 + len(entry["type_name"]) + 2
         )
         gap = max(2, 46 - lead)
         return [
-            f"{cursor}{marker_display} {indent}{id_part}" + " " * gap + tail + params
+            f"{cursor}{marker_display} {indent}{collapse_glyph}{id_part}"
+            + " " * gap + tail + params + tie_warning
         ]
 
     body_lines = []
@@ -1154,10 +1702,105 @@ def render_targets_lines(entries, visible_entries, selected_index, resolved, exp
         "",
         dim(
             "p/t perforate·track this module   P/T whole type   x clear   "
+            "e edit block   "
+            "A track all   ←/→ collapse·expand   0-9 collapse depth   "
+            "f stage head / fuse with staged head / unfuse   A track all   ←/→ collapse·expand   0-9 collapse depth   "
             "h legend   ↑↓/jk move   s start"
         ),
     ]
     return lines, body_lines, footer, focus
+
+
+def render_block_mode_lines(entries, visible_entries, selected_index, block, template_id, is_expanded_fn):
+    """Header + subtree + footer for block mode, shaped like render_targets_lines."""
+    template_depth = next(e for e in entries if e["id"] == template_id)["depth"]
+    all_instances = get_block_instances(entries, block)
+    template_structure = get_instance_structure(entries, template_id)
+    matching_instances = [
+        inst for inst in all_instances
+        if get_instance_structure(entries, inst["id"]) == template_structure
+    ]
+    other_count = len(all_instances) - len(matching_instances)
+
+    lines = [render_tab_bar("targets"), ""]
+    heading = color_text(
+        f"  Editing {len(matching_instances)} {block} module"
+        + ("s" if len(matching_instances) != 1 else ""),
+        COLOR_ACCENT,
+    ) + dim(f"   (showing {template_id} as the example)")
+    if other_count:
+        heading += dim(
+            f"   · {other_count} other {block}"
+            + ("s have" if other_count != 1 else " has")
+            + " a different structure — open one with e to edit separately"
+        )
+    lines.append(heading)
+    lines.append(
+        dim("  A block rule applies to the same path inside every instance with this structure.")
+    )
+    lines.append(HR)
+
+    body_lines = []
+    focus = (0, 1)
+    for i, entry in enumerate(visible_entries):
+        selected = i == selected_index
+        cursor = color_text("> ", "E8EEEC") if selected else "  "
+        indent = "  " * (entry["depth"] - template_depth)
+        glyph = ""
+        if entry["has_children"] and entry["id"] != template_id:
+            glyph = color_text("▾" if is_expanded_fn(entry) else "▸", COLOR_ACCENT) + " "
+        if entry["id"] == template_id:
+            label = f"{dim('(' + block + ')')}"
+            row = f"{cursor}     {label}   {dim('the block itself — use P/T to set a whole type')}"
+        else:
+            path = entry["id"][len(template_id):]
+            rule = find_block_rule(block, path, structure=template_structure)
+            label = f"{path}  {dim('[' + entry['type_name'] + ']')}"
+            if rule is not None:
+                marker = "▤ " + make_block(rule["mode"]) + " "
+                tail = color_text(f"mode={mode_verb(rule['mode'])}", get_color_hex_for_mode(rule["mode"]))
+                tail += dim(f"  applies to {block_rule_scope_text(entries, rule)}")
+                if block_rule_python_owned(rule):
+                    tail += dim("  (set in your script)")
+            else:
+                marker = "     "
+                tail = dim("no block rule")
+            if not entry["trainable"] and entry["tree_param_count"] > 0:
+                marker = dim("∅") + "    "
+            row = f"{cursor}{marker}{indent}{glyph}{label}   {tail}"
+        if selected:
+            focus = (len(body_lines), len(body_lines) + 1)
+        body_lines.append(row)
+
+    footer = [
+        HR,
+        "",
+        dim(
+            "p/t perforate·track this path in every block   x remove the rule   "
+            "←/→ collapse·expand   ↑↓/jk move   e or Esc done"
+        ),
+    ]
+    return lines, body_lines, footer, focus
+
+
+def render_blockrule_overlay(entry, rule, key, choices, selected_index):
+    """Modal shown when editing a module whose mode comes from a block rule."""
+    action = {"p": "perforate", "t": "track", "x": "clear"}[key]
+    lines = [
+        "",
+        "",
+        "  " + color_text(f"{entry['id']} is set by a block rule", "E8EEEC"),
+        "",
+        dim(f"  {rule['block']} {rule['path']}: {mode_verb(rule['mode'])}"
+            " — it applies to every block of that type,"),
+        dim(f"  so you can't {action} just this module from here."),
+        "",
+    ]
+    for index, (_name, label) in enumerate(choices):
+        cursor = color_text("▸ ", COLOR_ACCENT) if index == selected_index else "  "
+        lines.append(f"  {cursor}{label}")
+    lines += ["", color_text("  ↑↓/jk move · Enter choose · Esc cancel", COLOR_ACCENT)]
+    return lines
 
 
 def render_run_settings_lines(items, selected_index, describe_name):
@@ -1404,6 +2047,12 @@ def render_help_overlay():
         "   p / t     perforate / track this module",
         "   P / T     perforate / track every module of this type",
         "   x         clear this module (falls back to its type rule)",
+        "   e         edit a block: set a rule for the same path in every instance",
+        "             (on a module set by a block rule, p/t/x offer to edit the block)",
+        "   f         two-step fuse: first press stages a module as the head (↓ runs first);",
+        "             second press on a different module completes the pair as the norm (↑ runs second).",
+        "             Pressing f on an already-fused module un-fuses it.",
+        "             Pressing f again on the staged head cancels staging.",
         "   → / ←     expand / collapse a module that will be restructured (↯)",
         "   y         show / hide the type-rules list",
         "   h         show the marker & colour legend",
@@ -1447,9 +2096,19 @@ def render_legend_overlay():
         dim("  Marker prefixes"),
         f"     {perf}     set by type name — every module of this class",
         f"   * {perf}     mode set directly on this module (by id)",
+        f"   ▤ {perf}     set by a block rule — the same path in every instance of a block",
         f"   ↳ {perf}     inherited from an ancestor; applies to the whole subtree",
         f"   ! {att}     has parameters but no mode — needs attention",
+        f"   * {color_text_on_bg('⚠⚠', '000000', COLOR_PERFORATE)}     norm targeted directly — consider fusing (f) or targeting via parent",
+        "   ↓ ██      fused head: runs first, perforated as the combined block",
+        "   ↑         fused norm: runs second inside the head's block, needs no mode",
+        "   " + dim("∅") + "         not trainable (no parameter requires grad) —",
+        "             can be tracked but not perforated",
         f"   ~ {trk}     direct params auto-tracked (all child modules covered)",
+        "   ↓         staged as fuse head (runs first) — press f on the norm to complete",
+        "   ↑         currently selected as the norm candidate (runs second)",
+        "   fused     a head and a norm are perforated as one block;",
+        "             the head is perforated, the norm just runs inside it",
         "   ↯         will be restructured for PAI before training;",
         "             target the modules inside it by type (P/T), not by id",
         "   (none)    structural container with no parameters of its own",
@@ -1459,8 +2118,9 @@ def render_legend_overlay():
         "      subtree; a mode set directly on a descendant is ignored",
         "      while the ancestor's mode is in effect",
         "   2. by id — a mode set on this exact module",
-        "   3. by type — a mode set on the module's class name",
-        "   So: inherited  >  by id  >  by type.",
+        "   3. by block rule — the same path inside every instance of a block",
+        "   4. by type — a mode set on the module's class name",
+        "   So: inherited  >  by id  >  by block rule  >  by type.",
         "",
         color_text("  h or Esc to close", COLOR_ACCENT),
     ]
@@ -1610,10 +2270,56 @@ def set_perforation_targets(model):
 
     Two screens (Tab to switch): Targets (the module tree) and Run settings.
     See the `?` overlay for the full key reference.
+
+    Under torch.distributed only rank 0 runs the TUI.  The other ranks wait for
+    it, then load the config rank 0 saved, or stop as well if rank 0 exited or
+    failed instead of confirming.
     """
+    import datetime
+    import torch.distributed as dist
+
+    if not (dist.is_available() and dist.is_initialized()):
+        _set_perforation_targets_interactive(model)
+        return
+
+    # A gloo group so waiting on a human doesn't hit the NCCL timeout or need a GPU
+    group = (
+        dist.new_group(backend="gloo", timeout=datetime.timedelta(days=1))
+        if dist.is_gloo_available()
+        else None
+    )
+    # [outcome, exit code]: outcome is "confirmed", "exit" or "error"
+    status = ["error", 1]
+    try:
+        if dist.get_rank() == 0:
+            try:
+                _set_perforation_targets_interactive(model)
+                status = ["confirmed", 0]
+            except SystemExit as e:
+                status = ["exit", e.code]
+                raise
+            finally:
+                dist.broadcast_object_list(status, src=0, group=group)
+            return
+        dist.broadcast_object_list(status, src=0, group=group)
+    finally:
+        if group is not None:
+            dist.destroy_process_group(group)
+
+    if status[0] == "exit":
+        sys.exit(status[1])
+    if status[0] != "confirmed":
+        raise RuntimeError("Rank 0 failed during perforation configuration; see its error above.")
+    # Load the configuration rank 0 saved
+    GPA.pc.sync_config_sources()
+    GPA.pc.set_configuration_confirmed(True)
+
+
+def _set_perforation_targets_interactive(model):
     require_interactive_session()
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
+    GPA.pc.__dict__["_tui_editing"] = True
     entered_alt_screen = False
     quit_requested = False
 
@@ -1628,6 +2334,7 @@ def set_perforation_targets(model):
             input("Press Enter to confirm perforation targets...")
             GPA.pc.set_configuration_confirmed(True)
             return
+        entries_by_id = {entry["id"]: entry for entry in entries}
 
         active_screen = "targets"
         overlay = None
@@ -1635,11 +2342,12 @@ def set_perforation_targets(model):
 
         target_selected_index = 0
         target_window_start = 0
-        expanded_replaced = {}
+        target_depth_baseline = None
+        target_expanded_overrides = {}
 
         run_selected_index = 0
         run_window_start = 0
-        expanded_buckets = {}
+        expanded_buckets = {"Run basics": True}
         describe_name = ""
 
         ov_scope = None
@@ -1651,6 +2359,16 @@ def set_perforation_targets(model):
 
         scalar_editor_state = None
         list_editor_state = None
+
+        # Two-step fuse: set when the user has staged a head but not yet picked the norm.
+        pending_fuse_id = None
+
+        # Block mode edits the same path inside every instance of one block.
+        block_mode = None  # {"block": class name, "template_id": example instance}
+        block_selected_index = 0
+        block_window_start = 0
+        block_expanded_overrides = {}
+        block_modal = None  # set while the "set by a block rule" modal is open
 
         def finalize_save(choice_index):
             auto_track_unset_direct_params(entries, resolved)
@@ -1677,12 +2395,11 @@ def set_perforation_targets(model):
                     f"'{relative_config_name}' to skip this screen next time without "
                     "changing your perforate_model call."
                 )
-                while True:
-                    filename = input("Config filename/path: ").strip()
-                    if filename:
-                        GPA.pc.__dict__["_config_file"] = filename
-                        break
-                    print("A filename is required to save a default configuration.")
+                filename = input(
+                    f"Config filename/path [{relative_config_name}] "
+                    "(blank accepts default): "
+                ).strip()
+                GPA.pc.__dict__["_config_file"] = filename or relative_config_name
                 enter_alternate_screen()
 
             GPA.pc.persist_config_outputs(overwrite_config_file=True)
@@ -1690,11 +2407,35 @@ def set_perforation_targets(model):
                 module_settings_overrides, overwrite_config_file=True
             )
 
+        def is_target_expanded(entry):
+            return is_entry_expanded(entry, target_depth_baseline, target_expanded_overrides)
+
+        def visible_block_entries():
+            template_id = block_mode["template_id"]
+            subtree = [
+                e
+                for e in entries
+                if e["id"] == template_id or e["id"].startswith(template_id + ".")
+            ]
+            subtree_by_id = {e["id"]: e for e in subtree}
+            return [
+                e
+                for e in subtree
+                if is_entry_visible(e, subtree_by_id, None, block_expanded_overrides)
+            ]
+
+        def blockrule_choices(key):
+            choices = [("edit", "Edit the block  (change or remove the rule for every instance)")]
+            if key in ("p", "t"):
+                choices.append(("this", "Change this module only  (set it by id as an exception)"))
+            choices.append(("cancel", "Cancel"))
+            return choices
+
         def visible_targets():
             out = []
             for entry in entries:
-                if entry["in_replaced"] and not expanded_replaced.get(
-                    entry["replaced_root"], False
+                if not is_entry_visible(
+                    entry, entries_by_id, target_depth_baseline, target_expanded_overrides
                 ):
                     continue
                 out.append(entry)
@@ -1750,12 +2491,40 @@ def set_perforation_targets(model):
                         describe_name,
                     )
                 )
+            elif overlay == "blockrule":
+                screen_text = render_static_overlay(
+                    render_blockrule_overlay(
+                        entries_by_id[block_modal["entry_id"]],
+                        block_modal["rule"],
+                        block_modal["key"],
+                        blockrule_choices(block_modal["key"]),
+                        block_modal["selected"],
+                    )
+                )
+            elif active_screen == "targets" and block_mode is not None:
+                vis = visible_block_entries()
+                if block_selected_index >= len(vis):
+                    block_selected_index = max(0, len(vis) - 1)
+                header, body, footer, focus = render_block_mode_lines(
+                    entries,
+                    vis,
+                    block_selected_index,
+                    block_mode["block"],
+                    block_mode["template_id"],
+                    lambda e: is_entry_expanded(e, None, block_expanded_overrides),
+                )
+                if status_message:
+                    footer = footer + [color_text("  " + status_message, COLOR_ACCENT)]
+                screen_text, block_window_start = compose_scrolling_screen(
+                    header, body, footer, block_window_start, focus
+                )
             elif active_screen == "targets":
                 vis = visible_targets()
                 if target_selected_index >= len(vis):
                     target_selected_index = max(0, len(vis) - 1)
                 header, body, footer, focus = render_targets_lines(
-                    entries, vis, target_selected_index, resolved, expanded_replaced
+                    entries, vis, target_selected_index, resolved, is_target_expanded,
+                    pending_fuse_id=pending_fuse_id,
                 )
                 if overlay == "typerules":
                     header = header + [""] + render_type_rules_overlay(entries) + [""]
@@ -1797,6 +2566,40 @@ def set_perforation_targets(model):
                     break
                 if key in ("n", "N") or key == "\x1b":
                     overlay = None
+                continue
+
+            if overlay == "blockrule":
+                choices = blockrule_choices(block_modal["key"])
+                if is_up_key(key):
+                    block_modal["selected"] = _move(block_modal["selected"], -1, len(choices))
+                elif is_down_key(key):
+                    block_modal["selected"] = _move(block_modal["selected"], 1, len(choices))
+                elif key == "\x1b":
+                    overlay = None
+                    block_modal = None
+                elif is_enter_key(key):
+                    choice = choices[block_modal["selected"]][0]
+                    modal_entry = entries_by_id[block_modal["entry_id"]]
+                    if choice == "edit":
+                        block_mode = {
+                            "block": block_modal["rule"]["block"],
+                            "template_id": block_modal["block_id"],
+                        }
+                        block_selected_index = 0
+                        block_window_start = 0
+                        block_expanded_overrides.clear()
+                    elif choice == "this":
+                        if id_python_owner(modal_entry["id"]):
+                            status_message = python_owned_message(
+                                modal_entry["id"], id_python_owner(modal_entry["id"])
+                            )
+                        else:
+                            set_module_id_mode(
+                                modal_entry["id"],
+                                "perforated" if block_modal["key"] == "p" else "tracked",
+                            )
+                    overlay = None
+                    block_modal = None
                 continue
 
             if overlay == "typerules":
@@ -1909,6 +2712,51 @@ def set_perforation_targets(model):
 
             status_message = ""
 
+            if active_screen == "targets" and block_mode is not None:
+                vis = visible_block_entries()
+                if block_selected_index >= len(vis):
+                    block_selected_index = max(0, len(vis) - 1)
+                entry = vis[block_selected_index]
+                block_name = block_mode["block"]
+                block_path = entry["id"][len(block_mode["template_id"]):]
+
+                if key in ("\x1b", "e"):
+                    block_mode = None
+                elif is_page_up_key(key):
+                    block_selected_index = _move(block_selected_index, -10, len(vis))
+                elif is_page_down_key(key):
+                    block_selected_index = _move(block_selected_index, 10, len(vis))
+                elif is_up_key(key):
+                    block_selected_index = _move(block_selected_index, -1, len(vis))
+                elif is_down_key(key):
+                    block_selected_index = _move(block_selected_index, 1, len(vis))
+                elif is_right_key(key) or is_left_key(key):
+                    if entry["has_children"] and block_path != "":
+                        block_expanded_overrides[entry["id"]] = is_right_key(key)
+                elif key in ("p", "t", "x") and block_path == "":
+                    status_message = (
+                        f"This is the {block_name} itself. Press e to leave, then P/T "
+                        "to set a mode for the whole type."
+                    )
+                elif key == "p" and not entry["trainable"]:
+                    status_message = (
+                        f"{block_path} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("p", "t"):
+                    status_message = set_block_rule(
+                        block_name,
+                        block_path,
+                        "perforated" if key == "p" else "tracked",
+                        entries,
+                        template_id=block_mode["template_id"],
+                    )
+                elif key == "x":
+                    status_message = remove_block_rule(
+                        block_name, block_path, entries, template_id=block_mode["template_id"]
+                    )
+                continue
+
             if active_screen == "targets":
                 vis = visible_targets()
                 if not vis:
@@ -1918,21 +2766,55 @@ def set_perforation_targets(model):
                 entry = vis[target_selected_index]
                 record = resolved[entry["id"]]
 
-                if is_up_key(key):
-                    target_selected_index = _move(target_selected_index, -1, len(vis))
-                elif is_down_key(key):
-                    target_selected_index = _move(target_selected_index, 1, len(vis))
-                elif is_page_up_key(key):
+                if is_page_up_key(key):
                     target_selected_index = _move(target_selected_index, -10, len(vis))
                 elif is_page_down_key(key):
                     target_selected_index = _move(target_selected_index, 10, len(vis))
+                elif is_up_key(key):
+                    target_selected_index = _move(target_selected_index, -1, len(vis))
+                elif is_down_key(key):
+                    target_selected_index = _move(target_selected_index, 1, len(vis))
                 elif key == "y":
                     overlay = "typerules"
                 elif key == "h":
                     overlay = "legend"
                 elif is_right_key(key) or is_left_key(key):
-                    if entry["is_replaced_root"]:
-                        expanded_replaced[entry["id"]] = is_right_key(key)
+                    if entry["has_children"]:
+                        target_expanded_overrides[entry["id"]] = is_right_key(key)
+                elif is_depth_key(key):
+                    target_depth_baseline = int(key)
+                    target_expanded_overrides.clear()
+                elif key in ("p", "t", "x") and record["source"] == "block":
+                    block_rule, block_instance_id = get_block_rule_for_entry(
+                        entry, entries_by_id
+                    )
+                    block_modal = {
+                        "key": key,
+                        "entry_id": entry["id"],
+                        "rule": block_rule,
+                        "block_id": block_instance_id,
+                        "selected": 0,
+                    }
+                    overlay = "blockrule"
+                elif key == "e":
+                    status_message = block_mode_refusal(entry, get_block_types(entries))
+                    if not status_message:
+                        block_mode = {
+                            "block": entry["type_name"],
+                            "template_id": entry["id"],
+                        }
+                        block_selected_index = 0
+                        block_window_start = 0
+                        block_expanded_overrides.clear()
+                elif key == "p" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("p", "t") and id_python_owner(entry["id"]):
+                    status_message = python_owned_message(
+                        entry["id"], id_python_owner(entry["id"])
+                    )
                 elif key in ("p", "t"):
                     if entry["is_replaced_root"] or entry["in_replaced"]:
                         status_message = (
@@ -1944,6 +2826,18 @@ def set_perforation_targets(model):
                         set_module_id_mode(
                             entry["id"], "perforated" if key == "p" else "tracked"
                         )
+                        if _is_norm_type(entry["type_name"]):
+                            status_message = _NORM_DIRECT_WARNING
+                elif key == "P" and not entry["trainable"]:
+                    status_message = (
+                        f"{entry['id']} is not trainable: no parameters require grad, "
+                        "so it can't be perforated."
+                    )
+                elif key in ("P", "T") and type_python_owner(entry["type_name"]):
+                    status_message = python_owned_message(
+                        f"the {entry['type_name']} type rule",
+                        type_python_owner(entry["type_name"]),
+                    )
                 elif key in ("P", "T"):
                     if entry["is_replaced_root"]:
                         status_message = (
@@ -1954,8 +2848,29 @@ def set_perforation_targets(model):
                         set_module_name_mode(
                             entry["type_name"], "perforated" if key == "P" else "tracked", entries
                         )
+                        if _is_norm_type(entry["type_name"]):
+                            status_message = _NORM_DIRECT_WARNING
+                elif key == "f":
+                    if entry["id"] in get_fused_pair_map():
+                        pending_fuse_id = None
+                        status_message = unfuse_pair(entry["id"], entries)
+                    elif pending_fuse_id is None:
+                        pending_fuse_id, status_message = stage_as_fuse_head(entry)
+                    elif pending_fuse_id == entry["id"]:
+                        pending_fuse_id = None
+                        status_message = f"cancelled — {entry['id']} is no longer staged"
+                    else:
+                        head_entry = entries_by_id.get(pending_fuse_id)
+                        pending_fuse_id = None
+                        if head_entry is None:
+                            status_message = "staged head no longer in model; staging cancelled"
+                        else:
+                            status_message = fuse_pair(head_entry, entry, entries, resolved)
                 elif key == "x":
                     status_message = clear_module_mode(entry)
+                elif key == "A":
+                    set_all_types_to_tracking(entries)
+                    status_message = "all modules set to tracked"
                 elif is_enter_key(key):
                     scope, reason = get_override_scope_for_entry(entry, resolved)
                     if scope is None:
@@ -1975,7 +2890,11 @@ def set_perforation_targets(model):
                 run_selected_index = len(items) - 1
             item = items[run_selected_index]
 
-            if is_up_key(key) or is_down_key(key):
+            if is_page_up_key(key):
+                run_selected_index = _move(run_selected_index, -10, len(items))
+            elif is_page_down_key(key):
+                run_selected_index = _move(run_selected_index, 10, len(items))
+            elif is_up_key(key) or is_down_key(key):
                 step = -1 if is_up_key(key) else 1
                 run_selected_index = _move(run_selected_index, step, len(items))
                 while (
@@ -1984,10 +2903,6 @@ def set_perforation_targets(model):
                 ):
                     run_selected_index = _move(run_selected_index, step, len(items))
                 describe_name = ""
-            elif is_page_up_key(key):
-                run_selected_index = _move(run_selected_index, -10, len(items))
-            elif is_page_down_key(key):
-                run_selected_index = _move(run_selected_index, 10, len(items))
             elif is_right_key(key):
                 if item["type"] == "bucket":
                     expanded_buckets[item["bucket"]] = True
@@ -2029,6 +2944,7 @@ def set_perforation_targets(model):
         if entered_alt_screen:
             exit_alternate_screen()
         GPA.pc.__dict__["_auto_persist_config"] = previous_auto_persist
+        GPA.pc.__dict__["_tui_editing"] = False
 
     if quit_requested:
         print("Configuration cancelled — training did not start.")

@@ -25,13 +25,20 @@ The rest of this readme covers the mnist example in this folder.  But additional
 
     # When to switch between Dendrite learning and neuron learning.
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
-    # How many normal epochs to wait for before switching modes, make sure this is higher than your scheduler's patience.
-    GPA.pc.set_n_epochs_to_switch(10)
+    # Patience: epochs without improvement before switching modes. Keep this well below num_train_epochs.
+    GPA.pc.set_n_epochs_to_switch(3)
     # The default shape of input tensors
     GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 
     and just for testing
     GPA.pc.set_testing_dendrite_capacity(True)
+
+### Validation Score
+
+The Trainer runs evaluation itself, so tell PAI which key of the eval metrics to use.  Set these before `perforate_model`, and use the setters (assigning `GPA.metric` has no effect):
+
+    GPA.pc.set_library_validation_score("eval_accuracy")  # "eval_" + the key returned by compute_metrics
+    GPA.pc.set_library_extra_scores(["train_loss"])       # optional extra scores to log and graph
 
 ### Save Name
 
@@ -39,16 +46,24 @@ The save name is passed directly to `perforate_model`.  See the Converting Netwo
 
 ### Trainer
 
-You need to make sure that the trainer does evaluation after every epoch so PAI has a validation score to work with.  The patched fork handles training termination and epoch limits internally:
+You need to make sure that the trainer does evaluation after every epoch so PAI has a validation score to work with.  Without it PAI never gets a score and training never ends.  The patched fork handles training termination internally, so `num_train_epochs` no longer stops training; it sets the length of the learning rate schedule, which restarts after every PAI restructure.  Keep it at your normal value:
 
     training_args.eval_strategy = "epoch"
+    training_args.num_train_epochs = 10
+
+Then turn PAI on in the Trainer itself:
+
+    trainer = MyTrainer(
+        ...
+        perforate_model=True,
+    )
 
 ### Converting Network
 
     model = UPA.perforate_model(
         model,
         save_name='mnistHF',     # Change for different parameter runs
-        maximizing_score=False,  # True for maximizing validation score, False for minimizing loss
+        maximizing_score=True,   # True for maximizing validation score (eval_accuracy), False for minimizing loss
         making_graphs=True)      # True to save output graphs
     
 ### TestingDendriteCapacity

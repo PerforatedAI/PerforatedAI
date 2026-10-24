@@ -172,7 +172,7 @@ Say: "I see some issues in your training results. Let's troubleshoot:"
     - Training will complete faster since fewer dendrite phases are needed
     - Optionally use `FIXED_SWITCH_MODE` for more consistent/predictable training time:
       ```python
-      GPA.pc.set_when_to_switch_mode("FIXED_SWITCH_MODE")
+      GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
       GPA.pc.set_n_epochs_to_switch(20)  # Adds dendrite every 20 epochs
       ```
     - With FIXED mode, you know exactly when dendrites are added, making total training time predictable
@@ -262,9 +262,9 @@ Based on `learning_rate.csv` and correlation with `scores.csv`:
 - Scores plateaued before dendrites could be fully optimized
 - **Recommend:** Increase scheduler patience or use slower decay
 - Examples:
-  - For ReduceLROnPlateau: `schedArgs = {'mode': 'max', 'patience': 10}` instead of 5
-  - For StepLR: `schedArgs = {'step_size': 10, 'gamma': 0.5}` instead of step_size=5
-  - For ExponentialLR: `schedArgs = {'gamma': 0.95}` instead of 0.9
+  - For ReduceLROnPlateau: `sched_args = {'mode': 'max', 'patience': 10}` instead of 5
+  - For StepLR: `sched_args = {'step_size': 10, 'gamma': 0.5}` instead of step_size=5
+  - For ExponentialLR: `sched_args = {'gamma': 0.95}` instead of 0.9
 
 **If learning rate stayed high too long:**
 - Training may have been unstable during dendrite additions

@@ -2,13 +2,13 @@
 Replicating our results on a one GPU machine:
 
 Resnet18:
-python train_perforated_resnet.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /home/rbrenner/Datasets/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
+python train_perforated_resnet_data_efficiency.py --model resnet18 --batch-size 32 --lr 0.0125 --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 --full-dataset --data-path /path/to/imagenet --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 --candidate-weight-init-mult 0.1 --pai-forward-function relu
 
 current resnet50 experiment:
-CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet.py \
+CUDA_VISIBLE_DEVICES=1 python train_perforated_resnet_data_efficiency.py \
   --model resnet50 --batch-size 32 --lr 0.0125 \
   --val-resize-size 256 --val-crop-size 224 --train-crop-size 224 \
-  --full-dataset --data-path /home/rbrenner/Datasets/imagenet \
+  --full-dataset --data-path /path/to/imagenet \
   --convert-count 0 --dendrite-mode 2 --improvement-threshold 1 \
   --candidate-weight-init-mult 0.1 --pai-forward-function relu \
   --wd 0.001 --label-smoothing 0.1 --mixup-alpha 0.2 --cutmix-alpha 1.0 \
@@ -922,7 +922,9 @@ def main(args):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+        )
         model_without_ddp = model.module
 
     model_ema = None
@@ -1047,9 +1049,15 @@ def main(args):
 
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
+            # add_validation_score returns the unwrapped model after a restructure
             model.to(device)
+            model_without_ddp = model
+            if args.distributed:
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+                )
             optimizer, lr_scheduler = create_optimizer_and_scheduler(
-                model, args, custom_keys_weight_decay, epoch=epoch
+                model_without_ddp, args, custom_keys_weight_decay, epoch=epoch
             )
 
         if model_ema:
