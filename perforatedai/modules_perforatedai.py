@@ -27,6 +27,70 @@ except ModuleNotFoundError as e:
         raise
 
 
+# Every parameter PAI manages gets a parameter_type attribute saying when it trains:
+#   "neuron"    - weights of the original modules. Train in neuron mode.
+#   "tree"      - dendrites_to_top, the output weights connecting dendrites to their
+#                 neurons. Train in neuron mode.
+#   "dendrite"  - weights of added dendrites (layers and dendrites_to_dendrites).
+#                 Train in neuron mode unless dendrite_update_mode is False.
+#   "candidate" - candidate dendrites and their inputs from existing dendrites.
+#                 Train in dendrite mode with perforated backpropagation.
+#   "ignored"   - reference copies of modules that never train.
+# The types are set where the parameters are created, so they survive reloading a
+# saved model, which recreates the dendrites by simulating the cycles that added them.
+DENDRITE_PARAMETER_TYPES = ("dendrite", "tree")
+
+
+def set_parameter_type(module, parameter_type):
+    """Set the parameter_type of all parameters of a module.
+
+    Parameters
+    ----------
+    module : nn.Module
+        Module whose parameters to tag, including all its submodules.
+    parameter_type : str
+        One of "neuron", "tree", "dendrite", "candidate" or "ignored".
+
+    Returns
+    -------
+    None
+    """
+    for param in module.parameters():
+        param.parameter_type = parameter_type
+
+
+def set_main_parameters(module):
+    """Set the parameters registered directly on a module, not on its submodules, to "neuron".
+
+    Parameters
+    ----------
+    module : nn.Module
+        Module whose own parameters to tag.
+
+    Returns
+    -------
+    None
+    """
+    for param in module.parameters(recurse=False):
+        param.parameter_type = "neuron"
+
+
+def is_dendrite_parameter(param):
+    """Return whether a parameter belongs to a dendrite ("dendrite" or "tree" parameter_type).
+
+    Parameters
+    ----------
+    param : torch.Tensor
+        The parameter to check.
+
+    Returns
+    -------
+    bool
+        True for dendrite weights and dendrite output weights.
+    """
+    return getattr(param, "parameter_type", None) in DENDRITE_PARAMETER_TYPES
+
+
 # Values for Dendrite training, minimally used in open source version
 _DENDRITE_TENSOR_VALUES_BASE = [
     "shape"
@@ -462,8 +526,7 @@ class PAINeuronModule(nn.Module):
         if _custom_dims is not None:
             self.set_this_output_dimensions(torch.tensor(_custom_dims))
         GPA.pai_tracker.add_pai_neuron_module(self)
-        if self.module_config.get_perforated_backpropagation():
-            MPB.set_neuron_parameters(self.main_module)
+        set_parameter_type(self.main_module, "neuron")
 
         # Track filter_backward initialization state as a
         # plain Python bool (avoids a GPU .item() sync on every backward pass).
@@ -764,7 +827,7 @@ class PAINeuronModule(nn.Module):
             self.dendrite_modules_added += 1
             if self.module_config.get_perforated_backpropagation():
                 MPB.set_module_n_pb(self)
-                MPB.set_neuron_parameters(self.dendrites_to_top)
+            set_parameter_type(self.dendrites_to_top, "tree")
 
         # If starting dendrite training
         else:
@@ -970,8 +1033,7 @@ class TrackedNeuronModule(nn.Module):
             )
             print(start_module)
         GPA.pai_tracker.add_tracked_neuron_module(self)
-        if GPA.pc.get_perforated_backpropagation():
-            MPB.set_neuron_parameters(self.main_module)
+        set_parameter_type(self.main_module, "neuron")
 
     def __getattr__(self, name):
         """Get member variables from the main module.
@@ -1172,8 +1234,7 @@ class PAIDendriteModule(nn.Module):
         # Create a copy of the parent module so you don't have a pointer to the real one which causes save errors
         self.parent_module = UPA.deep_copy_pai(initial_module)
         self.parent_module.requires_grad_(False)
-        if GPA.pc.get_perforated_backpropagation():
-            MPB.set_ignored_parameters(self.parent_module)
+        set_parameter_type(self.parent_module, "ignored")
         # Setup the input dimensions and node index for combining dendrite outputs
         if GPA.pc.get_perforated_backpropagation():
             MPB.create_extra_tensors(self)
@@ -1369,9 +1430,8 @@ class PAIDendriteModule(nn.Module):
                     self.candidate_processors.append(
                         GPA.pc.get_module_by_name_processing_classes()[module_index]()
                     )
-                if GPA.pc.get_perforated_backpropagation():
-                    MPB.set_candidate_parameters(self.candidate_module[i])
-                    MPB.set_ignored_parameters(self.best_candidate_module[i])
+                set_parameter_type(self.candidate_module[i], "candidate")
+                set_parameter_type(self.best_candidate_module[i], "ignored")
 
         for i in range(0, GPA.pc.get_global_candidates()):
             self.candidate_module[i].to(GPA.pc.get_device())
@@ -1397,8 +1457,7 @@ class PAIDendriteModule(nn.Module):
                 )
                 if GPA.pc.get_perforated_backpropagation():
                     MPB.init_candidates(self, j)
-            if GPA.pc.get_perforated_backpropagation():
-                MPB.set_candidate_parameters(self.dendrites_to_candidates)
+            set_parameter_type(self.dendrites_to_candidates, "candidate")
             # Initialize best_dendrites_to_candidates_saved to snapshot peak-correlation weights at epoch boundaries
             self.best_dendrites_to_candidates_saved = []
             for j in range(0, GPA.pc.get_global_candidates()):
@@ -1512,9 +1571,8 @@ class PAIDendriteModule(nn.Module):
             del self.candidate_module, self.best_candidate_module
 
             self.num_dendrites += 1
-            if GPA.pc.get_perforated_backpropagation():
-                MPB.set_dendrite_parameters(self.dendrites_to_dendrites)
-                MPB.set_dendrite_parameters(self.layers)
+            set_parameter_type(self.dendrites_to_dendrites, "dendrite")
+            set_parameter_type(self.layers, "dendrite")
 
     def forward(self, *args, **kwargs):
         """Forward pass for dendrite module.

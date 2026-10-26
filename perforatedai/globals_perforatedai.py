@@ -519,6 +519,8 @@ class PAIConfig:
         Ensure search lowers learning rate at least once.
     lr_binary_search_max_depth : int
         Maximum binary search depth for LR sweep (default 4).
+    dendrite_lr_multiplier : float
+        Learning rate multiplier for dendrite weights and their output weights.
     max_dendrite_tries : int
         Maximum attempts to add dendrites with random initializations.
     max_dendrites : int
@@ -626,6 +628,7 @@ class PAIConfig:
             for k in (
                 "improvement_threshold_raw",
                 "candidate_weight_initialization_multiplier",
+                "dendrite_lr_multiplier",
             )
         },
         **{
@@ -993,6 +996,15 @@ class PAIConfig:
                 self,
                 "lr_binary_search_max_depth",
                 self.lr_binary_search_max_depth,
+            )
+            # Dendrites and their output weights train at the optimizer's learning rate
+            # times this. Their output weights start at 0, so with a small learning
+            # rate, such as when fine-tuning, new dendrites barely change the network.
+            # Applied by setup_optimizer, or by passing the optimizer's params
+            # through UPA.get_parameter_groups when using set_optimizer_instance.
+            self.dendrite_lr_multiplier = 1.0
+            add_pai_config_var_functions(
+                self, "dendrite_lr_multiplier", self.dendrite_lr_multiplier
             )
             # Whether a higher validation score is better (True) or lower is better (False).
             self.maximizing_score = True

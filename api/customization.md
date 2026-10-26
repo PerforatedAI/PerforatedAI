@@ -62,6 +62,11 @@ If your system is using a more complicated trainer where you can't just declare 
 
 NOTE: If you use set_optimizer_instance, PAI will NOT handle the scheduler - you must manage scheduler.step() calls yourself.
 
+GPA.pc.set_dendrite_lr_multiplier trains the dendrites and their output weights at a multiple of the optimizer's learning rate. A dendrite's output weights start at 0, so with a small learning rate, such as when fine-tuning a pretrained model, new dendrites barely change the network. setup_optimizer applies the multiplier itself. With set_optimizer_instance, build the optimizer's parameter groups with UPA.get_parameter_groups, every time you build the optimizer:
+
+    optimizer = torch.optim.AdamW(UPA.get_parameter_groups(model.parameters(), lr), lr=lr)
+    GPA.pai_tracker.set_optimizer_instance(optimizer)
+
 If your system has multiple optimizers just pick one of them to use.  However, when you call add_validation_score you should also reinitialize the other optimizer if restructuring happens.
     
 If you are doing something separately with the scheduler or optimizer that is adjusting the learning rate based on epochs it is best if you can just define this internally in the scheduler rather than taking in epochs as a parameter to a function after the scheduler is initialized.

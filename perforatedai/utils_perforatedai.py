@@ -506,6 +506,86 @@ def get_pai_network_params(net):
     return param_list
 
 
+# Set by get_parameter_groups, to tell whether the optimizer can apply dendrite_lr_multiplier.
+parameter_groups_requested = False
+
+
+def get_parameter_groups(params, lr=None):
+    """Split optimizer parameters so that dendrites train at a higher learning rate.
+
+    Dendrite parameters ("dendrite" and "tree" parameter_type) are moved out of
+    each parameter group into a copy of that group with its learning rate
+    multiplied by GPA.pc.get_dendrite_lr_multiplier().  A dendrite's output
+    weights start at 0, so at a small learning rate a new dendrite barely changes
+    the network.  Use the result as the params of the optimizer, and call this
+    again whenever the optimizer is rebuilt after dendrites were added.
+    setup_optimizer calls this itself.
+
+    Parameters
+    ----------
+    params : iterable
+        Parameters or parameter groups, as they would be passed to a torch optimizer.
+    lr : float, optional
+        The optimizer's learning rate, for parameter groups that do not set their own.
+
+    Returns
+    -------
+    iterable
+        params itself if the multiplier is 1 or there are no dendrite parameters.
+        Otherwise a list of parameter groups: the given groups without their dendrite
+        parameters, followed by the groups of dendrite parameters.
+    """
+    global parameter_groups_requested
+    parameter_groups_requested = True
+    multiplier = GPA.pc.get_dendrite_lr_multiplier()
+    if multiplier == 1:
+        return params
+    params = list(params)
+    groups = params if params and isinstance(params[0], dict) else [{"params": params}]
+    if not any(
+        PA.is_dendrite_parameter(p) for group in groups for p in group["params"]
+    ):
+        return params
+    neuron_groups = []
+    dendrite_groups = []
+    for group in groups:
+        group_params = list(group["params"])
+        neuron_params = [p for p in group_params if not PA.is_dendrite_parameter(p)]
+        dendrite_params = [p for p in group_params if PA.is_dendrite_parameter(p)]
+        if neuron_params:
+            neuron_groups.append({**group, "params": neuron_params})
+        if dendrite_params:
+            group_lr = group.get("lr", lr)
+            if group_lr is None:
+                raise ValueError(
+                    "get_parameter_groups needs the optimizer's learning rate to set "
+                    "the dendrite learning rate, pass it as lr"
+                )
+            dendrite_groups.append(
+                {**group, "params": dendrite_params, "lr": group_lr * multiplier}
+            )
+    return neuron_groups + dendrite_groups
+
+
+def get_neuron_learning_rate(optimizer):
+    """Get the learning rate of the neurons, ignoring dendrite parameter groups.
+
+    Parameters
+    ----------
+    optimizer : torch.optim.Optimizer
+        The optimizer, possibly with dendrite groups from get_parameter_groups.
+
+    Returns
+    -------
+    float
+        The learning rate of the first parameter group that is not only dendrite parameters.
+    """
+    for param_group in optimizer.param_groups:
+        if not all(PA.is_dendrite_parameter(p) for p in param_group["params"]):
+            return param_group["lr"]
+    return optimizer.param_groups[0]["lr"]
+
+
 def replace_predefined_modules(start_module):
     """Replace a module with the module from globals list
 
@@ -1036,7 +1116,7 @@ def convert_network(net, layer_name=""):
     """
     if GPA.pc.get_perforated_backpropagation():
         UPB.initialize_pb()
-        MPB.set_main_parameters(net)
+    PA.set_main_parameters(net)
     if type(net) in GPA.pc.get_modules_to_replace():
         net = replace_predefined_modules(net)
     if (type(net) in GPA.pc.get_modules_to_perforate()) or (
