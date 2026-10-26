@@ -75,12 +75,6 @@
   "no_backward_workaround": false,
   "no_extra_n_modes": false,
   "normalized_covariance": true,
-  "output_dimensions": [
-    -1,
-    0,
-    -1,
-    -1
-  ],
   "p_epochs_to_switch": 2,
   "pai_email": "",
   "pai_forward_function": "torch.sigmoid",
