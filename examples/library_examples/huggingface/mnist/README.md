@@ -27,8 +27,6 @@ The rest of this readme covers the mnist example in this folder.  But additional
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
     # Patience: epochs without improvement before switching modes. Keep this well below num_train_epochs.
     GPA.pc.set_n_epochs_to_switch(3)
-    # The default shape of input tensors
-    GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 
     and just for testing
     GPA.pc.set_testing_dendrite_capacity(True)

@@ -198,15 +198,13 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
     # Configure PerforatedAI for Transformers (3D tensors: [batch, sequence, features])
     GPA.pc.set_testing_dendrite_capacity(False)  # False for real experiments, True for testing
     GPA.pc.set_unwrapped_modules_confirmed(True)
-    GPA.pc.set_input_dimensions([-1, -1, 0])  # Critical for 3D tensor support
     GPA.pc.set_module_names_to_perforate(["Linear"])
     GPA.pc.set_improvement_threshold([0.01, 0.001, 0])  # 1% improvement threshold
     GPA.pc.set_candidate_weight_initialization_multiplier(0.1)
     # Final projection doesn't need dendrites
     GPA.pc.append_module_ids_to_track([".output_projection"])
     GPA.pc.append_module_names_to_track(['Embedding', 'PositionalEncoding', 'LayerNorm'])
-    GPA.pc.set_perforated_backpropagation(False)
-    
+
 
     # Initialize model with dendrites
     model = UPA.perforate_model(
@@ -216,13 +214,15 @@ def train_dendritic(args, model, train_loader, val_loader, device, vocab):
         making_graphs=True,
         maximizing_score=False,
     )
+    # Linear layers default to [batch, features]; these see [batch, sequence, features]
+    seq_output_dimensions = [GPA.REDUCE_AXIS, GPA.NOT_REDUCE_OR_NODE_AXIS, GPA.NODE_AXIS]
     for i in range(2):
-        model.layers[i].ffn.linear1.set_this_output_dimensions([-1, -1, 0])
-        model.layers[i].ffn.linear2.set_this_output_dimensions([-1, -1, 0])
-        model.layers[i].self_attn.out_proj.set_this_output_dimensions([-1, -1, 0])
-        model.layers[i].self_attn.value_proj.set_this_output_dimensions([-1, -1, 0])
-        model.layers[i].self_attn.key_proj.set_this_output_dimensions([-1, -1, 0])
-        model.layers[i].self_attn.query_proj.set_this_output_dimensions([-1, -1, 0])
+        model.layers[i].ffn.linear1.set_this_output_dimensions(seq_output_dimensions)
+        model.layers[i].ffn.linear2.set_this_output_dimensions(seq_output_dimensions)
+        model.layers[i].self_attn.out_proj.set_this_output_dimensions(seq_output_dimensions)
+        model.layers[i].self_attn.value_proj.set_this_output_dimensions(seq_output_dimensions)
+        model.layers[i].self_attn.key_proj.set_this_output_dimensions(seq_output_dimensions)
+        model.layers[i].self_attn.query_proj.set_this_output_dimensions(seq_output_dimensions)
     model = model.to(device)
 
     # Set up optimizer tracking
@@ -470,6 +470,9 @@ def main():
     parser.add_argument(
         "--max_vocab_size", type=int, default=10000, help="Maximum vocabulary size"
     )
+    parser.add_argument(
+        "--seed", type=int, default=None, help="Random seed (unseeded if omitted)"
+    )
 
     # Logging
     parser.add_argument(
@@ -481,6 +484,8 @@ def main():
     parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging")
 
     args = parser.parse_args()
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
 
     # Set default embed_dim based on model type if not specified
     if args.embed_dim is None:

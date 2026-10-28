@@ -21,7 +21,6 @@ GPA.pc.set_n_epochs_to_switch(3)
 # Only used if perforatedbp is installed
 # GPA.pc.set_p_epochs_to_switch(3)
 
-GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 GPA.pc.set_history_lookback(1)
 GPA.pc.set_max_dendrites(5)
 GPA.pc.set_testing_dendrite_capacity(False)
