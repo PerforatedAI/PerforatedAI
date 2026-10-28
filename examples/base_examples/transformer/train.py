@@ -470,6 +470,9 @@ def main():
     parser.add_argument(
         "--max_vocab_size", type=int, default=10000, help="Maximum vocabulary size"
     )
+    parser.add_argument(
+        "--seed", type=int, default=None, help="Random seed (unseeded if omitted)"
+    )
 
     # Logging
     parser.add_argument(
@@ -481,6 +484,8 @@ def main():
     parser.add_argument("--no_wandb", action="store_true", help="Disable wandb logging")
 
     args = parser.parse_args()
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
 
     # Set default embed_dim based on model type if not specified
     if args.embed_dim is None:
