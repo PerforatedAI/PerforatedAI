@@ -32,6 +32,15 @@ except ImportError as e:
 
 
 def _pai_log(level, message):
+    """Emit a tracker log message to dashboard or stdout.
+
+    Parameters
+    ----------
+    level : str
+        Log level such as ``info``, ``warning``, or ``error``.
+    message : str
+        Message text to emit.
+    """
     if _dashboard_emitter is not None:
         _dashboard_emitter.log(GPA.pc, level, message)
     else:
@@ -413,8 +422,8 @@ def check_new_best(net, accuracy, epochs_since_cycle_switch):
                 print(
                     f"\n\nGot score of {accuracy:.10f} "
                     f'(average {GPA.pai_tracker.member_vars["running_accuracy"]}, '
-                    f"*{1-GPA.pc.get_improvement_threshold()}="
-                    f'{GPA.pai_tracker.member_vars["running_accuracy"]*(1.0 - GPA.pc.get_improvement_threshold())}) '
+                    f"*{1 - GPA.pc.get_improvement_threshold()}="
+                    f'{GPA.pai_tracker.member_vars["running_accuracy"] * (1.0 - GPA.pc.get_improvement_threshold())}) '
                     f'which is higher than {GPA.pai_tracker.member_vars["current_best_validation_score"]:.10f} '
                     f"by {GPA.pc.get_improvement_threshold_raw()} so setting epoch to "
                     f'{GPA.pai_tracker.member_vars["num_epochs_run"]}\n\n'
@@ -549,8 +558,8 @@ def process_no_improvement(net):
     )
 
     if (
-        GPA.pai_tracker.member_vars["num_dendrite_tries"]
-        < GPA.pc.get_max_dendrite_tries() -1
+            GPA.pai_tracker.member_vars["num_dendrite_tries"]
+            < GPA.pc.get_max_dendrite_tries() - 1
     ):
         _pai_log(
             "info",
@@ -2503,6 +2512,11 @@ class PAINeuronModuleTracker:
         )
         self.saved_time = end
 
+        # Decoupled epoch-start hook.  Registered callbacks apply their own dendrite-mode
+        # filter, so no mode check is placed here; the default list is empty (a no-op).
+        for epoch_callback in GPA.pc.get_epoch_start_callbacks():
+            epoch_callback(self)
+
     def stop_epoch(self, internal_call=False):
         """Perform steps when a training epoch has completed.
 
@@ -2536,6 +2550,11 @@ class PAINeuronModuleTracker:
                 self.member_vars["n_epoch_times"].append(end - self.saved_time)
 
         self.saved_time = end
+
+        # Decoupled epoch-stop hook.  Registered callbacks apply their own dendrite-mode
+        # filter, so no mode check is placed here; the default list is empty (a no-op).
+        for epoch_callback in GPA.pc.get_epoch_stop_callbacks():
+            epoch_callback(self)
 
     def initialize(
         self,
@@ -3032,7 +3051,7 @@ class PAINeuronModuleTracker:
 
         Returns
         -------
-        dict
+        dict[str, Any]
             Layer name to score.  Empty outside of dendrite scoring phases,
             when no candidate dendrites are being scored.
 
@@ -3171,11 +3190,12 @@ class PAINeuronModuleTracker:
                         "Epochs": np.arange(
                             len(self.member_vars["current_scores"][layer_id])
                         ),
-                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}": self.member_vars[
-                            "current_scores"
-                        ][
-                            layer_id
-                        ],
+                        f"Best current for all nodes Layer {self.neuron_module_vector[layer_id].name}":
+                            self.member_vars[
+                                "current_scores"
+                            ][
+                                layer_id
+                            ],
                     }
                 )
                 pd1 = pd.concat([pd1, pd.DataFrame(pd2)], ignore_index=True)
@@ -3927,7 +3947,7 @@ class PAINeuronModuleTracker:
                         f'len(accuracies)={len(GPA.pai_tracker.member_vars["accuracies"])} '
                         f'num_epochs_run={GPA.pai_tracker.member_vars["num_epochs_run"]}',
                     )
-                
+
                 # Now increment after change_learning_modes has loaded the best model
                 # This ensures the increment persists and doesn't get overwritten
                 if should_increment_integrated:
@@ -4094,11 +4114,6 @@ class PAINeuronModuleTracker:
         """Call set_create_dendrite(fn) on every tracked PAINeuronModule."""
         for module in self.neuron_module_vector:
             module.set_create_dendrite(fn)
-
-    def set_dendrite_loss_fn_global(self, fn):
-        """Set the global dendrite loss function used by all dendrite modules."""
-        from perforatedbp import modules_pbp as MPB
-        MPB.dendrite_loss_fn = fn
 
     def apply_pb_grads(self):
         """Apply perforated backpropagation gradients to all modules.

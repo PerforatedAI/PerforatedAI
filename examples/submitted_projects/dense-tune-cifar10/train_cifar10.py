@@ -193,9 +193,6 @@ def main():
     # History mode with improvement thresholds
     GPA.pc.set_switch_mode(GPA.pc.DOING_HISTORY)
     GPA.pc.set_improvement_threshold([0.01, 0.001, 0.0001, 0])
-    
-    # Conv dimensions: [batch, neurons, x, y] -> neuron dim is 1
-    GPA.pc.set_output_dimensions([-1, 0, -1, -1])
 
     # Initialize model with PAI
     model = DendriticCIFARNet().to(device)
