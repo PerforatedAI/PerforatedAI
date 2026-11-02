@@ -140,8 +140,9 @@ def perforate_model(
     fused_pairs = apply_fused_pairs(model) if doing_pai else []
 
     # Install the default dendrite loss mode before any code reads the selected loss
-    # class through MPB.get_global_dendrite_loss_class(). The underlying private global
-    # now starts as None (its former import-time default was removed so that
+    # class through DLS.get_global_dendrite_loss_class(). The underlying private global
+    # (in perforatedbp/dendrite_losses/dendrite_loss_selection.py) now starts as None
+    # (its former import-time default was removed so that
     # setup_new_global_dendrite_mode is the only writer); initialize() below constructs
     # the dendrite modules and value trackers that perform the first reads, so the
     # installer must run ahead of it.

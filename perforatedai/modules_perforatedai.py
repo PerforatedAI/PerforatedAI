@@ -18,6 +18,7 @@ from perforatedai import utils_perforatedai as UPA
 
 try:
     from perforatedbp import modules_pbp as MPB
+    from perforatedbp.dendrite_losses import dendrite_loss_selection as DLS
     from perforatedbp.dendrite_losses.improved_covariance_loss import ImprovedCovarianceDendriteLoss
 except ModuleNotFoundError as e:
     # Only pass if perforatedbp package itself is missing
@@ -69,7 +70,7 @@ def get_DENDRITE_TENSOR_VALUES():
     # The loss class is only relevant, and only readable, when PB is enabled. Read it
     # through the accessor (single-writer invariant); it is a class object, so the guard
     # compares it by identity below.
-    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
+    current_loss_class = DLS.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_tensor_values is None
@@ -105,7 +106,7 @@ def get_DENDRITE_SINGLE_VALUES():
     # The loss class is only relevant, and only readable, when PB is enabled. Read it
     # through the accessor (single-writer invariant); it is a class object, so the guard
     # compares it by identity below.
-    current_loss_class = MPB.get_global_dendrite_loss_class() if current_pb_state else None
+    current_loss_class = DLS.get_global_dendrite_loss_class() if current_pb_state else None
 
     if (
         _cached_dendrite_single_values is None
@@ -1223,7 +1224,7 @@ class PAIDendriteModule(nn.Module):
 
     def set_dendrite_loss_class(self) -> 'DendriteLoss':
         # TODO currently every PAIDendriteModule has the same loss class, should instead have more customizability
-        loss_class = MPB.get_global_dendrite_loss_class()
+        loss_class = DLS.get_global_dendrite_loss_class()
         return loss_class()
 
     def __getstate__(self):
