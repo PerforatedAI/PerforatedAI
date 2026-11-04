@@ -8,7 +8,7 @@ Regardless of which method you use, once you have completed the install type int
 
 ## Choosing Your Login
 
-To use our MCP server you will need to have a Perforated Token.  For each of the instructions below replace PAI_TOKEN with your actual token and PAI_EMAIL with your email account you used to sign up for that token.  While we are testing the server, just copy paste directly with the teset_user account.
+To use our MCP server you will need to have a Perforated Token.  For each of the instructions below replace PAI_TOKEN with your actual token and PAI_EMAIL with your email account you used to sign up for that token.
 
 ## Cursor
 
@@ -20,7 +20,7 @@ import json, pathlib, os
 p = pathlib.Path.home() / '.cursor' / 'mcp.json'
 os.makedirs(p.parent, exist_ok=True)
 c = json.loads(p.read_text()) if p.exists() and p.stat().st_size > 0 else {}
-c.setdefault('mcpServers', {})['perforated'] = {'url': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=='}}
+c.setdefault('mcpServers', {})['perforated'] = {'url': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer PAI_EMAIL:PAI_TOKEN'}}
 p.write_text(json.dumps(c, indent=2))
 "
 ```
@@ -33,7 +33,7 @@ Alternatively open ~/.cursor/mcp.json and add the following content. If the file
     "perforated": {
       "url": "https://mcp.perforatedai.app/sse",
       "headers": {
-        "Authorization": "Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
+        "Authorization": "Bearer PAI_EMAIL:PAI_TOKEN"
       }
     }
   }
@@ -47,7 +47,7 @@ Open a terminal and run this command.
 ```sh
 claude mcp add perforated https://mcp.perforatedai.app/sse \
   --transport http --scope user \
-  --header "Authorization: Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
+  --header "Authorization: Bearer PAI_EMAIL:PAI_TOKEN"
 ```
 
 ## Claude Desktop
@@ -59,7 +59,7 @@ python3 -c "
 import json, pathlib
 p = pathlib.Path.home() / 'Library/Application Support/Claude/claude_desktop_config.json'
 c = json.loads(p.read_text()) if p.exists() else {}
-c.setdefault('mcpServers', {})['perforated'] = {'url': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=='}}
+c.setdefault('mcpServers', {})['perforated'] = {'url': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer PAI_EMAIL:PAI_TOKEN'}}
 p.write_text(json.dumps(c, indent=2))
 print('Done! Restart Claude Desktop to activate.')
 "
@@ -76,7 +76,7 @@ Type Ctrl+Shift+P (Windows/Linux) or Cmd+Shift+P (Mac), then search for "MCP: Op
       "type": "http",
       "url": "https://mcp.perforatedai.app/sse",
       "headers": {
-        "Authorization": "Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
+        "Authorization": "Bearer PAI_EMAIL:PAI_TOKEN"
       }
     }
   }
@@ -93,7 +93,7 @@ import json, pathlib, os
 p = pathlib.Path.home() / '.codeium' / 'windsurf' / 'mcp_config.json'
 os.makedirs(p.parent, exist_ok=True)
 c = json.loads(p.read_text()) if p.exists() and p.stat().st_size > 0 else {}
-c.setdefault('mcpServers', {})['perforated'] = {'serverUrl': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=='}}
+c.setdefault('mcpServers', {})['perforated'] = {'serverUrl': 'https://mcp.perforatedai.app/sse', 'headers': {'Authorization': 'Bearer PAI_EMAIL:PAI_TOKEN'}}
 p.write_text(json.dumps(c, indent=2))
 print('Done! Restart Windsurf to activate.')
 "
@@ -104,7 +104,7 @@ print('Done! Restart Windsurf to activate.')
 Run these commands in your terminal. The first sets your API key as an environment variable, and the second registers the Perforated server with Codex. Add the export line to your shell profile (~/.zshrc or ~/.bashrc) so it persists.
 
 ```sh
-export PERFORATED_TOKEN="test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w=="
+export PERFORATED_TOKEN="PAI_EMAIL:PAI_TOKEN"
 
 codex mcp add perforated \
   --url https://mcp.perforatedai.app/sse \
@@ -117,7 +117,7 @@ If your agent is not listed then ask it how to add an MCP server and tell it you
 
 ```text
 MCP Server https://mcp.perforatedai.app/sse: https://mcp.perforatedai.app/sse
-API Key:        test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w==
+API Key:        PAI_EMAIL:PAI_TOKEN
 
-Authorization:  Bearer test_user@perforatedai.com:Y9vmsowKIPsnuDotG4GMpqIgU+o3ZjajQ6rZi/o3iac6ROSIsR7EzRA8P8gwMx9jjzq4AsZisrIxxj0nReO9qNLkkvmWGntTCFB14yv3+tp7FoEP1GCk7Ya9kQAXojCCDJFuz58agqG6GJjbgqEVDz0ojKeeDgcp3dYoVWMJyBbJwl575cAW79GQF5ZCqsLQ9cOIAlC3qZp2xwzOrRZ98OP+jw8A51YatZBSbHXHk6BDly21/t3pYGJ09p1OuPp7UWyCHzQTHAGWi8uFpSs6xmicfZDgxWWV+TBTXEzam9OMbsz47VaZ/1oASYwaQUGwczg8ncYwutmn4hHFqzPp2w==
+Authorization:  Bearer PAI_EMAIL:PAI_TOKEN
 ```

@@ -72,7 +72,7 @@ Once installed, invoke any of the skills from Claude Code:
 - `visualize-model` — export a PyTorch model to ONNX and view its architecture in the Visualizer (triggered by asking to visualize a model, or via `ml_export_model`).
 - `perforatedai` — set up or debug a PerforatedAI dendrite integration in a PyTorch model.
 - `perforatedai-analyze` — review results from a completed PerforatedAI training run and get optimization recommendations.
-- `perforatedai-distributed` — multi-GPU (DataParallel/DDP) setup for PerforatedAI; invoked automatically by the `perforatedai` skill when needed.
+- `perforatedai-distributed` — multi-GPU (DDP) setup for PerforatedAI (DataParallel isn't supported); invoked automatically by the `perforatedai` skill when needed.
 
 ## Uninstall
 

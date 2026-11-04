@@ -721,7 +721,9 @@ def main(args, run=None):
 
     model_without_ddp = model
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+        )
         model_without_ddp = model.module
 
     model_ema = None
@@ -815,8 +817,14 @@ def main(args, run=None):
         
         # If model was restructured by PerforatedAI, reset optimizer and scheduler
         if restructured:
+            # add_validation_score returns the unwrapped model after a restructure
             model.to(device)
-            optimizer, lr_scheduler = create_optimizer_and_scheduler(model, args, custom_keys_weight_decay, epoch=epoch)
+            model_without_ddp = model
+            if args.distributed:
+                model = torch.nn.parallel.DistributedDataParallel(
+                    model, device_ids=[args.gpu], find_unused_parameters=True, broadcast_buffers=False
+                )
+            optimizer, lr_scheduler = create_optimizer_and_scheduler(model_without_ddp, args, custom_keys_weight_decay, epoch=epoch)
 
         if model_ema:
             evaluate(model_ema, criterion, data_loader_test, device=device, log_suffix="EMA")

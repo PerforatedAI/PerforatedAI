@@ -553,8 +553,6 @@ def dqn(
 
             # Set up GPU settings (replace with whatever you're using for GPU setup)
             policy_net = policy_net.to(device)
-            # If using DataParallel, uncomment the next line:
-            # policy_net = nn.DataParallel(policy_net)
 
             # Check if training is complete according to PAI
             if trainingComplete:

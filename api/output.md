@@ -3,7 +3,7 @@
 # Graphs
 
 ![MNIST example 1](../examples/baseexamples/mnist/exampleOutput.png "MNIST1")
-Four graphs are automatically generated at every epoch.  The first is all of the scores you are saving.  The Validation scores and a running validation score are first to keep track of what is the deciding factor for early stopping and Dendrite learning switching.  Additionally each score that was added with addExtraScore and addTestScore will be included.  In each case a red vertical line represents a switch to dendrite training and a blue vertical line represents a switch back to neuron training.  For GD dendrites only a blue line will be shown because dendrite training happens along with neuron training.  Additionally, when switching to dendrite training values are retained only for display purposes for what happened before the switch since the switch triggers the weights from the best validation score to be loaded.
+Four graphs are automatically generated at every epoch.  The first is all of the scores you are saving.  The Validation scores and a running validation score are first to keep track of what is the deciding factor for early stopping and Dendrite learning switching.  Additionally each score that was added with add_extra_score and add_test_score will be included.  In each case a red vertical line represents a switch to dendrite training and a blue vertical line represents a switch back to neuron training.  For GD dendrites only a blue line will be shown because dendrite training happens along with neuron training.  Additionally, when switching to dendrite training values are retained only for display purposes for what happened before the switch since the switch triggers the weights from the best validation score to be loaded.
 
 The second is the training times to compare runtime as Dendrites are added.
 
@@ -13,7 +13,7 @@ The fourth graph shows the correlation scores of each set of Dendrite Nodes.  Th
 
 Graphs and model files are retained in the directory of the save name you specified, which is PB by default.
 
-In addition csv files are output with the values created in the graphs.  An additional csv file is created which has the most important values in one place ending with bestTestScores.  This csv file will track the number of parameters of your system each time a new set of Dendrites has been added as well as the test scores affiliated with the best validation scores with each architecture.  If addTestScore has not been called it just tracks the best validation scores.
+In addition csv files are output with the values created in the graphs.  An additional csv file is created which has the most important values in one place ending with _best_arch_scores.  This csv file will track the number of parameters of your system each time a new set of Dendrites has been added as well as the test scores affiliated with the best validation scores with each architecture.  If add_test_score has not been called it just tracks the best validation scores.
 
 ## What to Look for in the Graphs for PB Training
 
@@ -43,15 +43,15 @@ Additionally the validation/training scores should be flatlined during Dendrite 
 ## CSV Names
  - best_arch_scores
     A final scores output that shows the best test scores at the epoch where the best validation scores were achieved.  This includes parameter counts for each version of the network as well.  This could be considered the main output results of an experiment.
-- Best_PB_Scores
+- Best PBScores
     Best PB correlation scores at each epoch
  - Scores
     Best Validation scores and any extra scores that were added at each epoch
  - Times
     Timing information for each epoch
- - learningRate
+ - learning_rate
     Learning Rate at each epoch
- - paramCounts
+ - param_counts
     Total parameter count of network during each cycle
- - switchEpochs
+ - switch_epochs
     List of which epochs cycles switched between neuron training and Dendrite training.

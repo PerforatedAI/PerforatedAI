@@ -190,8 +190,9 @@ def main():
     print('Model:')
     print(model)
     model = UPA.perforate_model(model).to(device)
-    model.fc1.set_this_output_dimensions([-1, 0])
-    model.fc2.set_this_output_dimensions([-1, 0])
+    # KANLinear is not nn.Linear, so it isn't trimmed from the 4D default automatically
+    model.fc1.set_this_output_dimensions([GPA.REDUCE_AXIS, GPA.NODE_AXIS])
+    model.fc2.set_this_output_dimensions([GPA.REDUCE_AXIS, GPA.NODE_AXIS])
     print('KAN Model:')
     print(model)
     

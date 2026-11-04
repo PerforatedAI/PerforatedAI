@@ -122,7 +122,7 @@ def load_wikitext2(seq_length=50, batch_size=32, max_vocab_size=10000):
     print("Loading WikiText-2 dataset...")
 
     # Load dataset from Hugging Face
-    dataset = load_dataset("wikitext", "wikitext-2-v1")
+    dataset = load_dataset("Salesforce/wikitext", "wikitext-2-v1")
 
     # Extract text
     train_texts = [text for text in dataset["train"]["text"] if text.strip()]

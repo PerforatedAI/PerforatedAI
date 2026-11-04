@@ -43,7 +43,7 @@ def main(config, resume, no_dendrites=False):
     )
     # Use fixed-epoch switch mode: add dendrites every 80 epochs
     GPA.pc.set_switch_mode(GPA.pc.DOING_FIXED_SWITCH)
-    GPA.pc.set_fixed_switch_num(80)
+    GPA.pc.set_n_fixed_switch_num(80)
     GPA.pc.set_first_fixed_switch_num(80)
 
     if no_dendrites:
