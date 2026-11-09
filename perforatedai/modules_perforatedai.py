@@ -1799,11 +1799,19 @@ class DendriteValueTracker(nn.Module):
             "dendrite_storage_shape",
             torch.tensor(storage_shape, dtype=torch.long, device=GPA.pc.get_device()),
         )
+        # We want the neuron statistics to stay fp32 to keep precision
+        float32_values = (
+            getattr(MPB, "FLOAT32_VALUES", [])
+            if GPA.pc.get_perforated_backpropagation()
+            else []
+        )
         for val_name in get_DENDRITE_TENSOR_VALUES():
             self.register_buffer(
                 val_name,
                 torch.zeros(
-                    storage_shape, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()
+                    storage_shape,
+                    device=GPA.pc.get_device(),
+                    dtype=torch.float32 if val_name in float32_values else GPA.pc.get_d_type(),
                 ),
             )
 
@@ -1817,7 +1825,11 @@ class DendriteValueTracker(nn.Module):
         for val_name in get_DENDRITE_SINGLE_VALUES():
             self.register_buffer(
                 val_name,
-                torch.zeros(1, device=GPA.pc.get_device(), dtype=GPA.pc.get_d_type()),
+                torch.zeros(
+                    1,
+                    device=GPA.pc.get_device(),
+                    dtype=torch.float32 if val_name in float32_values else GPA.pc.get_d_type(),
+                ),
             )
 
     def reinitialize_for_pai(self):

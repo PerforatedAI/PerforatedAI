@@ -508,6 +508,8 @@ class PAIConfig:
         Number of epochs between fixed switches (neuron mode).
     first_fixed_switch_num : int
         Number of epochs before first switch (for pretraining).
+    start_in_stats_phase : bool
+        Start in the stats phase instead of neuron training.
     DOING_NO_SWITCH : int
         Constant for switch mode: never add dendrites.
     switch_mode : int
@@ -603,6 +605,7 @@ class PAIConfig:
                 "reset_best_score_on_switch",
                 "learn_dendrites_live",
                 "no_extra_n_modes",
+                "start_in_stats_phase",
                 "retain_all_dendrites",
                 "find_best_lr",
                 "dont_give_up_unless_learning_rate_lowered",
@@ -947,6 +950,16 @@ class PAIConfig:
             self.first_fixed_switch_num = -1
             add_pai_config_var_functions(
                 self, "first_fixed_switch_num", self.first_fixed_switch_num
+            )
+            # Start in the stats phase rather than neuron training, use when
+            # loading an already trained model.
+            # The stats phase freezes the network and gathers the neuron error 
+            # before the first dendrites.
+            # NOTE: Open source does nothing in the stats phase, error is only
+            # gathered with perforated backpropagation
+            self.start_in_stats_phase = False
+            add_pai_config_var_functions(
+                self, "start_in_stats_phase", self.start_in_stats_phase
             )
 
             # A setting to not add dendrites and just do regular training
