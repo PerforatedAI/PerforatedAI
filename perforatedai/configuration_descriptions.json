@@ -52,6 +52,10 @@
           "description": "Delay threshold for the first fixed switch before regular fixed intervals apply. This number is ignored unless it is > n_fixed_switch_num, its primary use is to ensure the pre-dendrite model has sufficient training before the first structural change.",
           "label": "impactful"
         },
+        "start_in_stats_phase": {
+          "description": "Start training in the stats phase instead of neuron training. Use when starting from an already trained model so the first dendrites are trained against the exact average neuron error.",
+          "label": "supporting"
+        },
         "initial_history_after_switches": {
           "description": "Amount of epochs to run after adding dendrites before history checks resume.  After dendrites are added there is often an initial drop in scores as the model adjusts, this setting ensures that history-based switching logic does not react prematurely to a score not being better quickly.",
           "label": "supporting"

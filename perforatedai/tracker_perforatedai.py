@@ -1135,8 +1135,8 @@ class PAINeuronModuleTracker:
         # Pointers to all non neuron modules for tracking
         self.tracked_neuron_module_vector = []
 
-        # Neuron training or dendrite training mode
-        self.member_vars["mode"] = "n"
+        # Neuron training, dendrite training, or the starting stats phase
+        self.member_vars["mode"] = "s" if GPA.pc.get_start_in_stats_phase() else "n"
         self.member_var_types["mode"] = "string"
 
         # Number of epochs run excluding overwritten epochs
@@ -1934,7 +1934,15 @@ class PAINeuronModuleTracker:
                 # Handle generators or other iterables
                 opt_args["params"] = [p for p in params_value if p.requires_grad]
 
-        optimizer = self.member_vars["optimizer"](**opt_args)
+        if self.member_vars["mode"] == "s":
+            # Stats phase only gathers neuron error
+            # We then give the optimizer dummy params
+            net.eval()
+            dummy = torch.nn.Parameter(torch.zeros(1, device=GPA.pc.get_device()))
+            dummy.parameter_type = "neuron"
+            optimizer = torch.optim.Adam([dummy], lr=1e-3)
+        else:
+            optimizer = self.member_vars["optimizer"](**opt_args)
         self.set_optimizer_instance(optimizer)
 
         if self.member_vars["scheduler"] is not None:
@@ -2104,6 +2112,12 @@ class PAINeuronModuleTracker:
             if not GPA.pc.get_silent():
                 print("Returning False - doing no switch mode")
             return False
+
+        # Stats phase always ends at the first add_validation_score
+        if self.member_vars["mode"] == "s":
+            if not GPA.pc.get_silent():
+                print("Returning True - stats phase complete")
+            return True
 
         if self.member_vars["switch_mode"] == GPA.pc.DOING_SWITCH_EVERY_TIME:
             if not GPA.pc.get_silent():
@@ -3765,7 +3779,9 @@ class PAINeuronModuleTracker:
             or GPA.pc.get_learn_dendrites_live()
         ):
             check_new_best(net, accuracy, epochs_since_cycle_switch)
-        elif GPA.pc.get_perforated_backpropagation():
+        elif GPA.pc.get_perforated_backpropagation() and (
+            GPA.pai_tracker.member_vars["mode"] == "p"
+        ):
             TPB.check_best_pai_score_improvement()
 
         # Save the latest model
@@ -3874,6 +3890,14 @@ class PAINeuronModuleTracker:
                         )
                     return net, True, True
 
+                # Stats ends + weights were frozen so this score is the
+                # baseline the first dendrites must beat
+                if GPA.pai_tracker.member_vars["mode"] == "s":
+                    GPA.pai_tracker.member_vars["current_best_validation_score"] = accuracy
+                    GPA.pai_tracker.member_vars["global_best_validation_score"] = accuracy
+                    # Saved so a failed first set of dendrites has a model to reload
+                    UPA.save_system(net, GPA.pc.get_save_name(), "best_model")
+
                 # Otherwise if its neuron training mode reset the counter of failed dendrites
                 # Check if we should increment integrated count BEFORE change_learning_modes loads old state
                 should_increment_integrated = False
@@ -3963,7 +3987,11 @@ class PAINeuronModuleTracker:
             )
 
         # If not time to switch and you have a scheduler, perform the update step
-        elif GPA.pai_tracker.member_vars["scheduler"] is not None:
+        # Skipped during the stats phase since nothing is being learned
+        elif (
+            GPA.pai_tracker.member_vars["scheduler"] is not None
+            and GPA.pai_tracker.member_vars["mode"] != "s"
+        ):
             new_restructuring_status_value, net = process_scheduler_update(
                 net, accuracy, epochs_since_cycle_switch
             )
