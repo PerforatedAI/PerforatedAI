@@ -21,6 +21,7 @@ import pdb
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
+from perforatedai import suggestions_perforatedai as SPA
 from perforatedai import utils_perforatedai as UPA
 
 try:
@@ -237,8 +238,9 @@ def update_learning_rate():
     None
         This function does not return a value.
     """
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate = param_group["lr"]
+    learning_rate = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
     GPA.pai_tracker.add_learning_rate(learning_rate)
 
 
@@ -586,6 +588,11 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
+        if GPA.pai_tracker.member_vars["doing_pai"]:
+            # net still holds the dendrites that did not improve, one more than the best model.
+            dendrites_added = GPA.pai_tracker.member_vars["num_dendrites_added"] > 1
+            for suggestion in SPA.analyze_outcome(net, dendrites_added):
+                _pai_log("warning", f"Suggestion for your next run: {suggestion}")
 
         old_silent = GPA.pc.get_silent()
         GPA.pc.set_silent(True)
@@ -728,9 +735,9 @@ def _lr_search_commit_to_best(net):
     )
     # Read LR before clearing — optimizer is valid here; after the load it is an
     # empty-array placeholder until the caller reinitializes it.
-    for pg in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = pg["lr"]
-        break
+    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
+        UPA.get_neuron_learning_rate(GPA.pai_tracker.member_vars["optimizer_instance"])
+    )
     GPA.pai_tracker.clear_optimizer_and_scheduler()
     GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = best_pos
     if GPA.pc.get_test_saves():
@@ -888,8 +895,9 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     """
 
     restructured = False
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate1 = param_group["lr"]
+    learning_rate1 = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
 
     if (
         type(GPA.pai_tracker.member_vars["scheduler_instance"])
@@ -956,8 +964,9 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 f"and current {epochs_since_cycle_switch}"
             )
 
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate2 = param_group["lr"]
+    learning_rate2 = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
 
     stepped = False
     at_last_count = False
@@ -1740,6 +1749,16 @@ class PAINeuronModuleTracker:
 
         except:
             pass
+        if GPA.pc.get_dendrite_lr_multiplier() != 1 and any(
+            any(PA.is_dendrite_parameter(p) for p in param_group["params"])
+            and not all(PA.is_dendrite_parameter(p) for p in param_group["params"])
+            for param_group in optimizer_instance.param_groups
+        ):
+            _pai_log(
+                "warning",
+                "dendrite_lr_multiplier is set, but the optimizer trains dendrites at the "
+                "learning rate of the neurons. Pass its params through UPA.get_parameter_groups",
+            )
         self.member_vars["optimizer_instance"] = optimizer_instance
         if GPA.pc.get_perforated_backpropagation():
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
@@ -1805,10 +1824,9 @@ class PAINeuronModuleTracker:
         current_steps = 0
         current_ticker = 0
 
-        for param_group in GPA.pai_tracker.member_vars[
-            "optimizer_instance"
-        ].param_groups:
-            learning_rate1 = param_group["lr"]
+        learning_rate1 = UPA.get_neuron_learning_rate(
+            GPA.pai_tracker.member_vars["optimizer_instance"]
+        )
 
         if GPA.pc.get_verbose():
             print("Using scheduler:")
@@ -1842,10 +1860,9 @@ class PAINeuronModuleTracker:
             else:
                 self.member_vars["scheduler_instance"].step()
 
-            for param_group in GPA.pai_tracker.member_vars[
-                "optimizer_instance"
-            ].param_groups:
-                learning_rate2 = param_group["lr"]
+            learning_rate2 = UPA.get_neuron_learning_rate(
+                GPA.pai_tracker.member_vars["optimizer_instance"]
+            )
 
             if learning_rate2 != learning_rate1:
                 current_steps += 1
@@ -1934,6 +1951,10 @@ class PAINeuronModuleTracker:
                 # Handle generators or other iterables
                 opt_args["params"] = [p for p in params_value if p.requires_grad]
 
+        if "params" in opt_args:
+            opt_args["params"] = UPA.get_parameter_groups(
+                opt_args["params"], opt_args.get("lr")
+            )
         optimizer = self.member_vars["optimizer"](**opt_args)
         self.set_optimizer_instance(optimizer)
 
@@ -1967,10 +1988,9 @@ class PAINeuronModuleTracker:
                 )
             current_steps = 0
 
-            for param_group in GPA.pai_tracker.member_vars[
-                "optimizer_instance"
-            ].param_groups:
-                learning_rate1 = param_group["lr"]
+            learning_rate1 = UPA.get_neuron_learning_rate(
+                GPA.pai_tracker.member_vars["optimizer_instance"]
+            )
 
             if GPA.pc.get_verbose():
                 print(
