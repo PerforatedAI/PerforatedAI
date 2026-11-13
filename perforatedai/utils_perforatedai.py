@@ -134,6 +134,9 @@ def perforate_model(
         # Programmatic perforate_model input must win over config-file values.
         GPA.pc.set_maximizing_score(maximizing_score)
 
+    if os.environ.get("PAI_CONFIG_MODE"):
+        GPA.pc.set_configuration_confirmed(False)
+
     if not GPA.pc.get_configuration_confirmed():
         CPA.set_perforation_targets(model)
 
@@ -196,7 +199,6 @@ def perforate_model(
 
     # Save config after perforation
     if not GPA.pc.get_testing_dendrite_capacity():
-        import os
         GPA.pc.save_config(os.path.join(os.getcwd(), save_name, f"{save_name}_config.json"))
 
     return model

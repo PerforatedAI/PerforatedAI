@@ -1505,7 +1505,7 @@ def render_tab_bar(active_screen):
         targets = color_text(targets, COLOR_ACCENT)
     else:
         run = color_text(run, COLOR_ACCENT)
-    return f"[ {targets} │ {run} ]" + " " * 12 + dim("[Tab] switch panel    ? help")
+    return f"[ {targets} │ {run} ]" + " " * 12 + dim("[Tab] switch panel    h legend    ? help")
 
 
 MODE_VERB = {"perforated": "perforate", "tracked": "track"}
@@ -2140,6 +2140,23 @@ def render_quit_overlay():
     ]
 
 
+def render_override_scope_choice_overlay(entry):
+    """Ask whether overrides should apply to this module only or every module of its type."""
+    type_name = entry["type_name"]
+    module_id = entry["id"]
+    return [
+        "",
+        "  " + color_text("Override scope", "E8EEEC"),
+        "",
+        dim("  This module is perforated by type. Where should the override apply?"),
+        "",
+        f"  " + color_text("[1]", COLOR_ACCENT) + f"  just this module  ({module_id})",
+        f"  " + color_text("[2]", COLOR_ACCENT) + f"  every {type_name}",
+        "",
+        dim("  Esc to cancel"),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Key input
 # ---------------------------------------------------------------------------
@@ -2352,6 +2369,7 @@ def _set_perforation_targets_interactive(model):
 
         ov_scope = None
         ov_selected_index = 0
+        ov_pending_entry = None
         module_settings_overrides = {}
         existing_module_settings = load_existing_module_settings()
 
@@ -2480,6 +2498,10 @@ def _set_perforation_targets_interactive(model):
                     render_save_overlay(
                         entries, resolved, save_selected_index, _config_target_path()
                     )
+                )
+            elif overlay == "override_scope_choice":
+                screen_text = render_static_overlay(
+                    render_override_scope_choice_overlay(ov_pending_entry)
                 )
             elif overlay == "overrides":
                 screen_text = render_static_overlay(
@@ -2638,6 +2660,21 @@ def _set_perforation_targets_interactive(model):
                             finalize_save(0)
                             GPA.pc.set_configuration_confirmed(True)
                             break
+                continue
+
+            if overlay == "override_scope_choice":
+                if key == "\x1b":
+                    overlay = None
+                    ov_pending_entry = None
+                elif key == "1":
+                    ov_scope = {"kind": "id", "scope_key": ov_pending_entry["id"]}
+                    ov_pending_entry = None
+                    ov_selected_index = 0
+                    overlay = "overrides"
+                elif key == "2":
+                    ov_pending_entry = None
+                    ov_selected_index = 0
+                    overlay = "overrides"
                 continue
 
             if overlay == "overrides":
@@ -2875,6 +2912,11 @@ def _set_perforation_targets_interactive(model):
                     scope, reason = get_override_scope_for_entry(entry, resolved)
                     if scope is None:
                         status_message = reason
+                    elif scope["kind"] == "type":
+                        ov_pending_entry = entry
+                        ov_scope = scope
+                        describe_name = ""
+                        overlay = "override_scope_choice"
                     else:
                         ov_scope = scope
                         ov_selected_index = 0

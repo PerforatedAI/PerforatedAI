@@ -1601,9 +1601,14 @@ class PAIConfig:
     def sync_config_sources(self):
         """Load config values from configured local JSON sources.
 
-        Load order:
-        1. config_file pointer (if set)
-        2. run config derived from save_name (if present)
+        Load order (later sources override earlier ones):
+        1. run config derived from save_name (if present)
+        2. config_file pointer (if set)
+
+        An explicitly supplied config_file is therefore the highest-priority
+        file source: it wins over a stale run config left in the save_name
+        folder by a previous run. With no config_file set, the run config is
+        the only file source.
 
         Keys set manually in this process are never overwritten.
         """
@@ -1623,10 +1628,10 @@ class PAIConfig:
         config_file = self.__dict__.get("_config_file")
         run_config = self.get_run_config_path()
 
-        if config_file and os.path.exists(config_file):
-            self.load_config(config_file, skip_keys=skip_keys)
         if run_config and os.path.exists(run_config):
             self.load_config(run_config, skip_keys=skip_keys)
+        if config_file and os.path.exists(config_file):
+            self.load_config(config_file, skip_keys=skip_keys)
         self._merge_python_supplied(merge_keys)
 
     def get_python_supplied(self, var_name):
@@ -1838,10 +1843,14 @@ try:
 
     print("Building dendrites with Perforated Backpropagation")
 
+    # Set these as defaults without marking them as manually set so that a
+    # config JSON with perforated_backpropagation=false can still override them.
+    pc.__dict__["_loading_config_values"] = True
     pc.set_perforated_backpropagation(True)
     # This is default to True for open source version
     # But defaults to False for perforated backpropagation
     pc.set_no_extra_n_modes(False)
+    pc.__dict__["_loading_config_values"] = False
 
     # Loop through the vars module's attributes and add them dynamically
     for var_name in dir(perforatedbp_globals):

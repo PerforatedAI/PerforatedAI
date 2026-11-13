@@ -294,6 +294,27 @@ These are the same for all model types. Make the change in their file.
 
 ### Step 3: Configure PAI Settings
 
+> **🛑 CRITICAL — READ THIS BEFORE DOING ANYTHING IN THIS STEP**
+>
+> **At this stage, STRONGLY recommend to the user that they select which modules to perforate themselves using the interactive configuration menu — do NOT just pick modules for them and move on.**
+>
+> Tell them, word for word:
+>
+> > "Before we hardcode any module selection, we strongly recommend you make that choice yourself using our interactive visual configuration menu.
+> >
+> > **Why:** Claude has not been trained on dendrites, and this skill does not have a perfect template for every model architecture. Human intuition with our config menu is almost always better for this initial step — you can see the full module tree, understand what each layer does in context, and make an informed call. We've seen module choices made by hand with the menu outperform generic templates consistently.
+> >
+> > **How to do it:**
+> > 1. We'll add the basic PAI integration code now (imports, `perforate_model`, optimizer, training loop), but we'll leave `configuration_confirmed` **unset** so the menu appears automatically.
+> > 2. Run your training script. The interactive config menu will open in your terminal.
+> > 3. In the **Targets** panel, explore your model tree and use `p` / `t` to mark modules as perforate / track. Press `h` for a full symbol legend, `?` for the key reference.
+> > 4. Press `s` to save your choices and kick off training.
+> > 5. Come back here once you have an initial config file — we can help you debug, tune settings, or interpret results.
+> >
+> > If you'd rather have us make an initial guess to start from, just say so and we'll give you a template — but we strongly recommend doing this step yourself first."
+>
+> **Wait for their response before continuing.** If they confirm they want to use the config menu themselves, skip the architecture-specific template blocks below and proceed directly to Step 4 — just add the `perforate_model` call without any `set_module_names_to_perforate` lines (the menu will handle that). Only use the templates below if the user explicitly asks Claude to choose.
+
 Based on the analyzed model type, add the appropriate configuration **before** model initialization in their script:
 
 #### For CNN/Vision Models
