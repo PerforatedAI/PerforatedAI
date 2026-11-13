@@ -2,7 +2,7 @@
 
 Checked out from https://github.com/milesial/Pytorch-UNet.git. See more details about original at that link.
 
-Setup with:
+Setup within a python 3.12 venv:
 
     pip install -r requirements.txt
     kaggle competitions download -c carvana-image-masking-challenge
