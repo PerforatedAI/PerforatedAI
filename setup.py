@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name="perforatedai",
     # Remember to also edit setupCython
-    version="4.0.1",
+    version="4.0.2",
     packages=["perforatedai", "dashboard_utils"],
     package_data={"perforatedai": ["*.json"]},
     include_package_data=True,

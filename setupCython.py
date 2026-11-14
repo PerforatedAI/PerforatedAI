@@ -59,7 +59,7 @@ else:
 
 setup(
     name="perforatedai",
-    version="4.0.1",
+    version="4.0.2",
     packages=find_packages(),
     package_data={"perforatedai": ["*.json"]},
     include_package_data=True,
