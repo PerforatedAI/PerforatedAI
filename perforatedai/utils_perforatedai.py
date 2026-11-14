@@ -1340,6 +1340,7 @@ def load_system(
     load_from_restart=False,
     switch_call=False,
     load_from_manual_save=False,
+    reset_best_scores=True,
 ):
     """Load the entire system
 
@@ -1359,6 +1360,10 @@ def load_system(
         Whether this is being called from a switch, by default False
     load_from_manual_save : bool, optional
         Whether this is being loaded from a manual save, by default False
+    reset_best_scores : bool, optional
+        Whether to clear current_best_validation_score and restart
+        epoch_last_improved at the loaded epoch, by default True. Pass False
+        to keep the values saved in the checkpoint.
 
     Returns
     -------
@@ -1380,10 +1385,11 @@ def load_system(
     GPA.pai_tracker.from_string(string_from_tensor(net.tracker_string))
     GPA.pai_tracker.saved_time = time.time()
     GPA.pai_tracker.loaded = True
-    GPA.pai_tracker.member_vars["current_best_validation_score"] = 0
-    GPA.pai_tracker.member_vars["epoch_last_improved"] = GPA.pai_tracker.member_vars[
-        "num_epochs_run"
-    ]
+    if reset_best_scores:
+        GPA.pai_tracker.member_vars["current_best_validation_score"] = 0
+        GPA.pai_tracker.member_vars["epoch_last_improved"] = GPA.pai_tracker.member_vars[
+            "num_epochs_run"
+        ]
     if GPA.pc.get_verbose():
         print(
             "after loading epoch last improved is %d mode is %c"
