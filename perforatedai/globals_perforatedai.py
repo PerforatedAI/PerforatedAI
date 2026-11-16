@@ -316,12 +316,10 @@ def add_pai_config_var_functions(obj, var_name, initial_value, list_type=False):
                 setattr(self, private_name, kept + new_rules)
                 _record_python_supplied(self, var_name, new_rules, replace=False)
             else:
+                if var_name == "modules_to_fuse":
+                    value = _normalize_fuse_pairs(value)
                 setattr(self, private_name, getattr(self, private_name) + value)
                 _record_python_supplied(self, var_name, value, replace=False)
-            if var_name == "modules_to_fuse":
-                value = _normalize_fuse_pairs(value)
-            setattr(self, private_name, getattr(self, private_name) + value)
-            _record_python_supplied(self, var_name, value, replace=False)
             if not self.__dict__.get("_loading_config_values", False):
                 self.__dict__.setdefault("_manually_set_keys", set()).add(var_name)
             print(
