@@ -455,7 +455,7 @@ def main():
         "--num_layers", type=int, default=2, help="Number of transformer layers"
     )
     parser.add_argument(
-        "--dropout", type=float, default=0.1, help="Dropout rate for model layers"
+        "--dropout", type=float, default=0.25, help="Dropout rate for model layers"
     )
 
     # Training hyperparameters
@@ -471,7 +471,7 @@ def main():
         "--max_vocab_size", type=int, default=10000, help="Maximum vocabulary size"
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="Random seed (unseeded if omitted)"
+        "--seed", type=int, default=2, help="Random seed"
     )
 
     # Logging
