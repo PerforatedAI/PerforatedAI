@@ -313,6 +313,8 @@ These are the same for all model types. Make the change in their file.
 > >
 > > If you'd rather have us make an initial guess to start from, just say so and we'll give you a template — but we strongly recommend doing this step yourself first."
 >
+> The menu only opens in a real terminal. If the script runs without one (for example when you run it yourself), PerforatedAI prints a warning and proceeds as if the configuration was confirmed unchanged, so the user has to run this step in their own terminal.
+>
 > **Wait for their response before continuing.** If they confirm they want to use the config menu themselves, skip the architecture-specific template blocks below and proceed directly to Step 4 — just add the `perforate_model` call without any `set_module_names_to_perforate` lines (the menu will handle that). Only use the templates below if the user explicitly asks Claude to choose.
 
 Based on the analyzed model type, add the appropriate configuration **before** model initialization in their script:

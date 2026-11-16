@@ -2246,35 +2246,50 @@ def _distributed_rank():
     return 0
 
 
+def _warn_no_terminal(reason):
+    # Printed even when silent, matching how the tracker treats warnings.
+    print(
+        f"Warning: the perforation-configuration screen cannot run here ({reason}). "
+        "Proceeding as if the configuration was confirmed with no changes, using "
+        "the settings from your code and config file. To choose perforation targets "
+        "interactively, run perforate_model once from a terminal."
+    )
+
+
 def require_interactive_session():
-    """Raise a clear error if the TUI cannot be driven in this process.
+    """Check whether the configuration TUI can be driven in this process.
 
     The configuration TUI reads raw keystrokes from the terminal. Under CI,
-    ``nohup``, notebooks, piped stdin, or non-rank-0 distributed workers there is
-    no usable TTY, so we fail fast with actionable guidance instead of crashing
-    inside ``termios``.
+    ``nohup``, notebooks, piped stdin, agents such as Claude Code, or platforms
+    without ``termios`` there is no usable terminal: in that case print a warning
+    and return False so the caller proceeds as if the configuration was confirmed
+    unchanged. A distributed worker that has a terminal but is not rank 0 still
+    raises, since only rank 0 may run the TUI.
+
+    Returns
+    -------
+    bool
+        True if the TUI can run, False if there is no usable terminal.
     """
     if termios is None:
-        raise RuntimeError(
-            "The interactive perforation-configuration TUI is not available on this "
-            "platform (no termios). Set configuration_confirmed=True in your config "
-            "file (or call GPA.pc.set_configuration_confirmed(True)) and configure "
-            "targets via the config file or Perforated Studio instead."
-        )
+        _warn_no_terminal("this platform has no termios")
+        return False
 
     try:
         is_tty = bool(sys.stdin.isatty() and sys.stdout.isatty())
     except (ValueError, AttributeError, OSError):
         is_tty = False
+    if not is_tty:
+        _warn_no_terminal("no interactive terminal is attached")
+        return False
+
     rank = _distributed_rank()
+    if rank == 0:
+        return True
 
-    if is_tty and rank == 0:
-        return
-
-    reason = "no interactive terminal is attached" if not is_tty else f"process rank is {rank}, not 0"
     raise RuntimeError(
         "Perforation configuration has not been confirmed, and it cannot be done "
-        f"interactively here ({reason}).\n"
+        f"interactively here (process rank is {rank}, not 0).\n"
         "Run perforate_model once from an interactive terminal to choose "
         "perforation targets, or set configuration_confirmed=True in your config "
         "file (or call GPA.pc.set_configuration_confirmed(True) before "
@@ -2333,7 +2348,10 @@ def set_perforation_targets(model):
 
 
 def _set_perforation_targets_interactive(model):
-    require_interactive_session()
+    if not require_interactive_session():
+        # No terminal: behave as if the user confirmed without changing anything.
+        GPA.pc.set_configuration_confirmed(True)
+        return
     previous_auto_persist = GPA.pc.__dict__.get("_auto_persist_config", True)
     GPA.pc.__dict__["_auto_persist_config"] = False
     GPA.pc.__dict__["_tui_editing"] = True

@@ -37,7 +37,7 @@ Tell them:
 
 1. **Make sure the configuration is confirmed before the first `torchrun` launch:**
 
-Check how their script reaches `perforate_model`. If the configuration has not been confirmed yet, `perforate_model` opens an interactive configuration screen, which cannot run under `torchrun` (every rank stops with an error explaining this).
+Check how their script reaches `perforate_model`. If the configuration has not been confirmed yet, `perforate_model` opens an interactive configuration screen, which cannot run under `torchrun`: without a terminal, every rank prints a warning and proceeds as if the configuration was confirmed unchanged, using only the settings already in the script or config file.
 
 Tell them to do ONE of the following before using `torchrun`:
 - Run the script once as a single process in a terminal (without `torchrun`), complete the configuration screen, then stop it once training starts. The confirmed configuration is saved in the `save_name` folder and every rank reads it.

@@ -285,7 +285,7 @@ If the model isn't wrapped in DDP again after a restructure, the next add_valida
 
 Dendrite gradients and the optimizer and scheduler settings are kept in sync across ranks automatically.  The dendrite correlation statistics are computed on each rank and rank 0's are used, similar to BatchNorm without SyncBatchNorm.
 
-The interactive configuration screen can't run under torchrun, so confirm the configuration first: run perforate_model once as a single process in a terminal, or call GPA.pc.set_configuration_confirmed(True) before perforate_model if the settings are already specified.
+The interactive configuration screen can't run under torchrun. When there is no terminal, perforate_model prints a warning and proceeds as if the configuration was confirmed unchanged, using the settings from the script and config file. To choose targets interactively, run perforate_model once as a single process in a terminal first; if the settings are already specified you can call GPA.pc.set_configuration_confirmed(True) before perforate_model to skip the screen and the warning.
 
 ## 7 Loading
     
