@@ -121,7 +121,8 @@ def load_wikitext2(seq_length=50, batch_size=32, max_vocab_size=10000):
     """
     print("Loading WikiText-2 dataset...")
 
-    # Load dataset from Hugging Face
+    # Load dataset from Hugging Face. Newer huggingface_hub versions require the
+    # namespaced repo id; the bare "wikitext" id no longer resolves.
     dataset = load_dataset("Salesforce/wikitext", "wikitext-2-v1")
 
     # Extract text

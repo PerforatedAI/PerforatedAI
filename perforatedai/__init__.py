@@ -19,6 +19,8 @@ Modules
   checkpoint loading for PAI models.
 - `perforatedai.tracker_perforatedai` — Training tracker: validation-score
   history, learning-rate management, and deciding when to add dendrites.
+- `perforatedai.suggestions_perforatedai` — Analysis of how a run ended
+  (`analyze_outcome`), with suggestions for which settings to try next.
 - `perforatedai.library_perforatedai` — Processors and reference
   architectures (LSTM processors, ResNet variants) for modules that need
   custom input/output handling.

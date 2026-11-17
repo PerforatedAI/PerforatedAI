@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from typing import Iterator
 
-# probably should make cleanup_helper_functions in perforatedai library
-from perforatedbp.cleanup_helper_functions import is_in_dendrite_training_mode
+try:
+    from perforatedbp.cleanup_helper_functions import is_in_dendrite_training_mode
+except ModuleNotFoundError as e:
+    # Only pass if perforatedbp package itself is missing
+    if e.name == "perforatedbp":
+        pass
+    else:
+        # perforatedbp exists but is missing a dependency
+        raise
 
 
 from typing import TYPE_CHECKING

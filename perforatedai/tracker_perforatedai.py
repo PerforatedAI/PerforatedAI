@@ -21,6 +21,7 @@ import pdb
 
 from perforatedai import globals_perforatedai as GPA
 from perforatedai import modules_perforatedai as PA
+from perforatedai import suggestions_perforatedai as SPA
 from perforatedai import utils_perforatedai as UPA
 
 try:
@@ -60,6 +61,9 @@ mpl.use("Agg")
 NO_MODEL_UPDATE = 0
 NETWORK_RESTRUCTURED = 1
 TRAINING_COMPLETE = 2
+# The LR search reloaded a checkpoint, so the optimizer must be rebuilt, but no
+# switch happened: patience and switch events are left alone.
+LR_SEARCH_OPT_RESET = 3
 
 # Status constant for each batch
 STEP_CLEARED = 0
@@ -221,8 +225,9 @@ def update_restructuring_status(old_status, new_status):
     """
     if new_status == NETWORK_RESTRUCTURED or new_status == TRAINING_COMPLETE:
         return NETWORK_RESTRUCTURED
-    else:
-        return old_status
+    if new_status == LR_SEARCH_OPT_RESET and old_status == NO_MODEL_UPDATE:
+        return LR_SEARCH_OPT_RESET
+    return old_status
 
 
 def update_learning_rate():
@@ -237,8 +242,9 @@ def update_learning_rate():
     None
         This function does not return a value.
     """
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate = param_group["lr"]
+    learning_rate = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
     GPA.pai_tracker.add_learning_rate(learning_rate)
 
 
@@ -586,6 +592,11 @@ def process_no_improvement(net):
         _pai_log("info", "You should now exit your training loop and best_model will be your final model for inference")
         if not GPA.pc.get_perforated_backpropagation() and GPA.pai_tracker.member_vars["num_dendrites_added"] > 0:
             _pai_log("info", "For improved results, try perforated backpropagation next time!")
+        if GPA.pai_tracker.member_vars["doing_pai"]:
+            # net still holds the dendrites that did not improve, one more than the best model.
+            dendrites_added = GPA.pai_tracker.member_vars["num_dendrites_added"] > 1
+            for suggestion in SPA.analyze_outcome(net, dendrites_added):
+                _pai_log("warning", f"Suggestion for your next run: {suggestion}")
 
         old_silent = GPA.pc.get_silent()
         GPA.pc.set_silent(True)
@@ -620,6 +631,39 @@ def process_final_network(net):
     return net
 
 
+_LR_SEARCH_PRE_SEARCH_COPY = "lr_search_pre_search"
+_LR_SEARCH_CANDIDATE_COPY = "lr_search_candidate"
+
+
+def _lr_search_best_model_paths(copy_name):
+    """(best_model, copy) path pairs for the standard and _pai checkpoints."""
+    folder = GPA.pc.get_save_name()
+    return [
+        (f"{folder}/best_model.pt", f"{folder}/{copy_name}_best_model.pt"),
+        (f"{folder}/best_model_pai.pt", f"{folder}/{copy_name}_best_model_pai.pt"),
+    ]
+
+
+def _lr_search_copy_best_model(copy_name, restore=False):
+    """Stash best_model into a named copy, or restore best_model from that copy."""
+    if "RANK" in os.environ and int(os.environ["RANK"]) != 0:
+        return
+    for best_path, copy_path in _lr_search_best_model_paths(copy_name):
+        src, dst = (copy_path, best_path) if restore else (best_path, copy_path)
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+
+
+def _lr_search_discard_best_model_copies():
+    """Delete the temporary best_model copies once the search no longer needs them."""
+    if "RANK" in os.environ and int(os.environ["RANK"]) != 0:
+        return
+    for copy_name in (_LR_SEARCH_PRE_SEARCH_COPY, _LR_SEARCH_CANDIDATE_COPY):
+        for _, copy_path in _lr_search_best_model_paths(copy_name):
+            if os.path.exists(copy_path):
+                os.remove(copy_path)
+
+
 def _lr_search_initialize():
     """Set up binary search state at the start of a new LR search cycle."""
     global _lr_search_session_initialized
@@ -641,6 +685,12 @@ def _lr_search_initialize():
     _lr_search_state["phase"] = "baseline"
     _lr_search_state["test_index"] = 0
     _lr_search_session_initialized = True
+
+    _lr_search_discard_best_model_copies()
+    if _lr_search_is_eligible():
+        # Every trial reloads the switch checkpoint's global best and can rewrite
+        # best_model.pt, so keep the pre-search file to reset to before each trial.
+        _lr_search_copy_best_model(_LR_SEARCH_PRE_SEARCH_COPY)
 
 
 def _lr_search_is_eligible():
@@ -684,6 +734,7 @@ def _lr_search_start_test_at_position(net, position):
     GPA.pai_tracker.clear_optimizer_and_scheduler()
     GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = position
     _lr_search_state["lr_steps_this_test"] = 0
+    _lr_search_copy_best_model(_LR_SEARCH_PRE_SEARCH_COPY, restore=True)
     net = UPA.load_system(
         net,
         GPA.pc.get_save_name(),
@@ -704,6 +755,7 @@ def _lr_search_save_candidate(net, position):
     label = f'lr_search_d{d}_{idx}_pos_{position}'
     if GPA.pc.get_test_saves():
         UPA.save_system(net, GPA.pc.get_save_name(), label)
+        _lr_search_copy_best_model(_LR_SEARCH_CANDIDATE_COPY)
     GPA.pai_tracker.save_graphs(f'_{label}')
     _lr_search_state["best_label"] = label
     _lr_search_state["test_index"] += 1
@@ -728,21 +780,24 @@ def _lr_search_commit_to_best(net):
     )
     # Read LR before clearing — optimizer is valid here; after the load it is an
     # empty-array placeholder until the caller reinitializes it.
-    for pg in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = pg["lr"]
-        break
+    GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = (
+        UPA.get_neuron_learning_rate(GPA.pai_tracker.member_vars["optimizer_instance"])
+    )
     GPA.pai_tracker.clear_optimizer_and_scheduler()
     GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = best_pos
     if GPA.pc.get_test_saves():
+        # Training continues from the chosen trial, so keep its best score.
         net = UPA.load_system(
             net,
             GPA.pc.get_save_name(),
             _lr_search_state["best_label"],
             switch_call=True,
+            reset_best_scores=False,
         )
         # Re-apply fields that the checkpoint restored to their pre-commit values
         GPA.pai_tracker.member_vars["current_n_learning_rate_initial_skip_steps"] = best_pos
         GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+        _lr_search_copy_best_model(_LR_SEARCH_CANDIDATE_COPY, restore=True)
         d = GPA.pai_tracker.member_vars["num_dendrites_added"]
         idx = _lr_search_state["test_index"]
         GPA.pai_tracker.save_graphs(f'_lr_search_d{d}_{idx}_pos_{best_pos}_chosen')
@@ -750,6 +805,7 @@ def _lr_search_commit_to_best(net):
         # Saves disabled: restart from switch point and fast-forward scheduler to best position
         net = _lr_search_start_test_at_position(net, best_pos)
         GPA.pai_tracker.member_vars["committed_to_initial_rate"] = True
+    _lr_search_discard_best_model_copies()
     return net
 
 
@@ -888,8 +944,9 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
     """
 
     restructured = False
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate1 = param_group["lr"]
+    learning_rate1 = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
 
     if (
         type(GPA.pai_tracker.member_vars["scheduler_instance"])
@@ -956,8 +1013,9 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
                 f"and current {epochs_since_cycle_switch}"
             )
 
-    for param_group in GPA.pai_tracker.member_vars["optimizer_instance"].param_groups:
-        learning_rate2 = param_group["lr"]
+    learning_rate2 = UPA.get_neuron_learning_rate(
+        GPA.pai_tracker.member_vars["optimizer_instance"]
+    )
 
     stepped = False
     at_last_count = False
@@ -1066,7 +1124,7 @@ def process_scheduler_update(net, accuracy, epochs_since_cycle_switch):
         GPA.pai_tracker.member_vars["last_max_learning_rate_steps"] += 1
         GPA.pai_tracker.member_vars["last_max_learning_rate_value"] = learning_rate2
     if restructured:
-        return NETWORK_RESTRUCTURED, net
+        return LR_SEARCH_OPT_RESET, net
     else:
         return NO_MODEL_UPDATE, net
 
@@ -1740,6 +1798,16 @@ class PAINeuronModuleTracker:
 
         except:
             pass
+        if GPA.pc.get_dendrite_lr_multiplier() != 1 and any(
+            any(PA.is_dendrite_parameter(p) for p in param_group["params"])
+            and not all(PA.is_dendrite_parameter(p) for p in param_group["params"])
+            for param_group in optimizer_instance.param_groups
+        ):
+            _pai_log(
+                "warning",
+                "dendrite_lr_multiplier is set, but the optimizer trains dendrites at the "
+                "learning rate of the neurons. Pass its params through UPA.get_parameter_groups",
+            )
         self.member_vars["optimizer_instance"] = optimizer_instance
         if GPA.pc.get_perforated_backpropagation():
             TPB.setup_optimizer_pb(self.member_vars["optimizer_instance"])
@@ -1805,10 +1873,9 @@ class PAINeuronModuleTracker:
         current_steps = 0
         current_ticker = 0
 
-        for param_group in GPA.pai_tracker.member_vars[
-            "optimizer_instance"
-        ].param_groups:
-            learning_rate1 = param_group["lr"]
+        learning_rate1 = UPA.get_neuron_learning_rate(
+            GPA.pai_tracker.member_vars["optimizer_instance"]
+        )
 
         if GPA.pc.get_verbose():
             print("Using scheduler:")
@@ -1842,10 +1909,9 @@ class PAINeuronModuleTracker:
             else:
                 self.member_vars["scheduler_instance"].step()
 
-            for param_group in GPA.pai_tracker.member_vars[
-                "optimizer_instance"
-            ].param_groups:
-                learning_rate2 = param_group["lr"]
+            learning_rate2 = UPA.get_neuron_learning_rate(
+                GPA.pai_tracker.member_vars["optimizer_instance"]
+            )
 
             if learning_rate2 != learning_rate1:
                 current_steps += 1
@@ -1934,6 +2000,10 @@ class PAINeuronModuleTracker:
                 # Handle generators or other iterables
                 opt_args["params"] = [p for p in params_value if p.requires_grad]
 
+        if "params" in opt_args:
+            opt_args["params"] = UPA.get_parameter_groups(
+                opt_args["params"], opt_args.get("lr")
+            )
         optimizer = self.member_vars["optimizer"](**opt_args)
         self.set_optimizer_instance(optimizer)
 
@@ -1967,10 +2037,9 @@ class PAINeuronModuleTracker:
                 )
             current_steps = 0
 
-            for param_group in GPA.pai_tracker.member_vars[
-                "optimizer_instance"
-            ].param_groups:
-                learning_rate1 = param_group["lr"]
+            learning_rate1 = UPA.get_neuron_learning_rate(
+                GPA.pai_tracker.member_vars["optimizer_instance"]
+            )
 
             if GPA.pc.get_verbose():
                 print(
@@ -3686,8 +3755,14 @@ class PAINeuronModuleTracker:
         # an identical architecture.  Rank 0's in-memory restructured model is
         # intentionally discarded here — the checkpoint is the authoritative copy.
         # switch_call=True: the snapshot was taken after start_epoch already ran.
+        # reset_best_scores=False: the snapshot already holds rank 0's final scores.
         inner = UPA.load_system(
-            inner, save_name, DDP_RESTRUCTURE_SYNC_LABEL, True, switch_call=True
+            inner,
+            save_name,
+            DDP_RESTRUCTURE_SYNC_LABEL,
+            True,
+            switch_call=True,
+            reset_best_scores=False,
         )
         inner = inner.to(device)
         # Remove the old DDP reducer's C++ backward hooks from the parameters before
@@ -3985,7 +4060,7 @@ class PAINeuronModuleTracker:
                     "[emitter/finding4] emit_epoch: "
                     f"epoch_index={_epoch_index} "
                     f'true_epoch={_mv["num_epochs_run"]} '
-                    f'restructured={restructuring_status_value == NETWORK_RESTRUCTURED} '
+                    f'restructured={restructuring_status_value != NO_MODEL_UPDATE} '
                     f'tail_accuracies={_mv["accuracies"][-4:]}',
                 )
             # Phase captured at the top of the method (pre-switch), matching the
@@ -4058,7 +4133,7 @@ class PAINeuronModuleTracker:
             )
 
         # Always False for training complete if nothing triggered that training is over
-        return net, restructuring_status_value, False
+        return net, restructuring_status_value != NO_MODEL_UPDATE, False
 
     def clear_all_processors(self):
         """Clear all processors from modules.

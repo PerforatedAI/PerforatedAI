@@ -137,7 +137,7 @@ In additional to the above which will be added to the graph you may want to save
 
 ## 5 - Training Loop Modification
 
-The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.  E.g.:
+The pai_tracker will tell you when the program should be stopped by returning training_complete as true.  This occurs when a set of dendrites has been added which does not improve the validation score.  At this time the previous best network is loaded and returned.  Before that, PAI looks at the dendrites that did not help and at the results of the run, and prints a "Suggestion for your next run" warning when it finds a setting to change, such as a dendrite_lr_multiplier that is too small.  Because this happens automatically you should change your training loop to be a while(True) loop or set epochs to be a very high number.  Be careful if this has impact on your learning rate etc.  E.g.:
 
     for epoch in range(1, args.epochs + 1):
     ->

@@ -10,9 +10,6 @@ import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
-import types
-from importlib.machinery import SourceFileLoader
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -23,37 +20,9 @@ from torch.utils.data import DataLoader, Dataset
 
 CURRENT_DIR = Path(__file__).resolve().parent
 
-
-# Search upward 
-def _find_repo_root(start: Path) -> Path:
-    for candidate in [start] + list(start.parents):
-        direct = candidate / "perforatedai" / "__init__.py"
-        if direct.exists():
-            return candidate
-        alt = candidate / "PerforatedAI"
-        if (alt / "perforatedai" / "__init__.py").exists():
-            return alt
-    raise FileNotFoundError(
-        f"Could not locate the local 'perforatedai' package when starting from {start}"
-    )
-
-
-REPO_ROOT = _find_repo_root(CURRENT_DIR)
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+# Sibling modules (metrics, param_count); perforatedai comes from the installed package.
 if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))
-
-module_key = "perforatedai"
-module_path = REPO_ROOT / "perforatedai" / "__init__.py"
-if module_key in sys.modules:
-    del sys.modules[module_key]
-loader = SourceFileLoader(module_key, str(module_path))
-module = types.ModuleType(loader.name)
-module.__file__ = loader.path
-module.__path__ = [str(module_path.parent)]
-sys.modules[module_key] = module
-loader.exec_module(module)
 
 from metrics import accuracy_score, auc_score, f1_score_binary
 from param_count import count_params

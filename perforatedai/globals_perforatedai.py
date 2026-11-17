@@ -528,6 +528,8 @@ class PAIConfig:
         Ensure search lowers learning rate at least once.
     lr_binary_search_max_depth : int
         Maximum binary search depth for LR sweep (default 4).
+    dendrite_lr_multiplier : float
+        Learning rate multiplier for dendrite weights and their output weights.
     max_dendrite_tries : int
         Maximum attempts to add dendrites with random initializations.
     max_dendrites : int
@@ -635,6 +637,7 @@ class PAIConfig:
             for k in (
                 "improvement_threshold_raw",
                 "candidate_weight_initialization_multiplier",
+                "dendrite_lr_multiplier",
             )
         },
         **{
@@ -1002,6 +1005,15 @@ class PAIConfig:
                 self,
                 "lr_binary_search_max_depth",
                 self.lr_binary_search_max_depth,
+            )
+            # Dendrites and their output weights train at the optimizer's learning rate
+            # times this. Their output weights start at 0, so with a small learning
+            # rate, such as when fine-tuning, new dendrites barely change the network.
+            # Applied by setup_optimizer, or by passing the optimizer's params
+            # through UPA.get_parameter_groups when using set_optimizer_instance.
+            self.dendrite_lr_multiplier = 1.0
+            add_pai_config_var_functions(
+                self, "dendrite_lr_multiplier", self.dendrite_lr_multiplier
             )
             # Whether a higher validation score is better (True) or lower is better (False).
             self.maximizing_score = True
@@ -1589,9 +1601,14 @@ class PAIConfig:
     def sync_config_sources(self):
         """Load config values from configured local JSON sources.
 
-        Load order:
-        1. config_file pointer (if set)
-        2. run config derived from save_name (if present)
+        Load order (later sources override earlier ones):
+        1. run config derived from save_name (if present)
+        2. config_file pointer (if set)
+
+        An explicitly supplied config_file is therefore the highest-priority
+        file source: it wins over a stale run config left in the save_name
+        folder by a previous run. With no config_file set, the run config is
+        the only file source.
 
         Keys set manually in this process are never overwritten.
         """
@@ -1611,10 +1628,10 @@ class PAIConfig:
         config_file = self.__dict__.get("_config_file")
         run_config = self.get_run_config_path()
 
-        if config_file and os.path.exists(config_file):
-            self.load_config(config_file, skip_keys=skip_keys)
         if run_config and os.path.exists(run_config):
             self.load_config(run_config, skip_keys=skip_keys)
+        if config_file and os.path.exists(config_file):
+            self.load_config(config_file, skip_keys=skip_keys)
         self._merge_python_supplied(merge_keys)
 
     def get_python_supplied(self, var_name):
@@ -1826,10 +1843,14 @@ try:
 
     print("Building dendrites with Perforated Backpropagation")
 
+    # Set these as defaults without marking them as manually set so that a
+    # config JSON with perforated_backpropagation=false can still override them.
+    pc.__dict__["_loading_config_values"] = True
     pc.set_perforated_backpropagation(True)
     # This is default to True for open source version
     # But defaults to False for perforated backpropagation
     pc.set_no_extra_n_modes(False)
+    pc.__dict__["_loading_config_values"] = False
 
     # Loop through the vars module's attributes and add them dynamically
     for var_name in dir(perforatedbp_globals):

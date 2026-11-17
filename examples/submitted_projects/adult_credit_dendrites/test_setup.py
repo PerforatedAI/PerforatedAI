@@ -7,41 +7,14 @@ from __future__ import annotations
 import types
 import sys
 from pathlib import Path
-from importlib.machinery import SourceFileLoader
 
 import torch
 
 THIS_DIR = Path(__file__).resolve().parent
 
-
-
-def _find_repo_root(start: Path) -> Path:
-    for candidate in [start] + list(start.parents):
-        direct = candidate / "perforatedai" / "__init__.py"
-        if direct.exists():
-            return candidate
-        alt = candidate / "PerforatedAI"
-        if (alt / "perforatedai" / "__init__.py").exists():
-            return alt
-    raise FileNotFoundError(
-        f"Could not locate the local 'perforatedai' package when starting from {start}"
-    )
-
-
-REPO_ROOT = _find_repo_root(THIS_DIR)
-for path in {str(REPO_ROOT), str(THIS_DIR)}:
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-module_key = "perforatedai"
-if module_key in sys.modules:
-    del sys.modules[module_key]
-loader = SourceFileLoader(module_key, str(REPO_ROOT / "perforatedai" / "__init__.py"))
-module = types.ModuleType(loader.name)
-module.__file__ = loader.path
-module.__path__ = [str((REPO_ROOT / "perforatedai").resolve())]
-sys.modules[module_key] = module
-loader.exec_module(module)
+# Sibling module (train); perforatedai comes from the installed package.
+if str(THIS_DIR) not in sys.path:
+    sys.path.insert(0, str(THIS_DIR))
 
 from train import AdultMLP, prepare_dendritic_model
 
